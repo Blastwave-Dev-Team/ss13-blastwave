@@ -10,11 +10,17 @@
 //   * Web-spinning + cocoon innate actions replaced with the modern
 //     TRAIT_WEB_WEAVER + TRAIT_WEB_SURFER traits which already cover the
 //     in-engine sticky-web interactions (see code/game/objects/effects/spiderwebs.dm).
+//     Re-introducing innate web/cocoon spinning would be a follow-up PR.
 //   * Flyswatter weakness migrated from `check_species_weakness` to the
 //     COMSIG_ATOM_ATTACKBY signal hook used by /datum/species/moth and
 //     /datum/species/fly.
-//   * Modern `get_species_description` / `get_species_lore` / perks pipeline
-//     used in place of the bare `loreblurb` var.
+//   * Pesticide weakness intentionally NOT given a custom override - the base
+//     /datum/reagent/toxin/pestkiller already deals tox damage to MOB_BUG mobs.
+//   * Modern `get_species_description` / `get_species_lore` /
+//     `get_physical_attributes` / perks pipeline used in place of the bare
+//     `loreblurb` var.
+//   * WS-era species-level `liked_food`/`disliked_food`/`toxic_food` moved onto
+//     /obj/item/organ/tongue/spider as the modern foodtype bitfields.
 // =============================================================================
 
 /mob/living/carbon/human/species/arachnid
@@ -29,13 +35,23 @@
 		TRAIT_CAN_STRIP,
 		TRAIT_LITERATE,
 		TRAIT_MUTANT_COLORS,
+		TRAIT_NO_UNDERWEAR,
 		TRAIT_WEB_WEAVER,
 		TRAIT_WEB_SURFER,
 	)
+	// MOB_BUG is what causes pestkiller to deal extra tox damage in
+	// /datum/reagent/toxin/pestkiller/on_mob_life - no species-specific override needed.
 	inherent_biotypes = MOB_ORGANIC|MOB_HUMANOID|MOB_BUG
 	meat = /obj/item/food/meat/slab/spider
 	mutanteyes = /obj/item/organ/eyes/night_vision/spider
 	mutanttongue = /obj/item/organ/tongue/spider
+	// Reuse the existing roach DNA-infuser organs for chitinous guts.
+	// Stomach: ignores disgust, slightly worse reagent absorption, hungrier.
+	// Liver:   higher tox tolerance but doubles tox damage if it gets through.
+	// Appendix: cannot become inflamed.
+	mutantstomach = /obj/item/organ/stomach/roach
+	mutantliver = /obj/item/organ/liver/roach
+	mutantappendix = /obj/item/organ/appendix/roach
 	species_language_holder = /datum/language_holder/arachnid
 	changesource_flags = MIRROR_BADMIN | WABBAJACK | MIRROR_MAGIC | MIRROR_PRIDE | ERT_SPAWN | RACE_SWAP | SLIME_EXTRACT
 	payday_modifier = 1.0
@@ -54,6 +70,11 @@
 	return "Arachnids are a competitive, hardworking offshoot of arthropoid life that have integrated themselves \
 		into Nanotrasen's workforce in steadily growing numbers. Their males are diligent and well-tempered employees, \
 		while their voracious females remain largely independent of the wider galactic order."
+
+/datum/species/arachnid/get_physical_attributes()
+	return "Arachnids have basic low-light vision but are easily flashed, and a chitinous bug physiology - \
+		hardier guts but a violent reaction to pesticides and flyswatters. They prefer raw meat and find most \
+		vegetable matter, dairy, and cloth outright toxic."
 
 /datum/species/arachnid/get_species_lore()
 	return list(
@@ -102,6 +123,19 @@
 			SPECIES_PERK_NAME = "Splat Risk",
 			SPECIES_PERK_DESC = "Arachnids take massively increased damage from flyswatters.",
 		),
+		list(
+			SPECIES_PERK_TYPE = SPECIES_NEGATIVE_PERK,
+			SPECIES_PERK_ICON = FA_ICON_SPRAY_CAN,
+			SPECIES_PERK_NAME = "Pesticide Aversion",
+			SPECIES_PERK_DESC = "As bug-biotype creatures, Arachnids take heavy toxin damage from pest killer reagents.",
+		),
+		list(
+			SPECIES_PERK_TYPE = SPECIES_NEUTRAL_PERK,
+			SPECIES_PERK_ICON = FA_ICON_BUG,
+			SPECIES_PERK_NAME = "Chitinous Guts",
+			SPECIES_PERK_DESC = "Roach-like internal organs let Arachnids ignore disgust and shrug off appendicitis, but their \
+				livers double the damage of any toxins that slip past them - and they get hungry fast.",
+		),
 	)
 	return to_add
 
@@ -118,7 +152,12 @@
 
 /datum/species/arachnid/randomize_features()
 	var/list/features = ..()
-	features[FEATURE_MUTANT_COLOR] = pick("#00FF00", "#3DAB1F", "#7FBF34", "#1F6E0E")
+	// Future-proofs against multi-color sprite variants by seeding all three slots
+	// the way akula/tajaran do, even if our current accessories only sample COLOR.
+	var/picked_color = pick("#00FF00", "#3DAB1F", "#7FBF34", "#1F6E0E")
+	features[FEATURE_MUTANT_COLOR] = picked_color
+	features[FEATURE_MUTANT_COLOR_TWO] = picked_color
+	features[FEATURE_MUTANT_COLOR_THREE] = picked_color
 	return features
 
 // Random Arachnid name helper (kept as a /proc/ for legacy callers; the species

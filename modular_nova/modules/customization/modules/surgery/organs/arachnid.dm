@@ -12,11 +12,18 @@
 	high_light_cutoff = list(30, 35, 50)
 
 /// Inner mandibles tongue - allows speaking the racial languages.
+/// Foodtype bitfields here are the modern equivalent of the WS-era
+/// `liked_food` / `disliked_food` / `toxic_food` species vars; they drive both
+/// food reactions when eating and the diet card in the prefs UI via
+/// /datum/species/get_species_diet().
 /obj/item/organ/tongue/spider
 	name = "inner mandible"
 	desc = "A set of soft, spoon-esque mandibles closer to the mouth opening, that allow for basic speech and the ability to speak Rachnidian."
 	say_mod = "chitters"
 	taste_sensitivity = 25 // bug-style chemoreception, slightly sharper than the human default
+	liked_foodtypes = MEAT | RAW
+	disliked_foodtypes = FRUIT | GROSS
+	toxic_foodtypes = VEGETABLES | DAIRY | CLOTH
 
 /obj/item/organ/tongue/spider/get_possible_languages()
 	return ..() + list(
