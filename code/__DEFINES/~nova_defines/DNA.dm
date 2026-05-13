@@ -59,6 +59,9 @@
 #define ORGAN_SLOT_EXTERNAL_TAUR FEATURE_TAUR
 #define ORGAN_SLOT_EXTERNAL_XENODORSAL FEATURE_XENODORSAL
 #define ORGAN_SLOT_EXTERNAL_XENOHEAD FEATURE_XENOHEAD
+#define ORGAN_SLOT_EXTERNAL_SPIDER_LEGS FEATURE_SPIDER_LEGS
+#define ORGAN_SLOT_EXTERNAL_SPIDER_SPINNERET FEATURE_SPIDER_SPINNERET
+#define ORGAN_SLOT_EXTERNAL_SPIDER_MANDIBLES FEATURE_SPIDER_MANDIBLES
 
 //Defines for an accessory to be randomed
 #define ACC_RANDOM		"random"
@@ -104,6 +107,13 @@
 #define FEATURE_NECK_ACCESSORY "neck_acc"
 #define FEATURE_GHOUL_COLOR "ghoulcolor"
 #define FEATURE_WINGS_FUNCTIONAL "wings_functional"
+
+// Arachnid features. The string values must match the icon-state prefix in the
+// corresponding .dmi files (e.g. "m_spider_legs_plain_BEHIND") so that
+// /datum/bodypart_overlay/mutant/get_image() resolves them correctly.
+#define FEATURE_SPIDER_LEGS "spider_legs"
+#define FEATURE_SPIDER_SPINNERET "spider_spinneret"
+#define FEATURE_SPIDER_MANDIBLES "spider_mandibles"
 
 // Synth parts
 #define FEATURE_SYNTH_ANTENNA "ipc_antenna"
@@ -180,6 +190,8 @@
 #define SPECIES_RAMATAE "ramatan"
 #define SPECIES_SHADEKIN "shadekin"
 #define SPECIES_INSECTOID "insectoid"
+/// "rachnid" preserves backwards compatibility with the original Whitesands species id.
+#define SPECIES_ARACHNID "rachnid"
 
 #define SPECIES_MUTANT "mutant"
 #define SPECIES_MUTANT_INFECTIOUS "infectious_mutant"
