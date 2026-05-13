@@ -7,10 +7,11 @@
 //     external organs + sprite_accessory subtypes registered through
 //     SSaccessories (see modules/surgery/organs/arachnid.dm and
 //     modules/mob/dead/new_player/sprite_accessories/species/arachnid.dm).
-//   * Web-spinning + cocoon innate actions replaced with the modern
-//     TRAIT_WEB_WEAVER + TRAIT_WEB_SURFER traits which already cover the
-//     in-engine sticky-web interactions (see code/game/objects/effects/spiderwebs.dm).
-//     Re-introducing innate web/cocoon spinning would be a follow-up PR.
+//   * Web-walking and web-salvaging covered by the modern TRAIT_WEB_SURFER /
+//     TRAIT_WEB_WEAVER traits (see code/game/objects/effects/spiderwebs.dm).
+//   * Active web/cocoon spinning is granted by the spinneret organ as
+//     /datum/action/cooldown/mob_cooldown/{lay_web,wrap}/arachnid - lose the
+//     spinneret, lose the abilities. See surgery/organs/arachnid_silk.dm.
 //   * Flyswatter weakness migrated from `check_species_weakness` to the
 //     COMSIG_ATOM_ATTACKBY signal hook used by /datum/species/moth and
 //     /datum/species/fly.
@@ -96,8 +97,14 @@
 		list(
 			SPECIES_PERK_TYPE = SPECIES_POSITIVE_PERK,
 			SPECIES_PERK_ICON = FA_ICON_SPIDER,
-			SPECIES_PERK_NAME = "Web Weaver",
+			SPECIES_PERK_NAME = "Web Walker",
 			SPECIES_PERK_DESC = "Arachnids walk through sticky spider webs without getting caught and can salvage existing webs into raw cloth.",
+		),
+		list(
+			SPECIES_PERK_TYPE = SPECIES_POSITIVE_PERK,
+			SPECIES_PERK_ICON = FA_ICON_SPIDER,
+			SPECIES_PERK_NAME = "Silk Spinner",
+			SPECIES_PERK_DESC = "A working spinneret organ grants two abilities: spin a sticky web on your tile, or wrap an adjacent target into a cocoon. Both cost a long uninterrupted weave AND a chunk of nutrition - moving cancels the weave. Lose the spinneret, lose the abilities.",
 		),
 		list(
 			SPECIES_PERK_TYPE = SPECIES_POSITIVE_PERK,

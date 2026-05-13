@@ -63,6 +63,10 @@
 	return TRUE
 
 /// === SPIDER SPINNERET - rear-mounted silk-spinning organ ===
+/// Grants the silk abilities (Spin Web, Spin Cocoon) via the standard organ
+/// `actions` list pipeline - the base /obj/item/organ/on_mob_insert iterates
+/// the actions list and calls Grant() on each one, and on_mob_remove does the
+/// inverse. See arachnid_silk.dm for the action definitions.
 /obj/item/organ/spider_spinneret
 	name = "spinneret"
 	desc = "A bulbous, silk-spinning organ. Smells faintly sweet."
@@ -73,6 +77,11 @@
 	mutantpart_key = FEATURE_SPIDER_SPINNERET
 	bodypart_overlay = /datum/bodypart_overlay/mutant/spider_spinneret
 	organ_flags = parent_type::organ_flags | ORGAN_EXTERNAL
+
+/obj/item/organ/spider_spinneret/Initialize(mapload)
+	. = ..()
+	add_item_action(/datum/action/cooldown/mob_cooldown/lay_web/arachnid)
+	add_item_action(/datum/action/cooldown/mob_cooldown/wrap/arachnid)
 
 /datum/bodypart_overlay/mutant/spider_spinneret
 	layers = EXTERNAL_FRONT

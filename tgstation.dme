@@ -8330,6 +8330,7 @@
 #include "modular_nova\modules\customization\modules\surgery\bodyparts\parts.dm"
 #include "modular_nova\modules\customization\modules\surgery\bodyparts\robot_bodyparts.dm"
 #include "modular_nova\modules\customization\modules\surgery\organs\arachnid.dm"
+#include "modular_nova\modules\customization\modules\surgery\organs\arachnid_silk.dm"
 #include "modular_nova\modules\customization\modules\surgery\organs\cap.dm"
 #include "modular_nova\modules\customization\modules\surgery\organs\ears.dm"
 #include "modular_nova\modules\customization\modules\surgery\organs\eyes.dm"
