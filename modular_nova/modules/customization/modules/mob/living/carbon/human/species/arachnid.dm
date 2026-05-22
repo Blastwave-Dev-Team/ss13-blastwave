@@ -56,6 +56,16 @@
 	species_language_holder = /datum/language_holder/arachnid
 	changesource_flags = MIRROR_BADMIN | WABBAJACK | MIRROR_MAGIC | MIRROR_PRIDE | ERT_SPAWN | RACE_SWAP | SLIME_EXTRACT
 	payday_modifier = 1.0
+	// Replaces the default human limbs with the WS rachnid_*_* sprites in
+	// modular_nova/modules/bodyparts/icons/rachnid_parts_greyscale.dmi.
+	bodypart_overrides = list(
+		BODY_ZONE_HEAD = /obj/item/bodypart/head/arachnid,
+		BODY_ZONE_CHEST = /obj/item/bodypart/chest/arachnid,
+		BODY_ZONE_L_ARM = /obj/item/bodypart/arm/left/arachnid,
+		BODY_ZONE_R_ARM = /obj/item/bodypart/arm/right/arachnid,
+		BODY_ZONE_L_LEG = /obj/item/bodypart/leg/left/arachnid,
+		BODY_ZONE_R_LEG = /obj/item/bodypart/leg/right/arachnid,
+	)
 
 /datum/species/arachnid/get_default_mutant_bodyparts()
 	return list(
