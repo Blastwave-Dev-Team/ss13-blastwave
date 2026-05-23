@@ -1,3 +1,4 @@
+/*
 /datum/supply_pack/companies/mags_and_ammo
 	group = "★ Magazines and Ammo"
 	discountable = SUPPLY_PACK_NOT_DISCOUNTABLE
@@ -319,6 +320,7 @@
 	cost = CARGO_CRATE_VALUE * 1.5
 	auto_name = FALSE
 
+
 // Donk
 
 /datum/supply_pack/companies/mags_and_ammo/donk/foamforce_ammo
@@ -328,9 +330,11 @@
 	contains = list(/obj/item/ammo_box/foambox)
 	cost = CARGO_CRATE_VALUE * 0.2
 
+
 /datum/supply_pack/companies/mags_and_ammo/donk/foamforce_ammo/riot_darts
 	contains = list(/obj/item/ammo_box/foambox/riot)
 	cost = CARGO_CRATE_VALUE * 0.75
+
 
 /datum/supply_pack/companies/mags_and_ammo/donk/foamforce_ammo/pistol_mag
 	contains = list(/obj/item/ammo_box/magazine/toy/pistol)
@@ -343,3 +347,4 @@
 
 /datum/supply_pack/companies/mags_and_ammo/donk/foamforce_ammo/m762_mag
 	contains = list(/obj/item/ammo_box/magazine/toy/m762)
+*/ //BLASTWAVE EDIT - Removes Guncargo for now.

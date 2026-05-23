@@ -65,7 +65,7 @@
 
 /datum/supply_pack/companies/apparel/sol_fed/hecu_mask
 	contains = list(/obj/item/clothing/mask/gas/hecu)
-
+/*
 /datum/supply_pack/companies/apparel/sol_fed/small_case
 	cost = CARGO_CRATE_VALUE * 0.5
 
@@ -141,7 +141,7 @@
 /datum/supply_pack/companies/apparel/vitezstvi/pouch
 	contains = list(/obj/item/storage/pouch/ammo)
 	cost = CARGO_CRATE_VALUE
-
+*/ // BLASTWAVE EDIT - No reason to still have holsters and ammo pouches buyable if we're removing Guncargo- these may eventually all get moved to be security-buyable.
 // HC
 
 /datum/supply_pack/companies/apparel/hc_surplus

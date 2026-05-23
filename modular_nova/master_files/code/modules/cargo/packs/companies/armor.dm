@@ -1,3 +1,4 @@
+/*
 /datum/supply_pack/companies/armor
 	group = "★ Armors and Uniforms"
 	discountable = SUPPLY_PACK_NOT_DISCOUNTABLE
@@ -171,4 +172,4 @@
 
 /datum/supply_pack/companies/armor/donk/fake_syndie_suit
 	contains = list(/obj/item/storage/box/fakesyndiesuit)
-
+*/ //BLASTWAVE EDIT - Guncargo also means Armorcargo. Also, yes, I know this removes some uniforms, too. Those will eventually be moved to apparel.dm within this folder, most likely.

@@ -1,0 +1,5 @@
+author: "afaenamednoah"
+delete-after: True
+changes:
+  - rscadd: "The Returned, a generic undead race."
+  - config: "changed game_options.txt to include the Returned at roundstart."

@@ -1,3 +1,4 @@
+/*
 /datum/supply_pack/companies/modsuits
 	group = "★ Mods and Modsuits"
 	discountable = SUPPLY_PACK_NOT_DISCOUNTABLE
@@ -242,3 +243,4 @@
 /datum/supply_pack/companies/modsuits/anomalock/teleporter
 	contains = list(/obj/item/mod/module/anomaly_locked/teleporter/commercial)
 	cost = CARGO_CRATE_VALUE * 10
+*/ //BLASTWAVE EDIT - Okay, this... technically isn't guncargo but INTERACT WITH SCIENCE DAMN YOU.

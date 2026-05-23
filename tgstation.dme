@@ -8293,6 +8293,7 @@
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\mushpeople.dm"
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\placeholder_helper.dm"
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\podweak.dm"
+#include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\returned.dm"
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\roundstartslime.dm"
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\shadekin.dm"
 #include "modular_nova\modules\customization\modules\mob\living\carbon\human\species\skrell.dm"
