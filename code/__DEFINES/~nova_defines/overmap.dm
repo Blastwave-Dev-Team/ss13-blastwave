@@ -45,3 +45,40 @@
 #define DYNAMIC_WORLD_ICE "ice"
 #define DYNAMIC_WORLD_JUNGLE "jungle"
 #define DYNAMIC_WORLD_SAND "sand"
+
+// --- Physics constants ---
+
+/// Physics tick rate in deciseconds. 2.5ds = 0.25s = 4Hz.
+#define OVERMAP_PHYSICS_WAIT 2.5
+
+/// Max pixel displacement per physics tick. Prevents ships from clipping
+/// through edge turfs. Must be less than ICON_SIZE_ALL (32) to guarantee
+/// no tile-skipping. 16px/tick at 4Hz = 2 tiles/sec max per axis.
+#define OVERMAP_INTERPOLATE_LIMIT 16
+
+/// Velocity epsilon: below this threshold, consider the ship stopped.
+#define OVERMAP_VELOCITY_EPSILON 0.001
+
+/// Gravitational constant for ISP/escape velocity calculations.
+#define OVERMAP_G0 9.8
+
+/// Max ship speed in tiles/second.
+#define OVERMAP_MAX_SPEED 2
+
+/// Braking deceleration in tiles/second^2 when decelerating.
+#define OVERMAP_BRAKE_ACCEL 0.5
+
+/// Maneuverability: how quickly actual velocity converges on desired (0..1 per second).
+#define OVERMAP_MANEUVERABILITY 0.8
+
+// --- Ship control flags (bitfield) ---
+
+/// Ship can be operated from a helm console (ByondUi camera + TGUI).
+#define SHIP_CONTROL_CONSOLE (1<<0)
+/// Ship can be operated via NIF or neurohelm direct piloting.
+#define SHIP_CONTROL_DIRECT (1<<1)
+
+// --- Pilot traits (mutually exclusive paths) ---
+
+#define TRAIT_NIF_PILOTING "trait_nif_piloting"
+#define TRAIT_NEUROHELM_PILOTING "trait_neurohelm_piloting"

@@ -1,19 +1,12 @@
 // THIS IS A NOVA SECTOR UI FILE
-import {
-  Box,
-  Button,
-  ByondUi,
-  LabeledList,
-  NoticeBox,
-  ProgressBar,
-  Section,
-  Stack,
-  Table,
-} from 'tgui-core/components';
+import { useState } from 'react';
+import { ByondUi, NoticeBox, ProgressBar } from 'tgui-core/components';
 import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { NavBall } from './HelmConsole/NavBall';
+import './HelmConsole/helm-console.scss';
 
 type ShipInfo = {
   name: string;
@@ -49,7 +42,11 @@ type Data = {
   speed?: number;
   maxSpeed?: number;
   heading?: number;
-  eta?: number;
+  actual_angle?: number;
+  actual_speed?: number;
+  desired_angle?: number;
+  desired_throttle?: number;
+  station_keeping?: BooleanLike;
   x: number;
   y: number;
   state?: 'idle' | 'flying' | 'docking' | 'undocking';
@@ -57,357 +54,271 @@ type Data = {
   docked?: BooleanLike;
 };
 
-const DIRECTIONS = {
-  north: 1,
-  south: 2,
-  east: 4,
-  west: 8,
-  northeast: 1 + 4,
-  northwest: 1 + 8,
-  southeast: 2 + 4,
-  southwest: 2 + 8,
-};
-
-export const HelmConsole = (props) => {
-  const { data } = useBackend<Data>();
+export const HelmConsole = () => {
+  const { act, data } = useBackend<Data>();
   const { canFly, isViewer, mapRef } = data;
+  const [activeTab, setActiveTab] = useState<'status' | 'engines' | 'radar'>(
+    'status',
+  );
 
   return (
-    <Window width={870} height={708}>
-      <Window.Content>
-        <Stack fill>
-          <Stack.Item width="380px">
-            <Stack fill vertical>
-              {!!canFly && !isViewer && (
-                <Stack.Item>
-                  <ShipControlPanel />
-                </Stack.Item>
-              )}
-              {!!canFly && (
-                <Stack.Item>
-                  <VelocityPanel />
-                </Stack.Item>
-              )}
-              {!!canFly && (
-                <Stack.Item>
-                  <EnginesPanel />
-                </Stack.Item>
-              )}
-              <Stack.Item>
-                <ShipInfoPanel />
-              </Stack.Item>
-              <Stack.Item grow>
-                <RadarPanel />
-              </Stack.Item>
-            </Stack>
-          </Stack.Item>
-          <Stack.Item grow>
-            {mapRef ? (
-              <ByondUi
-                height="100%"
-                width="100%"
-                params={{ id: mapRef, type: 'map' }}
-              />
-            ) : (
-              <NoticeBox>
-                Helm not bound to any overmap object. Move it to a shuttle, or
-                set its target via VV.
-              </NoticeBox>
-            )}
-          </Stack.Item>
-        </Stack>
+    <Window width={900} height={720}>
+      <Window.Content className="HelmConsole">
+        <div className="HelmConsole__viewscreen">
+          {mapRef ? (
+            <ByondUi
+              height="100%"
+              width="100%"
+              params={{ id: mapRef, type: 'map' }}
+            />
+          ) : (
+            <NoticeBox>
+              Helm not bound to any overmap object. Move it to a shuttle, or
+              set its target via VV.
+            </NoticeBox>
+          )}
+        </div>
+        <div className="HelmConsole__console">
+          {!!canFly && !isViewer && (
+            <NavBall
+              actualAngle={data.actual_angle ?? 0}
+              actualSpeed={data.actual_speed ?? 0}
+              desiredAngle={data.desired_angle ?? 0}
+              desiredThrottle={data.desired_throttle ?? 0}
+              locked={!!data.station_keeping}
+              disabled={data.state !== 'flying'}
+              onSetDesired={(angle, throttle) =>
+                act('set_desired', { angle, throttle })
+              }
+              onAllStop={() => act('all_stop')}
+              onToggleLock={() => act('toggle_lock')}
+            />
+          )}
+          <div className="HelmConsole__panel">
+            <div className="HelmConsole__tabs">
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'status' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('status')}
+              >
+                Status
+              </button>
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'engines' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('engines')}
+              >
+                Engines
+              </button>
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'radar' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('radar')}
+              >
+                Radar
+              </button>
+            </div>
+            <div className="HelmConsole__tab-content">
+              {activeTab === 'status' && <StatusTab />}
+              {activeTab === 'engines' && <EnginesTab />}
+              {activeTab === 'radar' && <RadarTab />}
+            </div>
+          </div>
+        </div>
       </Window.Content>
     </Window>
   );
 };
 
-const ShipInfoPanel = () => {
+const StatusTab = () => {
   const { act, data } = useBackend<Data>();
-  const { isViewer, shipInfo } = data;
-  if (!shipInfo) {
-    return null;
-  }
+  const { shipInfo, state, docked, x, y } = data;
+  if (!shipInfo) return null;
+
+  const stateColor: Record<string, string> = {
+    idle: '#8cf',
+    flying: '#3dbc6a',
+    docking: '#e8b830',
+    undocking: '#e8b830',
+  };
+
   return (
-    <Section
-      title={shipInfo.name || 'Ship Info'}
-      buttons={
-        <Button
-          tooltip="Refresh ship binding"
-          icon="sync"
-          disabled={!!isViewer}
-          onClick={() => act('reload_ship')}
-        />
-      }
-    >
-      <LabeledList>
-        <LabeledList.Item label="Class">{shipInfo.class}</LabeledList.Item>
-        <LabeledList.Item label="Integrity">
-          <ProgressBar
-            ranges={{
-              good: [51, 100],
-              average: [26, 50],
-              bad: [0, 25],
-            }}
-            maxValue={100}
-            value={shipInfo.integrity}
-          />
-        </LabeledList.Item>
-        <LabeledList.Item label="Sensor Range">
-          {shipInfo.sensor_range}
-        </LabeledList.Item>
+    <>
+      <div className="HelmPanel__section">
+        <div className="HelmPanel__section-title">Ship Info</div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Name</span>
+          <span className="HelmPanel__value">{shipInfo.name}</span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Class</span>
+          <span className="HelmPanel__value">{shipInfo.class}</span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Integrity</span>
+          <span className="HelmPanel__value">
+            <ProgressBar
+              ranges={{
+                good: [51, 100],
+                average: [26, 50],
+                bad: [0, 25],
+              }}
+              maxValue={100}
+              value={shipInfo.integrity}
+            >
+              {Math.round(shipInfo.integrity)}%
+            </ProgressBar>
+          </span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Sensor Range</span>
+          <span className="HelmPanel__value">{shipInfo.sensor_range}</span>
+        </div>
         {shipInfo.mass !== undefined && (
-          <LabeledList.Item label="Mass">
-            {shipInfo.mass} tonnes
-          </LabeledList.Item>
+          <div className="HelmPanel__row">
+            <span className="HelmPanel__label">Mass</span>
+            <span className="HelmPanel__value">{shipInfo.mass} tonnes</span>
+          </div>
         )}
-      </LabeledList>
-    </Section>
-  );
-};
-
-const RadarPanel = () => {
-  const { act, data } = useBackend<Data>();
-  const { isViewer, otherInfo = [], state, stopped } = data;
-  const canAct = !isViewer && state === 'flying' && stopped;
-  return (
-    <Section title="Radar" fill scrollable>
-      {otherInfo.length === 0 ? (
-        <Box color="label">Nothing on this tile.</Box>
-      ) : (
-        <Table>
-          <Table.Row header>
-            <Table.Cell>Name</Table.Cell>
-            <Table.Cell>Integrity</Table.Cell>
-            {!isViewer && <Table.Cell collapsing>Act</Table.Cell>}
-          </Table.Row>
-          {otherInfo.map((ship) => (
-            <Table.Row key={ship.ref}>
-              <Table.Cell>{ship.name}</Table.Cell>
-              <Table.Cell>
-                {ship.integrity > 0 && (
-                  <ProgressBar
-                    ranges={{
-                      good: [51, 100],
-                      average: [26, 50],
-                      bad: [0, 25],
-                    }}
-                    maxValue={100}
-                    value={ship.integrity}
-                  />
-                )}
-              </Table.Cell>
-              {!isViewer && (
-                <Table.Cell collapsing>
-                  <Button
-                    tooltip="Dock here"
-                    icon="circle"
-                    disabled={!canAct}
-                    onClick={() =>
-                      act('act_overmap', { ship_to_act: ship.ref })
-                    }
-                  />
-                </Table.Cell>
-              )}
-            </Table.Row>
-          ))}
-        </Table>
-      )}
-    </Section>
-  );
-};
-
-const VelocityPanel = () => {
-  const { data } = useBackend<Data>();
-  const { speed, heading, x, y, eta } = data;
-  return (
-    <Section title="Velocity">
-      <LabeledList>
-        <LabeledList.Item label="Speed">
-          <ProgressBar
-            ranges={{
-              good: [0, 4],
-              average: [5, 6],
-              bad: [7, Infinity],
-            }}
-            maxValue={10}
-            value={speed ?? 0}
+        {shipInfo.est_thrust !== undefined && (
+          <div className="HelmPanel__row">
+            <span className="HelmPanel__label">Est. Thrust</span>
+            <span className="HelmPanel__value">{shipInfo.est_thrust}</span>
+          </div>
+        )}
+      </div>
+      <div className="HelmPanel__section">
+        <div className="HelmPanel__section-title">Flight</div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">State</span>
+          <span
+            className="HelmPanel__value"
+            style={{ color: stateColor[state ?? 'idle'] }}
           >
-            {Math.round((speed ?? 0) * 10) / 10} spM
-          </ProgressBar>
-        </LabeledList.Item>
-        <LabeledList.Item label="Heading">{heading ?? 0}</LabeledList.Item>
-        <LabeledList.Item label="Position">
-          X{x} / Y{y}
-        </LabeledList.Item>
-        <LabeledList.Item label="Next">
-          {eta && eta > 0 && eta < 10000 ? `${Math.round(eta / 10)}s` : 'N/A'}
-        </LabeledList.Item>
-      </LabeledList>
-    </Section>
+            {state ?? 'idle'}
+          </span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Position</span>
+          <span className="HelmPanel__value">
+            X{x} / Y{y}
+          </span>
+        </div>
+      </div>
+      {!!docked && state === 'idle' && (
+        <div className="HelmPanel__section">
+          <button
+            className="HelmPanel__btn HelmPanel__btn--danger"
+            style={{ width: '100%' }}
+            onClick={() => act('undock')}
+          >
+            Undock
+          </button>
+        </div>
+      )}
+    </>
   );
 };
 
-const EnginesPanel = () => {
+const EnginesTab = () => {
   const { act, data } = useBackend<Data>();
   const { isViewer, engineInfo = [] } = data;
+
   return (
-    <Section
-      title="Engines"
-      buttons={
-        <Button
-          tooltip="Refresh engine bindings"
-          icon="sync"
-          disabled={!!isViewer}
-          onClick={() => act('reload_engines')}
-        />
-      }
-    >
+    <div className="HelmPanel__section">
+      <div className="HelmPanel__section-title">Engines</div>
       {engineInfo.length === 0 ? (
-        <Box color="label">No engines connected.</Box>
+        <div className="HelmPanel__radar-empty">No engines connected.</div>
       ) : (
-        <Table>
-          <Table.Row header>
-            <Table.Cell>Engine</Table.Cell>
-            <Table.Cell>Fuel</Table.Cell>
-          </Table.Row>
-          {engineInfo.map((engine) => (
-            <Table.Row key={engine.ref}>
-              <Table.Cell collapsing>
-                <Button
-                  content={engine.name}
-                  color={engine.enabled ? 'good' : undefined}
-                  icon={engine.enabled ? 'toggle-on' : 'toggle-off'}
-                  disabled={!!isViewer}
-                  tooltip="Toggle engine"
-                  onClick={() =>
-                    act('toggle_engine', { engine: engine.ref })
-                  }
-                />
-              </Table.Cell>
-              <Table.Cell>
-                {engine.maxFuel > 0 && (
-                  <ProgressBar
-                    ranges={{
-                      good: [50, Infinity],
-                      average: [25, 50],
-                      bad: [-Infinity, 25],
+        engineInfo.map((engine) => (
+          <div className="HelmPanel__engine-row" key={engine.ref}>
+            <button
+              className={
+                'HelmPanel__engine-toggle' +
+                (engine.enabled ? ' HelmPanel__engine-toggle--on' : '')
+              }
+              disabled={!!isViewer}
+              onClick={() => act('toggle_engine', { engine: engine.ref })}
+            >
+              <span
+                className={
+                  'HelmPanel__engine-indicator' +
+                  (engine.enabled ? ' HelmPanel__engine-indicator--on' : '')
+                }
+              />
+              {engine.name}
+            </button>
+            <div className="HelmPanel__engine-fuel">
+              {engine.maxFuel > 0 && (
+                <div className="HelmPanel__bar">
+                  <div
+                    className={
+                      'HelmPanel__bar-fill ' +
+                      (engine.fuel / engine.maxFuel > 0.5
+                        ? 'HelmPanel__bar-fill--good'
+                        : engine.fuel / engine.maxFuel > 0.25
+                          ? 'HelmPanel__bar-fill--average'
+                          : 'HelmPanel__bar-fill--bad')
+                    }
+                    style={{
+                      width: `${(engine.fuel / engine.maxFuel) * 100}%`,
                     }}
-                    maxValue={engine.maxFuel}
-                    minValue={0}
-                    value={engine.fuel}
-                  >
+                  />
+                  <div className="HelmPanel__bar-text">
                     {Math.round((engine.fuel / engine.maxFuel) * 100)}%
-                  </ProgressBar>
-                )}
-              </Table.Cell>
-            </Table.Row>
-          ))}
-        </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))
       )}
-    </Section>
+      <button
+        className="HelmPanel__btn"
+        style={{ width: '100%', marginTop: '8px' }}
+        disabled={!!isViewer}
+        onClick={() => act('reload_engines')}
+      >
+        Refresh Engines
+      </button>
+    </div>
   );
 };
 
-const ShipControlPanel = () => {
+const RadarTab = () => {
   const { act, data } = useBackend<Data>();
-  const flyable = data.state === 'flying';
-  const idle = data.state === 'idle';
+  const { isViewer, otherInfo = [], state, stopped } = data;
+  const canDock = !isViewer && state === 'flying' && stopped;
+
   return (
-    <Section
-      title="Navigation"
-      buttons={
-        <Button
-          tooltip="Undock"
-          icon="sign-out-alt"
-          disabled={!idle}
-          onClick={() => act('undock')}
-        />
-      }
-    >
-      <Table>
-        <Table.Row>
-          <Table.Cell>
-            <Button
-              icon="arrow-left"
-              iconRotation={45}
-              disabled={!flyable}
-              onClick={() =>
-                act('change_heading', { dir: DIRECTIONS.northwest })
-              }
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              icon="arrow-up"
-              disabled={!flyable}
-              onClick={() => act('change_heading', { dir: DIRECTIONS.north })}
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              icon="arrow-right"
-              iconRotation={-45}
-              disabled={!flyable}
-              onClick={() =>
-                act('change_heading', { dir: DIRECTIONS.northeast })
-              }
-            />
-          </Table.Cell>
-        </Table.Row>
-        <Table.Row>
-          <Table.Cell>
-            <Button
-              icon="arrow-left"
-              disabled={!flyable}
-              onClick={() => act('change_heading', { dir: DIRECTIONS.west })}
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              tooltip="Stop"
-              icon="circle"
-              disabled={!!data.stopped || !flyable}
-              onClick={() => act('stop')}
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              icon="arrow-right"
-              disabled={!flyable}
-              onClick={() => act('change_heading', { dir: DIRECTIONS.east })}
-            />
-          </Table.Cell>
-        </Table.Row>
-        <Table.Row>
-          <Table.Cell>
-            <Button
-              icon="arrow-left"
-              iconRotation={-45}
-              disabled={!flyable}
-              onClick={() =>
-                act('change_heading', { dir: DIRECTIONS.southwest })
-              }
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              icon="arrow-down"
-              disabled={!flyable}
-              onClick={() => act('change_heading', { dir: DIRECTIONS.south })}
-            />
-          </Table.Cell>
-          <Table.Cell>
-            <Button
-              icon="arrow-right"
-              iconRotation={45}
-              disabled={!flyable}
-              onClick={() =>
-                act('change_heading', { dir: DIRECTIONS.southeast })
-              }
-            />
-          </Table.Cell>
-        </Table.Row>
-      </Table>
-    </Section>
+    <div className="HelmPanel__section">
+      <div className="HelmPanel__section-title">Contacts</div>
+      {otherInfo.length === 0 ? (
+        <div className="HelmPanel__radar-empty">No contacts on this tile.</div>
+      ) : (
+        otherInfo.map((contact) => (
+          <div className="HelmPanel__radar-item" key={contact.ref}>
+            <div>
+              <div className="HelmPanel__radar-name">{contact.name}</div>
+            </div>
+            <div className="HelmPanel__radar-actions">
+              <button
+                className="HelmPanel__btn"
+                disabled={!canDock}
+                onClick={() => act('dock', { target: contact.ref })}
+              >
+                Dock
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
   );
 };

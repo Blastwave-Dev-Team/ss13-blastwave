@@ -3,15 +3,6 @@
 // the simulated subtype is bound to a real `/obj/docking_port/mobile` and
 // tracks the shuttle's Z so the ship icon stays in sync when the shuttle is
 // moved by ANY system (helm, in-shuttle console, admin VV, etc).
-//
-// Movement procs (tick_move/accelerate/adjust_speed/etc) are added in M5;
-// the dock/undock/overmap_object_act flow is added in M6. M3 only needs the
-// position-tracking surface so SSovermap can iterate live shuttle ports at
-// roundstart and bind one icon per shuttle.
-
-#define SHIP_MOVE_RESOLUTION 0.00001
-#define MOVING(speed) (abs(speed) >= min_speed)
-#define OVERMAP_MAGNITUDE(a, b) (sqrt((a) * (a) + (b) * (b)))
 
 /// Anything on the overmap that's capable of self-propelled motion.
 /obj/structure/overmap/ship
@@ -21,144 +12,182 @@
 	icon_state = "ship"
 	base_icon_state = "ship"
 
-	// Movement state. Wiring lands in M5.
-	var/movement_callback_id
-	var/static/max_speed = 1/(1 SECONDS)
-	var/static/min_speed = 1/(2 MINUTES)
-	var/list/speed = list(0, 0)
+	/// Max speed in tiles/second.
+	var/max_speed = OVERMAP_MAX_SPEED
+	/// Desired heading angle in degrees (0=east, 90=north, math convention).
+	var/desired_angle = 0
+	/// Desired throttle 0..1 (fraction of max_speed).
+	var/desired_throttle = 0
+	/// Whether a heading has been set (FALSE = drifting/stopped).
+	var/has_heading = FALSE
+	/// Station-keeping mode active.
+	var/station_keeping = FALSE
+	/// Ship control flags (SHIP_CONTROL_CONSOLE, SHIP_CONTROL_DIRECT).
+	var/control_flags = SHIP_CONTROL_CONSOLE
 
 /obj/structure/overmap/ship/Destroy()
 	LAZYREMOVE(SSovermap.simulated_ships, src)
-	if(movement_callback_id)
-		deltimer(movement_callback_id)
-		movement_callback_id = null
+	SSovermap.moving -= src
 	return ..()
 
-/// Stop helper used in M5 by tick_move and dock transitions.
+/// Whether the ship is effectively stationary.
 /obj/structure/overmap/ship/proc/is_still()
-	return !MOVING(speed[1]) && !MOVING(speed[2])
+	return abs(vel_x) < OVERMAP_VELOCITY_EPSILON && abs(vel_y) < OVERMAP_VELOCITY_EPSILON
 
-/// Heading bitfield from current speed components.
+/// Whether any gravity well is currently influencing this ship.
+/obj/structure/overmap/ship/proc/has_gravity_influence()
+	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
+	var/ship_py = (y - 1) * ICON_SIZE_ALL + step_y
+	for(var/obj/structure/overmap/celestial/body as anything in SSovermap.gravity_wells)
+		var/dx = body.px - ship_px
+		var/dy = body.py - ship_py
+		if(dx * dx + dy * dy <= body.soi_sq)
+			return TRUE
+	return FALSE
+
+/// Current speed magnitude in tiles/second.
+/obj/structure/overmap/ship/proc/get_speed()
+	return sqrt(vel_x * vel_x + vel_y * vel_y)
+
+/// Heading in degrees (0-359, 0=north clockwise) from velocity vector.
+/obj/structure/overmap/ship/proc/get_heading_degrees()
+	if(is_still())
+		return 0
+	var/angle_rad = arctan(vel_x, vel_y)
+	var/degrees = angle_rad
+	if(degrees < 0)
+		degrees += 360
+	return round(degrees)
+
+/// Heading bitfield from current velocity components (for icon direction).
 /obj/structure/overmap/ship/proc/get_heading()
 	var/direction = 0
-	if(MOVING(speed[1]))
-		if(speed[1] > 0)
+	if(abs(vel_x) >= OVERMAP_VELOCITY_EPSILON)
+		if(vel_x > 0)
 			direction |= EAST
 		else
 			direction |= WEST
-	if(MOVING(speed[2]))
-		if(speed[2] > 0)
+	if(abs(vel_y) >= OVERMAP_VELOCITY_EPSILON)
+		if(vel_y > 0)
 			direction |= NORTH
 		else
 			direction |= SOUTH
 	return direction
 
-/// Estimated time-of-arrival to the next tile, in deciseconds. 0 if stopped.
-/obj/structure/overmap/ship/proc/get_eta()
-	if(!movement_callback_id)
-		return 0
-	return timeleft(movement_callback_id)
+/// Set the desired heading and throttle. Called from helm UI act("set_desired").
+/// angle is in degrees (math convention: 0=east, 90=north).
+/obj/structure/overmap/ship/proc/set_desired(angle, throttle)
+	desired_angle = angle
+	desired_throttle = clamp(throttle, 0, 1)
+	has_heading = desired_throttle > 0.01
+	if(has_heading && is_still())
+		activate_physics()
 
-/// Magnitude-derived speed in tiles-per-minute. 0 if effectively stopped.
-/obj/structure/overmap/ship/proc/get_speed()
+/// All-stop: zero throttle and clear heading.
+/obj/structure/overmap/ship/proc/all_stop()
+	desired_throttle = 0
+	has_heading = FALSE
+	station_keeping = FALSE
+
+/// Apply thrust in a given 8-direction. Converts direction to angle, sets
+/// desired heading and throttle. Used by legacy console directional buttons
+/// and relaymove from pilot link.
+/obj/structure/overmap/ship/proc/burn_direction(direction, thrust_fraction = 1)
+	if(!direction)
+		return
+	var/angle = dir_to_physics_angle(direction)
+	desired_angle = angle
+	desired_throttle = clamp(thrust_fraction, 0, 1)
+	has_heading = TRUE
 	if(is_still())
-		return 0
-	return 60 SECONDS / round(1 / OVERMAP_MAGNITUDE(speed[1], speed[2]), SHIP_MOVE_RESOLUTION)
+		activate_physics()
 
-/// Add to the ship's speed vector. Recomputes the next-tick timer cadence.
-/// `n_x` / `n_y` are absolute deltas (positive E/N, negative W/S).
-/obj/structure/overmap/ship/proc/adjust_speed(n_x, n_y)
-	var/offset = 1
-	if(movement_callback_id)
-		var/magnitude = OVERMAP_MAGNITUDE(speed[1], speed[2])
-		if(magnitude > SHIP_MOVE_RESOLUTION)
-			var/previous_time = round(1 / magnitude, SHIP_MOVE_RESOLUTION)
-			var/remaining = timeleft(movement_callback_id)
-			if(!isnull(remaining) && previous_time)
-				offset = remaining / previous_time
-		deltimer(movement_callback_id)
-		movement_callback_id = null
+/// Physics integration. Applies thrust toward desired velocity, integrates
+/// position. Called by SSovermap.fire() each tick.
+/obj/structure/overmap/ship/physics_tick(dt)
+	if(!has_heading && is_still() && !has_gravity_influence())
+		deactivate_physics()
+		update_icon_state()
+		return
 
-	speed[1] += n_x
-	speed[2] += n_y
+	var/target_vx = 0
+	var/target_vy = 0
+	if(has_heading)
+		target_vx = cos(desired_angle) * desired_throttle * max_speed
+		target_vy = sin(desired_angle) * desired_throttle * max_speed
+	else
+		target_vx = 0
+		target_vy = 0
 
-	var/new_mag = OVERMAP_MAGNITUDE(speed[1], speed[2])
-	if(new_mag > max_speed)
-		var/scale = max_speed / new_mag
-		speed[1] *= scale
-		speed[2] *= scale
+	var/maneuver = OVERMAP_MANEUVERABILITY * dt
+	vel_x += (target_vx - vel_x) * min(maneuver, 1)
+	vel_y += (target_vy - vel_y) * min(maneuver, 1)
 
+	// Gravity pass: apply gravitational acceleration from nearby bodies
+	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
+	var/ship_py = (y - 1) * ICON_SIZE_ALL + step_y
+	for(var/obj/structure/overmap/celestial/body as anything in SSovermap.gravity_wells)
+		var/dx = body.px - ship_px
+		var/dy = body.py - ship_py
+		var/dist_sq = dx * dx + dy * dy
+		if(dist_sq > body.soi_sq || dist_sq < 1)
+			continue
+		var/dist = sqrt(dist_sq)
+		var/accel = body.gravity_mass / dist_sq
+		// Convert pixel-space accel to tiles/second velocity change
+		vel_x += (dx / dist) * accel * dt / ICON_SIZE_ALL
+		vel_y += (dy / dist) * accel * dt / ICON_SIZE_ALL
+
+	// Station-keeping autopilot
+	if(station_keeping)
+		apply_station_keeping(dt)
+
+	var/speed = get_speed()
+	if(speed > max_speed)
+		var/scale = max_speed / speed
+		vel_x *= scale
+		vel_y *= scale
+
+	if(is_still() && !has_heading)
+		deactivate_physics()
+		update_icon_state()
+		return
+
+	..()
 	update_icon_state()
 
-	if(is_still() || QDELETED(src))
-		return
+/// Handle blocked movement by zeroing velocity on the blocked axis.
+/obj/structure/overmap/ship/on_physics_blocked(dx_px, dy_px)
+	if(abs(dx_px) > abs(dy_px))
+		vel_x = 0
+	else if(abs(dy_px) > abs(dx_px))
+		vel_y = 0
+	else
+		vel_x = 0
+		vel_y = 0
+	if(is_still())
+		has_heading = FALSE
 
-	var/timer = max(round(1 / OVERMAP_MAGNITUDE(speed[1], speed[2]) * offset, SHIP_MOVE_RESOLUTION), 1 / max_speed)
-	movement_callback_id = addtimer(CALLBACK(src, PROC_REF(tick_move)), timer, TIMER_STOPPABLE)
-
-/// Single-tile step in the current heading, then reschedule. Edge turfs
-/// halt via `Bump()`. M6's docking flow zeroes speed via `simulated/tick_move`
-/// when the ship has docked.
-/obj/structure/overmap/ship/proc/tick_move()
-	var/static/last_fire_time = 0
-	var/delta = world.time - last_fire_time
-	last_fire_time = world.time
-	var/mag = OVERMAP_MAGNITUDE(speed[1], speed[2])
-	log_game("OVERMAP TICK_MOVE: delta=[delta]ds speed=([speed[1]],[speed[2]]) mag=[mag]")
-	if(is_still() || QDELETED(src))
-		if(movement_callback_id)
-			deltimer(movement_callback_id)
-			movement_callback_id = null
-		return
-	var/turf/newloc = locate(x + sign(speed[1]), y + sign(speed[2]), z)
-	if(newloc)
-		Move(newloc)
-	if(is_still() || QDELETED(src))
-		if(movement_callback_id)
-			deltimer(movement_callback_id)
-			movement_callback_id = null
-		return
-	if(movement_callback_id)
-		deltimer(movement_callback_id)
-	var/timer = 1 / round(OVERMAP_MAGNITUDE(speed[1], speed[2]), SHIP_MOVE_RESOLUTION)
-	log_game("OVERMAP TICK_MOVE: scheduling next in [timer]ds")
-	movement_callback_id = addtimer(CALLBACK(src, PROC_REF(tick_move)), timer, TIMER_STOPPABLE)
-	update_screen()
-
-/// Add `acceleration` to the ship's speed in `direction`. Diagonals are
-/// halved so going NE isn't twice as efficient as going N.
-/obj/structure/overmap/ship/proc/accelerate(direction, acceleration)
-	if(!direction || !acceleration)
-		return
-	if(!(direction in GLOB.cardinals))
-		acceleration *= 0.5
-	if(direction & EAST)
-		adjust_speed(acceleration, 0)
-	if(direction & WEST)
-		adjust_speed(-acceleration, 0)
-	if(direction & NORTH)
-		adjust_speed(0, acceleration)
-	if(direction & SOUTH)
-		adjust_speed(0, -acceleration)
-
-/// Damp speed toward zero by up to `acceleration` per axis. If currently
-/// moving on both axes, the brake is split between them so the diagonal
-/// case isn't twice as effective as cardinal.
-/obj/structure/overmap/ship/proc/decelerate(acceleration)
-	if(!acceleration)
-		return
-	if(speed[1] && speed[2])
-		adjust_speed(-sign(speed[1]) * min(acceleration / 2, abs(speed[1])), -sign(speed[2]) * min(acceleration / 2, abs(speed[2])))
-	else if(speed[1])
-		adjust_speed(-sign(speed[1]) * min(acceleration, abs(speed[1])), 0)
-	else if(speed[2])
-		adjust_speed(0, -sign(speed[2]) * min(acceleration, abs(speed[2])))
-
-/// Edge tiles bump-stop. Wraparound is post-prototype polish.
-/obj/structure/overmap/ship/Bump(atom/A)
-	. = ..()
-	if(istype(A, /turf/open/overmap/edge))
-		decelerate(max_speed)
+/// Convert a BYOND 8-dir to physics angle in degrees (math convention: 0=east, 90=north).
+/obj/structure/overmap/ship/proc/dir_to_physics_angle(dir)
+	switch(dir)
+		if(EAST)
+			return 0
+		if(NORTH)
+			return 90
+		if(WEST)
+			return 180
+		if(SOUTH)
+			return 270
+		if(NORTHEAST)
+			return 45
+		if(NORTHWEST)
+			return 135
+		if(SOUTHWEST)
+			return 225
+		if(SOUTHEAST)
+			return 315
+	return 0
 
 /obj/structure/overmap/ship/update_icon_state()
 	if(!is_still())
@@ -181,15 +210,13 @@
 /obj/structure/overmap/ship/simulated
 	render_map = TRUE
 
-	/// IDLE / FLYING / DOCKING / UNDOCKING. M5 transitions IDLE <-> FLYING
-	/// via undock/stop; M6 transitions through DOCKING.
+	/// IDLE / FLYING / DOCKING / UNDOCKING.
 	var/state = OVERMAP_SHIP_IDLE
 	/// The overmap object the ship is currently parked at, if any.
 	var/obj/structure/overmap/docked
 	/// The bound mobile docking port this icon represents.
 	var/obj/docking_port/mobile/shuttle
-	/// Estimated thrust from the shuttle's engine_list. Recomputed in M5
-	/// burn_engines hook.
+	/// Estimated thrust from the shuttle's engine_list.
 	var/est_thrust
 	/// Approximate mass derived from `shuttle.shuttle_areas` turf count.
 	var/mass
@@ -209,11 +236,7 @@
 		docked = loc
 
 /// Idempotently apply the post-undock state machine: mass + engines + fuel
-/// recomputed, icon refreshed. Safe to call before `linkup()` has connected
-/// engines (mass is derived from `shuttle_areas` turf count, not engine_list)
-/// and again after engines are connected so the cached `est_thrust` /
-/// `avg_fuel_amnt` reflect reality. Used both from `complete_undock()` and
-/// from the spawn-in-transit path so the helm is fly-ready immediately.
+/// recomputed, icon refreshed.
 /obj/structure/overmap/ship/simulated/proc/prepare_for_flight()
 	calculate_mass()
 	refresh_engines()
@@ -226,6 +249,17 @@
 	shuttle = null
 	docked = null
 	return ..()
+
+/// Override physics_tick: if docked, do nothing. If out of fuel, decay.
+/obj/structure/overmap/ship/simulated/physics_tick(dt)
+	if(docked || state != OVERMAP_SHIP_FLYING)
+		all_stop()
+		deactivate_physics()
+		return
+	calculate_avg_fuel()
+	if(avg_fuel_amnt < 1)
+		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
+	..()
 
 /// Resync the ship icon's overmap position with whatever Z the bound shuttle
 /// currently occupies. Called from M3's `shuttle_move` NOVA EDIT after every
@@ -242,8 +276,6 @@
 	if(state == OVERMAP_SHIP_DOCKING || state == OVERMAP_SHIP_UNDOCKING)
 		return
 	if(docked && !docked_object)
-		// Shuttle left the overmap-mapped space (e.g. CentCom). Float to a
-		// random non-edge tile and flag as flying so the helm can react.
 		var/turf/free_tile = SSovermap.get_unused_overmap_square()
 		if(free_tile)
 			forceMove(free_tile)
@@ -252,18 +284,14 @@
 		update_screen()
 		return FALSE
 	if(!docked && docked_object)
-		// Shuttle moved onto a known POI Z (mining via in-shuttle console,
-		// CentCom recall back to station, etc). Snap the icon onto it.
 		forceMove(docked_object)
 		docked = docked_object
 		state = OVERMAP_SHIP_IDLE
-		decelerate(max_speed)
+		all_stop()
 		update_screen()
 		return FALSE
 
-/// Approximate ship mass from the bound shuttle's area turf count. Mass
-/// drives the divisor in `burn_engines` so larger shuttles need beefier
-/// engines to accelerate at the same rate.
+/// Approximate ship mass from the bound shuttle's area turf count.
 /obj/structure/overmap/ship/simulated/proc/calculate_mass()
 	if(!shuttle)
 		mass = 0
@@ -275,7 +303,6 @@
 	update_icon_state()
 
 /// Sum thrust from currently enabled, fueled engines on the bound shuttle.
-/// Cached on `est_thrust` for the helm UI's "estimated burn" display.
 /obj/structure/overmap/ship/simulated/proc/refresh_engines()
 	if(!shuttle)
 		est_thrust = 0
@@ -287,8 +314,7 @@
 			calc += engine.thrust
 	est_thrust = calc
 
-/// Average percent fullness across enabled engines. Surfaced to the helm
-/// pre-undock check.
+/// Average percent fullness across enabled engines.
 /obj/structure/overmap/ship/simulated/proc/calculate_avg_fuel()
 	if(!shuttle)
 		avg_fuel_amnt = 0
@@ -305,9 +331,8 @@
 		count++
 	avg_fuel_amnt = count ? round(sum / count * 100) : 0
 
-/// Burn engines in `n_dir`; each contributes its `burn_engine(percentage)`
-/// thrust output. The summed thrust is then divided by mass to drive
-/// acceleration in tiles-per-tick. With no `n_dir`, decelerate.
+/// Burn engines in `n_dir`. Converts thrust into a desired heading/throttle.
+/// With no `n_dir`, applies braking.
 /obj/structure/overmap/ship/simulated/proc/burn_engines(n_dir = null, percentage = 100)
 	if(state != OVERMAP_SHIP_FLYING)
 		return
@@ -321,24 +346,19 @@
 			continue
 		thrust_used += engine.burn_engine(percentage)
 	est_thrust = thrust_used
-	thrust_used = thrust_used / max(mass * 100, 1)
-	log_game("OVERMAP BURN: raw_thrust=[est_thrust] mass=[mass] accel=[thrust_used] engines=[length(shuttle.engine_list)] dir=[n_dir]")
 	if(n_dir)
-		accelerate(n_dir, thrust_used)
+		burn_direction(n_dir, clamp(percentage / 100, 0, 1))
 	else
-		decelerate(thrust_used)
+		all_stop()
 
-/// Detach the ship from its current docked overmap object and start the
-/// flight state. The shuttle itself is requested to launch with no target,
-/// so it parks in transit until the player lines up a real dock via M6.
+/// Detach the ship from its current docked overmap object and start flight.
 /obj/structure/overmap/ship/simulated/proc/undock()
-	if(!is_still())
-		decelerate(max_speed)
 	if(!shuttle)
 		return "Shuttle not found!"
 	if(!docked)
 		check_loc()
 		return "Ship not docked!"
+	all_stop()
 	prepare_for_flight()
 	if(avg_fuel_amnt <= 0)
 		return "Engines have no fuel!"
@@ -349,8 +369,7 @@
 	state = OVERMAP_SHIP_UNDOCKING
 	return "Beginning undocking procedures..."
 
-/// Called when the shuttle's ignition timer elapses. Move the icon off the
-/// docked overmap object onto the underlying turf so the ship can fly.
+/// Called when the shuttle's ignition timer elapses.
 /obj/structure/overmap/ship/simulated/proc/complete_undock()
 	if(state != OVERMAP_SHIP_UNDOCKING)
 		return
@@ -360,9 +379,7 @@
 	state = OVERMAP_SHIP_FLYING
 	update_screen()
 
-/// Helm "Act" entry point. Validates adjacency and target type, then routes
-/// to the appropriate handler. Levels dock; events / dynamic encounters
-/// (deferred past prototype) get their own dispatch.
+/// Helm "Act" entry point.
 /obj/structure/overmap/ship/simulated/proc/overmap_object_act(obj/structure/overmap/target, mob/user)
 	if(!target)
 		return "No target."
@@ -373,9 +390,7 @@
 	return "Cannot interact with this object yet."
 
 /// Try to resolve a stationary docking port for `target` and request the
-/// shuttle to fly to it. Falls back through several naming conventions so
-/// the prototype works with shipped TG mining shuttle docks
-/// (`mining_home`, `mining_away`) without requiring map edits.
+/// shuttle to fly to it.
 /obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/level/target)
 	if(!is_still())
 		return "Ship must be stopped to dock."
@@ -384,14 +399,10 @@
 	if(!shuttle)
 		return "Shuttle not found."
 
-	// Notify any nav consoles bound to this shuttle so the player can also
-	// use the nav UI to designate a custom landing spot on the target body.
 	for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav as anything in SSovermap.navs)
 		if(nav.linked_port == shuttle)
 			nav.set_target_level(target)
 
-	// Candidate dock IDs in priority order: WS-canonical first, then TG
-	// mining-shuttle patterns for prototype playability with stock maps.
 	var/list/candidates = list(
 		"[shuttle.shuttle_id]_[target.id]",
 		"[OVERMAP_DOCK_PREFIX]_[target.id]",
@@ -412,8 +423,6 @@
 		break
 
 	if(!picked)
-		// No auto-resolvable dock. The nav console is now pre-filtered to the
-		// target body, so the player can place a custom pad there.
 		return "No automatic dock found - use the navigation computer to designate a landing pad on [target.name]."
 
 	docked = target
@@ -422,33 +431,26 @@
 	addtimer(CALLBACK(src, PROC_REF(complete_dock)), shuttle.ignitionTime + (1 SECONDS))
 	return "Commencing docking at [target.name]..."
 
-/// Called once the shuttle's ignition + transit timers have fired. Snap the
-/// icon onto the docked overmap object and return to idle.
+/// Snap icon onto docked overmap object and return to idle.
 /obj/structure/overmap/ship/simulated/proc/complete_dock()
 	if(state != OVERMAP_SHIP_DOCKING)
 		return
 	if(docked)
 		forceMove(docked)
 	state = OVERMAP_SHIP_IDLE
-	decelerate(max_speed)
+	all_stop()
 	update_screen()
 
-/// Override - if we're docked, freeze speed; if we're out of fuel, decay
-/// speed to a halt instead of maintaining velocity forever.
-/obj/structure/overmap/ship/simulated/tick_move()
-	if(docked)
-		decelerate(max_speed)
-		if(movement_callback_id)
-			deltimer(movement_callback_id)
-			movement_callback_id = null
-		return
-	calculate_avg_fuel()
-	if(avg_fuel_amnt < 1)
-		decelerate(max_speed / 100)
-	. = ..()
+// --- Ship class subtypes with preset control_flags ---
 
-#undef MOVING
-#undef SHIP_MOVE_RESOLUTION
-#undef OVERMAP_MAGNITUDE
+/// Fighter: direct piloting only (NIF or neurohelm). No helm console.
+/obj/structure/overmap/ship/simulated/fighter
+	control_flags = SHIP_CONTROL_DIRECT
+	max_speed = OVERMAP_MAX_SPEED * 1.5
+
+/// Capital / military: supports both console and direct piloting.
+/obj/structure/overmap/ship/simulated/capital
+	control_flags = SHIP_CONTROL_CONSOLE | SHIP_CONTROL_DIRECT
+
 #undef SHIP_SIZE_THRESHOLD
 #undef SHIP_DOCKED_REPAIR_TIME

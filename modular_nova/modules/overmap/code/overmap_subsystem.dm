@@ -7,7 +7,7 @@
 
 SUBSYSTEM_DEF(overmap)
 	name = "Overmap"
-	wait = 10
+	wait = OVERMAP_PHYSICS_WAIT
 	dependencies = list(
 		/datum/controller/subsystem/mapping,
 		/datum/controller/subsystem/shuttle,
@@ -21,6 +21,10 @@ SUBSYSTEM_DEF(overmap)
 	var/list/overmap_objects
 	/// All currently registered ship objects (subset of overmap_objects).
 	var/list/simulated_ships
+	/// Entities with non-zero velocity, processed each fire().
+	var/static/list/obj/structure/overmap/moving = list()
+	/// Celestial bodies that exert gravitational pull.
+	var/static/list/obj/structure/overmap/gravity_wells = list()
 	/// All currently registered helm consoles. Used to rebind helms when a
 	/// shuttle is loaded after SSovermap init (e.g. the emergency shuttle).
 	var/list/helms
@@ -52,9 +56,21 @@ SUBSYSTEM_DEF(overmap)
 	for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav in navs)
 		nav.link_shuttle()
 
-/datum/controller/subsystem/overmap/fire()
-	// Empty for the prototype. Events module will subscribe here.
-	return
+/datum/controller/subsystem/overmap/fire(resumed)
+	var/dt = wait / (1 SECONDS)
+	var/time_s = world.time / (1 SECONDS)
+	// Update celestial body orbits
+	for(var/obj/structure/overmap/celestial/body as anything in gravity_wells)
+		if(QDELETED(body))
+			gravity_wells -= body
+			continue
+		body.update_orbit(time_s)
+	// Process moving entities
+	for(var/obj/structure/overmap/entity as anything in moving)
+		if(QDELETED(entity))
+			moving -= entity
+			continue
+		entity.physics_tick(dt)
 
 /// Allocate a fresh Z-level dedicated to the overmap grid. We don't go
 /// through `request_turf_block_reservation` because we want a stable,
@@ -87,7 +103,7 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/place_star()
 	var/turf/center = locate(round(size / 2), round(size / 2), overmap_z)
 	if(center)
-		new /obj/structure/overmap/star(center)
+		new /obj/structure/overmap/celestial/star(center)
 
 /// Returns a random unoccupied (non-edge) overmap turf, or null if no slot
 /// could be found within `tries`. Tiles within `OVERMAP_STAR_BUFFER` of the

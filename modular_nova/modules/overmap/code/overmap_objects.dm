@@ -72,6 +72,7 @@
 	icon_state = "object"
 	anchored = TRUE
 	density = FALSE
+	animate_movement = NONE
 	/// Identifier - used to resolve docks and look the object up.
 	var/id
 	/// Whether this object should render a viewscreen-style camera surface.
@@ -85,6 +86,10 @@
 	var/overmap_armor = 1
 	/// Other overmap objects sharing the same turf.
 	var/list/close_overmap_objects
+	/// Velocity X component in tiles/second (positive = east).
+	var/vel_x = 0
+	/// Velocity Y component in tiles/second (positive = north).
+	var/vel_y = 0
 
 	// Camera-surface plumbing. Initialized only if `render_map` is TRUE.
 	// Modern Nova replaced WS' manual plane_master + background plumbing with
@@ -114,14 +119,65 @@
 	QDEL_NULL(cam_screen)
 	return ..()
 
-/obj/structure/overmap/Move(atom/newloc, direct)
-	. = ..()
-	if(.)
-		log_game("OVERMAP MOVE: [src] ([x],[y])")
+/obj/structure/overmap/Move(atom/newloc, direction, glide_size_override, update_dir)
+	if(!newloc || newloc == loc)
+		return FALSE
+	if(!direction)
+		direction = get_dir(src, newloc)
+	if(!newloc.Enter(src))
+		Bump(newloc)
+		return FALSE
+	var/atom/oldloc = loc
+	loc = newloc
+	oldloc.Exited(src, direction)
+	newloc.Entered(src, oldloc)
+	Moved(oldloc, direction)
+	return TRUE
+
+/obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
 	update_screen()
+
+/obj/structure/overmap/set_glide_size(target)
+	return
 
 /obj/structure/overmap/newtonian_move(inertia_angle, instant, start_delay, drift_force, controlled_cap, force_loop)
 	return FALSE
+
+/// Sub-tile pixel movement. Displaces the entity by (dx_px, dy_px) pixels,
+/// handling tile boundary crossings via Move(). Returns FALSE if blocked.
+/obj/structure/overmap/proc/step_p(dx_px, dy_px)
+	var/new_sx = step_x + dx_px
+	var/new_sy = step_y + dy_px
+	var/tile_dx = 0
+	var/tile_dy = 0
+	if(new_sx >= ICON_SIZE_ALL)
+		tile_dx = round(new_sx / ICON_SIZE_ALL)
+		new_sx -= tile_dx * ICON_SIZE_ALL
+	else if(new_sx < 0)
+		tile_dx = -round((-new_sx + ICON_SIZE_ALL - 1) / ICON_SIZE_ALL)
+		new_sx -= tile_dx * ICON_SIZE_ALL
+	if(new_sy >= ICON_SIZE_ALL)
+		tile_dy = round(new_sy / ICON_SIZE_ALL)
+		new_sy -= tile_dy * ICON_SIZE_ALL
+	else if(new_sy < 0)
+		tile_dy = -round((-new_sy + ICON_SIZE_ALL - 1) / ICON_SIZE_ALL)
+		new_sy -= tile_dy * ICON_SIZE_ALL
+	if(!tile_dx && !tile_dy)
+		step_x = round(new_sx)
+		step_y = round(new_sy)
+		return TRUE
+	var/turf/dest = locate(x + tile_dx, y + tile_dy, z)
+	if(!dest || dest.density)
+		return FALSE
+	var/atom/oldloc = loc
+	loc = dest
+	step_x = round(new_sx)
+	step_y = round(new_sy)
+	var/direction = get_dir(oldloc, dest)
+	oldloc.Exited(src, direction)
+	dest.Entered(src, oldloc)
+	Moved(oldloc, direction)
+	return TRUE
 
 /obj/structure/overmap/proc/update_screen()
 	if(!render_map || !cam_screen)
@@ -232,17 +288,35 @@
 /obj/structure/overmap/proc/recieve_damage(amount)
 	integrity = max(integrity - (amount / overmap_armor), 0)
 
-/* STAR (decorative center of the grid) */
+/// Called by SSovermap each physics tick for entities in the moving list.
+/// Base implementation integrates velocity into pixel displacement.
+/obj/structure/overmap/proc/physics_tick(dt)
+	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON && abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
+		deactivate_physics()
+		return
+	var/dx_px = vel_x * dt * ICON_SIZE_ALL
+	var/dy_px = vel_y * dt * ICON_SIZE_ALL
+	var/limit = OVERMAP_INTERPOLATE_LIMIT
+	dx_px = clamp(dx_px, -limit, limit)
+	dy_px = clamp(dy_px, -limit, limit)
+	if(!step_p(dx_px, dy_px))
+		on_physics_blocked(dx_px, dy_px)
 
-/obj/structure/overmap/star
-	name = "Kepler 453"
-	desc = "The binary star at the center of this stellar neighborhood."
-	icon = 'modular_nova/modules/overmap/icons/overmap_large.dmi'
-	icon_state = "kepler_453"
-	opacity = TRUE
-	density = TRUE
-	pixel_x = -32
-	pixel_y = -32
+/// Called when step_p fails (hit an edge or obstacle). Override for behavior.
+/obj/structure/overmap/proc/on_physics_blocked(dx_px, dy_px)
+	return
+
+/// Add this entity to SSovermap's physics processing list.
+/obj/structure/overmap/proc/activate_physics()
+	SSovermap.moving |= src
+
+/// Remove this entity from SSovermap's physics processing list.
+/obj/structure/overmap/proc/deactivate_physics()
+	vel_x = 0
+	vel_y = 0
+	SSovermap.moving -= src
+
+/* STAR — now defined in overmap_celestial.dm as /obj/structure/overmap/celestial/star */
 
 // LEVELS (Z-linked, dockable). Concrete subtypes live in this same file.
 

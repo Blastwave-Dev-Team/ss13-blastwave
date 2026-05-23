@@ -122,13 +122,22 @@
 	var/obj/structure/overmap/ship/simulated/ship = current_ship
 	.["state"] = ship.state
 	.["docked"] = !!ship.docked
-	.["heading"] = dir2angle(ship.get_heading()) || 0
-	.["speed"] = ship.get_speed()
-	.["maxSpeed"] = ship.max_speed
-	.["eta"] = ship.get_eta()
 	.["stopped"] = ship.is_still()
+	.["consoleControl"] = !!(ship.control_flags & SHIP_CONTROL_CONSOLE)
 	.["shipInfo"]["mass"] = ship.mass
 	.["shipInfo"]["est_thrust"] = ship.est_thrust
+
+	var/speed = ship.get_speed()
+	var/heading_deg = ship.get_heading_degrees()
+	.["speed"] = speed
+	.["maxSpeed"] = ship.max_speed
+	.["heading"] = heading_deg
+	.["actual_angle"] = ship.is_still() ? 0 : TORADIANS(arctan(ship.vel_x, ship.vel_y))
+	.["actual_speed"] = ship.max_speed > 0 ? speed / ship.max_speed : 0
+	.["desired_angle"] = TORADIANS(ship.desired_angle)
+	.["desired_throttle"] = ship.desired_throttle
+	.["station_keeping"] = ship.station_keeping
+
 	.["engineInfo"] = list()
 	if(ship.shuttle)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in ship.shuttle.engine_list)
@@ -153,6 +162,9 @@
 	if(!istype(current_ship, /obj/structure/overmap/ship/simulated))
 		return FALSE
 	var/obj/structure/overmap/ship/simulated/ship = current_ship
+	if(!(ship.control_flags & SHIP_CONTROL_CONSOLE))
+		to_chat(usr, span_warning("This vessel does not support console-based control."))
+		return FALSE
 	switch(action)
 		if("toggle_engine")
 			var/obj/machinery/power/shuttle_engine/overmap/engine = locate(params["engine"]) in (ship.shuttle?.engine_list || list())
@@ -166,6 +178,19 @@
 		if("reload_engines")
 			ship.refresh_engines()
 			return TRUE
+		if("set_desired")
+			var/angle = text2num(params["angle"])
+			var/throttle = text2num(params["throttle"])
+			if(isnull(angle) || isnull(throttle))
+				return
+			ship.set_desired(TODEGREES(angle), throttle)
+			return TRUE
+		if("all_stop")
+			ship.all_stop()
+			return TRUE
+		if("toggle_lock")
+			ship.station_keeping = !ship.station_keeping
+			return TRUE
 		if("change_heading")
 			var/dir = text2num(params["dir"])
 			if(!dir)
@@ -173,13 +198,19 @@
 			ship.burn_engines(dir)
 			return TRUE
 		if("stop")
-			ship.burn_engines()
+			ship.all_stop()
 			return TRUE
 		if("undock")
 			ship.calculate_avg_fuel()
 			if(ship.avg_fuel_amnt < 25 && tgui_alert(usr, "Ship only has [round(ship.avg_fuel_amnt)]% fuel remaining. Are you sure you want to undock?", name, list("Yes", "No")) != "Yes")
 				return TRUE
 			say(ship.undock())
+			return TRUE
+		if("dock")
+			var/obj/structure/overmap/target = locate(params["target"]) in current_ship.close_overmap_objects
+			if(!target)
+				return TRUE
+			say(ship.overmap_object_act(target, usr))
 			return TRUE
 		if("act_overmap")
 			var/obj/structure/overmap/target = locate(params["ship_to_act"]) in current_ship.close_overmap_objects

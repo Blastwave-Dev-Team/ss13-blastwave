@@ -27,9 +27,9 @@
 	name = "Void Thruster"
 	build_path = /obj/machinery/power/shuttle_engine/overmap/void
 
-/obj/item/circuitboard/machine/engine/overmap/liquid
-	name = "Liquid Fuel Thruster"
-	build_path = /obj/machinery/power/shuttle_engine/overmap/liquid
+/obj/item/circuitboard/machine/engine/overmap/standard
+	name = "Fusion Thruster"
+	build_path = /obj/machinery/power/shuttle_engine/overmap/standard
 
 /obj/item/circuitboard/machine/shuttle_heater
 	name = "Shuttle Engine Heater"
