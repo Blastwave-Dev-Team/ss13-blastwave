@@ -192,6 +192,7 @@
 #define SPECIES_INSECTOID "insectoid"
 /// "rachnid" preserves backwards compatibility with the original Whitesands species id.
 #define SPECIES_ARACHNID "rachnid"
+#define SPECIES_RETURNED "returned"
 
 #define SPECIES_MUTANT "mutant"
 #define SPECIES_MUTANT_INFECTIOUS "infectious_mutant"

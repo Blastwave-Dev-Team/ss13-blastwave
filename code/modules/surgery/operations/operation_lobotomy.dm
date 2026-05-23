@@ -52,6 +52,7 @@
 	else if (organ.brainmob)
 		organ.brainmob.mind?.remove_antag_datum(/datum/antagonist/brainwashed)
 
+/*
 	if(!prob(75))
 		return
 
@@ -65,6 +66,7 @@
 				organ.gain_trauma_type(BRAIN_TRAUMA_SEVERE, TRAUMA_RESILIENCE_MAGIC)
 		if(3)
 			organ.gain_trauma_type(BRAIN_TRAUMA_SPECIAL, TRAUMA_RESILIENCE_MAGIC)
+*/ //BLASTWAVE EDIT - No. Just... no.
 
 /datum/surgery_operation/organ/lobotomy/on_failure(obj/item/organ/brain/organ, mob/living/surgeon, obj/item/tool, list/operation_args)
 	display_results(
@@ -76,6 +78,7 @@
 	)
 	display_pain(organ.owner, "The pain in your head only seems to get worse!")
 	organ.apply_organ_damage(80)
+/*
 	switch(rand(1, 3))
 		if(1)
 			organ.gain_trauma_type(BRAIN_TRAUMA_MILD, TRAUMA_RESILIENCE_MAGIC)
@@ -86,6 +89,7 @@
 				organ.gain_trauma_type(BRAIN_TRAUMA_SEVERE, TRAUMA_RESILIENCE_MAGIC)
 		if(3)
 			organ.gain_trauma_type(BRAIN_TRAUMA_SPECIAL, TRAUMA_RESILIENCE_MAGIC)
+*/ //BLASTWAVE EDIT - I mean sure you could still get things from fucking up but 80 ORGAN DAMAGE IS ENOUGH OF AN OUCH.
 
 /datum/surgery_operation/organ/lobotomy/mechanic
 	name = "execute neural defragging"

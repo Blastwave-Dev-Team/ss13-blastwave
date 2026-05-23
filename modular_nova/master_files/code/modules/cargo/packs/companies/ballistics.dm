@@ -1,3 +1,4 @@
+/*
 /datum/supply_pack/companies/ballistics
 	group = "★ Ballistic Weapons"
 	access = ACCESS_WEAPONS
@@ -189,6 +190,7 @@
 /datum/supply_pack/companies/ballistics/hc_surplus/anti_materiel_rifle
 	contains = list(/obj/item/gun/ballistic/automatic/wylom)
 	cost = CARGO_CRATE_VALUE * 8
+*/ //BLASTWAVE EDIT - Removes Guncargo for now.
 
 // Donk
 
@@ -224,9 +226,11 @@
 	cost = CARGO_CRATE_VALUE * 2.5
 
 // Blacksteel
+/*
 
 /datum/supply_pack/companies/ballistics/blacksteel
 
 /datum/supply_pack/companies/ballistics/blacksteel/longbow
 	contains = list(/obj/item/gun/ballistic/bow/longbow)
 	cost = CARGO_CRATE_VALUE * 1.5
+*/ //BLASTWAVE EDIT - Removes Guncargo for now.
