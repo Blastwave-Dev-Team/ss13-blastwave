@@ -132,9 +132,9 @@
 	.["speed"] = speed
 	.["maxSpeed"] = ship.max_speed
 	.["heading"] = heading_deg
-	.["actual_angle"] = ship.is_still() ? 0 : TORADIANS(arctan(ship.vel_x, ship.vel_y))
+	.["actual_angle"] = ship.is_still() ? 0 : -(TORADIANS(arctan(ship.vel_x, ship.vel_y)))
 	.["actual_speed"] = ship.max_speed > 0 ? speed / ship.max_speed : 0
-	.["desired_angle"] = TORADIANS(ship.desired_angle)
+	.["desired_angle"] = -(TORADIANS(ship.desired_angle))
 	.["desired_throttle"] = ship.desired_throttle
 	.["station_keeping"] = ship.station_keeping
 
@@ -183,7 +183,7 @@
 			var/throttle = text2num(params["throttle"])
 			if(isnull(angle) || isnull(throttle))
 				return
-			ship.set_desired(TODEGREES(angle), throttle)
+			ship.set_desired(TODEGREES(-angle), throttle)
 			return TRUE
 		if("all_stop")
 			ship.all_stop()

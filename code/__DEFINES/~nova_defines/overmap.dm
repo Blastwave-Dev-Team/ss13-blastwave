@@ -48,8 +48,8 @@
 
 // --- Physics constants ---
 
-/// Physics tick rate in deciseconds. 2.5ds = 0.25s = 4Hz.
-#define OVERMAP_PHYSICS_WAIT 2.5
+/// Physics tick rate in deciseconds. 1ds = 0.1s = 10Hz.
+#define OVERMAP_PHYSICS_WAIT 1
 
 /// Max pixel displacement per physics tick. Prevents ships from clipping
 /// through edge turfs. Must be less than ICON_SIZE_ALL (32) to guarantee
@@ -64,9 +64,6 @@
 
 /// Max ship speed in tiles/second.
 #define OVERMAP_MAX_SPEED 2
-
-/// Braking deceleration in tiles/second^2 when decelerating.
-#define OVERMAP_BRAKE_ACCEL 0.5
 
 /// Maneuverability: how quickly actual velocity converges on desired (0..1 per second).
 #define OVERMAP_MANEUVERABILITY 0.8

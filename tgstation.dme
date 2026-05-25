@@ -9216,6 +9216,7 @@
 #include "modular_nova\modules\overmap\code\overmap_fuel_core.dm"
 #include "modular_nova\modules\overmap\code\overmap_heater.dm"
 #include "modular_nova\modules\overmap\code\overmap_helm.dm"
+#include "modular_nova\modules\overmap\code\overmap_hull_icon.dm"
 #include "modular_nova\modules\overmap\code\overmap_nav.dm"
 #include "modular_nova\modules\overmap\code\overmap_neurohelm.dm"
 #include "modular_nova\modules\overmap\code\overmap_nifsoft.dm"

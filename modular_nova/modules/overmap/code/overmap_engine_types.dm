@@ -8,7 +8,7 @@
 	desc = "An exotic thruster that punches into voidspace for unlimited propulsion. Adminspawn-grade."
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap/void
-	thrust = 10
+	thrust = 50
 
 /// Void engines don't need fuel cores or power — always active.
 /obj/machinery/power/shuttle_engine/overmap/void/update_engine()

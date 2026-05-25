@@ -46,6 +46,7 @@ SUBSYSTEM_DEF(overmap)
 	create_map()
 	bind_existing_shuttles()
 	bind_existing_consoles()
+	init_hull_renderer()
 	return SS_INIT_SUCCESS
 
 /// Walks helms / navs that registered before SSovermap init (i.e. roundstart

@@ -83,11 +83,33 @@
 	if(has_heading && is_still())
 		activate_physics()
 
-/// All-stop: zero throttle and clear heading.
+/// All-stop: zero throttle, clear heading, and begin braking.
+/// Braking rate is proportional to thrust/mass — light ships with good
+/// engines stop fast, heavy ships take longer.
 /obj/structure/overmap/ship/proc/all_stop()
 	desired_throttle = 0
 	has_heading = FALSE
 	station_keeping = FALSE
+
+/// Apply braking deceleration toward zero velocity. Called each physics_tick
+/// when has_heading is FALSE and ship is not yet still.
+/// Deceleration is derived purely from thrust/mass — no static constant.
+/obj/structure/overmap/ship/proc/apply_braking(dt)
+	var/effective_thrust = 20
+	var/effective_mass = 1
+	if(istype(src, /obj/structure/overmap/ship/simulated))
+		var/obj/structure/overmap/ship/simulated/sim = src
+		effective_thrust = max(sim.est_thrust, 10)
+		effective_mass = max(sim.mass, 1)
+	var/brake_rate = (effective_thrust / effective_mass) * dt
+	var/speed = get_speed()
+	if(speed <= brake_rate)
+		vel_x = 0
+		vel_y = 0
+	else
+		var/scale = (speed - brake_rate) / speed
+		vel_x *= scale
+		vel_y *= scale
 
 /// Apply thrust in a given 8-direction. Converts direction to angle, sets
 /// desired heading and throttle. Used by legacy console directional buttons
@@ -110,18 +132,14 @@
 		update_icon_state()
 		return
 
-	var/target_vx = 0
-	var/target_vy = 0
 	if(has_heading)
-		target_vx = cos(desired_angle) * desired_throttle * max_speed
-		target_vy = sin(desired_angle) * desired_throttle * max_speed
+		var/target_vx = cos(desired_angle) * desired_throttle * max_speed
+		var/target_vy = sin(desired_angle) * desired_throttle * max_speed
+		var/maneuver = OVERMAP_MANEUVERABILITY * dt
+		vel_x += (target_vx - vel_x) * min(maneuver, 1)
+		vel_y += (target_vy - vel_y) * min(maneuver, 1)
 	else
-		target_vx = 0
-		target_vy = 0
-
-	var/maneuver = OVERMAP_MANEUVERABILITY * dt
-	vel_x += (target_vx - vel_x) * min(maneuver, 1)
-	vel_y += (target_vy - vel_y) * min(maneuver, 1)
+		apply_braking(dt)
 
 	// Gravity pass: apply gravitational acceleration from nearby bodies
 	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
@@ -190,11 +208,32 @@
 	return 0
 
 /obj/structure/overmap/ship/update_icon_state()
+	// If we have a dynamic hull icon, use it directly (skip icon_state logic)
+	var/obj/structure/overmap/ship/simulated/sim = istype(src, /obj/structure/overmap/ship/simulated) ? src : null
+	if(sim?.cached_hull_icon)
+		if(icon != sim.cached_hull_icon)
+			icon = sim.cached_hull_icon
+			icon_state = ""
+		if(!is_still())
+			var/face_angle = has_heading ? desired_angle : arctan(vel_x, vel_y)
+			var/rotation = 270 - face_angle
+			var/matrix/M = matrix()
+			M.Turn(rotation)
+			transform = M
+		else
+			transform = matrix()
+		return ..()
+
 	if(!is_still())
 		icon_state = "[base_icon_state]_moving"
-		dir = get_heading()
+		var/face_angle = has_heading ? desired_angle : arctan(vel_x, vel_y)
+		var/rotation = 270 - face_angle
+		var/matrix/M = matrix()
+		M.Turn(rotation)
+		transform = M
 	else
 		icon_state = base_icon_state
+		transform = matrix()
 	if(integrity < initial(integrity) / 4)
 		icon_state = "[icon_state]_damaged"
 	return ..()
@@ -236,11 +275,14 @@
 		docked = loc
 
 /// Idempotently apply the post-undock state machine: mass + engines + fuel
-/// recomputed, icon refreshed.
+/// recomputed, icon refreshed, hull silhouette generated.
 /obj/structure/overmap/ship/simulated/proc/prepare_for_flight()
 	calculate_mass()
 	refresh_engines()
 	calculate_avg_fuel()
+	// Hull icon generation is async (sleeps while Rust DLL processes).
+	// Spawn it so it doesn't block the undock flow.
+	INVOKE_ASYNC(src, PROC_REF(generate_hull_icon))
 	update_screen()
 
 /obj/structure/overmap/ship/simulated/Destroy()

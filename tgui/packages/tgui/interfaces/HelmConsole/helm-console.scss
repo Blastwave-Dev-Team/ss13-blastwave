@@ -11,15 +11,19 @@
 }
 
 .HelmConsole__viewscreen {
-  flex: 1 1 0;
-  min-height: 0;
+  height: calc(100% - 310px);
+  flex: none;
   background: #06080e;
   border: 1px solid rgba(80, 160, 255, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   overflow: hidden;
+}
+
+.HelmConsole__viewscreen > * {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .HelmConsole__console {
