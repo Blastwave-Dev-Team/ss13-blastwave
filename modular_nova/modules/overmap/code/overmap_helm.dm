@@ -106,12 +106,36 @@
 		"ref" = REF(current_ship),
 	)
 	.["otherInfo"] = list()
+	var/list/seen_refs = list()
 	for(var/obj/structure/overmap/other in current_ship.close_overmap_objects)
+		var/ref = REF(other)
+		seen_refs += ref
 		.["otherInfo"] += list(list(
 			"name" = other.name,
 			"integrity" = other.integrity,
-			"ref" = REF(other),
+			"ref" = ref,
+			"bearing" = get_bearing_to(current_ship, other),
+			"distance" = get_dist(current_ship, other),
+			"adjacent" = TRUE,
+			"type" = get_contact_type(other),
 		))
+	if(istype(current_ship, /obj/structure/overmap/ship/simulated))
+		var/obj/structure/overmap/ship/simulated/scan_ship = current_ship
+		for(var/scan_ref in scan_ship.scanned_objects)
+			if(scan_ref in seen_refs)
+				continue
+			var/obj/structure/overmap/scanned = locate(scan_ref)
+			if(!scanned || QDELETED(scanned))
+				continue
+			.["otherInfo"] += list(list(
+				"name" = scanned.name,
+				"integrity" = scanned.integrity,
+				"ref" = scan_ref,
+				"bearing" = get_bearing_to(current_ship, scanned),
+				"distance" = get_dist(current_ship, scanned),
+				"adjacent" = FALSE,
+				"type" = get_contact_type(scanned),
+			))
 	var/atom/positional = istype(current_ship.loc, /obj/structure/overmap) ? current_ship.loc : current_ship
 	.["x"] = positional.x
 	.["y"] = positional.y
@@ -124,6 +148,7 @@
 	.["docked"] = !!ship.docked
 	.["stopped"] = ship.is_still()
 	.["consoleControl"] = !!(ship.control_flags & SHIP_CONTROL_CONSOLE)
+	.["scanReady"] = COOLDOWN_FINISHED(ship, scan_cooldown)
 	.["shipInfo"]["mass"] = ship.mass
 	.["shipInfo"]["est_thrust"] = ship.est_thrust
 
@@ -218,6 +243,13 @@
 				return TRUE
 			say(ship.overmap_object_act(target, usr))
 			return TRUE
+		if("scan")
+			var/count = ship.scan()
+			if(count)
+				say("Scan complete: [count] contact\s detected.")
+			else
+				say("Scan on cooldown or no contacts in range.")
+			return TRUE
 	return FALSE
 
 /// Read-only viewscreen variant - no controls, just renders the overmap of
@@ -231,3 +263,26 @@
 	density = FALSE
 	viewer = TRUE
 	circuit = /obj/item/circuitboard/computer/shuttle/helm/viewscreen
+
+/// Returns the bearing in degrees (0=north, clockwise) from `origin` to `target`.
+/proc/get_bearing_to(atom/origin, atom/target)
+	var/dx = target.x - origin.x
+	var/dy = target.y - origin.y
+	if(!dx && !dy)
+		return 0
+	var/angle = arctan(dx, dy)
+	if(angle < 0)
+		angle += 360
+	return round(angle)
+
+/// Returns a string type classification for an overmap contact.
+/proc/get_contact_type(obj/structure/overmap/O)
+	if(istype(O, /obj/structure/overmap/dynamic))
+		return "dynamic"
+	if(istype(O, /obj/structure/overmap/event))
+		return "event"
+	if(istype(O, /obj/structure/overmap/ship))
+		return "ship"
+	if(istype(O, /obj/structure/overmap/level))
+		return "level"
+	return "unknown"

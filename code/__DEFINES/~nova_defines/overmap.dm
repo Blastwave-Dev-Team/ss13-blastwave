@@ -18,8 +18,7 @@
 /// POI sprite just outside that footprint.
 #define OVERMAP_STAR_BUFFER 2
 
-// Generator strategies. Prototype hardcodes RANDOM; SOLAR is reserved for the
-// post-prototype config-flagged backlog item.
+// Generator strategies. Config-selectable via `overmap_generator_type`.
 #define OVERMAP_GENERATOR_RANDOM "Random"
 #define OVERMAP_GENERATOR_SOLAR "Solar"
 
@@ -39,12 +38,22 @@
 #define OVERMAP_SHIP_DOCKING "docking"
 #define OVERMAP_SHIP_UNDOCKING "undocking"
 
-// Dynamic-encounter planet flavors. Defined now (used by deferred dynamic-
-// encounter work post-prototype) so the constants exist when refactors land.
+// Dynamic-encounter planet flavors.
 #define DYNAMIC_WORLD_LAVA "lava"
 #define DYNAMIC_WORLD_ICE "ice"
 #define DYNAMIC_WORLD_JUNGLE "jungle"
 #define DYNAMIC_WORLD_SAND "sand"
+
+// --- Encounter & event constants ---
+
+/// Global cooldown between dynamic encounter loads (prevents rapid-fire reservation spam).
+#define OVERMAP_ENCOUNTER_COOLDOWN (90 SECONDS)
+
+/// Cooldown between active radar scans from a single ship.
+#define OVERMAP_SCAN_COOLDOWN (5 SECONDS)
+
+/// Time before a scanned contact fades from the radar if not re-scanned.
+#define OVERMAP_SCAN_DECAY (30 SECONDS)
 
 // --- Physics constants ---
 

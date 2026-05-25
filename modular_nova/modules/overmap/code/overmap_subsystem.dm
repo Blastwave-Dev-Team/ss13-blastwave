@@ -17,7 +17,7 @@ SUBSYSTEM_DEF(overmap)
 
 	/// Width/height of the overmap grid (square).
 	var/size = OVERMAP_DIMENSIONS
-	/// All overmap objects in the world (stars, levels, ships, future events).
+	/// All overmap objects in the world (stars, levels, ships, events).
 	var/list/overmap_objects
 	/// All currently registered ship objects (subset of overmap_objects).
 	var/list/simulated_ships
@@ -30,19 +30,31 @@ SUBSYSTEM_DEF(overmap)
 	var/list/helms
 	/// All currently registered overmap-aware nav consoles (M6).
 	var/list/navs
+	/// All active overmap event objects.
+	var/list/events
 	/// The station-tied overmap object. Set by `/level/main` on init.
 	var/obj/structure/overmap/level/main/main
 	/// Z-value of the dedicated overmap grid. Looked up via `levels_by_trait`
 	/// in case other code needs it post-init.
 	var/overmap_z
-	/// Generator strategy. Hardcoded RANDOM for the prototype; the SOLAR
-	/// branch is deferred to the post-prototype backlog.
+	/// Generator strategy. Read from config; falls back to RANDOM.
 	var/generator_type = OVERMAP_GENERATOR_RANDOM
+	/// Orbital ring lookup table (SOLAR mode only). Keyed by string radius
+	/// ("3", "4", ...), values are lists of turfs at that euclidean distance
+	/// from the star center. "unsorted" key holds remainders.
+	var/list/radius_tiles = list()
+	/// Global cooldown on dynamic encounter loading.
+	COOLDOWN_DECLARE(encounter_cooldown)
 
 /datum/controller/subsystem/overmap/Initialize()
+	generator_type = CONFIG_GET(string/overmap_generator_type)
+	if(!generator_type || generator_type == "")
+		generator_type = OVERMAP_GENERATOR_RANDOM
 	allocate_overmap_zlevel()
 	build_grid()
 	place_star()
+	if(generator_type == OVERMAP_GENERATOR_SOLAR)
+		calculate_orbital_rings()
 	create_map()
 	bind_existing_shuttles()
 	bind_existing_consoles()
@@ -72,6 +84,12 @@ SUBSYSTEM_DEF(overmap)
 			moving -= entity
 			continue
 		entity.physics_tick(dt)
+	// Process overmap events (hazards affecting co-located ships)
+	for(var/obj/structure/overmap/event/E as anything in events)
+		if(QDELETED(E))
+			LAZYREMOVE(events, E)
+			continue
+		E.apply_effect()
 
 /// Allocate a fresh Z-level dedicated to the overmap grid. We don't go
 /// through `request_turf_block_reservation` because we want a stable,
@@ -124,6 +142,68 @@ SUBSYSTEM_DEF(overmap)
 		return picked
 	return null
 
+/// Categorize all non-edge overmap turfs into concentric rings by euclidean
+/// distance from the star center. Populates `radius_tiles` for orbital placement.
+/datum/controller/subsystem/overmap/proc/calculate_orbital_rings()
+	var/star_x = round(size / 2)
+	var/star_y = round(size / 2)
+	var/list/unsorted_turfs = list()
+	for(var/x in 2 to size - 1)
+		for(var/y in 2 to size - 1)
+			var/turf/T = locate(x, y, overmap_z)
+			if(T)
+				unsorted_turfs += T
+	for(var/i in 3 to round((size - 2) / 2))
+		radius_tiles["[i]"] = list()
+		for(var/turf/T as anything in unsorted_turfs)
+			var/dist = round(sqrt((T.x - star_x) ** 2 + (T.y - star_y) ** 2))
+			if(dist == i)
+				radius_tiles["[i]"] += T
+		unsorted_turfs -= radius_tiles["[i]"]
+	radius_tiles["unsorted"] = unsorted_turfs.Copy()
+
+/// Returns a random unoccupied turf within the specified orbital ring.
+/// Falls back to `get_unused_overmap_square()` if generator is RANDOM or
+/// the requested ring is empty/missing.
+/datum/controller/subsystem/overmap/proc/get_unused_overmap_square_in_radius(radius, thing_to_not_have = /obj/structure/overmap, tries = MAX_OVERMAP_PLACEMENT_ATTEMPTS)
+	if(generator_type != OVERMAP_GENERATOR_SOLAR)
+		return get_unused_overmap_square(thing_to_not_have, tries)
+	if(!radius)
+		var/list/keys = list()
+		for(var/key in radius_tiles)
+			if(key == "unsorted")
+				continue
+			keys += key
+		if(!length(keys))
+			return get_unused_overmap_square(thing_to_not_have, tries)
+		radius = pick(keys)
+	var/list/ring = radius_tiles["[radius]"]
+	if(!length(ring))
+		return get_unused_overmap_square(thing_to_not_have, tries)
+	for(var/i in 1 to tries)
+		var/turf/picked = pick(ring)
+		if(locate(thing_to_not_have) in picked)
+			continue
+		return picked
+	return null
+
+/// Finds the closest unoccupied turf within a given orbit to `adjacent`.
+/// Used for chaining events along an orbital ring.
+/datum/controller/subsystem/overmap/proc/get_nearest_unused_square_in_radius(turf/adjacent, radius, max_range = 3, thing_to_not_have = /obj/structure/overmap)
+	var/list/ring = radius_tiles["[radius]"]
+	if(!length(ring))
+		return null
+	var/turf/best
+	var/best_dist = INFINITY
+	for(var/turf/T as anything in ring)
+		if(locate(thing_to_not_have) in T)
+			continue
+		var/dist = round(sqrt((T.x - adjacent.x) ** 2 + (T.y - adjacent.y) ** 2))
+		if(dist <= max_range && dist < best_dist)
+			best = T
+			best_dist = dist
+	return best
+
 /// Returns the level overmap object whose `linked_levels` contains `zlevel`,
 /// or null. Used by ship binding (M3) and dock resolution (M6).
 /datum/controller/subsystem/overmap/proc/get_overmap_object_by_z(zlevel)
@@ -141,12 +221,13 @@ SUBSYSTEM_DEF(overmap)
 			return object
 	return null
 
-/// Roundstart placement of static POIs (station, mining body) on the grid.
-/// Reads `SSmapping` for Z-trait grouping. Per the implementation plan,
-/// dynamic encounters / events / ruin levels are deferred past prototype.
+/// Roundstart placement of POIs and encounters on the grid. Branches on
+/// `generator_type` to select placement strategy.
 /datum/controller/subsystem/overmap/proc/create_map()
 	place_station()
 	place_mining()
+	spawn_encounters()
+	spawn_events()
 
 /// Locate the station Z-level set and drop a `/level/main` near the star.
 /// Prefers a tile in the chebyshev-`OVERMAP_STAR_BUFFER` ring around the
@@ -248,3 +329,202 @@ SUBSYSTEM_DEF(overmap)
 		WARNING("setup_shuttle_ship: shuttle [port.shuttle_id] is on an unknown Z [port.z]; skipping.")
 		return
 	port.current_ship = ship
+
+/// Spawn dynamic encounter objects on the overmap grid. In SOLAR mode,
+/// encounters are placed in outer orbits (rings 6-8). In RANDOM mode,
+/// they're placed on random tiles.
+/datum/controller/subsystem/overmap/proc/spawn_encounters()
+	var/max_encounters = CONFIG_GET(number/max_overmap_dynamic_events)
+	for(var/i in 1 to max_encounters)
+		var/turf/T
+		if(generator_type == OVERMAP_GENERATOR_SOLAR)
+			var/orbit = "[rand(6, 8)]"
+			T = get_unused_overmap_square_in_radius(orbit)
+		else
+			T = get_unused_overmap_square()
+		if(!T)
+			continue
+		new /obj/structure/overmap/dynamic(T)
+
+/// Spawn overmap event hazard clusters. In SOLAR mode, events are chained
+/// along orbital rings. In RANDOM mode, clusters spread via cardinal adjacency.
+/datum/controller/subsystem/overmap/proc/spawn_events()
+	var/max_clusters = CONFIG_GET(number/max_overmap_event_clusters)
+	var/max_events = CONFIG_GET(number/max_overmap_events)
+	if(generator_type == OVERMAP_GENERATOR_SOLAR)
+		spawn_events_in_orbits(max_clusters, max_events)
+	else
+		spawn_events_random(max_clusters, max_events)
+
+/// Random-mode event cluster spawning. Picks a random event type and seed
+/// tile, then spreads outward via `spawn_event_cluster`.
+/datum/controller/subsystem/overmap/proc/spawn_events_random(max_clusters, max_events)
+	for(var/i in 1 to max_clusters)
+		if(LAZYLEN(events) >= max_events)
+			return
+		var/event_type = pick(subtypesof(/obj/structure/overmap/event))
+		var/turf/seed = get_unused_overmap_square(/obj/structure/overmap/event)
+		if(!seed)
+			continue
+		spawn_event_cluster(event_type, seed, max_events)
+
+/// Solar-mode event spawning. Chains events along orbital rings.
+/datum/controller/subsystem/overmap/proc/spawn_events_in_orbits(max_clusters, max_events)
+	var/list/orbits = list()
+	for(var/key in radius_tiles)
+		if(key == "unsorted")
+			continue
+		orbits += key
+	if(!length(orbits))
+		return
+	for(var/i in 1 to max_clusters)
+		if(LAZYLEN(events) >= max_events)
+			return
+		var/event_type = pick(subtypesof(/obj/structure/overmap/event))
+		var/selected_orbit = pick(orbits)
+		var/turf/T = get_unused_overmap_square_in_radius(selected_orbit, /obj/structure/overmap/event)
+		if(!T)
+			continue
+		var/obj/structure/overmap/event/E = new event_type(T)
+		var/chain_rate = E.chain_rate
+		for(var/j in 1 to chain_rate)
+			if(LAZYLEN(events) >= max_events)
+				return
+			var/turf/next = get_nearest_unused_square_in_radius(T, selected_orbit, 3, /obj/structure/overmap/event)
+			if(!next)
+				break
+			new event_type(next)
+			T = next
+
+/// Spreads an event cluster outward from a seed tile via cardinal adjacency
+/// with decaying probability. Depth-limited to prevent stack overflow.
+/datum/controller/subsystem/overmap/proc/spawn_event_cluster(event_type, turf/location, max_events, chance, depth = 0)
+	if(LAZYLEN(events) >= max_events)
+		return
+	if(depth > 8)
+		return
+	var/obj/structure/overmap/event/E = new event_type(location)
+	if(!chance)
+		chance = E.spread_chance
+	for(var/dir in GLOB.cardinals)
+		if(!prob(chance))
+			continue
+		var/turf/T = get_step(location, dir)
+		if(!istype(T, /turf/open/overmap) || istype(T, /turf/open/overmap/edge))
+			continue
+		if(locate(/obj/structure/overmap/event) in T)
+			continue
+		spawn_event_cluster(event_type, T, max_events, chance / 2, depth + 1)
+
+/// Reserves a turf block, optionally generates terrain and loads a ruin,
+/// then creates stationary docking ports for the visiting shuttle.
+/datum/controller/subsystem/overmap/proc/spawn_dynamic_encounter(planet_type, ruin = TRUE, dock_id, size, obj/docking_port/mobile/visiting_shuttle)
+	if(!COOLDOWN_FINISHED(src, encounter_cooldown))
+		return null
+	COOLDOWN_START(src, encounter_cooldown, OVERMAP_ENCOUNTER_COOLDOWN)
+
+	if(!dock_id)
+		CRASH("spawn_dynamic_encounter called without a dock_id!")
+
+	if(!size)
+		size = round(world.maxx / 4)
+
+	var/dock_size = round(size / 2)
+	var/ruin_size = CEILING(size / 2, 1)
+	if(visiting_shuttle)
+		dock_size = max(visiting_shuttle.width, visiting_shuttle.height) + 3
+
+	var/total_size = dock_size + ruin_size
+
+	var/list/ruin_list
+	var/datum/map_generator/mapgen
+	var/area/target_area
+
+	if(planet_type)
+		switch(planet_type)
+			if(DYNAMIC_WORLD_LAVA)
+				ruin_list = SSmapping.themed_ruins[ZTRAIT_LAVA_RUINS]
+				mapgen = new /datum/map_generator/cave_generator/lavaland
+				target_area = /area/lavaland/surface/outdoors/unexplored
+			if(DYNAMIC_WORLD_ICE)
+				ruin_list = SSmapping.themed_ruins[ZTRAIT_ICE_RUINS]
+				mapgen = new /datum/map_generator/cave_generator/icemoon/surface
+				target_area = /area/icemoon/surface/outdoors/unexplored
+			if(DYNAMIC_WORLD_JUNGLE)
+				ruin_list = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
+				target_area = /area/space
+			if(DYNAMIC_WORLD_SAND)
+				ruin_list = SSmapping.themed_ruins[ZTRAIT_LAVA_RUINS]
+				mapgen = new /datum/map_generator/cave_generator/lavaland
+				target_area = /area/lavaland/surface/outdoors/unexplored
+	else
+		ruin_list = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
+
+	var/datum/map_template/ruin/ruin_type
+	if(ruin && length(ruin_list))
+		var/max_ruin_dimension = total_size - dock_size - 4
+		var/list/viable_ruins = list()
+		for(var/ruin_name in ruin_list)
+			var/datum/map_template/ruin/candidate = ruin_list[ruin_name]
+			if(ispath(candidate))
+				candidate = new candidate
+			if(max(candidate.width, candidate.height) <= max_ruin_dimension)
+				viable_ruins[ruin_name] = candidate
+		if(length(viable_ruins))
+			ruin_type = viable_ruins[pick(viable_ruins)]
+			ruin_size = max(ruin_type.width, ruin_type.height) + 4
+			total_size = dock_size + ruin_size
+
+	var/datum/turf_reservation/encounter_reservation = SSmapping.request_turf_block_reservation(total_size, total_size)
+	if(!encounter_reservation)
+		return null
+
+	if(mapgen && target_area)
+		var/list/gen_turfs = encounter_reservation.reserved_turfs.Copy()
+		if(length(gen_turfs))
+			mapgen.generate_terrain(gen_turfs)
+
+	var/turf/bottom_left = encounter_reservation.bottom_left_turfs[1]
+	if(!bottom_left)
+		QDEL_NULL(encounter_reservation)
+		return null
+
+	if(ruin_type)
+		var/turf/ruin_turf = locate( \
+			bottom_left.x + dock_size + 2, \
+			bottom_left.y + dock_size, \
+			bottom_left.z)
+		if(ruin_turf)
+			ruin_type.load(ruin_turf)
+
+	// Create primary dock
+	var/turf/dock_turf = locate( \
+		bottom_left.x + dock_size, \
+		bottom_left.y + round(dock_size / 2), \
+		bottom_left.z)
+	var/obj/docking_port/stationary/primary_dock = new(dock_turf)
+	primary_dock.dir = WEST
+	primary_dock.name = "\improper Uncharted Space"
+	primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
+	primary_dock.height = dock_size
+	primary_dock.width = dock_size
+	if(visiting_shuttle)
+		primary_dock.dheight = min(visiting_shuttle.dheight, dock_size)
+		primary_dock.dwidth = min(visiting_shuttle.dwidth, dock_size)
+	else
+		primary_dock.dwidth = round(dock_size / 2)
+
+	// Create secondary dock
+	var/turf/secondary_turf = locate( \
+		bottom_left.x + dock_size, \
+		bottom_left.y + CEILING(dock_size * 1.5, 1), \
+		bottom_left.z)
+	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
+	secondary_dock.dir = WEST
+	secondary_dock.name = "\improper Uncharted Space"
+	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[dock_id]"
+	secondary_dock.height = dock_size
+	secondary_dock.width = dock_size
+	secondary_dock.dwidth = round(dock_size / 2)
+
+	return encounter_reservation

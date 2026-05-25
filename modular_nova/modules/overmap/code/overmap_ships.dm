@@ -261,6 +261,10 @@
 	var/mass
 	/// Average percent fullness across the shuttle's enabled engines.
 	var/avg_fuel_amnt = 100
+	/// Objects detected by active radar scan. Assoc list: weakref -> timer_id.
+	var/list/scanned_objects
+	/// Cooldown on active radar sweeps.
+	COOLDOWN_DECLARE(scan_cooldown)
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -273,6 +277,7 @@
 		name = shuttle.name
 	if(istype(loc, /obj/structure/overmap))
 		docked = loc
+	addtimer(CALLBACK(src, PROC_REF(scan)), 1 SECONDS)
 
 /// Idempotently apply the post-undock state machine: mass + engines + fuel
 /// recomputed, icon refreshed, hull silhouette generated.
@@ -397,6 +402,8 @@
 /obj/structure/overmap/ship/simulated/proc/undock()
 	if(!shuttle)
 		return "Shuttle not found!"
+	if(state != OVERMAP_SHIP_IDLE)
+		return "Ship is not docked!"
 	if(!docked)
 		check_loc()
 		return "Ship not docked!"
@@ -415,35 +422,50 @@
 /obj/structure/overmap/ship/simulated/proc/complete_undock()
 	if(state != OVERMAP_SHIP_UNDOCKING)
 		return
+	var/obj/structure/overmap/prev_docked = docked
 	if(docked)
 		forceMove(get_turf(docked))
 		docked = null
 	state = OVERMAP_SHIP_FLYING
 	update_screen()
+	if(istype(prev_docked, /obj/structure/overmap/dynamic))
+		var/obj/structure/overmap/dynamic/encounter = prev_docked
+		encounter.unload_level()
 
 /// Helm "Act" entry point.
 /obj/structure/overmap/ship/simulated/proc/overmap_object_act(obj/structure/overmap/target, mob/user)
 	if(!target)
 		return "No target."
+	if(state != OVERMAP_SHIP_FLYING)
+		return "Ship must be in flight to interact."
+	if(!is_still())
+		return "Ship must be stopped to interact."
 	if(!(target in close_overmap_objects))
 		return "Target not in range. Move closer first."
+	if(istype(target, /obj/structure/overmap/dynamic))
+		var/obj/structure/overmap/dynamic/encounter = target
+		var/error = encounter.load_level(shuttle)
+		if(error)
+			return error
+		return dock(encounter)
 	if(istype(target, /obj/structure/overmap/level))
 		return dock(target)
 	return "Cannot interact with this object yet."
 
 /// Try to resolve a stationary docking port for `target` and request the
 /// shuttle to fly to it.
-/obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/level/target)
-	if(!is_still())
-		return "Ship must be stopped to dock."
+/obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/target)
 	if(state != OVERMAP_SHIP_FLYING)
 		return "Ship is not in flight."
+	if(!is_still())
+		return "Ship must be stopped to dock."
 	if(!shuttle)
 		return "Shuttle not found."
 
-	for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav as anything in SSovermap.navs)
-		if(nav.linked_port == shuttle)
-			nav.set_target_level(target)
+	if(istype(target, /obj/structure/overmap/level))
+		for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav as anything in SSovermap.navs)
+			if(nav.linked_port == shuttle)
+				nav.set_target_level(target)
 
 	var/list/candidates = list(
 		"[shuttle.shuttle_id]_[target.id]",
@@ -453,6 +475,8 @@
 		candidates += "[shuttle.shuttle_id]_home"
 	if(istype(target, /obj/structure/overmap/level/mining))
 		candidates += "[shuttle.shuttle_id]_away"
+	if(istype(target, /obj/structure/overmap/dynamic))
+		candidates += "[OVERMAP_FERRY_PREFIX]_[target.id]"
 
 	var/obj/docking_port/stationary/picked
 	for(var/dock_id in candidates)
@@ -481,7 +505,40 @@
 		forceMove(docked)
 	state = OVERMAP_SHIP_IDLE
 	all_stop()
+	scanned_objects = null
 	update_screen()
+
+/// Active radar sweep. Finds all overmap objects within sensor_range using
+/// pixel-distance (accounts for sub-tile positions from pixel movement).
+/obj/structure/overmap/ship/simulated/proc/scan()
+	if(!COOLDOWN_FINISHED(src, scan_cooldown))
+		return 0
+	COOLDOWN_START(src, scan_cooldown, OVERMAP_SCAN_COOLDOWN)
+	var/scan_px = sensor_range * ICON_SIZE_ALL
+	var/scan_sq = scan_px * scan_px
+	var/my_px = (x - 1) * ICON_SIZE_ALL + step_x
+	var/my_py = (y - 1) * ICON_SIZE_ALL + step_y
+	var/count = 0
+	for(var/obj/structure/overmap/other as anything in SSovermap.overmap_objects)
+		if(other == src || QDELETED(other))
+			continue
+		if(other.z != z)
+			continue
+		var/dx = ((other.x - 1) * ICON_SIZE_ALL + other.step_x) - my_px
+		var/dy = ((other.y - 1) * ICON_SIZE_ALL + other.step_y) - my_py
+		if(dx * dx + dy * dy > scan_sq)
+			continue
+		var/ref = REF(other)
+		if(LAZYACCESS(scanned_objects, ref))
+			deltimer(scanned_objects[ref])
+		var/timer_id = addtimer(CALLBACK(src, PROC_REF(expire_scan), ref), OVERMAP_SCAN_DECAY, TIMER_STOPPABLE)
+		LAZYSET(scanned_objects, ref, timer_id)
+		count++
+	return count
+
+/// Remove a scanned contact when its decay timer elapses.
+/obj/structure/overmap/ship/simulated/proc/expire_scan(ref)
+	LAZYREMOVE(scanned_objects, ref)
 
 // --- Ship class subtypes with preset control_flags ---
 

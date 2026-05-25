@@ -176,6 +176,16 @@
 	var/direction = get_dir(oldloc, dest)
 	oldloc.Exited(src, direction)
 	dest.Entered(src, oldloc)
+	// Manually fire Crossed/Uncrossed for peer overmap objects since
+	// direct loc assignment doesn't cascade those signals.
+	for(var/obj/structure/overmap/peer in oldloc)
+		if(peer == src)
+			continue
+		peer.Uncrossed(src, dest)
+	for(var/obj/structure/overmap/peer in dest)
+		if(peer == src)
+			continue
+		peer.Crossed(src, oldloc)
 	Moved(oldloc, direction)
 	return TRUE
 

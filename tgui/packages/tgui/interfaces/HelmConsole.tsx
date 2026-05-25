@@ -22,6 +22,10 @@ type OtherShip = {
   name: string;
   integrity: number;
   ref: string;
+  bearing?: number;
+  distance?: number;
+  adjacent?: BooleanLike;
+  type?: 'level' | 'dynamic' | 'ship' | 'event' | 'unknown';
 };
 
 type EngineInfo = {
@@ -52,6 +56,8 @@ type Data = {
   state?: 'idle' | 'flying' | 'docking' | 'undocking';
   stopped?: BooleanLike;
   docked?: BooleanLike;
+  scanReady?: BooleanLike;
+  consoleControl?: BooleanLike;
 };
 
 export const HelmConsole = () => {
@@ -291,30 +297,80 @@ const EnginesTab = () => {
   );
 };
 
+const contactTypeLabel = (type?: string) => {
+  switch (type) {
+    case 'level':
+      return 'POI';
+    case 'dynamic':
+      return 'SIG';
+    case 'ship':
+      return 'SHIP';
+    case 'event':
+      return 'HAZ';
+    default:
+      return '???';
+  }
+};
+
 const RadarTab = () => {
   const { act, data } = useBackend<Data>();
-  const { isViewer, otherInfo = [], state, stopped } = data;
-  const canDock = !isViewer && state === 'flying' && stopped;
+  const { isViewer, otherInfo = [], state, stopped, scanReady } = data;
+  const canDock = !isViewer && state === 'flying' && !!stopped && !data.docked;
 
   return (
     <div className="HelmPanel__section">
-      <div className="HelmPanel__section-title">Contacts</div>
+      <div
+        className="HelmPanel__section-title"
+        style={{ display: 'flex', justifyContent: 'space-between' }}
+      >
+        <span>Contacts</span>
+        <button
+          className="HelmPanel__btn"
+          disabled={!!isViewer || !scanReady}
+          onClick={() => act('scan')}
+          style={{ fontSize: '10px', padding: '2px 8px' }}
+        >
+          {scanReady ? 'Scan' : 'Scanning...'}
+        </button>
+      </div>
       {otherInfo.length === 0 ? (
-        <div className="HelmPanel__radar-empty">No contacts on this tile.</div>
+        <div className="HelmPanel__radar-empty">
+          No contacts detected. Use Scan to sweep sensor range.
+        </div>
       ) : (
         otherInfo.map((contact) => (
           <div className="HelmPanel__radar-item" key={contact.ref}>
-            <div>
-              <div className="HelmPanel__radar-name">{contact.name}</div>
+            <div style={{ flex: 1 }}>
+              <div className="HelmPanel__radar-name">
+                <span
+                  style={{
+                    opacity: 0.6,
+                    fontSize: '10px',
+                    marginRight: '4px',
+                  }}
+                >
+                  [{contactTypeLabel(contact.type)}]
+                </span>
+                {contact.name}
+              </div>
+              <div
+                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+              >
+                {contact.adjacent
+                  ? 'Adjacent'
+                  : `${String(contact.bearing ?? 0).padStart(3, '0')}° / ${contact.distance ?? '?'} tile${(contact.distance ?? 0) !== 1 ? 's' : ''}`}
+              </div>
             </div>
             <div className="HelmPanel__radar-actions">
-              <button
-                className="HelmPanel__btn"
-                disabled={!canDock}
-                onClick={() => act('dock', { target: contact.ref })}
-              >
-                Dock
-              </button>
+              {contact.adjacent && contact.type !== 'event' ? (
+                <button
+                  className="HelmPanel__btn"
+                  disabled={!canDock}
+                  onClick={() => act('dock', { target: contact.ref })}
+                >
+                  {contact.type === 'dynamic' ? 'Explore' : 'Dock'}
+                </button>
+              ) : null}
             </div>
           </div>
         ))
