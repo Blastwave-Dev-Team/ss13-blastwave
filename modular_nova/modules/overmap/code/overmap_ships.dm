@@ -315,13 +315,24 @@
 /obj/structure/overmap/ship/simulated/proc/check_loc()
 	if(!shuttle)
 		return
+	// If we're mid-transition, don't interfere with the state machine.
+	if(state == OVERMAP_SHIP_DOCKING || state == OVERMAP_SHIP_UNDOCKING)
+		// If docking and the shuttle has actually arrived (mode is IDLE), finalize.
+		if(state == OVERMAP_SHIP_DOCKING && shuttle.mode == SHUTTLE_IDLE)
+			complete_dock()
+		return
 	var/obj/structure/overmap/level/docked_object = SSovermap.get_overmap_object_by_z(shuttle.z)
 	if(docked_object == loc)
 		return TRUE
 	if(!docked_object && !docked)
 		return TRUE
-	if(state == OVERMAP_SHIP_DOCKING || state == OVERMAP_SHIP_UNDOCKING)
-		return
+	// If currently docked at a dynamic encounter whose reservation holds this Z, stay put.
+	if(docked && istype(docked, /obj/structure/overmap/dynamic))
+		var/obj/structure/overmap/dynamic/enc = docked
+		if(enc.reserve)
+			var/turf/bl = enc.reserve.bottom_left_turfs[1]
+			if(bl && bl.z == shuttle.z)
+				return TRUE
 	if(docked && !docked_object)
 		var/turf/free_tile = SSovermap.get_unused_overmap_square()
 		if(free_tile)
@@ -494,7 +505,8 @@
 	docked = target
 	state = OVERMAP_SHIP_DOCKING
 	shuttle.request(picked)
-	addtimer(CALLBACK(src, PROC_REF(complete_dock)), shuttle.ignitionTime + (1 SECONDS))
+	var/transit_time = shuttle.ignitionTime + (shuttle.callTime * shuttle.engine_coeff) + (3 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(complete_dock)), transit_time)
 	return "Commencing docking at [target.name]..."
 
 /// Snap icon onto docked overmap object and return to idle.
