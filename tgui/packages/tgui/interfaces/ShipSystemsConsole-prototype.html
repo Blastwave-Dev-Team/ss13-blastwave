@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ship Systems Console Prototype</title>
+<style>
+  /* Shared palette/typography copied from HelmConsole-prototype.html */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0a0c12;
+    color: #c8d0e0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .SystemsConsole {
+    width: 1000px;
+    height: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top-level mode switch: Outside (tactical) vs Inside (ship) ── */
+  .SystemsConsole__modes {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 6px 0 6px;
+  }
+
+  .SystemsConsole__mode-btn {
+    padding: 8px 18px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(16, 20, 30, 0.85);
+    border: 1px solid rgba(80, 160, 255, 0.2);
+    color: rgba(200, 208, 224, 0.55);
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .SystemsConsole__mode-btn:hover { border-color: rgba(80, 160, 255, 0.45); color: #c8d0e0; }
+  .SystemsConsole__mode-btn--active[data-view="tactical"] {
+    background: rgba(255, 80, 80, 0.12); border-color: rgba(255, 80, 80, 0.5); color: #ff8c8c;
+  }
+  .SystemsConsole__mode-btn--active[data-view="ship"] {
+    background: rgba(0, 229, 255, 0.12); border-color: rgba(0, 229, 255, 0.5); color: #00e5ff;
+  }
+
+  .SystemsConsole__statusline {
+    margin-left: auto;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(200, 208, 224, 0.45);
+  }
+  .SystemsConsole__statusline b { color: #ffab00; }
+
+  /* A mode = one camera stage + one control column */
+  .SystemsConsole__mode {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .SystemsConsole__stage {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .SystemsConsole__side {
+    flex: 0 0 340px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .SystemsConsole__view {
+    flex: 1 1 0;
+    min-width: 0;
+    position: relative;
+    background: #06080e;
+    border: 1px solid rgba(80, 160, 255, 0.15);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .SystemsConsole__view--target {
+    border-color: rgba(255, 80, 80, 0.18);
+  }
+
+  .SystemsConsole__view-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .SystemsConsole__view--target .SystemsConsole__view-canvas { cursor: crosshair; }
+
+  /* View header bar overlaid at the top of each feed */
+  .SystemsConsole__view-header {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    background: linear-gradient(180deg, rgba(6, 8, 14, 0.9), rgba(6, 8, 14, 0));
+  }
+
+  .SystemsConsole__view-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(136, 204, 255, 0.7);
+    white-space: nowrap;
+  }
+
+  .SystemsConsole__view--target .SystemsConsole__view-title {
+    color: rgba(255, 140, 140, 0.8);
+  }
+
+  .SystemsConsole__view-sub {
+    font-size: 10px;
+    color: rgba(200, 208, 224, 0.4);
+    letter-spacing: 0.5px;
+  }
+
+  /* HUD / sensor mode toggle row */
+  .SystemsConsole__hud-modes {
+    display: flex;
+    gap: 4px;
+  }
+
+  .SystemsConsole__hud-btn {
+    background: rgba(16, 20, 30, 0.85);
+    border: 1px solid rgba(80, 160, 255, 0.2);
+    color: rgba(200, 208, 224, 0.55);
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 7px;
+    cursor: pointer;
+    border-radius: 3px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .SystemsConsole__hud-btn:hover {
+    border-color: rgba(80, 160, 255, 0.45);
+    color: #c8d0e0;
+  }
+
+  .SystemsConsole__hud-btn--active {
+    background: rgba(0, 229, 255, 0.12);
+    border-color: rgba(0, 229, 255, 0.5);
+    color: #00e5ff;
+    box-shadow: 0 0 6px rgba(0, 229, 255, 0.2);
+  }
+
+  .SystemsConsole__hud-btn--disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    text-decoration: line-through;
+  }
+
+  /* Status flash banner (shields suppress sensors, incoming fire, etc.) */
+  .SystemsConsole__view-banner {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    padding: 4px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-align: center;
+    background: rgba(20, 8, 8, 0.7);
+    color: rgba(255, 140, 140, 0.8);
+    border-top: 1px solid rgba(255, 80, 80, 0.25);
+    display: none;
+  }
+
+  .SystemsConsole__view-banner--show { display: block; }
+
+  /* Minimap overlay (drag the fixed-size camera viewport around the hull) */
+  .SystemsConsole__minimap {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 3;
+    width: 124px;
+    background: rgba(6, 8, 14, 0.82);
+    border: 1px solid rgba(80, 160, 255, 0.3);
+    border-radius: 3px;
+    padding: 4px;
+  }
+
+  .SystemsConsole__minimap-title {
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(136, 204, 255, 0.5);
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .SystemsConsole__minimap-canvas {
+    display: block;
+    width: 116px;
+    height: 116px;
+    cursor: grab;
+    background: #05070c;
+    border: 1px solid rgba(80, 160, 255, 0.1);
+  }
+
+  /* ── Bottom: weapons / power console ── */
+  /* Ship-status panel sits above power in the inside column */
+  .SystemsConsole__status {
+    flex: 0 0 auto;
+    background: rgba(16, 20, 30, 0.8);
+    border: 1px solid rgba(80, 160, 255, 0.15);
+    border-radius: 3px;
+    padding: 10px 12px;
+  }
+  .SystemsConsole__status-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(136, 204, 255, 0.6);
+    margin-bottom: 8px;
+  }
+
+  /* Power allocation column */
+  .SystemsConsole__power {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: rgba(16, 20, 30, 0.8);
+    border: 1px solid rgba(80, 160, 255, 0.15);
+    border-radius: 3px;
+    padding: 10px;
+  }
+
+  .SystemsConsole__power-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .SystemsConsole__power-total-value {
+    font-size: 18px;
+    color: #00e5ff;
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+  }
+
+  /* Per-consumer allocation: a stepper sets DESIRED draw, a readout shows ACTUAL
+     (throttled) draw granted by the grid. Weapons are individual mounts. */
+  .SystemsConsole__alloc-list {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 4px 0;
+    padding-right: 2px;
+  }
+
+  .SystemsConsole__alloc-group {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(136, 204, 255, 0.45);
+    margin: 9px 0 4px;
+  }
+  .SystemsConsole__alloc-group:first-child { margin-top: 0; }
+
+  .SystemsConsole__alloc { margin-bottom: 8px; }
+
+  .SystemsConsole__alloc-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+
+  .SystemsConsole__alloc-name { color: rgba(200, 208, 224, 0.75); }
+  .SystemsConsole__alloc-actual { font-size: 11px; white-space: nowrap; }
+  .SystemsConsole__alloc-actual--met { color: #3dbc6a; }
+  .SystemsConsole__alloc-actual--throttled { color: #ffab00; }
+  .SystemsConsole__alloc-actual--off { color: rgba(200, 208, 224, 0.35); }
+
+  .SystemsConsole__num {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    border: 1px solid rgba(80, 160, 255, 0.25);
+    border-radius: 3px;
+    background: rgba(10, 14, 22, 0.85);
+    overflow: hidden;
+  }
+
+  .SystemsConsole__num-btn {
+    width: 22px;
+    flex: 0 0 22px;
+    background: rgba(30, 40, 55, 0.85);
+    border: none;
+    color: rgba(200, 208, 224, 0.8);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .SystemsConsole__num-btn:hover { background: rgba(40, 55, 75, 0.95); color: #fff; }
+  .SystemsConsole__num-btn:active { background: rgba(0, 229, 255, 0.15); }
+  .SystemsConsole__num-btn--minus { border-right: 1px solid rgba(80, 160, 255, 0.15); }
+  .SystemsConsole__num-btn--plus { border-left: 1px solid rgba(80, 160, 255, 0.15); }
+
+  .SystemsConsole__num-value {
+    flex: 1 1 0;
+    text-align: center;
+    font-size: 12px;
+    padding: 4px 8px;
+    color: #00e5ff;
+  }
+
+  .SystemsConsole__alloc--weapons .SystemsConsole__num-value { color: #ffab00; }
+  .SystemsConsole__alloc--shields .SystemsConsole__num-value { color: #4af; }
+  .SystemsConsole__alloc--sensors .SystemsConsole__num-value { color: #3dbc6a; }
+
+  .SystemsConsole__power-bottom { margin-top: auto; }
+
+  .SystemsConsole__power-grid {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    margin-bottom: 2px;
+  }
+  .SystemsConsole__power-grid-label { color: rgba(200, 208, 224, 0.6); }
+  .SystemsConsole__power-grid-value { color: #c8d0e0; }
+  .SystemsConsole__power-grid-value--over { color: #ffab00; }
+
+  .SystemsConsole__power-warn {
+    font-size: 10px;
+    color: rgba(255, 171, 0, 0.7);
+    text-align: center;
+    min-height: 14px;
+    margin-top: 4px;
+  }
+
+  /* Tabbed panel (copied structure from helm) */
+  .SystemsConsole__panel {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: rgba(16, 20, 30, 0.8);
+    border: 1px solid rgba(80, 160, 255, 0.15);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .SystemsConsole__tabs {
+    display: flex;
+    flex: 0 0 auto;
+    border-bottom: 1px solid rgba(80, 160, 255, 0.2);
+  }
+
+  .SystemsConsole__tab {
+    flex: 1;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(136, 204, 255, 0.5);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .SystemsConsole__tab:hover {
+    color: rgba(136, 204, 255, 0.8);
+    background: rgba(80, 160, 255, 0.05);
+  }
+
+  .SystemsConsole__tab--active {
+    color: #8cf;
+    border-bottom-color: #4af;
+    background: rgba(80, 160, 255, 0.08);
+  }
+
+  .SystemsConsole__tab-content {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 10px 12px;
+  }
+
+  /* Shared panel components (copied from helm) */
+  .SysPanel__section { margin-bottom: 12px; }
+
+  .SysPanel__section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(136, 204, 255, 0.4);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(80, 160, 255, 0.1);
+  }
+
+  .SysPanel__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+  }
+
+  .SysPanel__label { color: rgba(200, 208, 224, 0.6); font-size: 12px; }
+  .SysPanel__value { color: #c8d0e0; font-size: 12px; text-align: right; }
+
+  .SysPanel__bar {
+    height: 16px;
+    background: rgba(40, 50, 70, 0.6);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+    min-width: 120px;
+  }
+
+  .SysPanel__bar-fill { height: 100%; border-radius: 2px; transition: width 0.2s; }
+  .SysPanel__bar-fill--good { background: linear-gradient(90deg, #2d8a4e, #3dbc6a); }
+  .SysPanel__bar-fill--average { background: linear-gradient(90deg, #c49a2a, #e8b830); }
+  .SysPanel__bar-fill--bad { background: linear-gradient(90deg, #c43030, #e84040); }
+  .SysPanel__bar-fill--energy { background: linear-gradient(90deg, rgba(0,229,255,0.4), #00e5ff); }
+
+  .SysPanel__bar-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .SysPanel__btn {
+    background: rgba(30, 40, 55, 0.8);
+    border: 1px solid rgba(80, 160, 255, 0.2);
+    border-radius: 3px;
+    color: rgba(200, 208, 224, 0.7);
+    padding: 3px 10px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .SysPanel__btn:hover {
+    background: rgba(40, 55, 75, 0.8);
+    border-color: rgba(80, 160, 255, 0.4);
+    color: #c8d0e0;
+  }
+
+  .SysPanel__btn--fire {
+    border-color: rgba(255, 120, 60, 0.4);
+    color: #ffab60;
+  }
+
+  .SysPanel__btn--fire:hover { border-color: rgba(255, 120, 60, 0.7); color: #ffce9a; background: rgba(60, 30, 15, 0.6); }
+  .SysPanel__btn--disabled { opacity: 0.35; cursor: not-allowed; }
+  .SysPanel__btn--active { background: rgba(0, 229, 255, 0.12); border-color: rgba(0, 229, 255, 0.5); color: #00e5ff; }
+
+  /* Weapon mount card */
+  .SysPanel__mount {
+    border: 1px solid rgba(80, 160, 255, 0.12);
+    border-radius: 3px;
+    padding: 7px 8px;
+    margin-bottom: 8px;
+    background: rgba(10, 14, 22, 0.6);
+  }
+
+  .SysPanel__mount-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+  }
+
+  .SysPanel__mount-name { color: #c8d0e0; font-size: 12px; }
+  .SysPanel__mount-kind { font-size: 9px; color: rgba(200,208,224,0.4); letter-spacing: 1px; }
+
+  .SysPanel__badge {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+  }
+
+  .SysPanel__badge--idle { color: rgba(200,208,224,0.5); border-color: rgba(200,208,224,0.2); }
+  .SysPanel__badge--charging { color: #e8b830; border-color: rgba(232,184,48,0.4); }
+  .SysPanel__badge--ready { color: #3dbc6a; border-color: rgba(61,188,106,0.5); box-shadow: 0 0 6px rgba(61,188,106,0.2); }
+  .SysPanel__badge--firing { color: #ff7a3c; border-color: rgba(255,122,60,0.6); }
+
+  .SysPanel__mount-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .SysPanel__mount-controls .SysPanel__bar { flex: 1; min-width: 0; }
+
+  .SysPanel__aim {
+    font-size: 10px;
+    color: rgba(136, 204, 255, 0.5);
+    margin-top: 5px;
+  }
+  .SysPanel__aim b { color: #ffab60; }
+
+  /* Section quick-select grid */
+  .SysPanel__sections {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    margin-top: 6px;
+  }
+
+  .SysPanel__section-btn {
+    background: rgba(30, 40, 55, 0.7);
+    border: 1px solid rgba(80, 160, 255, 0.15);
+    color: rgba(200, 208, 224, 0.6);
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 4px 0;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+
+  .SysPanel__section-btn:hover { border-color: rgba(80,160,255,0.4); color: #c8d0e0; }
+  .SysPanel__section-btn--active { background: rgba(255,171,0,0.12); border-color: rgba(255,171,0,0.5); color: #ffab00; }
+
+  /* Track list */
+  .SysPanel__track {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 6px;
+    border: 1px solid rgba(80, 160, 255, 0.08);
+    border-radius: 3px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .SysPanel__track:hover { border-color: rgba(80,160,255,0.3); background: rgba(80,160,255,0.04); }
+  .SysPanel__track--active { border-color: rgba(255,80,80,0.4); background: rgba(60,16,16,0.4); }
+
+  .SysPanel__track-name { font-size: 12px; color: #c8d0e0; }
+  .SysPanel__track-meta { font-size: 10px; color: rgba(200,208,224,0.45); }
+  .SysPanel__track-lock { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+  .SysPanel__track-lock--locked { color: #ff5050; }
+  .SysPanel__track-lock--locking { color: #e8b830; }
+  .SysPanel__track-lock--idle { color: rgba(200,208,224,0.4); }
+
+  .SysPanel__empty { color: rgba(200,208,224,0.3); font-style: italic; padding: 8px 0; }
+
+  .SysPanel__hint {
+    font-size: 10px;
+    color: rgba(136, 204, 255, 0.5);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  /* Scrollbar (copied) */
+  .SystemsConsole__tab-content::-webkit-scrollbar { width: 4px; }
+  .SystemsConsole__tab-content::-webkit-scrollbar-track { background: transparent; }
+  .SystemsConsole__tab-content::-webkit-scrollbar-thumb { background: rgba(80, 160, 255, 0.2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="SystemsConsole">
+  <!-- ── Top-level mode switch ── -->
+  <div class="SystemsConsole__modes">
+    <button class="SystemsConsole__mode-btn SystemsConsole__mode-btn--active" data-view="tactical">Tactical &middot; Outside</button>
+    <button class="SystemsConsole__mode-btn" data-view="ship">Ship &middot; Inside</button>
+    <div class="SystemsConsole__statusline">ISV Harrier &bull; Integrity <b id="status-integrity">100%</b> &bull; <b id="status-alert">CONDITION RED</b></div>
+  </div>
+
+  <!-- ══ TACTICAL (OUTSIDE): targeting + weapons ══ -->
+  <div class="SystemsConsole__mode" id="mode-tactical">
+    <div class="SystemsConsole__stage">
+
+      <!-- Target ship view -->
+      <div class="SystemsConsole__view SystemsConsole__view--target">
+        <canvas class="SystemsConsole__view-canvas" id="tgt-canvas"></canvas>
+        <div class="SystemsConsole__view-header">
+          <div>
+            <div class="SystemsConsole__view-title" id="tgt-title">Target &mdash; none</div>
+            <div class="SystemsConsole__view-sub" id="tgt-sub">Cycle locked tracks &bull; [ / ]</div>
+          </div>
+          <div class="SystemsConsole__hud-modes">
+            <button class="SystemsConsole__hud-btn SystemsConsole__hud-btn--active" data-mode="lidar">LIDAR</button>
+            <button class="SystemsConsole__hud-btn" data-mode="thermal">Thermal</button>
+            <button class="SystemsConsole__hud-btn SystemsConsole__hud-btn--disabled" data-mode="meson">Meson</button>
+          </div>
+        </div>
+        <div class="SystemsConsole__view-banner" id="tgt-banner">Shields active &mdash; interior scan blocked</div>
+        <div class="SystemsConsole__minimap" id="tgt-minimap-wrap" style="display:none">
+          <div class="SystemsConsole__minimap-title"><span>Aim Viewport</span><span id="tgt-focus-label">&mdash;</span></div>
+          <canvas class="SystemsConsole__minimap-canvas" id="tgt-minimap" width="116" height="116"></canvas>
+        </div>
+      </div>
+
+      <!-- Targeting + weapons column -->
+      <div class="SystemsConsole__side">
+        <div class="SystemsConsole__panel">
+          <div class="SystemsConsole__tabs">
+            <button class="SystemsConsole__tab SystemsConsole__tab--active" data-tab="weapons">Weapons</button>
+            <button class="SystemsConsole__tab" data-tab="tracks">Tracks</button>
+          </div>
+          <div class="SystemsConsole__tab-content" id="tab-weapons"></div>
+          <div class="SystemsConsole__tab-content" id="tab-tracks" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SHIP (INSIDE): interior camera + power + status ══ -->
+  <div class="SystemsConsole__mode" id="mode-ship" style="display:none">
+    <div class="SystemsConsole__stage">
+
+      <!-- Own ship / interior view -->
+      <div class="SystemsConsole__view SystemsConsole__view--own">
+        <canvas class="SystemsConsole__view-canvas" id="own-canvas"></canvas>
+        <div class="SystemsConsole__view-header">
+          <div>
+            <div class="SystemsConsole__view-title">Own Ship &mdash; ISV Harrier</div>
+            <div class="SystemsConsole__view-sub" id="own-sub">Integrity 100% &bull; 4 cameras online</div>
+          </div>
+          <div class="SystemsConsole__hud-modes">
+            <button class="SystemsConsole__hud-btn SystemsConsole__hud-btn--active" id="own-cams">Cameras</button>
+          </div>
+        </div>
+        <div class="SystemsConsole__view-banner" id="own-banner">&#9888; Incoming fire &mdash; hull breach, deck 2</div>
+        <div class="SystemsConsole__minimap">
+          <div class="SystemsConsole__minimap-title"><span>Viewport</span><span id="own-focus-label">Full hull</span></div>
+          <canvas class="SystemsConsole__minimap-canvas" id="own-minimap" width="116" height="116"></canvas>
+        </div>
+      </div>
+
+      <!-- Status + power column -->
+      <div class="SystemsConsole__side">
+
+        <!-- Ship status -->
+        <div class="SystemsConsole__status">
+          <div class="SystemsConsole__status-title">Ship Status</div>
+          <div class="SysPanel__row"><span class="SysPanel__label">Hull integrity</span><span class="SysPanel__value" style="color:#3dbc6a">100%</span></div>
+          <div class="SysPanel__row"><span class="SysPanel__label">Shields</span><span class="SysPanel__value" style="color:#4af">Online &bull; 1.4 / 2.0 GJ</span></div>
+          <div class="SysPanel__row"><span class="SysPanel__label">Sensor processor</span><span class="SysPanel__value" id="sensor-temp" style="color:#3dbc6a">Power 5 &bull; -14&deg;C</span></div>
+          <div class="SysPanel__row"><span class="SysPanel__label">Antennae</span><span class="SysPanel__value">LIDAR &bull; Thermal</span></div>
+        </div>
+
+        <!-- Power allocation -->
+        <div class="SystemsConsole__power">
+          <div class="SystemsConsole__power-total">
+            <span class="SysPanel__label">Grid Supply</span>
+            <span class="SystemsConsole__power-total-value" id="pwr-supply">2.4<span style="font-size:11px;opacity:0.6"> MW</span></span>
+          </div>
+
+          <div class="SystemsConsole__power-grid">
+            <span class="SystemsConsole__power-grid-label">Desired demand</span>
+            <span class="SystemsConsole__power-grid-value" id="pwr-demand">&mdash;</span>
+          </div>
+          <div class="SystemsConsole__power-grid">
+            <span class="SystemsConsole__power-grid-label">Actual draw</span>
+            <span class="SystemsConsole__power-grid-value" id="pwr-draw">&mdash;</span>
+          </div>
+
+          <!-- Per-consumer steppers (rendered by JS) -->
+          <div class="SystemsConsole__alloc-list" id="alloc-list"></div>
+
+          <div class="SystemsConsole__power-bottom">
+            <div class="SystemsConsole__power-warn" id="power-warn"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ───────────────────────── Mock state ─────────────────────────
+const mounts = [
+  { id: 'rail', name: 'Spinal Railgun', kind: 'Ballistic \u2022 mag-linked', mode: 'manual', charge: 0.4, rate: 0.18, ammo: 7, maxAmmo: 12, aim: null, state: 'charging' },
+  { id: 'laser', name: 'Port Laser Battery', kind: 'Energy \u2022 buffered', mode: 'auto', charge: 1, rate: 0.06, energy: true, aim: null, state: 'ready' },
+  { id: 'missile', name: 'Missile Rack', kind: 'Ballistic \u2022 mag-linked', mode: 'manual', charge: 1, rate: 0.1, ammo: 3, maxAmmo: 4, aim: null, state: 'ready' },
+];
+
+// Sensor processing power pulls double duty: you can lock this many ships at once,
+// AND place this many aim points (specific target tiles) on each locked ship.
+// e.g. 5 sensor power => up to 5 tracks, 5 aim points each => 25 total aim points.
+const SENSOR_POWER = 5;
+let aimPointsByTarget = {};   // targetId -> [ { id, hx, hy } ] in target-hull space
+let tgtView = null;           // last {cx, cy, scale} transform of the target render
+
+function currentAimPoints() {
+  return (aimPointsByTarget[currentTargetId] ||= []);
+}
+function getAimPoint(aim) {
+  if (!aim) return null;
+  return (aimPointsByTarget[aim.tid] || []).find(p => p.id === aim.pid) || null;
+}
+function trackName(tid) { const t = tracks.find(x => x.id === tid); return t ? t.name : '\u2014'; }
+
+const tracks = [
+  { id: 't1', name: 'SCV Marauder', kind: 'Corvette', dist: 6, bearing: 47, lock: 'locked', shields: true,  size: 1.0 },
+  { id: 't2', name: 'Unknown contact', kind: 'unclassified', dist: 11, bearing: 312, lock: 'locking', progress: 0.6, shields: false, size: 1.4 },
+  { id: 't3', name: 'FTV Drone', kind: 'Drone', dist: 3, bearing: 120, lock: 'idle', shields: false, size: 0.5 },
+];
+
+let currentTargetId = 't1';
+let tgtMode = 'lidar';            // lidar | thermal | meson
+// Fixed-size camera viewport (normalized {x0,y0,x1,y1}); the user drags it
+// around the hull to pan. Size is derived from the ship grid vs OVERMAP_MAX_VIEW_TILES.
+let ownFocus = null;
+let tgtFocus = null;
+let incomingTimer = 0;
+
+const getTarget = () => tracks.find(t => t.id === currentTargetId) || null;
+
+// ───────────────────────── Top-level mode switch ─────────────────────────
+const modeButtons = document.querySelectorAll('.SystemsConsole__mode-btn');
+const modePanels = {
+  tactical: document.getElementById('mode-tactical'),
+  ship: document.getElementById('mode-ship'),
+};
+modeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    modeButtons.forEach(b => b.classList.remove('SystemsConsole__mode-btn--active'));
+    btn.classList.add('SystemsConsole__mode-btn--active');
+    Object.entries(modePanels).forEach(([k, p]) => (p.style.display = k === btn.dataset.view ? '' : 'none'));
+  });
+});
+
+// ───────────────────────── Tactical tabs (Weapons / Tracks) ─────────────────────────
+const tabs = document.querySelectorAll('.SystemsConsole__tab');
+const tabPanels = {
+  weapons: document.getElementById('tab-weapons'),
+  tracks: document.getElementById('tab-tracks'),
+};
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('SystemsConsole__tab--active'));
+    tab.classList.add('SystemsConsole__tab--active');
+    Object.values(tabPanels).forEach(p => (p.style.display = 'none'));
+    tabPanels[tab.dataset.tab].style.display = '';
+  });
+});
+
+// ───────────────────────── Weapons tab render ─────────────────────────
+function renderWeapons() {
+  const tgt = getTarget();
+  const el = tabPanels.weapons;
+  el.innerHTML = '';
+  const pts = tgt ? currentAimPoints() : [];
+  const section = document.createElement('div');
+  section.className = 'SysPanel__section';
+  section.innerHTML = `<div class="SysPanel__section-title">Mounts &mdash; assign to a target tile</div>
+    <div class="SysPanel__hint">${tgt ? `Click tiles on ${tgt.name} to mark aim points (${pts.length}/${SENSOR_POWER}), then assign a mount.` : 'Lock a target to place aim points.'}</div>`;
+  el.appendChild(section);
+
+  mounts.forEach(m => {
+    // Drop assignments whose aim point no longer exists.
+    if (m.aim && !getAimPoint(m.aim)) m.aim = null;
+    const pct = Math.round(m.charge * 100);
+    const fillClass = m.energy ? 'SysPanel__bar-fill--energy'
+      : (m.charge >= 1 ? 'SysPanel__bar-fill--good' : 'SysPanel__bar-fill--average');
+    const ammoLabel = m.energy ? `${pct}% buffer` : `${m.ammo}/${m.maxAmmo} rds`;
+    const assignedHere = m.aim && m.aim.tid === currentTargetId;
+    const assignBtns = pts.length
+      ? pts.map(p => `<button class="SysPanel__section-btn ${assignedHere && m.aim.pid === p.id ? 'SysPanel__section-btn--active' : ''}" data-pt="${p.id}" data-id="${m.id}">${p.id}</button>`).join('')
+        + `<button class="SysPanel__section-btn ${m.aim == null ? 'SysPanel__section-btn--active' : ''}" data-pt="" data-id="${m.id}">&mdash;</button>`
+      : `<span class="SysPanel__empty" style="padding:0">No aim points placed</span>`;
+    const aimLabel = m.aim ? `${trackName(m.aim.tid)} &rarr; point ${m.aim.pid}` : 'unassigned';
+    const card = document.createElement('div');
+    card.className = 'SysPanel__mount';
+    card.innerHTML = `
+      <div class="SysPanel__mount-head">
+        <div>
+          <div class="SysPanel__mount-name">${m.name}</div>
+          <div class="SysPanel__mount-kind">${m.kind}</div>
+        </div>
+        <span class="SysPanel__badge SysPanel__badge--${m.state}">${m.state}</span>
+      </div>
+      <div class="SysPanel__mount-controls">
+        <div class="SysPanel__bar">
+          <div class="SysPanel__bar-fill ${fillClass}" style="width:${pct}%"></div>
+          <div class="SysPanel__bar-text">${ammoLabel}</div>
+        </div>
+        <button class="SysPanel__btn" data-act="mode" data-id="${m.id}">${m.mode === 'auto' ? 'AUTO' : 'MANUAL'}</button>
+        <button class="SysPanel__btn SysPanel__btn--fire ${(m.state !== 'ready' || m.aim == null) ? 'SysPanel__btn--disabled' : ''}" data-act="fire" data-id="${m.id}">FIRE</button>
+      </div>
+      <div class="SysPanel__aim">Aim: <b>${aimLabel}</b></div>
+      <div class="SysPanel__sections" data-id="${m.id}">${assignBtns}</div>`;
+    el.appendChild(card);
+  });
+
+  el.querySelectorAll('[data-act="mode"]').forEach(b => b.addEventListener('click', () => {
+    const m = mounts.find(x => x.id === b.dataset.id);
+    m.mode = m.mode === 'auto' ? 'manual' : 'auto';
+    renderWeapons();
+  }));
+  el.querySelectorAll('[data-act="fire"]').forEach(b => b.addEventListener('click', () => {
+    const m = mounts.find(x => x.id === b.dataset.id);
+    if (m.state !== 'ready' || m.aim == null) return;
+    fireMount(m);
+  }));
+  el.querySelectorAll('.SysPanel__section-btn[data-pt]').forEach(b => b.addEventListener('click', () => {
+    const m = mounts.find(x => x.id === b.dataset.id);
+    m.aim = b.dataset.pt === '' ? null : { tid: currentTargetId, pid: Number(b.dataset.pt) };
+    renderWeapons();
+  }));
+}
+
+function fireMount(m) {
+  m.state = 'firing';
+  if (!m.energy && m.ammo > 0) m.ammo -= 1;
+  m.charge = 0;
+  spawnTracer(m.aim);
+  renderWeapons();
+  setTimeout(() => { m.state = m.charge >= 1 ? 'ready' : 'charging'; renderWeapons(); }, 350);
+}
+
+function spawnTracer(aim) {
+  const p = getAimPoint(aim);
+  tracers.push({ life: 30, tid: aim ? aim.tid : null, hx: p ? p.hx : 0, hy: p ? p.hy : 0 });
+}
+
+// ───────────────────────── Tracks tab render ─────────────────────────
+function renderTracks() {
+  const el = tabPanels.tracks;
+  const lockedCount = tracks.filter(t => t.lock === 'locked').length;
+  el.innerHTML = `<div class="SysPanel__section-title">Sensor Tracks</div>
+    <div class="SysPanel__hint">${lockedCount}/${SENSOR_POWER} ship locks &bull; ${SENSOR_POWER} aim points each (sensor power)</div>`;
+  if (!tracks.length) { el.innerHTML += `<div class="SysPanel__empty">No contacts in sensor range.</div>`; return; }
+  tracks.forEach(t => {
+    const lockClass = t.lock === 'locked' ? 'locked' : t.lock === 'locking' ? 'locking' : 'idle';
+    const lockText = t.lock === 'locked' ? 'Locked' : t.lock === 'locking' ? `Locking ${Math.round((t.progress || 0) * 100)}%` : 'Lock';
+    const aimCount = (aimPointsByTarget[t.id] || []).length;
+    const aimMeta = t.lock === 'locked' && aimCount ? ` &bull; ${aimCount} aim` : '';
+    const row = document.createElement('div');
+    row.className = 'SysPanel__track ' + (t.id === currentTargetId ? 'SysPanel__track--active' : '');
+    row.innerHTML = `
+      <div>
+        <div class="SysPanel__track-name">${t.name}</div>
+        <div class="SysPanel__track-meta">${t.kind} &bull; ${String(t.bearing).padStart(3,'0')}&deg; / ${t.dist} tiles${t.shields ? ' &bull; shielded' : ''}${aimMeta}</div>
+      </div>
+      <div class="SysPanel__track-lock SysPanel__track-lock--${lockClass}">${lockText}</div>`;
+    row.addEventListener('click', () => { if (t.lock === 'locked') { currentTargetId = t.id; syncTarget(); } });
+    el.appendChild(row);
+  });
+}
+
+// ───────────────────────── Target header / HUD sync ─────────────────────────
+const hudButtons = document.querySelectorAll('.SystemsConsole__hud-btn[data-mode]');
+hudButtons.forEach(b => b.addEventListener('click', () => {
+  if (b.classList.contains('SystemsConsole__hud-btn--disabled')) return;
+  tgtMode = b.dataset.mode;
+  syncTarget();
+}));
+
+function syncTarget() {
+  const tgt = getTarget();
+  const title = document.getElementById('tgt-title');
+  const sub = document.getElementById('tgt-sub');
+  const banner = document.getElementById('tgt-banner');
+  const miniWrap = document.getElementById('tgt-minimap-wrap');
+
+  if (!tgt) {
+    title.textContent = 'Target — none';
+    sub.textContent = 'No lock — showing radar';
+    banner.classList.remove('SystemsConsole__view-banner--show');
+    miniWrap.style.display = 'none';
+  } else {
+    title.textContent = `Target — ${tgt.name}`;
+    sub.textContent = `${tgt.kind} • ${String(tgt.bearing).padStart(3,'0')}° / ${tgt.dist} tiles`;
+    miniWrap.style.display = '';
+    // Interiority modes blocked while the target's shields hold.
+    const interiorMode = (tgtMode === 'thermal' || tgtMode === 'meson');
+    if (tgt.shields && interiorMode) {
+      banner.classList.add('SystemsConsole__view-banner--show');
+    } else {
+      banner.classList.remove('SystemsConsole__view-banner--show');
+    }
+  }
+
+  hudButtons.forEach(b => b.classList.toggle('SystemsConsole__hud-btn--active', b.dataset.mode === tgtMode));
+  renderWeapons();
+  renderTracks();
+}
+
+// ───────────────────────── Power allocation (quantized MW) ─────────────────────────
+// Power is supplied by the grid (generators -> APC), not a single "reactor".
+// Each consumer sets a DESIRED draw (quantized stepper, like Air Alarm thresholds);
+// the grid grants an ACTUAL draw, throttled proportionally when demand > supply.
+// Weapons are individual mounts, each powered on its own.
+const GRID_SUPPLY_MW = 2.4;       // available from generators via the APC
+const ALLOC_STEP = 0.1;           // MW per increment
+const ALLOC_MAX = 2.0;            // per-consumer cap
+
+const consumers = [
+  { id: 'm1',     group: 'weapons', groupLabel: 'Weapon Mounts', name: 'Mount 1 · Railgun',  desired: 1.2 },
+  { id: 'm2',     group: 'weapons', groupLabel: 'Weapon Mounts', name: 'Mount 2 · PDC Turret', desired: 0.4 },
+  { id: 'shield', group: 'shields', groupLabel: 'Shields',       name: 'Shield Generator',    desired: 0.8 },
+  { id: 'sensor', group: 'sensors', groupLabel: 'Sensors',       name: 'Sensor Processor',    desired: 0.5 },
+];
+
+function fmtMW(v) { return v.toFixed(1) + ' MW'; }
+
+// Throttle: if total desired exceeds supply, scale each consumer's actual draw down.
+function computeActual() {
+  const demand = consumers.reduce((a, c) => a + c.desired, 0);
+  const ratio = demand > GRID_SUPPLY_MW && demand > 0 ? GRID_SUPPLY_MW / demand : 1;
+  const actual = {};
+  for (const c of consumers) actual[c.id] = Math.round(c.desired * ratio * 10) / 10;
+  return { demand, draw: Math.min(demand, GRID_SUPPLY_MW), actual };
+}
+
+function buildAllocList() {
+  const list = document.getElementById('alloc-list');
+  let html = '';
+  let lastGroup = null;
+  for (const c of consumers) {
+    if (c.group !== lastGroup) {
+      html += `<div class="SystemsConsole__alloc-group">${c.groupLabel}</div>`;
+      lastGroup = c.group;
+    }
+    html += `
+      <div class="SystemsConsole__alloc SystemsConsole__alloc--${c.group}">
+        <div class="SystemsConsole__alloc-head">
+          <span class="SystemsConsole__alloc-name">${c.name}</span>
+          <span class="SystemsConsole__alloc-actual" id="actual-${c.id}"></span>
+        </div>
+        <div class="SystemsConsole__num">
+          <button class="SystemsConsole__num-btn SystemsConsole__num-btn--minus" data-id="${c.id}" data-dir="-1">&minus;</button>
+          <span class="SystemsConsole__num-value" id="desired-${c.id}"></span>
+          <button class="SystemsConsole__num-btn SystemsConsole__num-btn--plus" data-id="${c.id}" data-dir="1">+</button>
+        </div>
+      </div>`;
+  }
+  list.innerHTML = html;
+  list.querySelectorAll('.SystemsConsole__num-btn').forEach(btn => {
+    btn.addEventListener('click', () => stepAlloc(btn.dataset.id, Number(btn.dataset.dir)));
+  });
+}
+
+function renderAlloc() {
+  const { demand, draw, actual } = computeActual();
+  for (const c of consumers) {
+    document.getElementById('desired-' + c.id).textContent = fmtMW(c.desired);
+    const a = actual[c.id], el = document.getElementById('actual-' + c.id);
+    el.className = 'SystemsConsole__alloc-actual ' + (
+      c.desired === 0 ? 'SystemsConsole__alloc-actual--off'
+      : a < c.desired - 1e-9 ? 'SystemsConsole__alloc-actual--throttled'
+      : 'SystemsConsole__alloc-actual--met');
+    el.textContent = c.desired === 0 ? 'offline' : `\u2192 ${fmtMW(a)}`;
+  }
+  const over = demand > GRID_SUPPLY_MW + 1e-9;
+  const demandEl = document.getElementById('pwr-demand');
+  demandEl.textContent = fmtMW(demand);
+  demandEl.className = 'SystemsConsole__power-grid-value' + (over ? ' SystemsConsole__power-grid-value--over' : '');
+  document.getElementById('pwr-draw').textContent = fmtMW(draw);
+  document.getElementById('power-warn').textContent = over
+    ? '\u26A0 Demand exceeds grid supply — consumers throttled' : '';
+}
+
+function stepAlloc(id, dir) {
+  const c = consumers.find(x => x.id === id);
+  if (!c) return;
+  c.desired = Math.max(0, Math.min(ALLOC_MAX, Math.round((c.desired + dir * ALLOC_STEP) * 10) / 10));
+  renderAlloc();
+}
+
+buildAllocList();
+renderAlloc();
+
+// ───────────────────────── Canvas helpers ─────────────────────────
+function fit(canvas) {
+  const r = canvas.getBoundingClientRect();
+  if (canvas.width !== r.width || canvas.height !== r.height) {
+    canvas.width = r.width; canvas.height = r.height;
+  }
+}
+
+// Normalized hull silhouette (north-up), used for views + minimaps.
+const HULL = [
+  [0,-1.0],[0.18,-0.78],[0.22,-0.35],[0.4,-0.1],[0.44,0.35],[0.3,0.62],[0.4,0.86],[0.16,0.95],
+  [0,0.9],[-0.16,0.95],[-0.4,0.86],[-0.3,0.62],[-0.44,0.35],[-0.4,-0.1],[-0.22,-0.35],[-0.18,-0.78],
+];
+
+function pathHull(ctx, cx, cy, sx, sy) {
+  ctx.beginPath();
+  HULL.forEach((p, i) => {
+    const x = cx + p[0] * sx, y = cy + p[1] * sy;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+}
+
+const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), s: Math.random() * 1.3 + 0.3, b: Math.random() * 0.5 + 0.2 }));
+function drawStars(ctx, w, h, t) {
+  for (const st of stars) {
+    const f = Math.sin(t * 0.001 + st.x * 10) * 0.12 + st.b;
+    ctx.fillStyle = `rgba(180,200,255,${Math.max(0.04, f)})`;
+    ctx.beginPath();
+    ctx.arc(st.x * w, st.y * h, st.s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ── Own ship view ──
+const ownCanvas = document.getElementById('own-canvas');
+function drawOwn(t) {
+  fit(ownCanvas);
+  const ctx = ownCanvas.getContext('2d');
+  const w = ownCanvas.width, h = ownCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#05070c'; ctx.fillRect(0, 0, w, h);
+  drawStars(ctx, w, h, t);
+
+  // Pan + zoom to the fixed viewport: scale by its size, translate so it centers.
+  let cx = w / 2, cy = h / 2;
+  let scale = Math.min(w, h) * 0.42;
+  if (ownFocus) {
+    const sz = Math.max(ownFocus.x1 - ownFocus.x0, ownFocus.y1 - ownFocus.y0, 0.1);
+    scale /= sz;
+    const fcx = (ownFocus.x0 + ownFocus.x1) / 2, fcy = (ownFocus.y0 + ownFocus.y1) / 2;
+    cx += (0.5 - fcx) * scale * 2;
+    cy += (0.5 - fcy) * scale * 2;
+  }
+
+  // Hull fill
+  pathHull(ctx, cx, cy, scale, scale);
+  ctx.fillStyle = 'rgba(40,52,74,0.85)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,180,255,0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Camera-lit interior patches (clip to hull)
+  ctx.save();
+  pathHull(ctx, cx, cy, scale, scale); ctx.clip();
+  const cams = [[-0.12, -0.4], [0.1, 0.0], [-0.05, 0.55], [0.18, 0.4]];
+  for (const c of cams) {
+    const g = ctx.createRadialGradient(cx + c[0]*scale, cy + c[1]*scale, 0, cx + c[0]*scale, cy + c[1]*scale, scale*0.32);
+    g.addColorStop(0, 'rgba(80,200,255,0.22)');
+    g.addColorStop(1, 'rgba(80,200,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.restore();
+
+  // Incoming-fire flash on hull edge
+  if (incomingTimer > 0) {
+    incomingTimer -= 1;
+    const a = (incomingTimer % 20) / 20;
+    pathHull(ctx, cx, cy, scale, scale);
+    ctx.strokeStyle = `rgba(255,80,60,${0.3 + a * 0.5})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    document.getElementById('own-banner').classList.add('SystemsConsole__view-banner--show');
+  } else {
+    document.getElementById('own-banner').classList.remove('SystemsConsole__view-banner--show');
+  }
+}
+
+// ── Target view ──
+const tgtCanvas = document.getElementById('tgt-canvas');
+let tracers = [];
+
+const AIM_SNAP = 0.12; // hull-units per "tile" for snapping clicked aim points
+
+// Point-in-polygon test against the hull silhouette (hull-space coords).
+function pointInHull(hx, hy) {
+  let inside = false;
+  for (let i = 0, j = HULL.length - 1; i < HULL.length; j = i++) {
+    const xi = HULL[i][0], yi = HULL[i][1], xj = HULL[j][0], yj = HULL[j][1];
+    if ((yi > hy) !== (yj > hy) && hx < ((xj - xi) * (hy - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function drawTarget(t) {
+  fit(tgtCanvas);
+  const ctx = tgtCanvas.getContext('2d');
+  const w = tgtCanvas.width, h = tgtCanvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#06070c'; ctx.fillRect(0, 0, w, h);
+  drawStars(ctx, w, h, t);
+  const tgt = getTarget();
+
+  if (!tgt) {
+    // Radar sweep (no lock)
+    const cx = w/2, cy = h/2, R = Math.min(w, h) * 0.42;
+    ctx.strokeStyle = 'rgba(80,160,255,0.15)'; ctx.lineWidth = 1;
+    for (const f of [0.33, 0.66, 1]) { ctx.beginPath(); ctx.arc(cx, cy, R*f, 0, Math.PI*2); ctx.stroke(); }
+    const ang = (t * 0.001) % (Math.PI * 2);
+    ctx.strokeStyle = 'rgba(80,200,255,0.5)';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang)*R, cy + Math.sin(ang)*R); ctx.stroke();
+    tracks.forEach((c, i) => {
+      const a = (c.bearing - 90) * Math.PI / 180;
+      const rr = (c.dist / 12) * R;
+      ctx.fillStyle = c.lock === 'locked' ? '#ff5050' : 'rgba(136,204,255,0.7)';
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a)*rr, cy + Math.sin(a)*rr, 3, 0, Math.PI*2); ctx.fill();
+    });
+    return;
+  }
+
+  // Locked: target hull, pan + zoom to the fixed aim viewport
+  let cx = w/2, cy = h/2;
+  let scale = Math.min(w, h) * 0.4 / tgt.size;
+  if (tgtFocus) {
+    const sz = Math.max(tgtFocus.x1 - tgtFocus.x0, tgtFocus.y1 - tgtFocus.y0, 0.1);
+    scale /= sz;
+    const fcx = (tgtFocus.x0 + tgtFocus.x1) / 2, fcy = (tgtFocus.y0 + tgtFocus.y1) / 2;
+    cx += (0.5 - fcx) * scale * 2;
+    cy += (0.5 - fcy) * scale * 2;
+  }
+
+  tgtView = { cx, cy, scale };
+
+  pathHull(ctx, cx, cy, scale, scale);
+  ctx.fillStyle = 'rgba(60,40,46,0.8)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,120,120,0.55)';
+  ctx.lineWidth = 2; ctx.stroke();
+
+  const interiorBlocked = tgt.shields && (tgtMode === 'thermal' || tgtMode === 'meson');
+  ctx.save(); pathHull(ctx, cx, cy, scale, scale); ctx.clip();
+  if (tgtMode === 'meson' && !interiorBlocked) {
+    // Interior layout grid
+    ctx.strokeStyle = 'rgba(120,255,170,0.35)'; ctx.lineWidth = 1;
+    for (let gy = -1; gy <= 1; gy += 0.25) { ctx.beginPath(); ctx.moveTo(cx - scale, cy + gy*scale); ctx.lineTo(cx + scale, cy + gy*scale); ctx.stroke(); }
+    for (let gx = -0.5; gx <= 0.5; gx += 0.25) { ctx.beginPath(); ctx.moveTo(cx + gx*scale, cy - scale); ctx.lineTo(cx + gx*scale, cy + scale); ctx.stroke(); }
+  } else if (tgtMode === 'thermal' && !interiorBlocked) {
+    // Heat signatures
+    const sigs = [[-0.1,-0.3],[0.12,0.1],[-0.08,0.5],[0.05,0.7],[0.2,-0.1]];
+    for (const s of sigs) {
+      const g = ctx.createRadialGradient(cx+s[0]*scale, cy+s[1]*scale, 0, cx+s[0]*scale, cy+s[1]*scale, scale*0.12);
+      g.addColorStop(0, 'rgba(255,120,40,0.9)'); g.addColorStop(0.5, 'rgba(255,60,20,0.4)'); g.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+    }
+  }
+  ctx.restore();
+
+  // Tile grid (sells the "click a tile" interaction), clipped to the hull
+  ctx.save(); pathHull(ctx, cx, cy, scale, scale); ctx.clip();
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+  for (let gx = -0.5; gx <= 0.5 + 1e-6; gx += AIM_SNAP) {
+    ctx.beginPath(); ctx.moveTo(cx + gx*scale, cy - scale); ctx.lineTo(cx + gx*scale, cy + scale); ctx.stroke();
+  }
+  for (let gy = -1; gy <= 1 + 1e-6; gy += AIM_SNAP) {
+    ctx.beginPath(); ctx.moveTo(cx - scale, cy + gy*scale); ctx.lineTo(cx + scale, cy + gy*scale); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Aim points placed by the operator (numbered tiles), highlighting assigned ones
+  const assigned = new Set(mounts.filter(m => m.aim && m.aim.tid === tgt.id).map(m => m.aim.pid));
+  const tile = AIM_SNAP * scale;
+  for (const p of currentAimPoints()) {
+    const px = cx + p.hx * scale, py = cy + p.hy * scale;
+    const isAssigned = assigned.has(p.id);
+    const col = isAssigned ? '255,80,60' : '255,171,0';
+    ctx.fillStyle = `rgba(${col},0.18)`;
+    ctx.fillRect(px - tile/2, py - tile/2, tile, tile);
+    ctx.strokeStyle = `rgba(${col},0.95)`; ctx.lineWidth = 1.5;
+    ctx.strokeRect(px - tile/2, py - tile/2, tile, tile);
+    // crosshair
+    ctx.beginPath();
+    ctx.moveTo(px - tile*0.9, py); ctx.lineTo(px + tile*0.9, py);
+    ctx.moveTo(px, py - tile*0.9); ctx.lineTo(px, py + tile*0.9);
+    ctx.stroke();
+    // number badge
+    ctx.fillStyle = `rgba(${col},1)`;
+    ctx.font = 'bold 11px Consolas, monospace';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText(String(p.id), px + tile/2 + 2, py - tile/2);
+  }
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+
+  // Tracers (weapon fire toward the assigned aim tile) — only for the viewed target
+  tracers = tracers.filter(tr => tr.life > 0);
+  for (const tr of tracers) {
+    tr.life -= 1;
+    if (tr.tid !== tgt.id) continue;
+    const prog = 1 - tr.life / 30;
+    const ex = cx + tr.hx * scale, ey = cy + tr.hy * scale;
+    ctx.strokeStyle = `rgba(255,180,80,${tr.life/30})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(w*0.1, h*0.95); ctx.lineTo(w*0.1 + (ex - w*0.1)*prog, h*0.95 + (ey - h*0.95)*prog); ctx.stroke();
+  }
+}
+
+// ── Click target tiles to place / remove aim points (capped by sensor processor) ──
+tgtCanvas.addEventListener('click', e => {
+  if (!getTarget() || !tgtView) return;
+  const r = tgtCanvas.getBoundingClientRect();
+  const sx = (e.clientX - r.left) / r.width * tgtCanvas.width;
+  const sy = (e.clientY - r.top) / r.height * tgtCanvas.height;
+  // Invert the render transform, then snap to a tile.
+  let hx = (sx - tgtView.cx) / tgtView.scale;
+  let hy = (sy - tgtView.cy) / tgtView.scale;
+  hx = Math.round(hx / AIM_SNAP) * AIM_SNAP;
+  hy = Math.round(hy / AIM_SNAP) * AIM_SNAP;
+  if (!pointInHull(hx, hy)) return; // clicked off-hull (open space)
+
+  const tid = currentTargetId;
+  const pts = currentAimPoints();
+  // Toggle: if a point already occupies this tile, remove it.
+  const existing = pts.find(p => Math.abs(p.hx - hx) < AIM_SNAP/2 && Math.abs(p.hy - hy) < AIM_SNAP/2);
+  if (existing) {
+    aimPointsByTarget[tid] = pts.filter(p => p !== existing);
+    mounts.forEach(m => { if (m.aim && m.aim.tid === tid && m.aim.pid === existing.id) m.aim = null; });
+    renumberAimPoints(tid);
+  } else {
+    if (pts.length >= SENSOR_POWER) return; // per-target aim budget reached
+    const nextId = pts.reduce((mx, p) => Math.max(mx, p.id), 0) + 1;
+    pts.push({ id: nextId, hx, hy });
+  }
+  renderWeapons();
+});
+
+// Keep a target's aim points numbered 1..n, remapping any mount assignments.
+function renumberAimPoints(tid) {
+  const pts = aimPointsByTarget[tid] || [];
+  const refs = new Map();
+  mounts.forEach(m => { if (m.aim && m.aim.tid === tid) refs.set(m, getAimPoint(m.aim)); });
+  pts.forEach((p, i) => (p.id = i + 1));
+  mounts.forEach(m => { if (refs.has(m)) m.aim = refs.get(m) ? { tid, pid: refs.get(m).id } : null; });
+}
+
+// ───────────────────────── Minimap: draggable fixed viewport ─────────────────────────
+// The camera can only render OVERMAP_MAX_VIEW_TILES across; the viewport is a
+// fixed fraction of the hull that the user drags around to pan.
+const OVERMAP_MAX_VIEW_TILES = 12;
+
+function setupMinimap(canvasId, labelId, getFocus, setFocus, tint, grid) {
+  const canvas = document.getElementById(canvasId);
+  const label = document.getElementById(labelId);
+  // Fixed viewport size as a fraction of the hull (clamped to whole hull for small ships).
+  const vw = Math.min(1, OVERMAP_MAX_VIEW_TILES / grid.w);
+  const vh = Math.min(1, OVERMAP_MAX_VIEW_TILES / grid.h);
+  const fullHull = vw >= 1 && vh >= 1;
+  let drag = null;
+
+  function centered() {
+    return { x0: (1 - vw) / 2, y0: (1 - vh) / 2, x1: (1 + vw) / 2, y1: (1 + vh) / 2 };
+  }
+
+  function updateLabel() {
+    if (fullHull) { label.textContent = 'Full hull'; return; }
+    const f = getFocus();
+    // turf rect with Y-flip to match generate_hull_minimap (north-up image, origin bottom-left)
+    const wx0 = Math.round(f.x0 * grid.w), wx1 = Math.round(f.x1 * grid.w);
+    const wy0 = grid.h - Math.round(f.y1 * grid.h), wy1 = grid.h - Math.round(f.y0 * grid.h);
+    label.textContent = `[${wx0}-${wx1}]×[${wy0}-${wy1}]`;
+  }
+
+  // Move the viewport so its top-left sits at (nx, ny), clamped inside the hull box.
+  function place(nx, ny) {
+    if (fullHull) return;
+    const x0 = Math.max(0, Math.min(1 - vw, nx));
+    const y0 = Math.max(0, Math.min(1 - vh, ny));
+    setFocus({ x0, y0, x1: x0 + vw, y1: y0 + vh });
+    updateLabel();
+    draw();
+  }
+
+  function draw() {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#05070c'; ctx.fillRect(0, 0, w, h);
+    // Hull silhouette (north-up, matches generate_hull_minimap)
+    pathHull(ctx, w/2, h/2, w*0.36, h*0.42);
+    ctx.fillStyle = tint.fill; ctx.fill();
+    ctx.strokeStyle = tint.stroke; ctx.lineWidth = 1; ctx.stroke();
+    // Fixed viewport rectangle
+    const f = getFocus();
+    if (f) {
+      const x = f.x0 * w, y = f.y0 * h, bw = (f.x1 - f.x0) * w, bh = (f.y1 - f.y0) * h;
+      ctx.fillStyle = 'rgba(255,171,0,0.12)';
+      ctx.fillRect(x, y, bw, bh);
+      ctx.strokeStyle = 'rgba(255,171,0,0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, bw, bh);
+      // corner ticks for a "viewport" feel
+      ctx.strokeStyle = 'rgba(255,200,80,0.95)';
+      const t = 4;
+      for (const [px, py, dx, dy] of [[x,y,1,1],[x+bw,y,-1,1],[x,y+bh,1,-1],[x+bw,y+bh,-1,-1]]) {
+        ctx.beginPath();
+        ctx.moveTo(px, py + dy*t); ctx.lineTo(px, py); ctx.lineTo(px + dx*t, py);
+        ctx.stroke();
+      }
+    }
+  }
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
+  }
+
+  canvas.addEventListener('mousedown', e => {
+    if (fullHull) return;
+    const p = pos(e), f = getFocus();
+    let gx, gy;
+    if (p.x < f.x0 || p.x > f.x1 || p.y < f.y0 || p.y > f.y1) {
+      // Click outside: jump the viewport to center on the cursor, then drag from its middle.
+      gx = vw / 2; gy = vh / 2;
+      place(p.x - gx, p.y - gy);
+    } else {
+      gx = p.x - f.x0; gy = p.y - f.y0;
+    }
+    drag = { gx, gy };
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    const p = pos(e);
+    place(p.x - drag.gx, p.y - drag.gy);
+  });
+  window.addEventListener('mouseup', () => { if (drag) { drag = null; canvas.style.cursor = 'grab'; } });
+  canvas.addEventListener('dblclick', () => { setFocus(centered()); updateLabel(); draw(); });
+
+  // Start centered on the hull.
+  setFocus(centered());
+  updateLabel();
+  return draw;
+}
+
+const drawOwnMini = setupMinimap('own-minimap', 'own-focus-label',
+  () => ownFocus, v => { ownFocus = v; }, { fill: 'rgba(40,52,74,0.85)', stroke: 'rgba(120,180,255,0.6)' }, { w: 20, h: 24 });
+const drawTgtMini = setupMinimap('tgt-minimap', 'tgt-focus-label',
+  () => tgtFocus, v => { tgtFocus = v; renderWeapons(); }, { fill: 'rgba(60,40,46,0.85)', stroke: 'rgba(255,120,120,0.6)' }, { w: 16, h: 18 });
+
+// ───────────────────────── Keyboard: cycle targets ─────────────────────────
+document.addEventListener('keydown', e => {
+  const locked = tracks.filter(t => t.lock === 'locked');
+  if (!locked.length) return;
+  if (e.key === ']' || e.key === '[') {
+    let i = locked.findIndex(t => t.id === currentTargetId);
+    i = (i + (e.key === ']' ? 1 : -1) + locked.length) % locked.length;
+    currentTargetId = locked[i].id;
+    syncTarget();
+  }
+});
+
+// Demo: periodic incoming fire + lock progress
+setInterval(() => {
+  incomingTimer = 60;
+  const locking = tracks.find(t => t.lock === 'locking');
+  if (locking) {
+    locking.progress = Math.min(1, (locking.progress || 0) + 0.1);
+    if (locking.progress >= 1) { locking.lock = 'locked'; renderTracks(); }
+  }
+}, 5000);
+
+// Charge regen
+setInterval(() => {
+  mounts.forEach(m => {
+    if (m.state === 'firing') return;
+    if (m.charge < 1) { m.charge = Math.min(1, m.charge + m.rate * 0.2); m.state = 'charging'; }
+    else m.state = 'ready';
+  });
+  if (document.getElementById('tab-weapons').style.display !== 'none') renderWeapons();
+}, 400);
+
+// ───────────────────────── Main loop ─────────────────────────
+function loop(t) {
+  drawOwn(t);
+  drawTarget(t);
+  drawOwnMini();
+  drawTgtMini();
+  requestAnimationFrame(loop);
+}
+
+renderWeapons();
+renderTracks();
+syncTarget();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

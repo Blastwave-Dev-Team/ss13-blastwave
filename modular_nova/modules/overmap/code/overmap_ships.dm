@@ -559,6 +559,11 @@
 	control_flags = SHIP_CONTROL_DIRECT
 	max_speed = OVERMAP_MAX_SPEED * 1.5
 
+/// Frigate: purpose-built overmap ship. Supports both helm console and
+/// direct piloting.
+/obj/structure/overmap/ship/simulated/frigate
+	control_flags = SHIP_CONTROL_CONSOLE | SHIP_CONTROL_DIRECT
+
 /// Capital / military: supports both console and direct piloting.
 /obj/structure/overmap/ship/simulated/capital
 	control_flags = SHIP_CONTROL_CONSOLE | SHIP_CONTROL_DIRECT

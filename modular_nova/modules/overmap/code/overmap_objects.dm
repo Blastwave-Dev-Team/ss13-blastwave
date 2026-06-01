@@ -390,3 +390,20 @@
 	name = "Icemoon"
 	desc = "A frozen planet, well known for its deep chasms and rivers of plasma."
 	color = COLOR_BLUE_LIGHT
+
+// ORBITAL STRUCTURE POIs
+
+/// Medium orbital structure (mini-station). Intended to be subclassed per
+/// installation. Its loaded map uses /area/overmap_structure/installation.
+/obj/structure/overmap/level/installation
+	name = "Orbital Installation"
+	desc = "A mid-sized orbital facility."
+	icon_state = "station"
+	sensor_range = 5
+
+/// Small orbital structure. Its loaded map uses /area/overmap_structure/depot.
+/obj/structure/overmap/level/depot
+	name = "Orbital Depot"
+	desc = "A small orbital supply structure."
+	icon_state = "object"
+	sensor_range = 4

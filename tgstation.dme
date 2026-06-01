@@ -9208,6 +9208,7 @@
 #include "modular_nova\modules\organs\code\organs.dm"
 #include "modular_nova\modules\organs\code\stomach.dm"
 #include "modular_nova\modules\organs\code\tongue.dm"
+#include "modular_nova\modules\overmap\code\overmap_areas.dm"
 #include "modular_nova\modules\overmap\code\overmap_autopilot.dm"
 #include "modular_nova\modules\overmap\code\overmap_celestial.dm"
 #include "modular_nova\modules\overmap\code\overmap_circuits.dm"
