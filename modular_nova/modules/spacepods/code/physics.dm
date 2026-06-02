@@ -215,6 +215,12 @@
 	user_thrust_dir = 0
 	update_icon()
 
+// The pod integrates its own motion in process(); the engine's space-drift system must not co-drive
+// it. Without this, every Move() in a no-gravity area spawns a /datum/drift_handler that applies
+// inertial glide on top of our physics, desyncing velocity bookkeeping from the pod's real position.
+/obj/spacepod/newtonian_move(inertia_angle, instant = FALSE, start_delay = 0, drift_force = 1 NEWTONS, controlled_cap = null, force_loop = TRUE)
+	return FALSE
+
 /obj/spacepod/Bumped(atom/movable/bumped_atom)
 	if(bumped_atom.dir & NORTH)
 		velocity_y += bump_impulse
