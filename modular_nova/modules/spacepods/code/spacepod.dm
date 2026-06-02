@@ -51,7 +51,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	var/locked = FALSE
 	var/hatch_open = FALSE
 	var/obj/item/pod_parts/armor/pod_armor = null
-	var/obj/item/stock_parts/power_store/cell/cell = null
+	var/obj/item/stock_parts/power_store/battery/cell = null
 	var/datum/gas_mixture/cabin_air
 	var/obj/machinery/portable_atmospherics/canister/internal_tank
 	var/last_slowprocess = 0
@@ -127,6 +127,26 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	else
 		. += span_notice("The maintenance hatch is <b>closed</b>. <i>Pry</i> it open with a crowbar.")
 
+// Multi-tile reach: a 2x2 atom's default /atom/movable/Adjacent only tests its origin turf (one
+// corner), so reach checks only pass on that side. Treat being adjacent to ANY occupied tile as
+// adjacent, so the footprint can be worked on (and loaded) from all four sides. Shared by the pod
+// and its construction frame.
+/proc/spacepod_footprint_adjacent(atom/movable/source, atom/neighbor)
+	if(neighbor == source.loc)
+		return TRUE
+	if(neighbor?.loc == source)
+		return TRUE
+	var/turf/neighbor_turf = get_turf(neighbor)
+	if(!neighbor_turf)
+		return FALSE
+	for(var/turf/our_turf as anything in source.locs)
+		if(our_turf == neighbor_turf || our_turf.Adjacent(neighbor, target = neighbor, mover = source))
+			return TRUE
+	return FALSE
+
+/obj/spacepod/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
+	return spacepod_footprint_adjacent(src, neighbor)
+
 /obj/spacepod/attackby(obj/item/weapon, mob/living/user, list/modifiers, list/attack_modifiers)
 	if(user.combat_mode)
 		return ..()
@@ -138,12 +158,12 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		else
 			to_chat(user, span_warning("The hatch is locked shut!"))
 		return TRUE
-	if(istype(weapon, /obj/item/stock_parts/power_store/cell))
+	if(istype(weapon, /obj/item/stock_parts/power_store/battery))
 		if(!hatch_open)
 			to_chat(user, span_warning("The maintenance hatch is closed!"))
 			return TRUE
 		if(cell)
-			to_chat(user, span_notice("The pod already has a battery."))
+			to_chat(user, span_notice("The pod already has a megacell."))
 			return TRUE
 		if(user.transferItemToLoc(weapon, src))
 			to_chat(user, span_notice("You insert [weapon] into the pod."))
@@ -342,7 +362,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		return
 	var/obj/spacepod/pod = loc
 	. += ""
-	. += "Spacepod Charge: [pod.cell ? "[round(pod.cell.charge, 0.1)]/[pod.cell.maxcharge] kJ" : "NONE"]"
+	. += "Spacepod Charge: [pod.cell ? "[display_energy(pod.cell.charge)]/[display_energy(pod.cell.maxcharge)]" : "NONE"]"
 	. += "Spacepod Integrity: [round(pod.get_integrity(), 0.1)]/[pod.max_integrity]"
 	. += "Spacepod Velocity: [round(sqrt(pod.velocity_x * pod.velocity_x + pod.velocity_y * pod.velocity_y), 0.1)] m/s"
 

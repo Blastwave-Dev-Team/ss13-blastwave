@@ -30,7 +30,7 @@
 		else
 			desired_angular_velocity = -2 * sqrt((angle - desired_angle) * max_angular_acceleration * 0.25)
 	var/angular_velocity_adjustment = clamp(desired_angular_velocity - angular_velocity, -max_angular_acceleration * time, max_angular_acceleration * time)
-	if(angular_velocity_adjustment && cell && cell.use(abs(angular_velocity_adjustment) * 0.05))
+	if(angular_velocity_adjustment && cell && cell.use(abs(angular_velocity_adjustment) * 0.05 * SPACEPOD_POWER_SCALE))
 		last_rotate = angular_velocity_adjustment / time
 		angular_velocity += angular_velocity_adjustment
 	else
@@ -46,7 +46,7 @@
 				continue
 			drag += 0.001
 			var/floating = FALSE
-			if(floor_turf.has_gravity() && !brakes && velocity_mag > 0.1 && cell && cell.use((is_mining_level(z) ? 3 : 15) * time))
+			if(floor_turf.has_gravity() && !brakes && velocity_mag > 0.1 && cell && cell.use((is_mining_level(z) ? 3 : 15) * SPACEPOD_POWER_SCALE * time))
 				floating = TRUE // want to fly this shit on the station? Have fun draining your battery.
 			if((!floating && floor_turf.has_gravity()) || brakes) // brakes are a kind of magboots okay?
 				drag += is_mining_level(z) ? 0.1 : 0.5 // some serious drag. Damn. Except lavaland, it has less gravity or something
@@ -108,7 +108,7 @@
 			thrust_y -= sy * side_maxthrust
 			last_thrust_right = -side_maxthrust
 
-	if(cell && cell.use(10 * sqrt((thrust_x * thrust_x) + (thrust_y * thrust_y)) * time))
+	if(cell && cell.use(10 * SPACEPOD_POWER_SCALE * sqrt((thrust_x * thrust_x) + (thrust_y * thrust_y)) * time))
 		velocity_x += thrust_x * time
 		velocity_y += thrust_y * time
 	else

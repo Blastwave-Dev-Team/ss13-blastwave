@@ -5,7 +5,7 @@
 /obj/spacepod/prebuilt
 	icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
 	icon_state = "pod_civ"
-	var/cell_type = /obj/item/stock_parts/power_store/cell/high
+	var/cell_type = /obj/item/stock_parts/power_store/battery/high
 	var/pod_armor_type = /obj/item/pod_parts/armor
 	var/internal_tank_type = /obj/machinery/portable_atmospherics/canister/air
 	var/list/equipment_types = list()
@@ -38,7 +38,7 @@
 	name = "jousting space pod"
 	icon_state = "pod_mil"
 	pod_armor_type = /obj/item/pod_parts/armor/security
-	cell_type = /obj/item/stock_parts/power_store/cell/infinite
+	cell_type = /obj/item/stock_parts/power_store/battery/infinite
 	equipment_types = list(
 		/obj/item/spacepod_equipment/weaponry/laser,
 		/obj/item/spacepod_equipment/cargo/chair,

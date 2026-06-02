@@ -70,7 +70,7 @@
 		to_chat(spacepod.pilot, span_warning("Your weapons are recharging."))
 		playsound(src, 'sound/items/weapons/gun/general/dry_fire.ogg', 30, TRUE)
 		return
-	if(!spacepod.cell || !spacepod.cell.use(shot_cost))
+	if(!spacepod.cell || !spacepod.cell.use(shot_cost * SPACEPOD_POWER_SCALE))
 		to_chat(spacepod.pilot, span_warning("Insufficient charge to fire the weapons!"))
 		playsound(src, 'sound/items/weapons/gun/general/dry_fire.ogg', 30, TRUE)
 		return

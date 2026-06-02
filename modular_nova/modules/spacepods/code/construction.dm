@@ -34,6 +34,10 @@
 	build.index = clamp(start_index, 1, length(build.steps))
 	build.update_parent(build.index)
 
+// Same 2x2 footprint as the finished pod; allow tool/part interactions from any adjacent tile.
+/obj/structure/spacepod_frame/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
+	return spacepod_footprint_adjacent(src, neighbor)
+
 /// Hands the four frame pieces back, aligned to the frame's build heading.
 /obj/structure/spacepod_frame/proc/drop_frame_pieces()
 	var/clamped_angle = (round(build_angle, 90) % 360 + 360) % 360
