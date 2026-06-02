@@ -1,20 +1,11 @@
 // MODULE ID: SPACEPODS
-// Construction states and equipment slot identifiers for /obj/spacepod.
+// Equipment slot identifiers and construction-frame restart indices for spacepods.
 // Ported from Whitesands (code/__DEFINES/~whitesands_defines/spacepods.dm).
 
-#define SPACEPOD_EMPTY 1
-#define SPACEPOD_WIRES_LOOSE 2
-#define SPACEPOD_WIRES_SECURED 3
-#define SPACEPOD_CIRCUIT_LOOSE 4
-#define SPACEPOD_CIRCUIT_SECURED 5
-#define SPACEPOD_CORE_LOOSE 6
-#define SPACEPOD_CORE_SECURED 7
-#define SPACEPOD_BULKHEAD_LOOSE 8
-#define SPACEPOD_BULKHEAD_SECURED 9
-#define SPACEPOD_BULKHEAD_WELDED 10
-#define SPACEPOD_ARMOR_LOOSE 11
-#define SPACEPOD_ARMOR_SECURED 12
-#define SPACEPOD_ARMOR_WELDED 13
+/// Construction step a destroyed pod's wreck frame restarts at (core bolted, no bulkhead or armor).
+#define SPACEPOD_FRAME_WRECK_INDEX 7
+/// Construction step a pod's frame restarts at when its welded armor is sliced off (armor still bolted on).
+#define SPACEPOD_FRAME_ARMOR_INDEX 12
 
 #define SPACEPOD_SLOT_CARGO "cargo"
 #define SPACEPOD_SLOT_MISC "misc"

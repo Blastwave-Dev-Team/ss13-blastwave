@@ -10,6 +10,11 @@
 /obj/item/pod_parts/core
 	name = "space pod core"
 	icon_state = "core"
+	desc = "The power core for a spacepod."
+
+/obj/item/pod_parts/core/examine(mob/user)
+	. = ..()
+	. += span_notice("Installed into a spacepod frame after the circuit board is <i>screwed</i> in.")
 
 /obj/item/pod_parts/pod_frame
 	name = "space pod frame"
@@ -21,6 +26,16 @@
 /obj/item/pod_parts/pod_frame/Initialize(mapload)
 	. = ..()
 	AddElement(/datum/element/simple_rotation)
+
+/obj/item/pod_parts/pod_frame/examine(mob/user)
+	. = ..()
+	if(anchored)
+		. += span_notice("It is <b>wrenched</b> in place. Use <i>rods</i> to strut the frame together once all four pieces are arranged.")
+	else
+		. += span_notice("Use a <b>wrench</b> to secure it in place. All four frame pieces must be arranged in a 2x2 square, facing the same direction.")
+	. += span_notice("Assembly layout (all pieces facing the same direction):")
+	. += span_notice("  Fore Port \[FP\] | Fore Starboard \[FS\]")
+	. += span_notice("  Aft Port  \[AP\] | Aft Starboard  \[AS\]")
 
 /obj/item/pod_parts/pod_frame/proc/find_square()
 	/*
@@ -36,7 +51,6 @@
 	var/obj/item/pod_parts/pod_frame/linked
 	var/obj/item/pod_parts/pod_frame/pointer
 	var/list/connectedparts = list()
-	neededparts -= type
 	linked = src
 	for(var/i in 1 to 4)
 		check_turf = get_turf(get_step(linked, turn(linked.dir, -linked.link_angle))) //get the next place that we want to look at
@@ -67,22 +81,21 @@
 		if(!rod_stack.use(10))
 			to_chat(user, span_warning("You need 10 rods for this."))
 			return TRUE
-		var/obj/spacepod/pod = new
-		pod.forceMove(loc)
+		var/build_angle = 0
 		switch(dir)
 			if(NORTH)
-				pod.angle = 0
+				build_angle = 0
 			if(SOUTH)
-				pod.angle = 180
+				build_angle = 180
 			if(WEST)
-				pod.angle = 270
+				build_angle = 270
 			if(EAST)
-				pod.angle = 90
-		pod.process(0.2)
+				build_angle = 90
+		var/obj/structure/spacepod_frame/new_frame = new(loc, 1, build_angle)
 		to_chat(user, span_notice("You strut the pod frame together."))
 		for(var/obj/item/pod_parts/pod_frame/frame in linkedparts)
 			if(NORTH == turn(frame.dir, -frame.link_angle)) //if the part links north during construction, as the bottom left part always does
-				pod.forceMove(frame.loc)
+				new_frame.forceMove(frame.loc)
 			qdel(frame)
 		return TRUE
 	if(attacking_item.tool_behaviour == TOOL_WRENCH)
@@ -124,7 +137,7 @@
 /obj/item/pod_parts/armor
 	name = "civilian pod armor"
 	icon_state = "pod_armor_civ"
-	desc = "Spacepod armor. This is the civilian version. It looks rather flimsy."
+	desc = "Spacepod armor. This is the civilian version. It looks rather flimsy. Attach after the bulkhead is welded."
 	var/pod_icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
 	var/pod_icon_state = "pod_civ"
 	var/pod_desc = "A sleek civilian space pod."
@@ -176,3 +189,4 @@
 /obj/item/circuitboard/mecha/pod
 	name = "Circuit board (Space Pod Mainboard)"
 	icon_state = "mainboard"
+	desc = "A mainboard for a spacepod. Insert after wiring is screwed in."

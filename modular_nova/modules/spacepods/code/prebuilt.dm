@@ -5,7 +5,6 @@
 /obj/spacepod/prebuilt
 	icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
 	icon_state = "pod_civ"
-	construction_state = SPACEPOD_ARMOR_WELDED
 	var/cell_type = /obj/item/stock_parts/power_store/cell/high
 	var/pod_armor_type = /obj/item/pod_parts/armor
 	var/internal_tank_type = /obj/machinery/portable_atmospherics/canister/air

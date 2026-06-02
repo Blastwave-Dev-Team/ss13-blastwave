@@ -21,9 +21,9 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 
 /obj/spacepod
 	name = "space pod"
-	desc = "A frame for a spacepod."
-	icon = 'modular_nova/modules/spacepods/icons/construction_2x2.dmi'
-	icon_state = "pod_1"
+	desc = "A sleek single-occupant space pod."
+	icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
+	icon_state = "pod_civ"
 	density = TRUE
 	opacity = FALSE
 	dir = NORTH // always points north because why not; we rotate via transform.
@@ -50,7 +50,6 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	var/next_firetime = 0
 	var/locked = FALSE
 	var/hatch_open = FALSE
-	var/construction_state = SPACEPOD_EMPTY
 	var/obj/item/pod_parts/armor/pod_armor = null
 	var/obj/item/stock_parts/power_store/cell/cell = null
 	var/datum/gas_mixture/cabin_air
@@ -116,15 +115,21 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	QDEL_NULL(cell)
 	return ..()
 
+/obj/spacepod/examine(mob/user)
+	. = ..()
+	if(hatch_open)
+		if(cell || internal_tank || length(equipment))
+			. += span_notice("The maintenance hatch is <i>pried</i> open, and there are parts inside that can be <b>removed</b>.")
+		else
+			. += span_notice("The maintenance hatch is <i>pried</i> open. With everything stripped out, the welded armor can be <b>sliced off</b> to reduce it to a frame.")
+	else if(locked)
+		. += span_notice("[src] is <b>locked</b>.")
+	else
+		. += span_notice("The maintenance hatch is <b>closed</b>. <i>Pry</i> it open with a crowbar.")
+
 /obj/spacepod/attackby(obj/item/weapon, mob/living/user, list/modifiers, list/attack_modifiers)
 	if(user.combat_mode)
 		return ..()
-	if(construction_state != SPACEPOD_ARMOR_WELDED)
-		. = handle_spacepod_construction(weapon, user)
-		if(.)
-			return
-		return ..()
-	// fully built: maintenance interactions
 	if(weapon.tool_behaviour == TOOL_CROWBAR)
 		if(hatch_open || !locked)
 			hatch_open = !hatch_open
@@ -174,7 +179,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	if(weapon.tool_behaviour == TOOL_WELDER)
 		var/repairing = cell || internal_tank || length(equipment) || (get_integrity() < max_integrity) || pilot || length(passengers)
 		if(!hatch_open)
-			to_chat(user, span_warning("You must open the maintenance hatch before [repairing ? "attempting repairs" : "unwelding the armor"]."))
+			to_chat(user, span_warning("You must open the maintenance hatch before [repairing ? "attempting repairs" : "deconstructing the pod"]."))
 			return TRUE
 		if(repairing && get_integrity() >= max_integrity)
 			to_chat(user, span_warning("[src] is fully repaired!"))
@@ -184,10 +189,9 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 			if(repairing)
 				repair_damage(10)
 				to_chat(user, span_notice("You mend some [pick("dents", "bumps", "damage")] with [weapon]."))
-			else if(!cell && !internal_tank && !length(equipment) && !pilot && !length(passengers) && construction_state == SPACEPOD_ARMOR_WELDED)
-				user.visible_message(span_notice("[user] slices off [src]'s armor."), span_notice("You slice off [src]'s armor."))
-				construction_state = SPACEPOD_ARMOR_SECURED
-				update_icon()
+			else if(!cell && !internal_tank && !length(equipment) && !pilot && !length(passengers))
+				user.visible_message(span_notice("[user] slices off [src]'s armor, reducing it to a frame."), span_notice("You slice off [src]'s armor, reducing it to a frame."))
+				convert_to_frame(SPACEPOD_FRAME_ARMOR_INDEX)
 		return TRUE
 	return ..()
 
@@ -202,7 +206,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		if(istype(target))
 			visible_message(span_warning("[user] is trying to rip the door open and pull [target] out of [src]!"),
 				span_warning("You see [user] outside the door trying to rip it open!"))
-			if(do_after(user, 5 SECONDS, target = src) && construction_state == SPACEPOD_ARMOR_WELDED)
+			if(do_after(user, 5 SECONDS, target = src))
 				if(remove_rider(target))
 					target.Stun(2 SECONDS)
 					target.visible_message(span_warning("[user] flings the door open and tears [target] out of [src]!"),
@@ -344,17 +348,15 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 
 /obj/spacepod/atom_break(damage_flag)
 	. = ..()
-	if(construction_state < SPACEPOD_ARMOR_LOOSE)
-		return
-	if(pod_armor)
-		var/obj/old_armor = pod_armor
-		remove_armor()
-		qdel(old_armor)
-		if(prob(40))
-			new /obj/item/stack/sheet/iron/five(loc)
+	if(!pod_armor)
+		return // already stripped to a bare hull; further damage destroys us outright.
+	var/obj/old_armor = pod_armor
+	remove_armor()
+	qdel(old_armor)
 	if(prob(40))
 		new /obj/item/stack/sheet/iron/five(loc)
-	construction_state = SPACEPOD_CORE_SECURED
+	if(prob(40))
+		new /obj/item/stack/sheet/iron/five(loc)
 	if(cabin_air)
 		var/datum/gas_mixture/dumped = cabin_air.remove_ratio(1)
 		var/turf/our_turf = get_turf(src)
@@ -378,6 +380,31 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 			wreck.forceMove(loc)
 			wreck.deconstruct(FALSE)
 
+/obj/spacepod/atom_destruction(damage_flag)
+	var/turf/our_turf = get_turf(src)
+	if(our_turf)
+		remove_rider(pilot)
+		while(length(passengers))
+			remove_rider(passengers[1])
+		if(pod_armor)
+			var/obj/old_armor = pod_armor
+			remove_armor()
+			old_armor.forceMove(our_turf)
+		// Leave a repairable wreck frame behind rather than simply vanishing.
+		new /obj/structure/spacepod_frame(our_turf, SPACEPOD_FRAME_WRECK_INDEX, angle)
+	return ..()
+
+/// Reduce a fully-built pod back into a construction frame at the given step, carrying armor over.
+/obj/spacepod/proc/convert_to_frame(frame_index)
+	var/turf/our_turf = get_turf(src)
+	if(!our_turf)
+		return
+	var/obj/item/pod_parts/armor/saved_armor = pod_armor
+	if(saved_armor)
+		remove_armor()
+	new /obj/structure/spacepod_frame(our_turf, frame_index, angle, saved_armor)
+	qdel(src)
+
 /obj/spacepod/handle_deconstruct(disassembled)
 	if(!get_turf(src))
 		return
@@ -385,64 +412,15 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	while(length(passengers))
 		remove_rider(passengers[1])
 	passengers.Cut()
-	if(!disassembled)
-		return
-	// give the frame pieces back, aligned to our current facing.
-	var/clamped_angle = (round(angle, 90) % 360 + 360) % 360
-	var/target_dir = NORTH
-	switch(clamped_angle)
-		if(0)
-			target_dir = NORTH
-		if(90)
-			target_dir = EAST
-		if(180)
-			target_dir = SOUTH
-		if(270)
-			target_dir = WEST
-
-	var/list/frame_piece_types = list(
-		/obj/item/pod_parts/pod_frame/aft_port,
-		/obj/item/pod_parts/pod_frame/aft_starboard,
-		/obj/item/pod_parts/pod_frame/fore_port,
-		/obj/item/pod_parts/pod_frame/fore_starboard,
-	)
-	var/obj/item/pod_parts/pod_frame/current_piece = null
-	var/turf/current_turf = get_turf(src)
-	var/list/frame_pieces = list()
-	for(var/frame_type in frame_piece_types)
-		var/obj/item/pod_parts/pod_frame/frame = new frame_type
-		frame.setDir(target_dir)
-		frame.anchored = TRUE
-		if(NORTH == turn(frame.dir, -frame.link_angle))
-			current_piece = frame
-		frame_pieces += frame
-	while(current_piece && !current_piece.loc)
-		if(!current_turf)
-			break
-		current_piece.forceMove(current_turf)
-		current_turf = get_step(current_turf, turn(current_piece.dir, -current_piece.link_angle))
-		current_piece = locate(current_piece.link_to) in frame_pieces
 
 /obj/spacepod/update_icon()
 	cut_overlays()
-	if(construction_state != SPACEPOD_ARMOR_WELDED)
-		icon = 'modular_nova/modules/spacepods/icons/construction_2x2.dmi'
-		icon_state = "pod_[construction_state]"
-		if(pod_armor && construction_state >= SPACEPOD_ARMOR_LOOSE)
-			var/mutable_appearance/masked_armor = mutable_appearance('modular_nova/modules/spacepods/icons/construction_2x2.dmi', "armor_mask")
-			var/mutable_appearance/armor_appearance = mutable_appearance(pod_armor.pod_icon, pod_armor.pod_icon_state)
-			armor_appearance.blend_mode = BLEND_MULTIPLY
-			masked_armor.overlays = list(armor_appearance)
-			masked_armor.appearance_flags = KEEP_TOGETHER
-			add_overlay(masked_armor)
-		return
-
 	if(pod_armor)
 		icon = pod_armor.pod_icon
 		icon_state = pod_armor.pod_icon_state
 	else
-		icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
-		icon_state = initial(icon_state)
+		icon = 'modular_nova/modules/spacepods/icons/construction_2x2.dmi'
+		icon_state = "pod_9" // bare welded hull look when the armor has been stripped off.
 
 	if(get_integrity() <= max_integrity / 2)
 		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "pod_damage"))
@@ -488,7 +466,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		add_overlay(thrust_image)
 
 /obj/spacepod/mouse_drop_receive(atom/movable/dropped, mob/user, params)
-	if(user == pilot || (user in passengers) || construction_state != SPACEPOD_ARMOR_WELDED)
+	if(user == pilot || (user in passengers))
 		return
 
 	if(istype(dropped, /obj/machinery/portable_atmospherics/canister))
@@ -501,7 +479,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		if(hatch_open)
 			to_chat(user, span_warning("The hatch is shut!"))
 		to_chat(user, span_notice("You begin inserting the canister into [src]."))
-		if(do_after(user, 5 SECONDS, target = src) && construction_state == SPACEPOD_ARMOR_WELDED)
+		if(do_after(user, 5 SECONDS, target = src))
 			to_chat(user, span_notice("You insert the canister into [src]."))
 			dropped.forceMove(src)
 			internal_tank = dropped
@@ -515,7 +493,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 				return
 			if(length(passengers) < max_passengers)
 				visible_message(span_danger("[user] starts loading [target] into [src]!"))
-				if(do_after(user, 5 SECONDS, target = src) && construction_state == SPACEPOD_ARMOR_WELDED)
+				if(do_after(user, 5 SECONDS, target = src))
 					add_rider(target, FALSE)
 			return
 		if(target == user)
@@ -539,7 +517,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 
 	if(length(passengers) <= max_passengers || !pilot)
 		visible_message(span_notice("[user] starts to climb into [src]."))
-		if(do_after(user, 4 SECONDS, target = src) && construction_state == SPACEPOD_ARMOR_WELDED)
+		if(do_after(user, 4 SECONDS, target = src))
 			var/success = add_rider(user)
 			if(!success)
 				to_chat(user, span_notice("You were too slow. Try better next time, loser."))
