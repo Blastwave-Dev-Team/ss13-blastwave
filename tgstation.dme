@@ -9460,6 +9460,7 @@
 #include "modular_nova\modules\space_vines\vine_mutations.dm"
 #include "modular_nova\modules\space_vines\vine_structure.dm"
 #include "modular_nova\modules\spacepods\code\actions.dm"
+#include "modular_nova\modules\spacepods\code\combat.dm"
 #include "modular_nova\modules\spacepods\code\construction.dm"
 #include "modular_nova\modules\spacepods\code\equipment.dm"
 #include "modular_nova\modules\spacepods\code\parts.dm"
