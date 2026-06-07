@@ -117,20 +117,12 @@
 /obj/structure/spider/stickyweb/arachnid_spun/is_whitelisted(mob/candidate)
 	return candidate == spinner
 
-/// WS genetic-web style permissions via blastwave's entered hook: creator (and
-/// anyone they pull) never stick; other Arachnids use a reduced stuck chance.
-/obj/structure/spider/stickyweb/arachnid_spun/on_entered(datum/source, atom/movable/victim, old_loc)
-	SIGNAL_HANDLER
-	if(!isliving(victim))
-		return
-	var/mob/living/living_victim = victim
-	if(is_whitelisted(living_victim) || (living_victim.pulledby && is_whitelisted(living_victim.pulledby)))
-		return
-	var/chance = stuck_chance
-	if(isarachnid(living_victim) || (living_victim.pulledby && isarachnid(living_victim.pulledby)))
-		chance = ARACHNID_WEB_STUCK_CHANCE
-	if(prob(chance))
-		stuck_react(living_victim)
+/// Creator (and anyone they pull) never stick via is_whitelisted; other
+/// Arachnids use a reduced stuck chance.
+/obj/structure/spider/stickyweb/arachnid_spun/get_stuck_chance(mob/living/victim)
+	if(isarachnid(victim) || (victim.pulledby && isarachnid(victim.pulledby)))
+		return ARACHNID_WEB_STUCK_CHANCE
+	return ..()
 
 /// Arachnid-only examine blurb for stickywebs. Subtypes override for finer detail.
 /obj/structure/spider/stickyweb/proc/get_arachnid_web_examine(mob/user)
