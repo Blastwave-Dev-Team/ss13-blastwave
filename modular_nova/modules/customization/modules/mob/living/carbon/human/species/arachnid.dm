@@ -184,6 +184,8 @@
 // itself relies on the language-holder driven generate_random_name_species_based()
 // path which will hit /datum/language/rachnidian/get_random_name).
 /proc/random_unique_arachnid_name(attempts_to_find_unique_name = 10)
+	if(!length(GLOB.rachnid_first_names) || !length(GLOB.rachnid_last_names))
+		return "Unknown Arachnid"
 	for(var/i in 1 to attempts_to_find_unique_name)
 		. = "[capitalize(pick(GLOB.rachnid_first_names))] [capitalize(pick(GLOB.rachnid_last_names))]"
 		if(!findname(.))

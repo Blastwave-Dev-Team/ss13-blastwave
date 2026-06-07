@@ -5,7 +5,8 @@
 /obj/item/organ/eyes/night_vision/spider
 	name = "spider eyes"
 	desc = "These compound eyes seem to have heightened sensitivity to bright light, offset by basic night vision."
-	icon_state = "eyeballs"
+	icon_state = "eyes_fly"
+	eye_icon_state = "eyes"
 	flash_protect = FLASH_PROTECTION_SENSITIVE
 	low_light_cutoff = list(10, 15, 20)
 	medium_light_cutoff = list(15, 20, 30)
@@ -36,7 +37,7 @@
 	name = "spider legs"
 	desc = "A bristled cluster of arachnid limbs - decorative on humans, load-bearing on those born to carry them."
 	icon = 'icons/obj/medical/organs/organs.dmi'
-	icon_state = "spinalcord"
+	icon_state = "spines"
 	zone = BODY_ZONE_CHEST
 	slot = ORGAN_SLOT_EXTERNAL_SPIDER_LEGS
 	mutantpart_key = FEATURE_SPIDER_LEGS

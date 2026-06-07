@@ -8,7 +8,6 @@
 	icon = 'modular_nova/modules/customization/icons/effects/arachnid_language.dmi'
 	icon_state = "spider"
 	default_priority = 90
-	always_use_default_namelist = TRUE
 	// Syllables are referenced by the modern scramble pipeline as a sanity
 	// fallback even when scramble_word is overridden, and they keep the
 	// "Check Languages" preview from looking empty.
@@ -21,5 +20,13 @@
 /datum/language/rachnidian/scramble_word(input)
 	return prob(65) ? "<i>wiff</i>" : "<i>thump</i>"
 
-/datum/language/rachnidian/get_random_name(gender)
+/datum/language/rachnidian/get_random_name(
+	gender = NEUTER,
+	name_count = default_name_count,
+	syllable_min = default_name_syllable_min,
+	syllable_max = default_name_syllable_max,
+	force_use_syllables = FALSE,
+)
+	if(force_use_syllables || !length(GLOB.rachnid_first_names) || !length(GLOB.rachnid_last_names))
+		return ..()
 	return "[pick(GLOB.rachnid_first_names)] [pick(GLOB.rachnid_last_names)]"

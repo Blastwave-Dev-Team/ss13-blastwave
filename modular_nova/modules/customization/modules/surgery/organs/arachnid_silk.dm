@@ -24,13 +24,15 @@
 // =============================================================================
 
 // --- Tunables ----------------------------------------------------------------
-#define ARACHNID_SILK_NUTRITION_FLOOR  NUTRITION_LEVEL_FED
-#define ARACHNID_WEB_NUTRITION_COST    75
+#define ARACHNID_SILK_NUTRITION_FLOOR  NUTRITION_LEVEL_HUNGRY
+#define ARACHNID_WEB_NUTRITION_COST    35
 #define ARACHNID_WEB_COOLDOWN          (30 SECONDS)
 #define ARACHNID_WEB_SPIN_TIME         (10 SECONDS)
+#define ARACHNID_WEB_STUCK_CHANCE      20
 #define ARACHNID_COCOON_NUTRITION_COST 200
 #define ARACHNID_COCOON_COOLDOWN       (30 SECONDS)
 #define ARACHNID_COCOON_WRAP_TIME      (10 SECONDS)
+#define ARACHNID_COCOON_SUFFOCATION_DAMAGE 2
 
 // --- Web action --------------------------------------------------------------
 /datum/action/cooldown/mob_cooldown/lay_web/arachnid
@@ -56,7 +58,7 @@
 /datum/action/cooldown/mob_cooldown/lay_web/arachnid/plant_web(turf/target_turf, obj/structure/spider/stickyweb/existing_web)
 	var/mob/living/carbon/human/spinner = owner
 	spinner.adjust_nutrition(-ARACHNID_WEB_NUTRITION_COST)
-	new /obj/structure/spider/stickyweb/arachnid_spun(target_turf)
+	new /obj/structure/spider/stickyweb/arachnid_spun(target_turf, spinner)
 
 // --- Cocoon action -----------------------------------------------------------
 // We deliberately do NOT inherit the NPC wrap's death() / egg-empower behavior
@@ -105,6 +107,53 @@
 /// affecting any NPC spider AI scripts (which still see the parent type).
 /obj/structure/spider/stickyweb/arachnid_spun
 	desc = "It's stringy and sticky, with a faint chitinous sheen. Spun by an arachnid."
+	/// Arachnid who spun this tile; always passes through unhindered.
+	var/mob/living/spinner
+
+/obj/structure/spider/stickyweb/arachnid_spun/Initialize(mapload, mob/living/spinner)
+	. = ..()
+	src.spinner = spinner
+
+/obj/structure/spider/stickyweb/arachnid_spun/is_whitelisted(mob/candidate)
+	return candidate == spinner
+
+/// WS genetic-web style permissions via blastwave's entered hook: creator (and
+/// anyone they pull) never stick; other Arachnids use a reduced stuck chance.
+/obj/structure/spider/stickyweb/arachnid_spun/on_entered(datum/source, atom/movable/victim, old_loc)
+	SIGNAL_HANDLER
+	if(!isliving(victim))
+		return
+	var/mob/living/living_victim = victim
+	if(is_whitelisted(living_victim) || (living_victim.pulledby && is_whitelisted(living_victim.pulledby)))
+		return
+	var/chance = stuck_chance
+	if(isarachnid(living_victim) || (living_victim.pulledby && isarachnid(living_victim.pulledby)))
+		chance = ARACHNID_WEB_STUCK_CHANCE
+	if(prob(chance))
+		stuck_react(living_victim)
+
+/// Arachnid-only examine blurb for stickywebs. Subtypes override for finer detail.
+/obj/structure/spider/stickyweb/proc/get_arachnid_web_examine(mob/user)
+	if(!isarachnid(user))
+		return null
+	if(istype(src, /obj/structure/spider/stickyweb/genetic))
+		return null
+	return "This crude web was spun by a lesser spider."
+
+/obj/structure/spider/stickyweb/examine(mob/user)
+	. = ..()
+	var/arachnid_examine = get_arachnid_web_examine(user)
+	if(arachnid_examine)
+		. += span_notice(arachnid_examine)
+
+/obj/structure/spider/stickyweb/arachnid_spun/get_arachnid_web_examine(mob/user)
+	if(!isarachnid(user))
+		return null
+	if(QDELETED(spinner) || !spinner)
+		return "This silk is unmistakably arachnid, but you can't tell who spun it."
+	if(user == spinner)
+		return "You recognize your own weave."
+	return "You recognize the weave of [spinner]."
 
 /// Player-spun cocoon from an Arachnid. Distinct subtype so that
 /// max_integrity and breakout time can be tuned independently of admin
@@ -112,11 +161,57 @@
 /obj/structure/spider/cocoon/arachnid_spun
 	desc = "Something wrapped in silken web by an arachnid."
 
+/obj/structure/spider/cocoon/arachnid_spun/proc/occupant_breathes(mob/living/inmate)
+	if(inmate.stat == DEAD)
+		return FALSE
+	if(HAS_TRAIT(inmate, TRAIT_NOBREATH) || HAS_TRAIT(inmate, TRAIT_NO_BREATHLESS_DAMAGE))
+		return FALSE
+	if(iscarbon(inmate))
+		return !isnull(inmate.get_organ_slot(ORGAN_SLOT_LUNGS))
+	if(istype(inmate, /mob/living/simple_animal))
+		var/mob/living/simple_animal/simple_inmate = inmate
+		return simple_inmate.unsuitable_atmos_damage && simple_inmate.atmos_requirements
+	if(istype(inmate, /mob/living/basic))
+		var/mob/living/basic/basic_inmate = inmate
+		return basic_inmate.unsuitable_atmos_damage && basic_inmate.habitable_atmos
+	return FALSE
+
+/// Airtight wrap: carbons suffocate through the normal breath pipeline, while
+/// simple/basic mobs with atmos requirements are handled in process() because
+/// that element treats any non-turf loc (including this cocoon) as safe air.
+/obj/structure/spider/cocoon/arachnid_spun/handle_internal_lifeform(mob/lifeform_inside_me, breath_request)
+	if(breath_request <= 0 || !isliving(lifeform_inside_me))
+		return ..()
+	var/mob/living/inmate = lifeform_inside_me
+	if(!occupant_breathes(inmate) || !iscarbon(inmate))
+		return ..()
+	return null
+
+/obj/structure/spider/cocoon/arachnid_spun/Entered(atom/movable/arrival, atom/old_loc)
+	. = ..()
+	if(isliving(arrival) && occupant_breathes(arrival) && !iscarbon(arrival))
+		START_PROCESSING(SSobj, src)
+
+/obj/structure/spider/cocoon/arachnid_spun/process(seconds_per_tick)
+	for(var/mob/living/inmate as anything in contents)
+		if(!occupant_breathes(inmate) || iscarbon(inmate))
+			continue
+		var/damage = ARACHNID_COCOON_SUFFOCATION_DAMAGE * seconds_per_tick
+		if(istype(inmate, /mob/living/simple_animal))
+			inmate.adjust_brute_loss(damage)
+		else
+			inmate.apply_damage(damage, OXY)
+		inmate.throw_alert(ALERT_NOT_ENOUGH_OXYGEN, /atom/movable/screen/alert/not_enough_oxy)
+		return
+	return PROCESS_KILL
+
 // --- Cleanup -----------------------------------------------------------------
 #undef ARACHNID_SILK_NUTRITION_FLOOR
 #undef ARACHNID_WEB_NUTRITION_COST
 #undef ARACHNID_WEB_COOLDOWN
 #undef ARACHNID_WEB_SPIN_TIME
+#undef ARACHNID_WEB_STUCK_CHANCE
 #undef ARACHNID_COCOON_NUTRITION_COST
 #undef ARACHNID_COCOON_COOLDOWN
 #undef ARACHNID_COCOON_WRAP_TIME
+#undef ARACHNID_COCOON_SUFFOCATION_DAMAGE
