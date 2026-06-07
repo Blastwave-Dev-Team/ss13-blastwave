@@ -196,14 +196,18 @@
 				last_offset_y++
 			else
 				offset_y = 0
-	dir = NORTH
+	var/angle_offset = spacepod_facing_offset()
 	var/matrix/mat_from = new()
 	mat_from.Turn(last_angle)
 	var/matrix/mat_to = new()
 	mat_to.Turn(angle)
+	mat_from.Turn(angle_offset)
+	mat_to.Turn(angle_offset)
 	transform = mat_from
 	pixel_x = last_offset_x * ICON_SIZE_X
 	pixel_y = last_offset_y * ICON_SIZE_Y
+	if(angle % 22.5 == 0)
+		transform = mat_to
 	animate(src, transform = mat_to, pixel_x = offset_x * ICON_SIZE_X, pixel_y = offset_y * ICON_SIZE_Y, time = time * 10, flags = ANIMATION_END_NOW)
 	for(var/mob/living/occupant in contents)
 		var/client/occupant_client = occupant.client

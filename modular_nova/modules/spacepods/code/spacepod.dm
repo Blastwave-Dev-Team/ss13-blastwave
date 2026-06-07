@@ -26,7 +26,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	icon_state = "pod_civ"
 	density = TRUE
 	opacity = FALSE
-	dir = NORTH // always points north because why not; we rotate via transform.
+	dir = SOUTH // default rest pose faces the camera; coarse facing tracks angle via spacepod_apply_facing().
 	layer = SPACEPOD_LAYER
 	bound_width = 64
 	bound_height = 64
@@ -66,7 +66,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	var/velocity_y = 0
 	var/offset_x = 0 // fractional-tile physics accumulator; rendered via step_x/step_y
 	var/offset_y = 0
-	var/angle = 0 // degrees, clockwise
+	var/angle = 180 // degrees, clockwise; 180 = south-facing rest pose for Yog 8-dir art
 	var/desired_angle = null // set by the pilot aiming
 	var/angular_velocity = 0 // degrees per second
 	var/max_angular_acceleration = 360 // in degrees per second per second
@@ -143,6 +143,79 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		if(our_turf == neighbor_turf || our_turf.Adjacent(neighbor, target = neighbor, mover = source))
 			return TRUE
 	return FALSE
+
+/// Maps frame build heading (0/90/180/270) to a cardinal dir for construction sprites.
+/proc/spacepod_build_angle_to_dir(build_angle)
+	var/clamped_angle = (round(build_angle, 90) % 360 + 360) % 360
+	switch(clamped_angle)
+		if(0)
+			return NORTH
+		if(90)
+			return EAST
+		if(180)
+			return SOUTH
+		if(270)
+			return WEST
+	return NORTH
+
+/// Returns the 45°-quantized facing bucket for a physics angle.
+/proc/spacepod_clamped_angle(facing_angle)
+	return (round(facing_angle, 45) % 360 + 360) % 360
+
+/// Sets target.dir from angle and returns matrix angle_offset for fine rotation within the bucket.
+/proc/spacepod_apply_facing(atom/movable/target, facing_angle)
+	var/clamped_angle = spacepod_clamped_angle(facing_angle)
+	var/angle_offset = 0
+	switch(clamped_angle)
+		if(0)
+			target.setDir(NORTH)
+		if(45)
+			target.setDir(NORTHEAST)
+			angle_offset = -45
+		if(90)
+			target.setDir(EAST)
+			angle_offset = -90
+		if(135)
+			target.setDir(SOUTHEAST)
+			angle_offset = -135
+		if(180)
+			target.setDir(SOUTH)
+			angle_offset = -180
+		if(225)
+			target.setDir(SOUTHWEST)
+			angle_offset = -225
+		if(270)
+			target.setDir(WEST)
+			angle_offset = -270
+		if(315)
+			target.setDir(NORTHWEST)
+			angle_offset = -315
+	return angle_offset
+
+/// Pixel matrix for the rear thrust overlay at a given clamped facing bucket.
+/proc/spacepod_thrust_overlay_matrix(clamped_angle)
+	switch(clamped_angle)
+		if(0)
+			return matrix(1, 0, 0, 0, 1, -24)
+		if(45)
+			return matrix(1, 0, -25, 0, 1, -16)
+		if(90)
+			return matrix(1, 0, -32, 0, 1, 0)
+		if(135)
+			return matrix(1, 0, -23, 0, 1, 23)
+		if(180)
+			return matrix(1, 0, 0, 0, 1, 32)
+		if(225)
+			return matrix(1, 0, 23, 0, 1, 23)
+		if(270)
+			return matrix(1, 0, 32, 0, 1, 0)
+		if(315)
+			return matrix(1, 0, 25, 0, 1, -16)
+	return matrix(1, 0, 0, 0, 1, -24)
+
+/// Sets dir from angle and returns angle_offset for transform fine-tuning.
+/obj/spacepod/proc/spacepod_facing_offset()
+	return spacepod_apply_facing(src, angle)
 
 /obj/spacepod/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
 	return spacepod_footprint_adjacent(src, neighbor)
@@ -452,37 +525,31 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 
 	light_color = icon_light_color[icon_state] || LIGHT_COLOR_HALOGEN
 
-	// Thrust overlays!
-	var/list/left_thrusts = new /list(8)
-	var/list/right_thrusts = new /list(8)
-	for(var/cdir in GLOB.cardinals)
-		left_thrusts[cdir] = 0
-		right_thrusts[cdir] = 0
+	// Thrust overlays (rcs + rear exhaust live in 2x2.dmi; inherit pod dir from last process tick).
+	var/left_thrust = 0
+	var/right_thrust = 0
 	var/back_thrust = 0
 	if(last_thrust_right != 0)
-		var/tdir = last_thrust_right > 0 ? WEST : EAST
-		left_thrusts[tdir] = abs(last_thrust_right) / side_maxthrust
-		right_thrusts[tdir] = abs(last_thrust_right) / side_maxthrust
+		left_thrust = abs(last_thrust_right) / side_maxthrust
+		right_thrust = abs(last_thrust_right) / side_maxthrust
 	if(last_thrust_forward > 0)
 		back_thrust = last_thrust_forward / forward_maxthrust
 	if(last_thrust_forward < 0)
-		left_thrusts[NORTH] = -last_thrust_forward / backward_maxthrust
-		right_thrusts[NORTH] = -last_thrust_forward / backward_maxthrust
+		left_thrust = -last_thrust_forward / backward_maxthrust
+		right_thrust = -last_thrust_forward / backward_maxthrust
 	if(last_rotate != 0)
 		var/frac = abs(last_rotate) / max_angular_acceleration
-		for(var/cdir in GLOB.cardinals)
-			if(last_rotate > 0)
-				right_thrusts[cdir] += frac
-			else
-				left_thrusts[cdir] += frac
-	for(var/cdir in GLOB.cardinals)
-		if(left_thrusts[cdir])
-			add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/overlays_2x2.dmi', icon_state = "rcs_left", dir = cdir))
-		if(right_thrusts[cdir])
-			add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/overlays_2x2.dmi', icon_state = "rcs_right", dir = cdir))
+		if(last_rotate > 0)
+			right_thrust += frac
+		else
+			left_thrust += frac
+	if(left_thrust)
+		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "rcs_left"))
+	if(right_thrust)
+		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "rcs_right"))
 	if(back_thrust)
-		var/image/thrust_image = image(icon = 'modular_nova/modules/spacepods/icons/overlays_2x2.dmi', icon_state = "thrust")
-		thrust_image.transform = matrix(1, 0, 0, 0, 1, -32)
+		var/image/thrust_image = image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "thrust")
+		thrust_image.transform = spacepod_thrust_overlay_matrix(spacepod_clamped_angle(angle))
 		add_overlay(thrust_image)
 
 /obj/spacepod/mouse_drop_receive(atom/movable/dropped, mob/user, params)

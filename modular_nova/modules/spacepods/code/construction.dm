@@ -28,6 +28,7 @@
 		start_index = _start_index
 	if(!isnull(_build_angle))
 		build_angle = _build_angle
+	setDir(spacepod_build_angle_to_dir(build_angle))
 	if(existing_armor)
 		existing_armor.forceMove(src)
 	var/datum/component/construction/spacepod/build = AddComponent(/datum/component/construction/spacepod)
@@ -40,17 +41,7 @@
 
 /// Hands the four frame pieces back, aligned to the frame's build heading.
 /obj/structure/spacepod_frame/proc/drop_frame_pieces()
-	var/clamped_angle = (round(build_angle, 90) % 360 + 360) % 360
-	var/target_dir = NORTH
-	switch(clamped_angle)
-		if(0)
-			target_dir = NORTH
-		if(90)
-			target_dir = EAST
-		if(180)
-			target_dir = SOUTH
-		if(270)
-			target_dir = WEST
+	var/target_dir = spacepod_build_angle_to_dir(build_angle)
 
 	var/list/frame_piece_types = list(
 		/obj/item/pod_parts/pod_frame/aft_port,
@@ -224,6 +215,7 @@
 /datum/component/construction/spacepod/update_parent(step_index)
 	. = ..()
 	var/obj/structure/spacepod_frame/frame = parent
+	frame.setDir(spacepod_build_angle_to_dir(frame.build_angle))
 	frame.cut_overlays()
 	// Once the armor is on (step 11+), draw it as a masked overlay just like a finished pod.
 	if(step_index >= 11)
