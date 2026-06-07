@@ -56,6 +56,9 @@
 	species_language_holder = /datum/language_holder/arachnid
 	changesource_flags = MIRROR_BADMIN | WABBAJACK | MIRROR_MAGIC | MIRROR_PRIDE | ERT_SPAWN | RACE_SWAP | SLIME_EXTRACT
 	payday_modifier = 1.0
+	// Nova sets DIGITIGRADE_OPTIONAL on the base /datum/species; arachnids use
+	// bespoke rachnid leg sprites and their own external spider_legs overlay instead.
+	digitigrade_customization = DIGITIGRADE_NEVER
 	// Replaces the default human limbs with the WS rachnid_*_* sprites in
 	// modular_nova/modules/bodyparts/icons/rachnid_parts_greyscale.dmi.
 	bodypart_overrides = list(
