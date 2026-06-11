@@ -105,6 +105,11 @@
 
 	// remove any stragglers just in case, and clear the list
 	remove_ripples()
+
+	// NOVA EDIT ADDITION START - OVERMAP - resync overmap icon to the new Z
+	current_ship?.check_loc()
+	// NOVA EDIT ADDITION END - OVERMAP
+
 	return DOCKING_SUCCESS
 
 /obj/docking_port/mobile/proc/preflight_check(list/old_turfs, list/new_turfs, list/areas_to_move, list/underlying_areas, rotation)

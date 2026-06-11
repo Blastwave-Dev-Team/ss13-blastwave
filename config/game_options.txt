@@ -627,3 +627,13 @@ SPY_HARD_REWARD_TC_THRESHOLD 15
 
 ## Minimum time before a heretic can ascend, in minutes
 # MINIMUM_ASCENSION_TIME 3
+
+## --- Overmap Configuration ---
+## Generator type: "Random" (default) or "Solar" (orbital rings around star).
+OVERMAP_GENERATOR_TYPE Solar
+## Maximum total overmap event tiles (debris, nebulae, etc).
+MAX_OVERMAP_EVENTS 12
+## Maximum event clusters spawned (each cluster spreads outward from a seed).
+MAX_OVERMAP_EVENT_CLUSTERS 3
+## Maximum dynamic encounter objects (dockable ruins/anomalies).
+MAX_OVERMAP_DYNAMIC_EVENTS 4
