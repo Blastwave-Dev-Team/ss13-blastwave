@@ -40,7 +40,7 @@
 /// Standard overmap engine that requires a fuel core and ship power.
 /obj/machinery/power/shuttle_engine/overmap/standard
 	name = "fusion thruster"
-	desc = "A standard overmap thruster. Requires a fuel core and draws power from the ship's grid."
+	desc = "A standard overmap thruster. Consumes propellant from a linked fuel injector and draws power from the ship grid. Optional fuel cores work as emergency fallback."
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap/standard
 	thrust = 30

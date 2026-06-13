@@ -77,6 +77,25 @@
 /// Maneuverability: how quickly actual velocity converges on desired (0..1 per second).
 #define OVERMAP_MANEUVERABILITY 0.8
 
+// --- Propellant / fuel injector ---
+
+/// Default mapped fill mole fractions (plasma / oxygen).
+#define OVERMAP_FUEL_PLASMA_RATIO 0.6
+#define OVERMAP_FUEL_OXYGEN_RATIO 0.4
+
+/// Mapped shuttle chamber pressure target (~3 atm).
+#define OVERMAP_FUEL_DEFAULT_PRESSURE (3 * ONE_ATMOSPHERE)
+
+/// Thrust-to-moles knob; tune for ~10 min full-tank burn at full throttle.
+#define OVERMAP_PROP_MOLES_PER_THRUST 0.05
+
+#define OVERMAP_THERMAL_EXHAUST_TEMP 2000
+#define OVERMAP_CHEMICAL_ISP_BONUS 1.15
+#define OVERMAP_EXHAUST_ISP_THRESHOLD 0.5
+
+/// Max LINDA react() iterations per burn tick.
+#define OVERMAP_REACT_ITERATIONS 5
+
 // --- Ship control flags (bitfield) ---
 
 /// Ship can be operated from a helm console (ByondUi camera + TGUI).

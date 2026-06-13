@@ -376,9 +376,31 @@
 
 .HelmPanel__engine-row {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.HelmPanel__engine-main {
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+}
+
+.HelmPanel__engine-telemetry {
+  font-size: 10px;
+  font-family: inherit;
+  padding-left: 2px;
+  letter-spacing: 0.02em;
+
+  &--muted {
+    color: rgba(200, 208, 224, 0.45);
+  }
+}
+
+.HelmPanel__engine-telemetry-sep {
+  color: rgba(200, 208, 224, 0.35);
+  margin: 0 4px;
 }
 
 .HelmPanel__engine-toggle {

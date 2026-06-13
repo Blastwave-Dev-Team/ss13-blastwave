@@ -5,7 +5,7 @@
 // fuel and return thrust" semantics that the helm and movement code rely on.
 //
 // Engines draw power from the ship's electrical grid and consume reaction mass
-// from an inserted fuel core. Thrust = base_thrust * power_fraction * core_efficiency.
+// from a linked fuel injector (primary) or inserted fuel core (fallback).
 
 /obj/machinery/power/shuttle_engine/overmap
 	name = "overmap thruster"
@@ -18,12 +18,14 @@
 	var/thrust = 25
 	/// Maximum power draw from the grid in watts.
 	var/max_power_draw = 50000
-	/// Active state used by `update_icon_state`. Set by `update_engine()`.
+	/// Active state used by `update_engine()`. Set by `update_engine()`.
 	var/thruster_active = FALSE
 	/// Whether this engine currently has a burn in progress (for fuel consumption).
 	var/burning = FALSE
 	/// Inserted fuel core item. NULL if no core loaded.
 	var/obj/item/fuel_core/fuel_core
+	/// Adjacent fuel injector weakref.
+	var/datum/weakref/linked_injector
 
 /obj/machinery/power/shuttle_engine/overmap/Initialize(mapload)
 	. = ..()
@@ -32,62 +34,119 @@
 
 /obj/machinery/power/shuttle_engine/overmap/Destroy()
 	QDEL_NULL(fuel_core)
+	linked_injector = null
 	return ..()
 
-/// Get available power as a fraction of max_power_draw (0..1).
+/obj/machinery/power/shuttle_engine/overmap/Moved(atom/old_loc, movement_dir, forced, list/old_locs, momentum_change)
+	. = ..()
+	scan_for_injector()
+
+/obj/machinery/power/shuttle_engine/overmap/proc/scan_for_injector()
+	linked_injector = null
+	for(var/direction in GLOB.cardinals)
+		for(var/obj/machinery/overmap/fuel_injector/found in get_step(get_turf(src), direction))
+			if(found.dir != dir)
+				continue
+			set_linked_injector(found)
+			return
+
+/obj/machinery/power/shuttle_engine/overmap/proc/set_linked_injector(obj/machinery/overmap/fuel_injector/injector)
+	if(!injector)
+		return
+	linked_injector = WEAKREF(injector)
+	if(!(WEAKREF(src) in injector.linked_engines))
+		injector.linked_engines += WEAKREF(src)
+
+/obj/machinery/power/shuttle_engine/overmap/proc/clear_injector_link(obj/machinery/overmap/fuel_injector/injector)
+	if(linked_injector?.resolve() == injector)
+		linked_injector = null
+
+/obj/machinery/power/shuttle_engine/overmap/proc/get_linked_injector()
+	return linked_injector?.resolve()
+
 /obj/machinery/power/shuttle_engine/overmap/proc/get_power_fraction()
 	if(!powernet)
 		return 0
 	var/available = clamp(powernet.avail - powernet.load, 0, max_power_draw)
 	return available / max(max_power_draw, 1)
 
-/// Compute current effective thrust based on power and core.
+/obj/machinery/power/shuttle_engine/overmap/proc/get_isp_efficiency()
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector?.has_propellant())
+		return injector.base_isp
+	if(fuel_core && !fuel_core.is_depleted())
+		return fuel_core.efficiency
+	return 0
+
 /obj/machinery/power/shuttle_engine/overmap/proc/get_current_thrust()
-	if(!fuel_core || fuel_core.is_depleted())
+	var/isp = get_isp_efficiency()
+	if(!isp)
 		return 0
 	var/power_fraction = get_power_fraction()
-	return thrust * power_fraction * fuel_core.efficiency
+	return thrust * power_fraction * isp
 
-/// Consume the fuel cost of one burn tick and return thrust contribution.
 /obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100)
 	if(!enabled)
 		return 0
 	if(!update_engine())
 		return 0
-	if(!fuel_core || fuel_core.is_depleted())
-		return 0
 	var/power_fraction = get_power_fraction()
-	var/effective_thrust = thrust * power_fraction * fuel_core.efficiency * (percentage / 100)
-	// Consume reaction mass: consumption = thrust / (ISP * g0)
-	var/consumption = effective_thrust / max(fuel_core.efficiency * OVERMAP_G0, 0.01) * 0.01
-	fuel_core.reaction_mass = max(0, fuel_core.reaction_mass - consumption)
-	if(fuel_core.is_depleted())
-		core_depleted()
-	// Draw power from grid
-	use_energy(max_power_draw * power_fraction * (percentage / 100))
-	burning = TRUE
-	return effective_thrust
+	var/isp = get_isp_efficiency()
+	if(!isp)
+		return 0
+	var/effective_thrust = thrust * power_fraction * isp * (percentage / 100)
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector?.has_propellant())
+		var/requested_moles = effective_thrust / max(isp * OVERMAP_G0 * OVERMAP_PROP_MOLES_PER_THRUST, 0.01)
+		var/list/burn_result = injector.consume_for_burn(requested_moles, power_fraction)
+		var/burn_fraction = burn_result[1]
+		var/effective_isp = burn_result[2]
+		if(burn_fraction <= 0)
+			return 0
+		effective_thrust = thrust * power_fraction * effective_isp * (percentage / 100) * burn_fraction
+		use_energy(max_power_draw * power_fraction * (percentage / 100))
+		burning = TRUE
+		return effective_thrust
+	if(fuel_core && !fuel_core.is_depleted())
+		var/consumption = effective_thrust / max(fuel_core.efficiency * OVERMAP_G0, 0.01) * 0.01
+		fuel_core.reaction_mass = max(0, fuel_core.reaction_mass - consumption)
+		if(fuel_core.is_depleted())
+			core_depleted()
+		use_energy(max_power_draw * power_fraction * (percentage / 100))
+		burning = TRUE
+		return effective_thrust
+	return 0
 
-/// Called when the fuel core runs out mid-burn.
 /obj/machinery/power/shuttle_engine/overmap/proc/core_depleted()
 	visible_message(span_warning("[src] sputters as its fuel core is depleted!"))
 	thruster_active = FALSE
 	burning = FALSE
 	update_icon_state()
 
-/// Returns current fuel level (reaction mass remaining).
 /obj/machinery/power/shuttle_engine/overmap/proc/return_fuel()
-	if(!fuel_core)
-		return 0
-	return fuel_core.reaction_mass
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector)
+		return injector.return_fuel()
+	if(fuel_core)
+		return fuel_core.reaction_mass
+	return 0
 
-/// Returns the fuel capacity.
 /obj/machinery/power/shuttle_engine/overmap/proc/return_fuel_cap()
-	if(!fuel_core)
-		return 0
-	return fuel_core.reaction_mass_max
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector)
+		return injector.return_fuel_cap()
+	if(fuel_core)
+		return fuel_core.reaction_mass_max
+	return 0
 
-/// Sets `thruster_active` based on whether the engine can fire.
+/obj/machinery/power/shuttle_engine/overmap/proc/return_chamber_pressure()
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	return injector?.return_chamber_pressure()
+
+/obj/machinery/power/shuttle_engine/overmap/proc/return_chamber_temperature()
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	return injector?.return_chamber_temperature()
+
 /obj/machinery/power/shuttle_engine/overmap/proc/update_engine()
 	thruster_active = TRUE
 	if(panel_open)
@@ -96,12 +155,15 @@
 	if(!enabled)
 		thruster_active = FALSE
 		return FALSE
-	if(!fuel_core || fuel_core.is_depleted())
-		thruster_active = FALSE
-		return FALSE
-	return TRUE
+	scan_for_injector()
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector?.has_propellant())
+		return TRUE
+	if(fuel_core && !fuel_core.is_depleted())
+		return TRUE
+	thruster_active = FALSE
+	return FALSE
 
-/// Handle inserting/removing fuel cores via attackby.
 /obj/machinery/power/shuttle_engine/overmap/attackby(obj/item/attacking_item, mob/user, params)
 	if(istype(attacking_item, /obj/item/fuel_core))
 		if(fuel_core)
@@ -116,7 +178,6 @@
 		return
 	return ..()
 
-/// Remove fuel core on crowbar.
 /obj/machinery/power/shuttle_engine/overmap/crowbar_act(mob/living/user, obj/item/tool)
 	if(fuel_core)
 		to_chat(user, span_notice("You pry [fuel_core] out of [src]."))
@@ -138,7 +199,10 @@
 /obj/machinery/power/shuttle_engine/overmap/examine(mob/user)
 	. = ..()
 	. += span_notice("It is currently [enabled ? "enabled" : "disabled"]. Use a multitool to toggle.")
+	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector)
+		. += span_notice("Linked to [injector].")
 	if(fuel_core)
 		. += span_notice("Fuel core: [fuel_core.core_type] ([round(fuel_core.reaction_mass / fuel_core.reaction_mass_max * 100)]% remaining).")
-	else
-		. += span_warning("No fuel core installed. Insert one to enable thrust.")
+	else if(!injector)
+		. += span_warning("No fuel source. Link a fuel injector or insert a fuel core.")

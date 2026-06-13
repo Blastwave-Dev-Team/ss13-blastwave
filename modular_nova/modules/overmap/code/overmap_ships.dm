@@ -306,6 +306,14 @@
 	calculate_avg_fuel()
 	if(avg_fuel_amnt < 1)
 		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
+	if(desired_throttle > 0.01)
+		var/burn_pct = desired_throttle * 100 * OVERMAP_PHYSICS_WAIT * 0.1
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+			if(!engine.enabled)
+				continue
+			engine.burn_engine(burn_pct)
+			engine.burning = FALSE
+		refresh_engines()
 	..()
 
 /// Resync the ship icon's overmap position with whatever Z the bound shuttle

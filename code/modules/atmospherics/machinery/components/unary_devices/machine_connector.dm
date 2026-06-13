@@ -3,15 +3,18 @@
 
 	var/obj/machinery/connected_machine
 	var/obj/machinery/atmospherics/components/unary/gas_connector
+	var/piping_layer = PIPING_LAYER_DEFAULT
 
-/datum/gas_machine_connector/New(location, obj/machinery/connecting_machine = null, direction = SOUTH, gas_volume)
+/datum/gas_machine_connector/New(location, obj/machinery/connecting_machine = null, direction = SOUTH, gas_volume, piping_layer = PIPING_LAYER_DEFAULT)
 	connected_machine = connecting_machine
+	src.piping_layer = piping_layer
 	if(!connected_machine)
 		qdel(src)
 		return
 
 	gas_connector = new(location)
 	gas_connector.dir = connected_machine.dir
+	gas_connector.piping_layer = piping_layer
 	gas_connector.airs[1].volume = gas_volume
 
 	SSair.start_processing_machine(connected_machine)
@@ -117,6 +120,7 @@
  */
 /datum/gas_machine_connector/proc/reconnect_connector()
 	gas_connector.dir = connected_machine.dir
+	gas_connector.piping_layer = piping_layer
 	gas_connector.set_init_directions()
 	var/obj/machinery/atmospherics/node = gas_connector.nodes[1]
 	gas_connector.atmos_init()

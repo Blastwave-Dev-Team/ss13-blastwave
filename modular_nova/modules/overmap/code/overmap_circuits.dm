@@ -31,7 +31,8 @@
 	name = "Fusion Thruster"
 	build_path = /obj/machinery/power/shuttle_engine/overmap/standard
 
-/obj/item/circuitboard/machine/shuttle_heater
-	name = "Shuttle Engine Heater"
+/obj/item/circuitboard/machine/overmap/fuel_injector
+	name = "Overmap Fuel Injector"
 	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
-	build_path = /obj/machinery/shuttle_heater
+	build_path = /obj/machinery/overmap/fuel_injector
+	needs_anchored = FALSE

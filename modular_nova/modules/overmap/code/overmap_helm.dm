@@ -166,13 +166,19 @@
 	.["engineInfo"] = list()
 	if(ship.shuttle)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in ship.shuttle.engine_list)
-			.["engineInfo"] += list(list(
+			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+			var/list/engine_entry = list(
 				"name" = engine.name,
-				"fuel" = engine.thruster_active ? engine.return_fuel() : 0,
+				"fuel" = engine.return_fuel(),
 				"maxFuel" = engine.return_fuel_cap(),
 				"enabled" = engine.enabled,
 				"ref" = REF(engine),
-			))
+				"fuelSource" = injector ? "injector" : (engine.fuel_core ? "core" : "none"),
+			)
+			if(injector)
+				engine_entry["pressure"] = round(injector.return_chamber_pressure(), 0.1)
+				engine_entry["temperature"] = round(injector.return_chamber_temperature(), 0.1)
+			.["engineInfo"] += list(engine_entry)
 
 /obj/machinery/computer/helm/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
 	. = ..()

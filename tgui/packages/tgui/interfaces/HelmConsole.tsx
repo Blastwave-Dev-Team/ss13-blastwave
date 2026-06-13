@@ -34,6 +34,9 @@ type EngineInfo = {
   maxFuel: number;
   enabled: BooleanLike;
   ref: string;
+  fuelSource?: 'injector' | 'core' | 'none';
+  pressure?: number;
+  temperature?: number;
 };
 
 type Data = {
@@ -232,6 +235,23 @@ const StatusTab = () => {
   );
 };
 
+const tempColor = (kelvin: number) => {
+  if (kelvin >= 373) {
+    return kelvin > 1643 ? '#e8b830' : '#3dbc6a';
+  }
+  return '#8cf';
+};
+
+const pressureColor = (kpa: number) => {
+  if (kpa > 2000) {
+    return '#e84a4a';
+  }
+  if (kpa > 500) {
+    return '#e8b830';
+  }
+  return '#8cf';
+};
+
 const EnginesTab = () => {
   const { act, data } = useBackend<Data>();
   const { isViewer, engineInfo = [] } = data;
@@ -244,44 +264,64 @@ const EnginesTab = () => {
       ) : (
         engineInfo.map((engine) => (
           <div className="HelmPanel__engine-row" key={engine.ref}>
-            <button
-              className={
-                'HelmPanel__engine-toggle' +
-                (engine.enabled ? ' HelmPanel__engine-toggle--on' : '')
-              }
-              disabled={!!isViewer}
-              onClick={() => act('toggle_engine', { engine: engine.ref })}
-            >
-              <span
+            <div className="HelmPanel__engine-main">
+              <button
                 className={
-                  'HelmPanel__engine-indicator' +
-                  (engine.enabled ? ' HelmPanel__engine-indicator--on' : '')
+                  'HelmPanel__engine-toggle' +
+                  (engine.enabled ? ' HelmPanel__engine-toggle--on' : '')
                 }
-              />
-              {engine.name}
-            </button>
-            <div className="HelmPanel__engine-fuel">
-              {engine.maxFuel > 0 && (
-                <div className="HelmPanel__bar">
-                  <div
-                    className={
-                      'HelmPanel__bar-fill ' +
-                      (engine.fuel / engine.maxFuel > 0.5
-                        ? 'HelmPanel__bar-fill--good'
-                        : engine.fuel / engine.maxFuel > 0.25
-                          ? 'HelmPanel__bar-fill--average'
-                          : 'HelmPanel__bar-fill--bad')
-                    }
-                    style={{
-                      width: `${(engine.fuel / engine.maxFuel) * 100}%`,
-                    }}
-                  />
-                  <div className="HelmPanel__bar-text">
-                    {Math.round((engine.fuel / engine.maxFuel) * 100)}%
+                disabled={!!isViewer}
+                onClick={() => act('toggle_engine', { engine: engine.ref })}
+              >
+                <span
+                  className={
+                    'HelmPanel__engine-indicator' +
+                    (engine.enabled ? ' HelmPanel__engine-indicator--on' : '')
+                  }
+                />
+                {engine.name}
+              </button>
+              <div className="HelmPanel__engine-fuel">
+                {engine.maxFuel > 0 && (
+                  <div className="HelmPanel__bar">
+                    <div
+                      className={
+                        'HelmPanel__bar-fill ' +
+                        (engine.fuel / engine.maxFuel > 0.5
+                          ? 'HelmPanel__bar-fill--good'
+                          : engine.fuel / engine.maxFuel > 0.25
+                            ? 'HelmPanel__bar-fill--average'
+                            : 'HelmPanel__bar-fill--bad')
+                      }
+                      style={{
+                        width: `${(engine.fuel / engine.maxFuel) * 100}%`,
+                      }}
+                    />
+                    <div className="HelmPanel__bar-text">
+                      {Math.round((engine.fuel / engine.maxFuel) * 100)}%
+                    </div>
                   </div>
+                )}
+              </div>
+            </div>
+            {engine.fuelSource === 'injector' &&
+              engine.temperature !== undefined &&
+              engine.pressure !== undefined && (
+                <div className="HelmPanel__engine-telemetry">
+                  <span style={{ color: tempColor(engine.temperature) }}>
+                    {Math.round(engine.temperature)} K
+                  </span>
+                  <span className="HelmPanel__engine-telemetry-sep">·</span>
+                  <span style={{ color: pressureColor(engine.pressure) }}>
+                    {Math.round(engine.pressure)} kPa
+                  </span>
                 </div>
               )}
-            </div>
+            {engine.fuelSource !== 'injector' && (
+              <div className="HelmPanel__engine-telemetry HelmPanel__engine-telemetry--muted">
+                {engine.fuelSource === 'core' ? 'fuel core' : 'no fuel source'}
+              </div>
+            )}
           </div>
         ))
       )}
