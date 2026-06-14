@@ -1,0 +1,775 @@
+// MODULE ID: SPACEPODS
+// Ported from Whitesands (whitesands/code/modules/spacepods/spacepod.dm).
+//
+// Spacepods are single-occupant local-Z vehicles for EVA, mining, and salvage.
+// Differences from the Paradise originals they derive from:
+// - no spacepod fabricator; parts come from techfabs and frames from metal rods.
+// - velocity/acceleration physics instead of tile-based movement (see physics.dm).
+// - high-speed impacts deal damage instead of simply stopping.
+// - they don't explode when destroyed.
+
+GLOBAL_LIST_EMPTY(spacepods_list)
+
+GLOBAL_LIST_INIT(spacepod_verb_list, list(
+	/obj/spacepod/verb/exit_pod,
+	/obj/spacepod/verb/lock_pod,
+	/obj/spacepod/verb/toggle_brakes,
+	/obj/spacepod/verb/toggle_lights,
+	/obj/spacepod/verb/toggle_doors,
+	/obj/spacepod/verb/unload_cargo,
+))
+
+/obj/spacepod
+	name = "space pod"
+	desc = "A sleek single-occupant space pod."
+	icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
+	icon_state = "pod_civ"
+	density = TRUE
+	opacity = FALSE
+	dir = SOUTH // default rest pose faces the camera; coarse facing tracks angle via spacepod_apply_facing().
+	layer = SPACEPOD_LAYER
+	bound_width = 64
+	bound_height = 64
+	animate_movement = NO_STEPS
+	anchored = TRUE
+	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF // it floats above lava or something, I dunno
+
+	uses_integrity = TRUE
+	max_integrity = 50
+	integrity_failure = 0.2
+
+	var/list/equipment = list()
+	var/list/equipment_slot_limits = list(
+		SPACEPOD_SLOT_MISC = 1,
+		SPACEPOD_SLOT_CARGO = 2,
+		SPACEPOD_SLOT_WEAPON = 1,
+		SPACEPOD_SLOT_LOCK = 1,
+	)
+	var/obj/item/spacepod_equipment/lock/lock
+	var/obj/item/spacepod_equipment/weaponry/weapon
+	var/next_firetime = 0
+	var/locked = FALSE
+	var/hatch_open = FALSE
+	var/obj/item/pod_parts/armor/pod_armor = null
+	var/obj/item/stock_parts/power_store/battery/cell = null
+	var/datum/gas_mixture/cabin_air
+	var/obj/machinery/portable_atmospherics/canister/internal_tank
+	var/last_slowprocess = 0
+
+	var/mob/living/pilot
+	var/list/passengers = list()
+	var/max_passengers = 0
+	/// Assoc list of mob -> list of granted /datum/action/spacepod instances.
+	var/list/occupant_actions = list()
+
+	var/velocity_x = 0 // tiles per second.
+	var/velocity_y = 0
+	var/offset_x = 0 // fractional-tile physics accumulator; rendered via step_x/step_y
+	var/offset_y = 0
+	var/angle = 180 // degrees, clockwise; 180 = south-facing rest pose for Yog 8-dir art
+	var/desired_angle = null // set by the pilot aiming
+	var/angular_velocity = 0 // degrees per second
+	var/max_angular_acceleration = 360 // in degrees per second per second
+	var/last_thrust_forward = 0
+	var/last_thrust_right = 0
+	var/last_rotate = 0
+
+	var/brakes = TRUE
+	var/user_thrust_dir = 0
+	var/forward_maxthrust = 6
+	var/backward_maxthrust = 3
+	var/side_maxthrust = 1
+
+	var/lights = FALSE
+	var/lights_power = 6
+	var/static/list/icon_light_color = list(
+		"pod_civ" = LIGHT_COLOR_HALOGEN,
+		"pod_mil" = LIGHT_COLOR_GREEN,
+		"pod_synd" = LIGHT_COLOR_FLARE,
+		"pod_gold" = LIGHT_COLOR_HALOGEN,
+		"pod_black" = LIGHT_COLOR_DARK_BLUE,
+		"pod_industrial" = LIGHT_COLOR_TUNGSTEN,
+	)
+
+	var/bump_impulse = 0.6
+	var/bounce_factor = 0.2 // how much of our velocity to keep on collision
+	var/lateral_bounce_factor = 0.95 // mostly there to slow you down when you drive down a 2x2 corridor
+
+/obj/spacepod/Initialize(mapload)
+	. = ..()
+	GLOB.spacepods_list += src
+	START_PROCESSING(SSfastprocess, src)
+	cabin_air = new
+	cabin_air.set_temperature(T20C)
+	cabin_air.volume = 200
+
+/obj/spacepod/Destroy()
+	GLOB.spacepods_list -= src
+	STOP_PROCESSING(SSfastprocess, src)
+	for(var/mob/rider in occupant_actions)
+		remove_actions(rider)
+	QDEL_NULL(pilot)
+	QDEL_LIST(passengers)
+	QDEL_LIST(equipment)
+	QDEL_NULL(cabin_air)
+	QDEL_NULL(cell)
+	return ..()
+
+/obj/spacepod/examine(mob/user)
+	. = ..()
+	if(hatch_open)
+		if(cell || internal_tank || length(equipment))
+			. += span_notice("The maintenance hatch is <i>pried</i> open, and there are parts inside that can be <b>removed</b>.")
+		else
+			. += span_notice("The maintenance hatch is <i>pried</i> open. With everything stripped out, the welded armor can be <b>sliced off</b> to reduce it to a frame.")
+	else if(locked)
+		. += span_notice("[src] is <b>locked</b>.")
+	else
+		. += span_notice("The maintenance hatch is <b>closed</b>. <i>Pry</i> it open with a crowbar.")
+
+// Multi-tile reach: a 2x2 atom's default /atom/movable/Adjacent only tests its origin turf (one
+// corner), so reach checks only pass on that side. Treat being adjacent to ANY occupied tile as
+// adjacent, so the footprint can be worked on (and loaded) from all four sides. Shared by the pod
+// and its construction frame.
+/proc/spacepod_footprint_adjacent(atom/movable/source, atom/neighbor)
+	if(neighbor == source.loc)
+		return TRUE
+	if(neighbor?.loc == source)
+		return TRUE
+	var/turf/neighbor_turf = get_turf(neighbor)
+	if(!neighbor_turf)
+		return FALSE
+	for(var/turf/our_turf as anything in source.locs)
+		if(our_turf == neighbor_turf || our_turf.Adjacent(neighbor, target = neighbor, mover = source))
+			return TRUE
+	return FALSE
+
+/// Maps frame build heading (0/90/180/270) to a cardinal dir for construction sprites.
+/proc/spacepod_build_angle_to_dir(build_angle)
+	var/clamped_angle = (round(build_angle, 90) % 360 + 360) % 360
+	switch(clamped_angle)
+		if(0)
+			return NORTH
+		if(90)
+			return EAST
+		if(180)
+			return SOUTH
+		if(270)
+			return WEST
+	return NORTH
+
+/// Returns the 45°-quantized facing bucket for a physics angle.
+/proc/spacepod_clamped_angle(facing_angle)
+	return (round(facing_angle, 45) % 360 + 360) % 360
+
+/// Sets target.dir from angle and returns matrix angle_offset for fine rotation within the bucket.
+/proc/spacepod_apply_facing(atom/movable/target, facing_angle)
+	var/clamped_angle = spacepod_clamped_angle(facing_angle)
+	var/angle_offset = 0
+	switch(clamped_angle)
+		if(0)
+			target.setDir(NORTH)
+		if(45)
+			target.setDir(NORTHEAST)
+			angle_offset = -45
+		if(90)
+			target.setDir(EAST)
+			angle_offset = -90
+		if(135)
+			target.setDir(SOUTHEAST)
+			angle_offset = -135
+		if(180)
+			target.setDir(SOUTH)
+			angle_offset = -180
+		if(225)
+			target.setDir(SOUTHWEST)
+			angle_offset = -225
+		if(270)
+			target.setDir(WEST)
+			angle_offset = -270
+		if(315)
+			target.setDir(NORTHWEST)
+			angle_offset = -315
+	return angle_offset
+
+/// Pixel matrix for the rear thrust overlay at a given clamped facing bucket.
+/proc/spacepod_thrust_overlay_matrix(clamped_angle)
+	switch(clamped_angle)
+		if(0)
+			return matrix(1, 0, 0, 0, 1, -24)
+		if(45)
+			return matrix(1, 0, -25, 0, 1, -16)
+		if(90)
+			return matrix(1, 0, -32, 0, 1, 0)
+		if(135)
+			return matrix(1, 0, -23, 0, 1, 23)
+		if(180)
+			return matrix(1, 0, 0, 0, 1, 32)
+		if(225)
+			return matrix(1, 0, 23, 0, 1, 23)
+		if(270)
+			return matrix(1, 0, 32, 0, 1, 0)
+		if(315)
+			return matrix(1, 0, 25, 0, 1, -16)
+	return matrix(1, 0, 0, 0, 1, -24)
+
+/// Sets dir from angle and returns angle_offset for transform fine-tuning.
+/obj/spacepod/proc/spacepod_facing_offset()
+	return spacepod_apply_facing(src, angle)
+
+/obj/spacepod/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
+	return spacepod_footprint_adjacent(src, neighbor)
+
+/obj/spacepod/attackby(obj/item/weapon, mob/living/user, list/modifiers, list/attack_modifiers)
+	if(user.combat_mode)
+		return ..()
+	if(weapon.tool_behaviour == TOOL_CROWBAR)
+		if(hatch_open || !locked)
+			hatch_open = !hatch_open
+			weapon.play_tool_sound(src)
+			to_chat(user, span_notice("You [hatch_open ? "open" : "close"] the maintenance hatch."))
+		else
+			to_chat(user, span_warning("The hatch is locked shut!"))
+		return TRUE
+	if(istype(weapon, /obj/item/stock_parts/power_store/battery))
+		if(!hatch_open)
+			to_chat(user, span_warning("The maintenance hatch is closed!"))
+			return TRUE
+		if(cell)
+			to_chat(user, span_notice("The pod already has a megacell."))
+			return TRUE
+		if(user.transferItemToLoc(weapon, src))
+			to_chat(user, span_notice("You insert [weapon] into the pod."))
+			cell = weapon
+		return TRUE
+	if(istype(weapon, /obj/item/spacepod_equipment))
+		if(!hatch_open)
+			to_chat(user, span_warning("The maintenance hatch is closed!"))
+			return TRUE
+		var/obj/item/spacepod_equipment/equip = weapon
+		if(equip.can_install(src, user) && user.temporarilyRemoveItemFromInventory(equip))
+			equip.forceMove(src)
+			equip.on_install(src)
+		return TRUE
+	if(lock && istype(weapon, /obj/item/lock_buster))
+		var/obj/item/lock_buster/buster = weapon
+		if(buster.on)
+			user.visible_message(span_warning("[user] is drilling through [src]'s lock!"),
+				span_notice("You start drilling through [src]'s lock!"))
+			if(do_after(user, 10 SECONDS * weapon.toolspeed, target = src))
+				if(lock)
+					var/obj/old_lock = lock
+					lock.on_uninstall()
+					qdel(old_lock)
+					user.visible_message(span_warning("[user] has destroyed [src]'s lock!"),
+						span_notice("You destroy [src]'s lock!"))
+			else
+				user.visible_message(span_warning("[user] fails to break through [src]'s lock!"),
+					span_notice("You were unable to break through [src]'s lock!"))
+			return TRUE
+		to_chat(user, span_notice("Turn the [buster] on first."))
+		return TRUE
+	if(weapon.tool_behaviour == TOOL_WELDER)
+		var/repairing = cell || internal_tank || length(equipment) || (get_integrity() < max_integrity) || pilot || length(passengers)
+		if(!hatch_open)
+			to_chat(user, span_warning("You must open the maintenance hatch before [repairing ? "attempting repairs" : "deconstructing the pod"]."))
+			return TRUE
+		if(repairing && get_integrity() >= max_integrity)
+			to_chat(user, span_warning("[src] is fully repaired!"))
+			return TRUE
+		to_chat(user, span_notice("You start [repairing ? "repairing [src]" : "slicing off [src]'s armor"]."))
+		if(weapon.use_tool(src, user, 50, amount = 3, volume = 50))
+			if(repairing)
+				repair_damage(10)
+				to_chat(user, span_notice("You mend some [pick("dents", "bumps", "damage")] with [weapon]."))
+			else if(!cell && !internal_tank && !length(equipment) && !pilot && !length(passengers))
+				user.visible_message(span_notice("[user] slices off [src]'s armor, reducing it to a frame."), span_notice("You slice off [src]'s armor, reducing it to a frame."))
+				convert_to_frame(SPACEPOD_FRAME_ARMOR_INDEX)
+		return TRUE
+	return ..()
+
+/obj/spacepod/attack_hand(mob/living/user, list/modifiers)
+	if(user.combat_mode && !locked)
+		var/mob/living/target
+		if(pilot)
+			target = pilot
+		else if(length(passengers))
+			target = passengers[1]
+
+		if(istype(target))
+			visible_message(span_warning("[user] is trying to rip the door open and pull [target] out of [src]!"),
+				span_warning("You see [user] outside the door trying to rip it open!"))
+			if(do_after(user, 5 SECONDS, target = src))
+				if(remove_rider(target))
+					target.Stun(2 SECONDS)
+					target.visible_message(span_warning("[user] flings the door open and tears [target] out of [src]!"),
+						span_warning("The door flies open and you are thrown out of [src] and to the ground!"))
+				return
+			target.visible_message(span_warning("[user] was unable to get the door open!"),
+				span_warning("You manage to keep [user] out of [src]!"))
+
+	if(!hatch_open)
+		return ..()
+	var/list/items = list(cell, internal_tank)
+	items += equipment
+	var/list/item_map = list()
+	var/list/used_key_list = list()
+	for(var/obj/item_in_pod in items)
+		item_map[avoid_assoc_duplicate_keys(item_in_pod.name, used_key_list)] = item_in_pod
+	var/selection = tgui_input_list(user, "Remove which equipment?", "Spacepod", item_map)
+	var/obj/chosen = item_map[selection]
+	if(!chosen || !(chosen in contents))
+		return
+	if(chosen == cell)
+		cell = null
+	else if(chosen == internal_tank)
+		internal_tank = null
+	else if(chosen in equipment)
+		var/obj/item/spacepod_equipment/equip = chosen
+		if(!equip.can_uninstall(user))
+			return
+		equip.on_uninstall()
+	else
+		return
+	chosen.forceMove(loc)
+	if(isitem(chosen))
+		user.put_in_hands(chosen)
+
+/obj/spacepod/proc/add_armor(obj/item/pod_parts/armor/armor)
+	desc = armor.pod_desc
+	max_integrity = armor.pod_integrity
+	update_integrity(max_integrity)
+	pod_armor = armor
+	update_icon()
+
+/obj/spacepod/proc/remove_armor()
+	max_integrity = initial(max_integrity)
+	update_integrity(max_integrity)
+	desc = initial(desc)
+	pod_armor = null
+	update_icon()
+
+/// Click intercept set on the pilot: aim toward the clicked target and fire.
+/obj/spacepod/proc/InterceptClickOn(mob/user, params, atom/target)
+	var/list/params_list = params2list(params)
+	if(target == src || istype(target, /atom/movable/screen) || (target in user.get_all_contents()) || user != pilot || params_list["shift"] || params_list["alt"] || params_list["ctrl"])
+		return FALSE
+	var/turf/our_turf = get_turf(src)
+	var/turf/target_turf = get_turf(target)
+	if(our_turf && target_turf && our_turf != target_turf)
+		desired_angle = 90 - ATAN2(target_turf.x - our_turf.x, target_turf.y - our_turf.y)
+	if(weapon)
+		weapon.fire_weapons(target)
+	return TRUE
+
+/// Mouse move handler: continuously aims the pod toward the cursor.
+/obj/spacepod/proc/on_mouse_move(mob/user, params)
+	if(user != pilot || !pilot.client || pilot.incapacitated)
+		return
+	var/list/params_list = params2list(params)
+	var/screen_loc_raw = params_list["screen-loc"]
+	if(!screen_loc_raw)
+		return
+	var/list/sl_parts = splittext(screen_loc_raw, ",")
+	if(length(sl_parts) < 2)
+		return
+	var/list/sl_x_parts = splittext(sl_parts[1], ":")
+	var/list/sl_y_parts = splittext(sl_parts[2], ":")
+	var/list/view_size = getviewsize(pilot.client.view)
+	var/dx = text2num(sl_x_parts[1]) + (text2num(sl_x_parts[2]) / ICON_SIZE_X) - 1 - view_size[1] / 2
+	var/dy = text2num(sl_y_parts[1]) + (text2num(sl_y_parts[2]) / ICON_SIZE_Y) - 1 - view_size[2] / 2
+	if(sqrt(dx * dx + dy * dy) > 1)
+		desired_angle = 90 - ATAN2(dx, dy)
+	else
+		desired_angle = null
+
+/// Forward client mouse movement to the spacepod for continuous aiming.
+/client/MouseMove(object, location, control, params)
+	. = ..()
+	if(isspacepod(mob?.loc))
+		var/obj/spacepod/pod = mob.loc
+		pod.on_mouse_move(mob, params)
+
+/obj/spacepod/on_update_integrity(old_value, new_value)
+	. = ..()
+	update_icon()
+
+/obj/spacepod/return_air()
+	return cabin_air
+
+/obj/spacepod/remove_air(amount)
+	return cabin_air.remove(amount)
+
+/obj/spacepod/proc/slowprocess()
+	if(cabin_air && cabin_air.return_volume() > 0)
+		var/delta = cabin_air.return_temperature() - T20C
+		cabin_air.set_temperature(cabin_air.return_temperature() - max(-10, min(10, round(delta / 4, 0.1))))
+	if(internal_tank && cabin_air)
+		var/datum/gas_mixture/tank_air = internal_tank.return_air()
+		var/release_pressure = ONE_ATMOSPHERE
+		var/cabin_pressure = cabin_air.return_pressure()
+		var/pressure_delta = min(release_pressure - cabin_pressure, (tank_air.return_pressure() - cabin_pressure) / 2)
+		var/transfer_moles = 0
+		if(pressure_delta > 0) // cabin pressure lower than release pressure
+			if(tank_air.return_temperature() > 0)
+				transfer_moles = pressure_delta * cabin_air.return_volume() / (cabin_air.return_temperature() * R_IDEAL_GAS_EQUATION)
+				var/datum/gas_mixture/removed = tank_air.remove(transfer_moles)
+				cabin_air.merge(removed)
+		else if(pressure_delta < 0) // cabin pressure higher than release pressure
+			var/turf/our_turf = get_turf(src)
+			var/datum/gas_mixture/turf_air = our_turf?.return_air()
+			pressure_delta = cabin_pressure - release_pressure
+			if(turf_air)
+				pressure_delta = min(cabin_pressure - turf_air.return_pressure(), pressure_delta)
+			if(pressure_delta > 0) // if location pressure is lower than cabin pressure
+				transfer_moles = pressure_delta * cabin_air.return_volume() / (cabin_air.return_temperature() * R_IDEAL_GAS_EQUATION)
+				var/datum/gas_mixture/removed = cabin_air.remove(transfer_moles)
+				if(our_turf)
+					our_turf.assume_air(removed)
+				else // just delete the cabin gas, we're in space or some shit
+					qdel(removed)
+
+/mob/get_status_tab_items()
+	. = ..()
+	if(!isspacepod(loc))
+		return
+	var/obj/spacepod/pod = loc
+	. += ""
+	. += "Spacepod Charge: [pod.cell ? "[display_energy(pod.cell.charge)]/[display_energy(pod.cell.maxcharge)]" : "NONE"]"
+	. += "Spacepod Integrity: [round(pod.get_integrity(), 0.1)]/[pod.max_integrity]"
+	. += "Spacepod Velocity: [round(sqrt(pod.velocity_x * pod.velocity_x + pod.velocity_y * pod.velocity_y), 0.1)] m/s"
+
+/obj/spacepod/atom_break(damage_flag)
+	. = ..()
+	if(!pod_armor)
+		return // already stripped to a bare hull; further damage destroys us outright.
+	var/obj/old_armor = pod_armor
+	remove_armor()
+	qdel(old_armor)
+	if(prob(40))
+		new /obj/item/stack/sheet/iron/five(loc)
+	if(prob(40))
+		new /obj/item/stack/sheet/iron/five(loc)
+	if(cabin_air)
+		var/datum/gas_mixture/dumped = cabin_air.remove_ratio(1)
+		var/turf/our_turf = get_turf(src)
+		if(dumped && our_turf)
+			our_turf.assume_air(dumped)
+	cell = null
+	internal_tank = null
+	for(var/atom/movable/thing as anything in contents)
+		if(thing in equipment)
+			var/obj/item/spacepod_equipment/equip = thing
+			if(istype(equip))
+				equip.on_uninstall()
+		if(isliving(thing))
+			remove_rider(thing)
+		else if(prob(60))
+			thing.forceMove(loc)
+		else if(isitem(thing) || !isobj(thing))
+			qdel(thing)
+		else
+			var/obj/wreck = thing
+			wreck.forceMove(loc)
+			wreck.deconstruct(FALSE)
+
+/obj/spacepod/atom_destruction(damage_flag)
+	var/turf/our_turf = get_turf(src)
+	if(our_turf)
+		remove_rider(pilot)
+		while(length(passengers))
+			remove_rider(passengers[1])
+		if(pod_armor)
+			var/obj/old_armor = pod_armor
+			remove_armor()
+			old_armor.forceMove(our_turf)
+		// Leave a repairable wreck frame behind rather than simply vanishing.
+		new /obj/structure/spacepod_frame(our_turf, SPACEPOD_FRAME_WRECK_INDEX, angle)
+	return ..()
+
+/// Reduce a fully-built pod back into a construction frame at the given step, carrying armor over.
+/obj/spacepod/proc/convert_to_frame(frame_index)
+	var/turf/our_turf = get_turf(src)
+	if(!our_turf)
+		return
+	var/obj/item/pod_parts/armor/saved_armor = pod_armor
+	if(saved_armor)
+		remove_armor()
+	new /obj/structure/spacepod_frame(our_turf, frame_index, angle, saved_armor)
+	qdel(src)
+
+/obj/spacepod/handle_deconstruct(disassembled)
+	if(!get_turf(src))
+		return
+	remove_rider(pilot)
+	while(length(passengers))
+		remove_rider(passengers[1])
+	passengers.Cut()
+
+/obj/spacepod/update_icon()
+	cut_overlays()
+	if(pod_armor)
+		icon = pod_armor.pod_icon
+		icon_state = pod_armor.pod_icon_state
+	else
+		icon = 'modular_nova/modules/spacepods/icons/construction_2x2.dmi'
+		icon_state = "pod_9" // bare welded hull look when the armor has been stripped off.
+
+	if(get_integrity() <= max_integrity / 2)
+		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "pod_damage"))
+		if(get_integrity() <= max_integrity / 4)
+			add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "pod_fire"))
+
+	if(weapon && weapon.overlay_icon_state)
+		add_overlay(image(icon = weapon.overlay_icon, icon_state = weapon.overlay_icon_state))
+
+	light_color = icon_light_color[icon_state] || LIGHT_COLOR_HALOGEN
+
+	// Thrust overlays (rcs + rear exhaust live in 2x2.dmi; inherit pod dir from last process tick).
+	var/left_thrust = 0
+	var/right_thrust = 0
+	var/back_thrust = 0
+	if(last_thrust_right != 0)
+		left_thrust = abs(last_thrust_right) / side_maxthrust
+		right_thrust = abs(last_thrust_right) / side_maxthrust
+	if(last_thrust_forward > 0)
+		back_thrust = last_thrust_forward / forward_maxthrust
+	if(last_thrust_forward < 0)
+		left_thrust = -last_thrust_forward / backward_maxthrust
+		right_thrust = -last_thrust_forward / backward_maxthrust
+	if(last_rotate != 0)
+		var/frac = abs(last_rotate) / max_angular_acceleration
+		if(last_rotate > 0)
+			right_thrust += frac
+		else
+			left_thrust += frac
+	if(left_thrust)
+		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "rcs_left"))
+	if(right_thrust)
+		add_overlay(image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "rcs_right"))
+	if(back_thrust)
+		var/image/thrust_image = image(icon = 'modular_nova/modules/spacepods/icons/2x2.dmi', icon_state = "thrust")
+		thrust_image.transform = spacepod_thrust_overlay_matrix(spacepod_clamped_angle(angle))
+		add_overlay(thrust_image)
+
+/obj/spacepod/mouse_drop_receive(atom/movable/dropped, mob/user, params)
+	if(user == pilot || (user in passengers))
+		return
+
+	if(istype(dropped, /obj/machinery/portable_atmospherics/canister))
+		if(internal_tank)
+			to_chat(user, span_warning("[src] already has an internal tank!"))
+			return
+		if(!dropped.Adjacent(src))
+			to_chat(user, span_warning("The canister is not close enough!"))
+			return
+		if(hatch_open)
+			to_chat(user, span_warning("The hatch is shut!"))
+		to_chat(user, span_notice("You begin inserting the canister into [src]."))
+		if(do_after(user, 5 SECONDS, target = src))
+			to_chat(user, span_notice("You insert the canister into [src]."))
+			dropped.forceMove(src)
+			internal_tank = dropped
+		return
+
+	if(isliving(dropped))
+		var/mob/living/target = dropped
+		if(target != user && !locked)
+			if(length(passengers) >= max_passengers && !pilot)
+				to_chat(user, span_danger("[target.p_They()] can't fly the pod!"))
+				return
+			if(length(passengers) < max_passengers)
+				visible_message(span_danger("[user] starts loading [target] into [src]!"))
+				if(do_after(user, 5 SECONDS, target = src))
+					add_rider(target, FALSE)
+			return
+		if(target == user)
+			enter_pod(user)
+			return
+
+	return ..()
+
+/obj/spacepod/proc/enter_pod(mob/living/user)
+	if(user.stat != CONSCIOUS)
+		return FALSE
+	if(locked)
+		to_chat(user, span_warning("[src]'s doors are locked!"))
+		return FALSE
+	if(!istype(user))
+		return FALSE
+	if(user.incapacitated)
+		return FALSE
+	if(!ishuman(user))
+		return FALSE
+
+	if(length(passengers) <= max_passengers || !pilot)
+		visible_message(span_notice("[user] starts to climb into [src]."))
+		if(do_after(user, 4 SECONDS, target = src))
+			var/success = add_rider(user)
+			if(!success)
+				to_chat(user, span_notice("You were too slow. Try better next time, loser."))
+			return success
+		to_chat(user, span_notice("You stop entering [src]."))
+	else
+		to_chat(user, span_danger("You can't fit in [src], it's full!"))
+	return FALSE
+
+/obj/spacepod/proc/verb_check(require_pilot = TRUE, mob/user)
+	if(!user)
+		user = usr
+	if(require_pilot && user != pilot)
+		to_chat(user, span_notice("You can't reach the controls from your chair."))
+		return FALSE
+	return !user.incapacitated && isliving(user)
+
+/obj/spacepod/verb/exit_pod()
+	set name = "Exit pod"
+	set category = "Spacepod"
+	set src = usr.loc
+
+	if(!isliving(usr) || usr.stat > CONSCIOUS)
+		return
+
+	if(HAS_TRAIT(usr, TRAIT_HANDS_BLOCKED))
+		to_chat(usr, span_notice("You attempt to stumble out of [src]. This will take two minutes."))
+		if(pilot)
+			to_chat(pilot, span_warning("[usr] is trying to escape [src]."))
+		if(!do_after(usr, 2 MINUTES, target = src))
+			return
+
+	if(remove_rider(usr))
+		to_chat(usr, span_notice("You climb out of [src]."))
+
+/obj/spacepod/verb/lock_pod()
+	set name = "Lock Doors"
+	set category = "Spacepod"
+	set src = usr.loc
+
+	if(!verb_check(FALSE))
+		return
+
+	if(!lock)
+		to_chat(usr, span_warning("[src] has no locking mechanism."))
+		locked = FALSE // should never be TRUE without a lock, but force-unlock if it somehow happens.
+	else
+		locked = !locked
+		to_chat(usr, span_warning("You [locked ? "lock" : "unlock"] the doors."))
+
+/obj/spacepod/verb/toggle_brakes()
+	set name = "Toggle Brakes"
+	set category = "Spacepod"
+	set src = usr.loc
+
+	if(!verb_check())
+		return
+	brakes = !brakes
+	to_chat(usr, span_notice("You toggle the brakes [brakes ? "on" : "off"]."))
+
+/obj/spacepod/verb/toggle_lights()
+	set name = "Toggle Lights"
+	set category = "Spacepod"
+	set src = usr.loc
+
+	if(!verb_check())
+		return
+
+	lights = !lights
+	set_light(lights ? lights_power : 0)
+	to_chat(usr, "Lights toggled [lights ? "on" : "off"].")
+	for(var/mob/passenger in passengers)
+		to_chat(passenger, "Lights toggled [lights ? "on" : "off"].")
+
+/obj/spacepod/verb/toggle_doors()
+	set name = "Toggle Nearby Pod Doors"
+	set category = "Spacepod"
+	set src = usr.loc
+
+	if(!verb_check())
+		return
+
+	for(var/obj/machinery/door/poddoor/pod_door in orange(3, src))
+		for(var/mob/living/carbon/human/occupant in contents)
+			if(pod_door.check_access(occupant.get_active_held_item()) || pod_door.check_access(occupant.wear_id))
+				if(pod_door.density)
+					pod_door.open()
+				else
+					pod_door.close()
+				return TRUE
+		to_chat(usr, span_warning("Access denied."))
+		return
+
+	to_chat(usr, span_warning("You are not close to any pod doors."))
+
+/obj/spacepod/proc/add_rider(mob/living/rider, allow_pilot = TRUE)
+	if(rider == pilot || (rider in passengers))
+		return FALSE
+	if(!pilot && allow_pilot)
+		pilot = rider
+		rider.click_intercept = src
+	else if(length(passengers) < max_passengers)
+		passengers += rider
+	else
+		return FALSE
+	rider.stop_pulling()
+	rider.forceMove(src)
+	grant_actions(rider)
+	playsound(src, 'sound/machines/windowdoor.ogg', 50, TRUE)
+	return TRUE
+
+/obj/spacepod/proc/remove_rider(mob/living/rider)
+	if(!rider)
+		return
+	remove_actions(rider)
+	if(rider == pilot)
+		pilot = null
+		if(rider.click_intercept == src)
+			rider.click_intercept = null
+		desired_angle = null
+	else if(rider in passengers)
+		passengers -= rider
+	else
+		return FALSE
+	if(rider.loc == src)
+		rider.forceMove(loc)
+	if(rider.client)
+		rider.client.pixel_x = 0
+		rider.client.pixel_y = 0
+	return TRUE
+
+/// All action types a pilot gets.
+/obj/spacepod/var/static/list/pilot_action_types = list(
+	/datum/action/spacepod/exit_pod,
+	/datum/action/spacepod/toggle_brakes,
+	/datum/action/spacepod/toggle_lights,
+	/datum/action/spacepod/lock_pod,
+	/datum/action/spacepod/toggle_doors,
+	/datum/action/spacepod/unload_cargo,
+)
+
+/// Action types passengers get.
+/obj/spacepod/var/static/list/passenger_action_types = list(
+	/datum/action/spacepod/exit_pod,
+	/datum/action/spacepod/lock_pod,
+)
+
+/obj/spacepod/proc/grant_actions(mob/rider)
+	var/list/types = (rider == pilot) ? pilot_action_types : passenger_action_types
+	var/list/actions = list()
+	for(var/action_type in types)
+		var/datum/action/spacepod/act = new action_type(src)
+		act.Grant(rider)
+		actions += act
+	occupant_actions[rider] = actions
+
+/obj/spacepod/proc/remove_actions(mob/rider)
+	var/list/actions = occupant_actions[rider]
+	if(!actions)
+		return
+	for(var/datum/action/act in actions)
+		qdel(act)
+	occupant_actions -= rider
+
+/obj/spacepod/relaymove(mob/living/user, direction)
+	if(user != pilot || pilot.incapacitated)
+		return
+	user_thrust_dir = direction
