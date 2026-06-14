@@ -810,3 +810,72 @@ export const pod_hair_emissive: Feature<boolean> = {
   description: 'Emissive parts glow in the dark.',
   component: CheckboxInput,
 };
+
+// === Arachnid chitin overlays ===
+// Three external organs (legs, spinneret, mandibles). Arachnids always have
+// all three - no enable toggle, just a style dropdown, a single color picker,
+// and an emissive checkbox per part. We use a single-color picker (rather
+// than the standard tri-color one) because the spider sprite accessories use
+// `color_src = USE_ONE_COLOR`, so only the primary color slot would ever
+// affect rendering. Matching BYOND-side prefs live in
+// modular_nova/modules/customization/modules/client/preferences/arachnid_mutant_parts.dm.
+
+export const feature_spider_legs: Feature<string> = {
+  name: 'Spider Legs Selection',
+  component: (
+    props: FeatureValueProps<string, string, FeatureChoicedServerData>,
+  ) => {
+    return <FeatureDropdownInput buttons {...props} />;
+  },
+};
+
+export const spider_legs_color: Feature<string> = {
+  name: 'Spider Legs Color',
+  component: FeatureColorInput,
+};
+
+export const spider_legs_emissive: Feature<boolean> = {
+  name: 'Spider Legs Emissive',
+  description: 'Emissive parts glow in the dark.',
+  component: CheckboxInput,
+};
+
+export const feature_spider_spinneret: Feature<string> = {
+  name: 'Spider Spinneret Selection',
+  component: (
+    props: FeatureValueProps<string, string, FeatureChoicedServerData>,
+  ) => {
+    return <FeatureDropdownInput buttons {...props} />;
+  },
+};
+
+export const spider_spinneret_color: Feature<string> = {
+  name: 'Spider Spinneret Color',
+  component: FeatureColorInput,
+};
+
+export const spider_spinneret_emissive: Feature<boolean> = {
+  name: 'Spider Spinneret Emissive',
+  description: 'Emissive parts glow in the dark.',
+  component: CheckboxInput,
+};
+
+export const feature_spider_mandibles: Feature<string> = {
+  name: 'Spider Mandibles Selection',
+  component: (
+    props: FeatureValueProps<string, string, FeatureChoicedServerData>,
+  ) => {
+    return <FeatureDropdownInput buttons {...props} />;
+  },
+};
+
+export const spider_mandibles_color: Feature<string> = {
+  name: 'Spider Mandibles Color',
+  component: FeatureColorInput,
+};
+
+export const spider_mandibles_emissive: Feature<boolean> = {
+  name: 'Spider Mandibles Emissive',
+  description: 'Emissive parts glow in the dark.',
+  component: CheckboxInput,
+};
