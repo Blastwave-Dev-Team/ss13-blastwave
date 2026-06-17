@@ -65,3 +65,20 @@
 		/obj/item/storage/bubblegum_wrapper = 1,
 	)
 	category = CAT_MISC
+
+
+/datum/crafting_recipe/big_lead_acid
+	name = "Lead-acid battery array"
+	time = 10 SECONDS
+	reqs = list(/datum/reagent/lead = 15, /obj/item/stack/cable_coil = 30, /obj/item/stack/rods = 8, /obj/item/stock_parts/power_store/cell/lead = 4)
+	tool_paths = list(/obj/item/wirecutters, /obj/item/wrench, /obj/item/cautery)
+	result = /obj/item/stock_parts/power_store/cell/lead
+	category = CAT_MISC
+
+/datum/crafting_recipe/big_hyper_cell
+	name = "overfill hypercharged cell"
+	time = 30 SECONDS
+	reqs = list(/datum/reagent/plasma_oxide = 100, /datum/reagent/stable_plasma = 100)
+	tool_paths = list(/obj/item/wirecutters, /obj/item/reagent_containers/syringe, /obj/item/clothing/gloves/color/yellow)
+	result = /obj/item/stock_parts/power_store/cell/lead
+	category = CAT_MISC
