@@ -300,7 +300,7 @@
 /obj/item/spacepod_equipment/lock
 	name = "pod lock"
 	desc = "You shouldn't be seeing this"
-	icon_state = "blank"
+	icon_state = ""
 	slot = SPACEPOD_SLOT_LOCK
 
 /obj/item/spacepod_equipment/lock/on_install(obj/spacepod/installed_pod)
