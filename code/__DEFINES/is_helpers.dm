@@ -271,6 +271,10 @@ GLOBAL_LIST_INIT(turfs_pass_meteor, typecacheof(list(
 
 #define ismecha(A) (istype(A, /obj/vehicle/sealed/mecha))
 
+// NOVA EDIT ADDITION START - SPACEPODS
+#define isspacepod(A) (istype(A, /obj/spacepod))
+// NOVA EDIT ADDITION END
+
 #define isorgan(A) (istype(A, /obj/item/organ))
 
 #define isclothing(A) (istype(A, /obj/item/clothing))

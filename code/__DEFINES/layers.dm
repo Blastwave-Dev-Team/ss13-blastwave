@@ -248,6 +248,7 @@
 #define LYING_MOB_LAYER 3.8
 #define ABOVE_LYING_MOB_LAYER 3.85
 #define VEHICLE_LAYER 3.9
+#define SPACEPOD_LAYER 3.92 // NOVA EDIT ADDITION - SPACEPODS
 #define MOB_BELOW_PIGGYBACK_LAYER 3.94
 //#define MOB_LAYER 4 //For easy recordkeeping; this is a byond define
 #define MOB_SHIELD_LAYER 4.01

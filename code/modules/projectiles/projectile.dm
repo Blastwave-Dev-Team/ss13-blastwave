@@ -644,7 +644,7 @@
 	if(HAS_TRAIT(target, TRAIT_UNHITTABLE_BY_LASERS) && (armor_flag & LASER))
 		return FALSE
 	if(!ignore_source_check && firer && !direct_target)
-		if(target == firer || (target == firer.loc && ismecha(firer.loc)) || (target in firer.buckled_mobs))
+		if(target == firer || (target == firer.loc && ismecha(firer.loc)) || (target == firer.loc && isspacepod(firer.loc)) || (target in firer.buckled_mobs)) // NOVA EDIT CHANGE - SPACEPODS - ORIGINAL: if(target == firer || (target == firer.loc && ismecha(firer.loc)) || (target in firer.buckled_mobs))
 			return FALSE
 		if(ismob(firer))
 			var/mob/firer_mob = firer
