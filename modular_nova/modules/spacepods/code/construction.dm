@@ -176,7 +176,6 @@
 // no CAN_BE_HIT) but our frame is a structure, so /obj/attackby falls through to attack_atom.
 // We still run check_step asynchronously so welder steps can use their do_after delay.
 /datum/component/construction/spacepod/action(datum/source, obj/item/I, mob/living/user)
-	SIGNAL_HANDLER
 	if(!is_right_key(I))
 		return NONE // not a construction step; let normal combat (and frame damage) happen.
 	INVOKE_ASYNC(src, PROC_REF(check_step), I, user)

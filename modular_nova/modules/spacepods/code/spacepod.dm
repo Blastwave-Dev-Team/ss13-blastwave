@@ -506,7 +506,8 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		remove_rider(passengers[1])
 	passengers.Cut()
 
-/obj/spacepod/update_icon()
+/obj/spacepod/update_icon(updates=ALL)
+	. = ..()
 	cut_overlays()
 	if(pod_armor)
 		icon = pod_armor.pod_icon
