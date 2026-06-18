@@ -335,7 +335,6 @@
 		id = ++id_source
 
 /obj/item/spacepod_equipment/lock/keyed/spacepod_attackby(obj/spacepod/source, obj/item/weapon, mob/user, list/modifiers, list/attack_modifiers)
-	SIGNAL_HANDLER
 	if(istype(weapon, /obj/item/spacepod_key))
 		var/obj/item/spacepod_key/key = weapon
 		if(key.id == id)
