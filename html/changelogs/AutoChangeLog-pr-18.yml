@@ -1,0 +1,4 @@
+author: "lunaboards-dev"
+delete-after: True
+changes:
+  - server: "Added Lua scripts to more easily build native libraries on Linux."

@@ -94,8 +94,11 @@
 		return
 	if(is_whitelisted(victim) || victim.pulledby && is_whitelisted(victim.pulledby))
 		return
-	if(prob(stuck_chance))
+	if(prob(get_stuck_chance(victim)))
 		stuck_react(victim)
+
+/obj/structure/spider/stickyweb/proc/get_stuck_chance(mob/living/victim)
+	return stuck_chance
 
 /// Drains stamina and shows feedback when you get stuck moving thru a web
 /obj/structure/spider/stickyweb/proc/stuck_react(mob/living/victim)
