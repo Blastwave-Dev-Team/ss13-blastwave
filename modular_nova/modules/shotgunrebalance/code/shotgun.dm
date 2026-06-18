@@ -474,12 +474,12 @@
 	var/jammed = FALSE
 	var/can_jam = TRUE
 
-/obj/item/gun/ballistic/automatic/rusty/bulldog/update_overlays()
+/obj/item/gun/ballistic/shotgun/rusty/bulldog/update_overlays()
 	. = ..()
 	if(!chambered && empty_indicator) //this is duplicated due to a layering issue with the select fire icon.
 		. += "[icon_state]_empty"
 
-/obj/item/gun/ballistic/automatic/rusty/bulldog/process_fire(atom/target, mob/living/user, message, params, zone_override, bonus_spread)
+/obj/item/gun/ballistic/shotgun/rusty/bulldog/process_fire(atom/target, mob/living/user, message, params, zone_override, bonus_spread)
 	if(jammed)
 		balloon_alert(user, "the bolt is seized!")
 		return FALSE
@@ -495,7 +495,7 @@
 			jam_chance = clamp (jam_chance, 0, 100)
 	return ..()
 
-/obj/item/gun/ballistic/automatic/rusty/bulldog/attack_self(mob/user)
+/obj/item/gun/ballistic/shotgun/rusty/bulldog/attack_self(mob/user)
 	if(jammed)
 		if(prob(unjam_chance))
 			jammed = FALSE
