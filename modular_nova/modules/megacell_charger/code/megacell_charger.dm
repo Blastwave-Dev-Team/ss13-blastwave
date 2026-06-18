@@ -235,7 +235,6 @@
 	name = "megacell charger frame"
 	desc = "An APC wall frame being converted into a dedicated megacell charging station."
 	icon = 'modular_nova/modules/aesthetics/apc/icons/apc.dmi'
-	icon_state = "apc0"
 	buildstage = MEGACELL_CHARGER_PARTS
 	panel_open = TRUE
 	update_appearance()
@@ -293,7 +292,7 @@
 	if(buildstage >= MEGACELL_CHARGER_COMPLETE)
 		icon_state = "big_cell_charger"
 		return ..()
-	icon_state = "apc0"
+	icon_state = panel_open ? "apcmaint" : "apc0"
 	return ..()
 
 /obj/machinery/power/megacell_charger/update_overlays()
@@ -330,6 +329,9 @@
 			return ITEM_INTERACT_BLOCKING
 
 		var/obj/item/stock_parts/power_store/battery/inserting_battery = tool
+		if(!is_type_in_typecache(inserting_battery, GLOB.megacell_charger_allowed_batteries))
+			balloon_alert(user, "won't fit!")
+			return ITEM_INTERACT_BLOCKING
 		if(inserting_battery.chargerate <= 0)
 			to_chat(user, span_warning("[inserting_battery] cannot be recharged!"))
 			return ITEM_INTERACT_BLOCKING
