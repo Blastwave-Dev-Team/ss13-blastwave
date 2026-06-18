@@ -1,0 +1,8 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Ported Spacepods. 2x2 vehicles with physics-based flight, mouse-aim controls, modular equipment, and multi-step construction from metal rods."
+  - rscadd: "Added spacepod research node to the techweb, with protolathe designs for all spacepod components."
+  - rscadd: "Added six spacepod armor variants: civilian, syndicate, black, gold, industrial, and security, each with unique appearance and stats."
+  - image: "Added spacepod sprites including base hull, armor variants, construction stages, thrust overlays, equipment overlays, and part items."
+  - code_imp: "Added client/MouseMove override for continuous spacepod mouse-aim tracking."
