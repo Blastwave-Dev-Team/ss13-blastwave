@@ -1,0 +1,311 @@
+// MODULE ID: SPACEPODS
+// Movement physics for /obj/spacepod, ticked by SSfastprocess.
+// Ported from Whitesands (whitesands/code/modules/spacepods/physics.dm).
+//
+// NOTE: SSfastprocess passes the tick length already in seconds (wait * 0.1),
+// unlike the Paradise/Whitesands original which received deciseconds.
+
+/obj/spacepod/process(seconds_per_tick)
+	var/time = seconds_per_tick
+
+	if(world.time > last_slowprocess + 15)
+		last_slowprocess = world.time
+		slowprocess()
+
+	var/last_offset_x = offset_x
+	var/last_offset_y = offset_y
+	var/last_angle = angle
+	var/desired_angular_velocity = 0
+	if(isnum(desired_angle))
+		while(angle > desired_angle + 180)
+			angle -= 360
+			last_angle -= 360
+		while(angle < desired_angle - 180)
+			angle += 360
+			last_angle += 360
+		if(abs(desired_angle - angle) < (max_angular_acceleration * time))
+			desired_angular_velocity = (desired_angle - angle) / time
+		else if(desired_angle > angle)
+			desired_angular_velocity = 2 * sqrt((desired_angle - angle) * max_angular_acceleration * 0.25)
+		else
+			desired_angular_velocity = -2 * sqrt((angle - desired_angle) * max_angular_acceleration * 0.25)
+	var/angular_velocity_adjustment = clamp(desired_angular_velocity - angular_velocity, -max_angular_acceleration * time, max_angular_acceleration * time)
+	if(angular_velocity_adjustment && cell && cell.use(abs(angular_velocity_adjustment) * 0.05 * SPACEPOD_POWER_SCALE))
+		last_rotate = angular_velocity_adjustment / time
+		angular_velocity += angular_velocity_adjustment
+	else
+		last_rotate = 0
+	angle += angular_velocity * time
+
+	// calculate drag and shit
+	var/velocity_mag = sqrt(velocity_x * velocity_x + velocity_y * velocity_y)
+	if(velocity_mag || angular_velocity)
+		var/drag = 0
+		for(var/turf/floor_turf in locs)
+			if(isspaceturf(floor_turf))
+				continue
+			drag += 0.001
+			var/floating = FALSE
+			if(floor_turf.has_gravity() && !brakes && velocity_mag > 0.1 && cell && cell.use((is_mining_level(z) ? 3 : 15) * SPACEPOD_POWER_SCALE * time))
+				floating = TRUE // want to fly this shit on the station? Have fun draining your battery.
+			if((!floating && floor_turf.has_gravity()) || brakes) // brakes are a kind of magboots okay?
+				drag += is_mining_level(z) ? 0.1 : 0.5 // some serious drag. Damn. Except lavaland, it has less gravity or something
+				if(velocity_mag > 5 && prob(velocity_mag * 4) && istype(floor_turf, /turf/open/floor))
+					var/turf/open/floor/scraped = floor_turf
+					scraped.make_plating() // pull up some floor tiles. Stop going so fast, ree.
+					take_damage(3, BRUTE, MELEE, FALSE)
+			var/datum/gas_mixture/env = floor_turf.return_air()
+			if(env)
+				var/pressure = env.return_pressure()
+				drag += velocity_mag * pressure * 0.0001 // 1 atmosphere should shave off 1% of velocity per tile
+		if(velocity_mag > 20)
+			drag = max(drag, (velocity_mag - 20) / time)
+		if(drag)
+			if(velocity_mag)
+				var/drag_factor = 1 - clamp(drag * time / velocity_mag, 0, 1)
+				velocity_x *= drag_factor
+				velocity_y *= drag_factor
+			if(angular_velocity != 0)
+				var/drag_factor_spin = 1 - clamp(drag * 30 * time / abs(angular_velocity), 0, 1)
+				angular_velocity *= drag_factor_spin
+
+	// Alright now calculate the THRUST
+	var/thrust_x = 0
+	var/thrust_y = 0
+	var/fx = cos(90 - angle)
+	var/fy = sin(90 - angle)
+	var/sx = fy
+	var/sy = -fx
+	last_thrust_forward = 0
+	last_thrust_right = 0
+	if(brakes)
+		if(user_thrust_dir)
+			to_chat(pilot, span_warning("Your brakes are on!"))
+		// basically calculates how much we can brake using the thrust
+		var/forward_thrust = -((fx * velocity_x) + (fy * velocity_y)) / time
+		var/right_thrust = -((sx * velocity_x) + (sy * velocity_y)) / time
+		forward_thrust = clamp(forward_thrust, -backward_maxthrust, forward_maxthrust)
+		right_thrust = clamp(right_thrust, -side_maxthrust, side_maxthrust)
+		thrust_x += forward_thrust * fx + right_thrust * sx
+		thrust_y += forward_thrust * fy + right_thrust * sy
+		last_thrust_forward = forward_thrust
+		last_thrust_right = right_thrust
+	else // want some sort of help piloting the ship? Haha no fuck you do it yourself
+		if(user_thrust_dir & NORTH)
+			thrust_x += fx * forward_maxthrust
+			thrust_y += fy * forward_maxthrust
+			last_thrust_forward = forward_maxthrust
+		if(user_thrust_dir & SOUTH)
+			thrust_x -= fx * backward_maxthrust
+			thrust_y -= fy * backward_maxthrust
+			last_thrust_forward = -backward_maxthrust
+		if(user_thrust_dir & EAST)
+			thrust_x += sx * side_maxthrust
+			thrust_y += sy * side_maxthrust
+			last_thrust_right = side_maxthrust
+		if(user_thrust_dir & WEST)
+			thrust_x -= sx * side_maxthrust
+			thrust_y -= sy * side_maxthrust
+			last_thrust_right = -side_maxthrust
+
+	if(cell && cell.use(10 * SPACEPOD_POWER_SCALE * sqrt((thrust_x * thrust_x) + (thrust_y * thrust_y)) * time))
+		velocity_x += thrust_x * time
+		velocity_y += thrust_y * time
+	else
+		last_thrust_forward = 0
+		last_thrust_right = 0
+		if(!brakes && user_thrust_dir)
+			to_chat(pilot, span_warning("You are out of power!"))
+
+	offset_x += velocity_x * time
+	offset_y += velocity_y * time
+	// alright so now we reconcile the offsets with the in-world position.
+	while((offset_x > 0 && velocity_x > 0) || (offset_y > 0 && velocity_y > 0) || (offset_x < 0 && velocity_x < 0) || (offset_y < 0 && velocity_y < 0))
+		var/failed_x = FALSE
+		var/failed_y = FALSE
+		if(offset_x > 0 && velocity_x > 0)
+			dir = EAST
+			if(!Move(get_step(src, EAST)))
+				offset_x = 0
+				failed_x = TRUE
+				velocity_x *= -bounce_factor
+				velocity_y *= lateral_bounce_factor
+			else
+				offset_x--
+				last_offset_x--
+		else if(offset_x < 0 && velocity_x < 0)
+			dir = WEST
+			if(!Move(get_step(src, WEST)))
+				offset_x = 0
+				failed_x = TRUE
+				velocity_x *= -bounce_factor
+				velocity_y *= lateral_bounce_factor
+			else
+				offset_x++
+				last_offset_x++
+		else
+			failed_x = TRUE
+		if(offset_y > 0 && velocity_y > 0)
+			dir = NORTH
+			if(!Move(get_step(src, NORTH)))
+				offset_y = 0
+				failed_y = TRUE
+				velocity_y *= -bounce_factor
+				velocity_x *= lateral_bounce_factor
+			else
+				offset_y--
+				last_offset_y--
+		else if(offset_y < 0 && velocity_y < 0)
+			dir = SOUTH
+			if(!Move(get_step(src, SOUTH)))
+				offset_y = 0
+				failed_y = TRUE
+				velocity_y *= -bounce_factor
+				velocity_x *= lateral_bounce_factor
+			else
+				offset_y++
+				last_offset_y++
+		else
+			failed_y = TRUE
+		if(failed_x && failed_y)
+			break
+	// prevents situations where you go "wtf I'm clearly right next to it" as you enter a stationary spacepod
+	if(velocity_x == 0)
+		if(offset_x > 0.5)
+			if(Move(get_step(src, EAST)))
+				offset_x--
+				last_offset_x--
+			else
+				offset_x = 0
+		if(offset_x < -0.5)
+			if(Move(get_step(src, WEST)))
+				offset_x++
+				last_offset_x++
+			else
+				offset_x = 0
+	if(velocity_y == 0)
+		if(offset_y > 0.5)
+			if(Move(get_step(src, NORTH)))
+				offset_y--
+				last_offset_y--
+			else
+				offset_y = 0
+		if(offset_y < -0.5)
+			if(Move(get_step(src, SOUTH)))
+				offset_y++
+				last_offset_y++
+			else
+				offset_y = 0
+	var/angle_offset = spacepod_facing_offset()
+	var/matrix/mat_from = new()
+	mat_from.Turn(last_angle)
+	var/matrix/mat_to = new()
+	mat_to.Turn(angle)
+	mat_from.Turn(angle_offset)
+	mat_to.Turn(angle_offset)
+	transform = mat_from
+	pixel_x = last_offset_x * ICON_SIZE_X
+	pixel_y = last_offset_y * ICON_SIZE_Y
+	if(angle % 22.5 == 0)
+		transform = mat_to
+	animate(src, transform = mat_to, pixel_x = offset_x * ICON_SIZE_X, pixel_y = offset_y * ICON_SIZE_Y, time = time * 10, flags = ANIMATION_END_NOW)
+	for(var/mob/living/occupant in contents)
+		var/client/occupant_client = occupant.client
+		if(!occupant_client)
+			continue
+		occupant_client.pixel_x = last_offset_x * ICON_SIZE_X
+		occupant_client.pixel_y = last_offset_y * ICON_SIZE_Y
+		animate(occupant_client, pixel_x = offset_x * ICON_SIZE_X, pixel_y = offset_y * ICON_SIZE_Y, time = time * 10, flags = ANIMATION_END_NOW)
+	user_thrust_dir = 0
+	update_icon()
+
+// The pod integrates its own motion in process(); the engine's space-drift system must not co-drive
+// it. Without this, every Move() in a no-gravity area spawns a /datum/drift_handler that applies
+// inertial glide on top of our physics, desyncing velocity bookkeeping from the pod's real position.
+/obj/spacepod/newtonian_move(inertia_angle, instant = FALSE, start_delay = 0, drift_force = 1 NEWTONS, controlled_cap = null, force_loop = TRUE)
+	return FALSE
+
+/obj/spacepod/Bumped(atom/movable/bumped_atom)
+	if(bumped_atom.dir & NORTH)
+		velocity_y += bump_impulse
+	if(bumped_atom.dir & SOUTH)
+		velocity_y -= bump_impulse
+	if(bumped_atom.dir & EAST)
+		velocity_x += bump_impulse
+	if(bumped_atom.dir & WEST)
+		velocity_x -= bump_impulse
+	return ..()
+
+/obj/spacepod/Bump(atom/bumped_atom)
+	var/bump_velocity = 0
+	if(dir & (NORTH|SOUTH))
+		bump_velocity = abs(velocity_y) + (abs(velocity_x) / 15)
+	else
+		bump_velocity = abs(velocity_x) + (abs(velocity_y) / 15)
+	if(istype(bumped_atom, /obj/machinery/door/airlock)) // try to open doors
+		var/obj/machinery/door/blocking_door = bumped_atom
+		if(!blocking_door.operating)
+			if(blocking_door.allowed(blocking_door.requiresID() ? pilot : null))
+				INVOKE_ASYNC(blocking_door, TYPE_PROC_REF(/obj/machinery/door, open))
+			else
+				blocking_door.run_animation(DOOR_DENY_ANIMATION)
+	if(ismovable(bumped_atom))
+		var/atom/movable/movable_obstacle = bumped_atom
+		if(!movable_obstacle.anchored && bump_velocity > 1)
+			step(movable_obstacle, dir)
+	// if a bump is that fast then it's not a bump. It's a collision.
+	if(bump_velocity > 10 && !ismob(bumped_atom))
+		var/strength = bump_velocity / 10
+		strength = strength * strength
+		strength = min(strength, 5) // don't want the explosions *too* big
+		// wew lad, might wanna slow down there
+		explosion(bumped_atom, devastation_range = -1, heavy_impact_range = round((strength - 1) / 2), light_impact_range = round(strength))
+		message_admins("[key_name_admin(pilot)] has impacted a spacepod into [bumped_atom] with velocity [bump_velocity]")
+		take_damage(strength * 10, BRUTE, MELEE, TRUE)
+		log_game("[key_name(pilot)] has impacted a spacepod into [bumped_atom] with velocity [bump_velocity]")
+		visible_message(span_danger("The force of the impact causes a shockwave!"))
+	else if(isliving(bumped_atom) && bump_velocity > 5)
+		var/mob/living/hit_mob = bumped_atom
+		hit_mob.apply_damage(bump_velocity * 2)
+		take_damage(bump_velocity, BRUTE, MELEE, FALSE)
+		playsound(hit_mob.loc, 'sound/items/weapons/punch1.ogg', 100, TRUE, -1)
+		hit_mob.Knockdown(bump_velocity * 2)
+		hit_mob.visible_message(span_warning("The force of the impact knocks [hit_mob] down!"), span_userdanger("The force of the impact knocks you down!"))
+		log_combat(pilot, hit_mob, "impacted", src, "with velocity of [bump_velocity]")
+	return ..()
+
+/// Fires a pair of the given projectile type at the target, originating from the pod's two cannon mounts.
+/obj/spacepod/proc/fire_projectiles(proj_type, atom/target)
+	var/fx = cos(90 - angle)
+	var/fy = sin(90 - angle)
+	var/sx = fy
+	var/sy = -fx
+	var/ox = (offset_x * ICON_SIZE_X) + (ICON_SIZE_X / 2)
+	var/oy = (offset_y * ICON_SIZE_Y) + (ICON_SIZE_Y / 2)
+	var/list/origins = list(list(ox + fx * 16 - sx * 16, oy + fy * 16 - sy * 16), list(ox + fx * 16 + sx * 16, oy + fy * 16 + sy * 16))
+	for(var/list/origin in origins)
+		var/this_x = origin[1]
+		var/this_y = origin[2]
+		var/turf/origin_turf = get_turf(src)
+		while(this_x > 16)
+			origin_turf = get_step(origin_turf, EAST)
+			this_x -= ICON_SIZE_X
+		while(this_x < -16)
+			origin_turf = get_step(origin_turf, WEST)
+			this_x += ICON_SIZE_X
+		while(this_y > 16)
+			origin_turf = get_step(origin_turf, NORTH)
+			this_y -= ICON_SIZE_Y
+		while(this_y < -16)
+			origin_turf = get_step(origin_turf, SOUTH)
+			this_y += ICON_SIZE_Y
+		if(!origin_turf)
+			continue
+		var/obj/projectile/proj = new proj_type(origin_turf)
+		proj.starting = origin_turf
+		proj.firer = pilot
+		proj.def_zone = BODY_ZONE_CHEST
+		proj.original = target
+		proj.pixel_x = round(this_x)
+		proj.pixel_y = round(this_y)
+		INVOKE_ASYNC(proj, TYPE_PROC_REF(/obj/projectile, fire), angle)

@@ -382,6 +382,7 @@
 		ai_controller?.set_blackboard_key(BB_DOG_IS_SLOW, TRUE)
 		is_slow = TRUE
 		speed = 2
+		update_appearance(UPDATE_ICON_STATE)
 
 	//setup roundend check for Ian's whereabouts
 	i_will_survive = CALLBACK(src, PROC_REF(check_ian_survival))

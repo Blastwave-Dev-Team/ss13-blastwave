@@ -1,0 +1,193 @@
+// MODULE ID: SPACEPODS
+// Physical spacepod parts: core, frame pieces, armor plating, and the mainboard.
+// Ported from Whitesands (whitesands/code/modules/spacepods/parts.dm).
+
+/obj/item/pod_parts
+	icon = 'modular_nova/modules/spacepods/icons/parts.dmi'
+	w_class = WEIGHT_CLASS_GIGANTIC
+	obj_flags = CONDUCTS_ELECTRICITY
+
+/obj/item/pod_parts/core
+	name = "space pod core"
+	icon_state = "core"
+	desc = "The power core for a spacepod."
+
+/obj/item/pod_parts/core/examine(mob/user)
+	. = ..()
+	. += span_notice("Installed into a spacepod frame after the circuit board is <i>screwed</i> in.")
+
+/obj/item/pod_parts/pod_frame
+	name = "space pod frame"
+	density = FALSE
+	anchored = FALSE
+	custom_materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 7.5)
+	var/link_to = null
+	var/link_angle = 0
+
+/obj/item/pod_parts/pod_frame/Initialize(mapload)
+	. = ..()
+	AddElement(/datum/element/simple_rotation)
+
+/obj/item/pod_parts/pod_frame/examine(mob/user)
+	. = ..()
+	if(anchored)
+		. += span_notice("It is <b>wrenched</b> in place. Use <i>rods</i> to strut the frame together once all four pieces are arranged.")
+	else
+		. += span_notice("Use a <b>wrench</b> to secure it in place. All four frame pieces must be arranged in a 2x2 square, facing the same direction.")
+	. += span_notice("Assembly layout (all pieces facing the same direction):")
+	. += span_notice("  Fore Port \[FP\] | Fore Starboard \[FS\]")
+	. += span_notice("  Aft Port  \[AP\] | Aft Starboard  \[AS\]")
+
+/obj/item/pod_parts/pod_frame/proc/find_square()
+	/*
+	each part, in essence, stores the relative position of another part
+	you can find where this part should be by looking at the current direction of the current part and applying the link_angle
+	the link_angle is the angle between the part's direction and its following part, which is the current part's link_to
+	the code works by going in a loop - each part is capable of starting a loop by checking for the part after it, and that part checking, and so on
+	this 4-part loop, starting from any part of the frame, can determine if all the parts are properly in place and aligned
+	it also checks that each part is unique, and that all the parts are there for the spacepod itself
+	*/
+	var/list/neededparts = list(/obj/item/pod_parts/pod_frame/aft_port, /obj/item/pod_parts/pod_frame/aft_starboard, /obj/item/pod_parts/pod_frame/fore_port, /obj/item/pod_parts/pod_frame/fore_starboard)
+	var/turf/check_turf
+	var/obj/item/pod_parts/pod_frame/linked
+	var/obj/item/pod_parts/pod_frame/pointer
+	var/list/connectedparts = list()
+	linked = src
+	for(var/i in 1 to 4)
+		check_turf = get_turf(get_step(linked, turn(linked.dir, -linked.link_angle))) //get the next place that we want to look at
+		if(locate(linked.link_to) in check_turf)
+			pointer = locate(linked.link_to) in check_turf
+		if(istype(pointer, linked.link_to) && pointer.dir == linked.dir && pointer.anchored)
+			if(!(pointer in connectedparts))
+				connectedparts += pointer
+			linked = pointer
+			pointer = null
+	if(length(connectedparts) < 4)
+		return FALSE
+	for(var/i in 1 to 4)
+		var/obj/item/pod_parts/pod_frame/connected = connectedparts[i]
+		if(connected.type in neededparts) //if one of the items can be found in neededparts
+			neededparts -= connected.type
+		else //because neededparts has 4 distinct items, this must be called if theyre not all in place and wrenched
+			return FALSE
+	return connectedparts
+
+/obj/item/pod_parts/pod_frame/attackby(obj/item/attacking_item, mob/user, list/modifiers, list/attack_modifiers)
+	if(istype(attacking_item, /obj/item/stack/rods))
+		var/obj/item/stack/rods/rod_stack = attacking_item
+		var/list/linkedparts = find_square()
+		if(!linkedparts)
+			to_chat(user, span_warning("You cannot assemble a pod frame because you do not have the necessary assembly."))
+			return TRUE
+		if(!rod_stack.use(10))
+			to_chat(user, span_warning("You need 10 rods for this."))
+			return TRUE
+		var/build_angle = 0
+		switch(dir)
+			if(NORTH)
+				build_angle = 0
+			if(SOUTH)
+				build_angle = 180
+			if(WEST)
+				build_angle = 270
+			if(EAST)
+				build_angle = 90
+		var/obj/structure/spacepod_frame/new_frame = new(loc, 1, build_angle)
+		to_chat(user, span_notice("You strut the pod frame together."))
+		for(var/obj/item/pod_parts/pod_frame/frame in linkedparts)
+			if(NORTH == turn(frame.dir, -frame.link_angle)) //if the part links north during construction, as the bottom left part always does
+				new_frame.forceMove(frame.loc)
+			qdel(frame)
+		return TRUE
+	if(attacking_item.tool_behaviour == TOOL_WRENCH)
+		to_chat(user, span_notice("You [!anchored ? "secure [src] in place." : "remove the securing bolts."]"))
+		anchored = !anchored
+		density = anchored
+		attacking_item.play_tool_sound(src)
+		return TRUE
+	return ..()
+
+/obj/item/pod_parts/pod_frame/fore_port
+	name = "fore port pod frame"
+	icon_state = "pod_fp"
+	desc = "A space pod frame component. This is the fore port component."
+	link_to = /obj/item/pod_parts/pod_frame/fore_starboard
+	link_angle = 90
+
+/obj/item/pod_parts/pod_frame/fore_starboard
+	name = "fore starboard pod frame"
+	icon_state = "pod_fs"
+	desc = "A space pod frame component. This is the fore starboard component."
+	link_to = /obj/item/pod_parts/pod_frame/aft_starboard
+	link_angle = 180
+
+/obj/item/pod_parts/pod_frame/aft_port
+	name = "aft port pod frame"
+	icon_state = "pod_ap"
+	desc = "A space pod frame component. This is the aft port component."
+	link_to = /obj/item/pod_parts/pod_frame/fore_port
+	link_angle = 0
+
+/obj/item/pod_parts/pod_frame/aft_starboard
+	name = "aft starboard pod frame"
+	icon_state = "pod_as"
+	desc = "A space pod frame component. This is the aft starboard component."
+	link_to = /obj/item/pod_parts/pod_frame/aft_port
+	link_angle = 270
+
+/obj/item/pod_parts/armor
+	name = "civilian pod armor"
+	icon_state = "pod_armor_civ"
+	desc = "Spacepod armor. This is the civilian version. It looks rather flimsy. Attach after the bulkhead is welded."
+	var/pod_icon = 'modular_nova/modules/spacepods/icons/2x2.dmi'
+	var/pod_icon_state = "pod_civ"
+	var/pod_desc = "A sleek civilian space pod."
+	var/pod_integrity = 250
+
+/obj/item/pod_parts/armor/syndicate
+	name = "syndicate pod armor"
+	icon_state = "pod_armor_synd"
+	desc = "Tough-looking spacepod armor, with a bold \"FUCK NT\" stenciled directly into it."
+	pod_icon_state = "pod_synd"
+	pod_desc = "A menacing military space pod with \"FUCK NT\" stenciled onto the side."
+	pod_integrity = 400
+
+/obj/item/pod_parts/armor/black
+	name = "black pod armor"
+	icon_state = "pod_armor_black"
+	desc = "Plain black spacepod armor, with no logos or insignias anywhere on it."
+	pod_icon_state = "pod_black"
+	pod_desc = "An all black space pod with no insignias."
+
+/obj/item/pod_parts/armor/gold
+	name = "golden pod armor"
+	icon_state = "pod_armor_gold"
+	desc = "Golden spacepod armor. Looks like what a rich spessman put on their spacepod."
+	pod_icon_state = "pod_gold"
+	pod_desc = "A civilian space pod with a gold body, must have cost somebody a pretty penny."
+	pod_integrity = 220
+
+/obj/item/pod_parts/armor/industrial
+	name = "industrial pod armor"
+	icon_state = "pod_armor_industrial"
+	desc = "Tough industrial-grade spacepod armor. While meant for construction work, it is commonly used in spacepod battles, too."
+	pod_icon_state = "pod_industrial"
+	pod_desc = "A rough looking space pod meant for industrial work."
+	pod_integrity = 330
+
+/obj/item/pod_parts/armor/security
+	name = "security pod armor"
+	icon_state = "pod_armor_mil"
+	desc = "Tough military-grade pod armor, meant for use by the Nanotrasen military and its sub-divisions for space combat."
+	pod_icon_state = "pod_mil"
+	pod_desc = "An armed security spacepod with reinforced armor plating brandishing the Nanotrasen Military insignia."
+	pod_integrity = 350
+
+/obj/item/pod_parts/armor/security/red
+	icon_state = "pod_armor_synd"
+	pod_icon_state = "pod_synd"
+
+/obj/item/circuitboard/mecha/pod
+	name = "Circuit board (Space Pod Mainboard)"
+	icon_state = "mainboard"
+	desc = "A mainboard for a spacepod. Insert after wiring is screwed in."

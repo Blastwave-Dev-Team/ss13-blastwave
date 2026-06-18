@@ -529,6 +529,19 @@ DEFINE_BITFIELD(turret_flags, list(
 					if(assess_perp(occupant) >= 4)
 						targets += mech
 
+	// NOVA EDIT ADDITION START - SPACEPODS
+	for(var/A in GLOB.spacepods_list)
+		if((get_dist(A, base) < scan_range) && can_see(base, A, scan_range))
+			var/obj/spacepod/pod = A
+			var/list/occupants = list()
+			if(pod.pilot)
+				occupants += pod.pilot
+			occupants += pod.passengers
+			for(var/mob/living/occupant as anything in occupants)
+				if(!in_faction(occupant) && assess_perp(occupant) >= 4)
+					targets += pod
+	// NOVA EDIT ADDITION END
+
 	if((turret_flags & TURRET_FLAG_SHOOT_ANOMALOUS) && GLOB.blobs.len && (mode == TURRET_LETHAL))
 		for(var/obj/structure/blob/B in view(scan_range, base))
 			targets += B

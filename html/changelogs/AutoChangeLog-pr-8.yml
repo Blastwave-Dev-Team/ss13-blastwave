@@ -1,0 +1,5 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "chadian.dm icon state assembly drift"
+  - bugfix: "R&D server icon assembly from bad upstream merge"

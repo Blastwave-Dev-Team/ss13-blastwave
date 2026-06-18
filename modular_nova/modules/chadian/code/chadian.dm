@@ -42,9 +42,9 @@
 
 /mob/living/basic/pet/dog/corgi/ian/proc/set_rest_state(state)
 	resting_state = state
-	update_icons()
+	update_appearance(UPDATE_ICON_STATE)
 
-/mob/living/basic/pet/dog/corgi/ian/update_icons()
+/mob/living/basic/pet/dog/corgi/ian/update_icon_state()
 	. = ..()
 
 	// Dead
@@ -64,6 +64,14 @@
 			icon_state = "[initial(icon_state)]_sit[shaved ? "_shaved" : ""]"
 		if(RESTING_STATE_REST)
 			icon_state = "[initial(icon_state)]_rest[shaved ? "_shaved" : ""]"
+
+/mob/living/basic/pet/dog/corgi/ian/look_alive()
+	. = ..()
+	update_appearance(UPDATE_ICON_STATE)
+
+/mob/living/basic/pet/dog/corgi/ian/look_dead()
+	. = ..()
+	update_appearance(UPDATE_ICON_STATE)
 
 #undef RESTING_STATE_NONE
 #undef RESTING_STATE_SIT
