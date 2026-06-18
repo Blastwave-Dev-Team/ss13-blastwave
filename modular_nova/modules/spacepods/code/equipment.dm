@@ -300,7 +300,7 @@
 /obj/item/spacepod_equipment/lock
 	name = "pod lock"
 	desc = "You shouldn't be seeing this"
-	icon_state = "blank"
+	icon_state = ""
 	slot = SPACEPOD_SLOT_LOCK
 
 /obj/item/spacepod_equipment/lock/on_install(obj/spacepod/installed_pod)
@@ -335,7 +335,6 @@
 		id = ++id_source
 
 /obj/item/spacepod_equipment/lock/keyed/spacepod_attackby(obj/spacepod/source, obj/item/weapon, mob/user, list/modifiers, list/attack_modifiers)
-	SIGNAL_HANDLER
 	if(istype(weapon, /obj/item/spacepod_key))
 		var/obj/item/spacepod_key/key = weapon
 		if(key.id == id)
