@@ -20,6 +20,7 @@
 	name = "space pod frame"
 	density = FALSE
 	anchored = FALSE
+	custom_materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 7.5)
 	var/link_to = null
 	var/link_angle = 0
 
