@@ -1,5 +1,5 @@
 if not os.execute "[[ -e buildtmp/auxtools ]]" then
-    os.execute("git clone https://github.com/willox/auxtools buildtmp/auxtools")
+    os.execute("git clone "..AUXTOOLS_URL.." buildtmp/auxtools")
 else
     os.execute("cd buildtmp/auxtools; git pull")
 end

@@ -1,5 +1,5 @@
 if not os.execute "[[ -e buildtmp/rust-g ]]" then
-    os.execute("git clone https://github.com/tgstation/rust-g.git buildtmp/rust-g")
+    os.execute("git clone "..RUSTG_URL.." buildtmp/rust-g")
 else
     os.execute("cd buildtmp/rust-g; git pull")
 end
