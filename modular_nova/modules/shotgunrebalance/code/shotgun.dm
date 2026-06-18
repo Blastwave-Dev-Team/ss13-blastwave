@@ -431,3 +431,78 @@
 /obj/projectile/bullet/honkshot/on_range()
 	do_sparks(1, TRUE, src)
 	return ..()
+
+/obj/item/gun/ballistic/shotgun/rusty/bulldog
+	name = "\improper Degraded Bulldog Shotgun"
+	desc = "A 2-round burst fire, mag-fed shotgun for combat in narrow corridors, \
+		nicknamed 'Bulldog' by boarding parties. Compatible only with specialized 8-round drum magazines. \
+		has a port for a secondary magazine, but there's so much rust buildup over the electronics that \
+		you doubt you could cram one in if you tried."
+	icon_state = "bulldog"
+	lefthand_file = 'icons/mob/inhands/weapons/guns_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/weapons/guns_righthand.dmi'
+	inhand_icon_state = "bulldog"
+	worn_icon = 'icons/mob/clothing/back.dmi'
+	worn_icon_state = "bulldog"
+	inhand_x_dimension = 32
+	inhand_y_dimension = 32
+	projectile_damage_multiplier = 0.65
+	weapon_weight = WEAPON_MEDIUM
+	accepted_magazine_type = /obj/item/ammo_box/magazine/m12g
+	spawn_magazine_type = /obj/item/ammo_box/magazine/m12g/slug
+	can_suppress = FALSE
+	burst_size = 2
+	fire_delay = 4
+	burst_delay = 3
+	randomspread = 15
+	dual_wield_spread = 50
+	pin = /obj/item/firing_pin
+	fire_sound = 'sound/items/weapons/gun/shotgun/shot_alt.ogg'
+	actions_types = list(/datum/action/item_action/toggle_firemode)
+	mag_display = TRUE
+	empty_indicator = TRUE
+	empty_alarm = TRUE
+	special_mags = TRUE
+	mag_display_ammo = TRUE
+	semi_auto = TRUE
+	internal_magazine = FALSE
+	tac_reloads = TRUE
+	burst_fire_selection = TRUE
+	var/jam_chance = 20
+	var/unjam_chance = 25
+	var/jamming_increment = 10
+	var/jammed = FALSE
+	var/can_jam = TRUE
+
+/obj/item/gun/ballistic/automatic/rusty/bulldog/update_overlays()
+	. = ..()
+	if(!chambered && empty_indicator) //this is duplicated due to a layering issue with the select fire icon.
+		. += "[icon_state]_empty"
+
+/obj/item/gun/ballistic/automatic/rusty/bulldog/process_fire(atom/target, mob/living/user, message, params, zone_override, bonus_spread)
+	if(jammed)
+		balloon_alert(user, "the bolt is seized!")
+		return FALSE
+	if(can_jam)
+		if(chambered.loaded_projectile)
+			if(prob(jam_chance))
+				jammed = TRUE
+				balloon_alert(user, "the bolt locks up!")
+				playsound(user,'sound/items/weapons/jammed.ogg', 25, TRUE)
+				jam_chance = initial(jam_chance)
+				return FALSE
+			jam_chance += jamming_increment
+			jam_chance = clamp (jam_chance, 0, 100)
+	return ..()
+
+/obj/item/gun/ballistic/automatic/rusty/bulldog/attack_self(mob/user)
+	if(jammed)
+		if(prob(unjam_chance))
+			jammed = FALSE
+			unjam_chance = initial(unjam_chance)
+		else
+			unjam_chance += 10
+			balloon_alert(user, "bolt is still stuck!")
+			playsound(user,'sound/items/weapons/jammed.ogg', 25, TRUE)
+			return FALSE
+	return ..()
