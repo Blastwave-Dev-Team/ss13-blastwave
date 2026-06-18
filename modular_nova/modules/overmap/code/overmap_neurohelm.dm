@@ -68,7 +68,7 @@
 		return
 
 	piloting = TRUE
-	ADD_TRAIT(user, TRAIT_NEUROHELM_PILOTING, src)
+	ADD_TRAIT(user, TRAIT_NEUROHELM_PILOTING, REF(src))
 	to_chat(user, span_notice("Neural link established. Your vision shifts to the overmap. Move to thrust."))
 
 /obj/item/clothing/head/neurohelm/proc/stop_piloting()
@@ -76,5 +76,5 @@
 		return
 	piloting = FALSE
 	if(pilot_link?.linked_mob)
-		REMOVE_TRAIT(pilot_link.linked_mob, TRAIT_NEUROHELM_PILOTING, src)
+		REMOVE_TRAIT(pilot_link.linked_mob, TRAIT_NEUROHELM_PILOTING, REF(src))
 	QDEL_NULL(pilot_link)

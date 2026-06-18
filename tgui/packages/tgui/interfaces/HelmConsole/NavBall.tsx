@@ -294,7 +294,7 @@ export function NavBall(props: NavBallProps) {
       if (!(key in keyHeldSince.current)) return 0;
       const held = performance.now() - keyHeldSince.current[key];
       const t = Math.min(held / WASD_RAMP_TIME, 1);
-      return Math.pow(t, WASD_EXPONENT);
+      return t ** WASD_EXPONENT;
     }
 
     function processKeys() {

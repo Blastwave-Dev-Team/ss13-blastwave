@@ -61,24 +61,24 @@
 	if(!current_ship)
 		set_ship()
 	ui = SStgui.try_update_ui(user, src, ui)
-	if(ui)
-		return
-	var/user_ref = REF(user)
-	var/is_living = isliving(user)
-	if(is_living)
-		concurrent_users += user_ref
-	if(length(concurrent_users) == 1 && is_living)
-		playsound(src, 'sound/machines/terminal/terminal_on.ogg', 25, FALSE)
-		use_energy(active_power_usage)
-	// Refresh so vis_contents is populated and cam_background is sized
-	// before the popup widget binds. Mirrors the CameraConsole pattern.
-	current_ship?.update_screen()
-	ui = new(user, src, "HelmConsole", name)
-	ui.open()
-	// Window must exist before `display_to` so cam_screen + cam_background
-	// register against the correct UI map slot.
-	if(current_ship?.cam_screen)
-		current_ship.cam_screen.display_to(user, ui.window)
+	if(!ui)
+		var/user_ref = REF(user)
+		var/is_living = isliving(user)
+		if(is_living)
+			concurrent_users += user_ref
+		if(length(concurrent_users) == 1 && is_living)
+			playsound(src, 'sound/machines/terminal/terminal_on.ogg', 25, FALSE)
+			use_energy(active_power_usage)
+		// Refresh so vis_contents is populated and cam_background is sized
+		// before the popup widget binds. Mirrors the CameraConsole pattern.
+		current_ship?.update_screen()
+		ui = new(user, src, "HelmConsole", name)
+		ui.open()
+		// Window must exist before `display_to` so cam_screen + cam_background
+		// register against the correct UI map slot.
+		if(current_ship?.cam_screen)
+			current_ship.cam_screen.display_to(user, ui.window)
+	. = ..()
 
 /obj/machinery/computer/helm/ui_close(mob/user)
 	concurrent_users -= REF(user)
@@ -86,6 +86,7 @@
 		current_ship.cam_screen.hide_from(user)
 	if(!length(concurrent_users) && isliving(user))
 		playsound(src, 'sound/machines/terminal/terminal_off.ogg', 25, FALSE)
+	. = ..()
 
 /obj/machinery/computer/helm/ui_static_data(mob/user)
 	. = list()

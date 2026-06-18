@@ -62,9 +62,10 @@
 /// # Overmap objects
 ///
 /// Everything visible on the overmap: stations, ships, and (post-prototype)
-/// ruins, events, and dynamic encounters. Adjacency tracking is done via
-/// Crossed/Uncrossed; the same-tile list close_overmap_objects is what
-/// helms surface in their radar and what enables docking via act_overmap.
+/// ruins, events, and dynamic encounters. Adjacency tracking uses
+/// `on_overmap_crossed` / `on_overmap_uncrossed`; the same-tile list
+/// close_overmap_objects is what helms surface in their radar and what
+/// enables docking via act_overmap.
 /obj/structure/overmap
 	name = "overmap object"
 	desc = "An unknown celestial object."
@@ -80,7 +81,7 @@
 	var/render_map = FALSE
 	/// Range of the view shown to helms / viewscreens of this object.
 	var/sensor_range = 4
-	/// Integrity percent. Use `recieve_damage()` to mutate.
+	/// Integrity percent. Use `receive_damage()` to mutate.
 	var/integrity = 100
 	/// Armor reduces integrity damage taken.
 	var/overmap_armor = 1
@@ -135,6 +136,7 @@
 	return TRUE
 
 /obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
+	. = ..()
 	update_screen()
 
 /obj/structure/overmap/set_glide_size(target)
@@ -176,16 +178,16 @@
 	var/direction = get_dir(oldloc, dest)
 	oldloc.Exited(src, direction)
 	dest.Entered(src, oldloc)
-	// Manually fire Crossed/Uncrossed for peer overmap objects since
-	// direct loc assignment doesn't cascade those signals.
+	// Manually fire overmap adjacency hooks for peer objects since
+	// direct loc assignment doesn't cascade Crossed/Uncrossed.
 	for(var/obj/structure/overmap/peer in oldloc)
 		if(peer == src)
 			continue
-		peer.Uncrossed(src, dest)
+		peer.on_overmap_uncrossed(src, dest)
 	for(var/obj/structure/overmap/peer in dest)
 		if(peer == src)
 			continue
-		peer.Crossed(src, oldloc)
+		peer.on_overmap_crossed(src, oldloc)
 	Moved(oldloc, direction)
 	return TRUE
 
@@ -277,25 +279,24 @@
 
 /// Adjacency tracking. Two overmap objects on the same tile know about each
 /// other so the helm radar and dock-via-Act flow can find their neighbors.
-/obj/structure/overmap/Crossed(atom/movable/AM, oldloc)
-	. = ..()
-	if(istype(loc, /turf) && istype(AM, /obj/structure/overmap))
-		var/obj/structure/overmap/other = AM
-		if(other == src)
-			return
-		LAZYADD(other.close_overmap_objects, src)
-		LAZYADD(close_overmap_objects, other)
+/// Uses custom procs because `/atom/movable/Crossed` is not overridable.
+/obj/structure/overmap/proc/on_overmap_crossed(obj/structure/overmap/other, atom/oldloc)
+	if(!istype(loc, /turf) || !istype(other))
+		return
+	if(other == src)
+		return
+	LAZYADD(other.close_overmap_objects, src)
+	LAZYADD(close_overmap_objects, other)
 
-/obj/structure/overmap/Uncrossed(atom/movable/AM, atom/newloc)
-	. = ..()
-	if(istype(loc, /turf) && istype(AM, /obj/structure/overmap))
-		var/obj/structure/overmap/other = AM
-		if(other == src)
-			return
-		LAZYREMOVE(other.close_overmap_objects, src)
-		LAZYREMOVE(close_overmap_objects, other)
+/obj/structure/overmap/proc/on_overmap_uncrossed(obj/structure/overmap/other, atom/newloc)
+	if(!istype(loc, /turf) || !istype(other))
+		return
+	if(other == src)
+		return
+	LAZYREMOVE(other.close_overmap_objects, src)
+	LAZYREMOVE(close_overmap_objects, other)
 
-/obj/structure/overmap/proc/recieve_damage(amount)
+/obj/structure/overmap/proc/receive_damage(amount)
 	integrity = max(integrity - (amount / overmap_armor), 0)
 
 /// Called by SSovermap each physics tick for entities in the moving list.

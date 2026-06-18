@@ -69,12 +69,12 @@
 		deactivate_self()
 		return
 
-	ADD_TRAIT(linked_mob, TRAIT_NIF_PILOTING, src)
+	ADD_TRAIT(linked_mob, TRAIT_NIF_PILOTING, REF(src))
 	to_chat(linked_mob, span_notice("Neural pilot link established. Your vision shifts to the overmap."))
 
 /datum/nifsoft/overmap_pilot/proc/stop_piloting()
 	if(pilot_link?.linked_mob)
-		REMOVE_TRAIT(pilot_link.linked_mob, TRAIT_NIF_PILOTING, src)
+		REMOVE_TRAIT(pilot_link.linked_mob, TRAIT_NIF_PILOTING, REF(src))
 	QDEL_NULL(pilot_link)
 
 /// Helper to cleanly deactivate without triggering the activate toggle.

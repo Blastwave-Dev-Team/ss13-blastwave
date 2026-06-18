@@ -71,10 +71,10 @@
 	. = ..()
 	matter_bin_rating = 1
 	micro_laser_rating = 1
-	for(var/obj/item/stock_parts/matter_bin/bin in component_parts)
-		matter_bin_rating = max(matter_bin_rating, bin.rating)
-	for(var/obj/item/stock_parts/micro_laser/laser in component_parts)
-		micro_laser_rating = max(micro_laser_rating, laser.rating)
+	for(var/datum/stock_part/matter_bin/matter_bin in component_parts)
+		matter_bin_rating = max(matter_bin_rating, matter_bin.tier)
+	for(var/datum/stock_part/micro_laser/micro_laser in component_parts)
+		micro_laser_rating = max(micro_laser_rating, micro_laser.tier)
 	chamber_volume = TANK_STANDARD_VOLUME + (matter_bin_rating - 1) * 20
 	if(air_contents)
 		air_contents.volume = chamber_volume

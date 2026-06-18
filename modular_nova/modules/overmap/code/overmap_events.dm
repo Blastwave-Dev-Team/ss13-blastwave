@@ -37,10 +37,10 @@
 	return
 
 /// Ships entering the event tile are affected immediately.
-/obj/structure/overmap/event/Crossed(atom/movable/AM, oldloc)
+/obj/structure/overmap/event/on_overmap_crossed(obj/structure/overmap/other, atom/oldloc)
 	. = ..()
-	if(istype(AM, /obj/structure/overmap/ship/simulated))
-		affect_ship(AM)
+	if(istype(other, /obj/structure/overmap/ship/simulated))
+		affect_ship(other)
 
 // --- METEOR STORMS ---
 
@@ -57,7 +57,7 @@
 /obj/structure/overmap/event/meteor/affect_ship(obj/structure/overmap/ship/simulated/S)
 	if(!S.shuttle)
 		return
-	S.recieve_damage(rand(min_damage, max_damage))
+	S.receive_damage(rand(min_damage, max_damage))
 	for(var/mob/M in GLOB.player_list)
 		if(S.shuttle.is_in_shuttle_bounds(M))
 			var/strength = clamp(100 - S.integrity, 10, 50)
@@ -93,7 +93,7 @@
 /obj/structure/overmap/event/electric/affect_ship(obj/structure/overmap/ship/simulated/S)
 	if(!S.shuttle)
 		return
-	S.recieve_damage(damage)
+	S.receive_damage(damage)
 	for(var/area/shuttle_area in S.shuttle.shuttle_areas)
 		for(var/obj/machinery/power/apc/A in shuttle_area)
 			if(prob(30))
