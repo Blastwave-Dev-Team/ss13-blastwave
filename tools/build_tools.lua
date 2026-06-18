@@ -22,3 +22,12 @@ for i=1, #scripts do
 	print("\27[1m:: "..scripts[i].."\27[0m")
 	dofile("tools/linux_build_tools/"..scripts[i])
 end
+
+print [[
+      |\/|    ____
+   .__.. \   /\  /
+    \_   /__/  \/
+    _/  __   __/      
+🥒 /___/____/
+]]
+print("Build complete!")
