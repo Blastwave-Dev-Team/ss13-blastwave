@@ -1,6 +1,6 @@
 #!/usr/bin/env lua
 
-local function panic(err)
+function panic(err)
 	io.stderr:write("error: ",err,"\n")
 	os.exit(1)
 end
