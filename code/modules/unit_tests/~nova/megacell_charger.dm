@@ -1,14 +1,17 @@
 /proc/_megacell_charger_test_setup_charger(datum/unit_test/test, powered = TRUE)
 	var/turf/stage = test.run_loc_floor_top_right
 	var/obj/machinery/power/megacell_charger/wall/charger = test.allocate(/obj/machinery/power/megacell_charger/wall, stage)
-	charger.setDir(SOUTH)
+	charger.setDir(NORTH)
 	charger.make_terminal()
 	if(powered)
 		charger.terminal.powernet = new()
-		charger.terminal.powernet.avail = 100 KILO WATTS
+		charger.terminal.powernet.avail = 100 KILO JOULES
 	charger.find_and_mount_on_atom()
 	charger.register_wall_bump_shock()
 	return charger
+
+/proc/_megacell_charger_test_user_turf(obj/machinery/power/megacell_charger/wall/charger)
+	return get_step(charger, turn(charger.dir, 180))
 
 /proc/_megacell_charger_test_setup_area_power(datum/unit_test/test, turf/stage)
 	var/obj/machinery/power/apc/apc = test.allocate(/obj/machinery/power/apc, stage)
@@ -35,6 +38,7 @@
 
 	// Powered complete chargers should shock bare hands.
 	var/obj/machinery/power/megacell_charger/wall/charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
+	victim.forceMove(_megacell_charger_test_user_turf(charger))
 	victim.heal_bodypart_damage(brute = victim.get_brute_loss(), burn = victim.get_fire_loss())
 	initial_fire_loss = victim.get_fire_loss()
 	TEST_ASSERT(charger.shock_if_live(victim, 100), "Powered megacell charger failed to shock user.")
@@ -62,11 +66,9 @@
 
 /datum/unit_test/megacell_charger_shock_interaction/Run()
 	var/turf/stage = run_loc_floor_top_right
-	var/turf/human_loc = get_step(stage, NORTH)
-	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, human_loc)
-
 	_megacell_charger_test_setup_area_power(src, stage)
 	var/obj/machinery/power/megacell_charger/wall/charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, _megacell_charger_test_user_turf(charger))
 	var/obj/item/stock_parts/power_store/battery/empty/megacell = allocate(/obj/item/stock_parts/power_store/battery/empty)
 	charger.charging = megacell
 	megacell.forceMove(charger)
@@ -82,6 +84,7 @@
 	// Megacell insertion must not shock the user.
 	_megacell_charger_test_setup_area_power(src, stage)
 	charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
+	user.forceMove(_megacell_charger_test_user_turf(charger))
 	megacell = allocate(/obj/item/stock_parts/power_store/battery/empty)
 	user.put_in_active_hand(megacell, forced = TRUE)
 	initial_fire_loss = user.get_fire_loss()
@@ -91,11 +94,8 @@
 	TEST_ASSERT(charger.charging == megacell, "Megacell was not inserted into charger.")
 
 /datum/unit_test/megacell_charger_wall_bump/Run()
-	var/turf/stage = run_loc_floor_top_right
-	var/turf/human_loc = get_step(stage, NORTH)
-	var/mob/living/carbon/human/victim = allocate(/mob/living/carbon/human/consistent, human_loc)
-
 	var/obj/machinery/power/megacell_charger/wall/charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
+	var/mob/living/carbon/human/victim = allocate(/mob/living/carbon/human/consistent, _megacell_charger_test_user_turf(charger))
 	var/datum/component/atom_mounted/mount = charger.GetComponent(/datum/component/atom_mounted)
 	TEST_ASSERT_NOTNULL(mount, "Megacell charger failed to wall mount.")
 	TEST_ASSERT(isclosedturf(mount.hanging_support_atom), "Megacell charger did not mount to a closed turf.")

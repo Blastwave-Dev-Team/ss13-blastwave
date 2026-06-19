@@ -554,7 +554,9 @@
 
 /obj/machinery/power/megacell_charger/wall/Initialize(mapload)
 	. = ..()
-	if(mapload && !LAZYLEN(component_parts))
+	if(!mapload)
+		buildstage = MEGACELL_CHARGER_COMPLETE
+	if(!LAZYLEN(component_parts))
 		LAZYADD(component_parts, GLOB.stock_part_datums[/datum/stock_part/capacitor])
 		RefreshParts()
 
