@@ -55,10 +55,10 @@
 
 	// Conductive tools should shock; non-conductive tools should not.
 	victim.drop_all_held_items()
-	victim.dropItemToGround(victim.get_item_by_slot(ITEM_SLOT_GLOVES))
+	qdel(victim.get_item_by_slot(ITEM_SLOT_GLOVES))
 	var/obj/item/screwdriver/conductive_tool = allocate(/obj/item/screwdriver)
 	initial_fire_loss = victim.get_fire_loss()
-	TEST_ASSERT(charger.shock_on_conductive_tool(victim, conductive_tool), "Conductive tool failed to shock user.")
+	TEST_ASSERT(charger.shock_on_conductive_tool(victim, conductive_tool, 100), "Conductive tool failed to shock user.")
 	TEST_ASSERT(victim.get_fire_loss() > initial_fire_loss, "Conductive tool shock did not deal burn damage.")
 
 	var/obj/item/kitchen/rollingpin/non_conductive_tool = allocate(/obj/item/kitchen/rollingpin)

@@ -90,12 +90,12 @@
 		return FALSE
 	return shock(user, chance)
 
-/obj/machinery/power/megacell_charger/proc/shock_on_conductive_tool(mob/living/user, obj/item/tool)
+/obj/machinery/power/megacell_charger/proc/shock_on_conductive_tool(mob/living/user, obj/item/tool, chance = 50)
 	if(buildstage < MEGACELL_CHARGER_COMPLETE)
 		return FALSE
 	if(!(tool.obj_flags & CONDUCTS_ELECTRICITY))
 		return FALSE
-	return shock_if_live(user)
+	return shock_if_live(user, chance)
 
 /obj/machinery/power/megacell_charger/proc/register_wall_bump_shock()
 	unregister_wall_bump_shock()
