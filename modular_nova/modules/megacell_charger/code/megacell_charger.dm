@@ -31,6 +31,7 @@
 		make_terminal()
 		terminal?.connect_to_network()
 		find_and_mount_on_atom()
+		register_wall_bump_shock()
 	else if(!mapload)
 		buildstage = MEGACELL_CHARGER_FRAME
 		panel_open = TRUE
@@ -38,6 +39,7 @@
 	update_appearance()
 
 /obj/machinery/power/megacell_charger/Destroy()
+	unregister_wall_bump_shock()
 	if(terminal)
 		disconnect_terminal()
 	QDEL_NULL(charging)
@@ -74,6 +76,49 @@
 
 /obj/machinery/power/megacell_charger/can_terminal_dismantle()
 	return panel_open && buildstage >= MEGACELL_CHARGER_TERMINAL
+
+/obj/machinery/power/megacell_charger/shock(mob/living/shocking, chance = 50, shock_source, siemens_coeff = 1)
+	shock_source = shock_source || terminal?.powernet
+	if(!shock_source)
+		return FALSE
+	return ..()
+
+/obj/machinery/power/megacell_charger/proc/shock_if_live(mob/living/user, chance = 50)
+	if(buildstage < MEGACELL_CHARGER_COMPLETE)
+		return FALSE
+	if(!terminal?.powernet)
+		return FALSE
+	return shock(user, chance)
+
+/obj/machinery/power/megacell_charger/proc/shock_on_conductive_tool(mob/living/user, obj/item/tool)
+	if(buildstage < MEGACELL_CHARGER_COMPLETE)
+		return FALSE
+	if(!(tool.obj_flags & CONDUCTS_ELECTRICITY))
+		return FALSE
+	return shock_if_live(user)
+
+/obj/machinery/power/megacell_charger/proc/register_wall_bump_shock()
+	unregister_wall_bump_shock()
+	var/datum/component/atom_mounted/mount = GetComponent(/datum/component/atom_mounted)
+	if(!mount?.hanging_support_atom)
+		return
+	RegisterSignal(mount.hanging_support_atom, COMSIG_ATOM_BUMPED, PROC_REF(on_support_bumped))
+
+/obj/machinery/power/megacell_charger/proc/unregister_wall_bump_shock()
+	var/datum/component/atom_mounted/mount = GetComponent(/datum/component/atom_mounted)
+	if(!mount?.hanging_support_atom)
+		return
+	UnregisterSignal(mount.hanging_support_atom, COMSIG_ATOM_BUMPED)
+
+/obj/machinery/power/megacell_charger/proc/on_support_bumped(datum/source, atom/movable/bumped_atom)
+	SIGNAL_HANDLER
+	if(isliving(bumped_atom))
+		shock_if_live(bumped_atom)
+
+/obj/machinery/power/megacell_charger/Bumped(atom/movable/bumped_atom)
+	if(isliving(bumped_atom))
+		shock_if_live(bumped_atom)
+	return ..()
 
 /obj/machinery/power/megacell_charger/proc/parts_complete()
 	for(var/requirement in req_components)
@@ -228,6 +273,7 @@
 	panel_open = FALSE
 	connect_to_network()
 	RefreshParts()
+	register_wall_bump_shock()
 	update_appearance()
 	balloon_alert(user, "construction complete")
 
@@ -237,6 +283,7 @@
 	icon = 'modular_nova/modules/aesthetics/apc/icons/apc.dmi'
 	buildstage = MEGACELL_CHARGER_PARTS
 	panel_open = TRUE
+	unregister_wall_bump_shock()
 	update_appearance()
 	balloon_alert(user, "welds cut")
 
@@ -317,6 +364,9 @@
 		if(add_part(user, tool))
 			return ITEM_INTERACT_SUCCESS
 		return NONE
+
+	if(!istype(tool, /obj/item/stock_parts/power_store) && shock_on_conductive_tool(user, tool))
+		return ITEM_INTERACT_BLOCKING
 
 	if(istype(tool, /obj/item/stock_parts/power_store/battery))
 		if(panel_open)
@@ -401,6 +451,8 @@
 		return ITEM_INTERACT_SUCCESS
 
 	if(buildstage == MEGACELL_CHARGER_COMPLETE)
+		if(shock_on_conductive_tool(user, tool))
+			return ITEM_INTERACT_BLOCKING
 		if(charging)
 			balloon_alert(user, "remove the megacell first!")
 			return ITEM_INTERACT_BLOCKING
@@ -431,7 +483,13 @@
 
 /obj/machinery/power/megacell_charger/attack_hand(mob/living/user, list/modifiers)
 	. = ..()
-	if(. || buildstage < MEGACELL_CHARGER_COMPLETE || !charging)
+	if(.)
+		return
+	if(buildstage < MEGACELL_CHARGER_COMPLETE)
+		return
+	if(shock_if_live(user))
+		return
+	if(!charging)
 		return
 
 	charging.add_fingerprint(user)
