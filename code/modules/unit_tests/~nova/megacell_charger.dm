@@ -24,7 +24,6 @@
 
 	// Incomplete chargers should not shock.
 	var/obj/machinery/power/megacell_charger/frame = allocate(/obj/machinery/power/megacell_charger, run_loc_floor_bottom_left)
-	frame.buildstage = initial(/obj/machinery/power/megacell_charger/buildstage)
 	var/initial_fire_loss = victim.get_fire_loss()
 	TEST_ASSERT(!frame.shock_if_live(victim, 100), "Incomplete megacell charger shocked user.")
 	TEST_ASSERT_EQUAL(initial_fire_loss, victim.get_fire_loss(), "Incomplete megacell charger damaged user.")
