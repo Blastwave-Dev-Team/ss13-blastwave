@@ -16,6 +16,8 @@
 /proc/_megacell_charger_test_setup_area_power(datum/unit_test/test, turf/stage)
 	var/obj/machinery/power/apc/apc = test.allocate(/obj/machinery/power/apc, stage)
 	apc.has_electronics = APC_ELECTRONICS_SECURED
+	apc.opened = APC_COVER_CLOSED
+	apc.set_machine_stat(apc.machine_stat & ~MAINT)
 	apc.operating = TRUE
 	if(QDELETED(apc.cell))
 		apc.cell = test.allocate(/obj/item/stock_parts/power_store/battery, apc)
@@ -86,6 +88,7 @@
 	_megacell_charger_test_setup_area_power(src, stage)
 	charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
 	user.forceMove(_megacell_charger_test_user_turf(charger))
+	user.drop_all_held_items()
 	megacell = allocate(/obj/item/stock_parts/power_store/battery/empty)
 	user.put_in_active_hand(megacell, forced = TRUE)
 	initial_fire_loss = user.get_fire_loss()
