@@ -556,6 +556,8 @@
 	. = ..()
 	if(!mapload)
 		buildstage = MEGACELL_CHARGER_COMPLETE
+		panel_open = FALSE
+		update_appearance()
 	if(!LAZYLEN(component_parts))
 		LAZYADD(component_parts, GLOB.stock_part_datums[/datum/stock_part/capacitor])
 		RefreshParts()
