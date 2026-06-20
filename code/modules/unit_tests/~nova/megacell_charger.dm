@@ -7,7 +7,6 @@
 		charger.terminal.powernet = new()
 		charger.terminal.powernet.avail = 100 KILO JOULES
 	charger.find_and_mount_on_atom()
-	charger.register_wall_bump_shock()
 	return charger
 
 /proc/_megacell_charger_test_user_turf(obj/machinery/power/megacell_charger/wall/charger)
@@ -76,24 +75,29 @@
 	charger.charging = megacell
 	megacell.forceMove(charger)
 
-	// Insulated gloves allow safe battery removal.
-	var/obj/item/clothing/gloves/color/yellow/insulated_gloves = allocate(/obj/item/clothing/gloves/color/yellow)
-	user.equip_to_slot_if_possible(insulated_gloves, ITEM_SLOT_GLOVES)
+	// Bare-hand battery removal must not shock the user.
+	user.drop_all_held_items()
+	var/obj/item/gloves = user.get_item_by_slot(ITEM_SLOT_GLOVES)
+	if(gloves)
+		qdel(gloves)
 	var/initial_fire_loss = user.get_fire_loss()
 	charger.attack_hand(user, list())
-	TEST_ASSERT_EQUAL(initial_fire_loss, user.get_fire_loss(), "Insulated gloves took shock damage while removing megacell.")
-	TEST_ASSERT_NULL(charger.charging, "Megacell was not removed with insulated gloves.")
+	TEST_ASSERT_EQUAL(initial_fire_loss, user.get_fire_loss(), "Bare-hand megacell removal shocked the user.")
+	TEST_ASSERT_NULL(charger.charging, "Megacell was not removed bare-handed.")
 
-	// Megacell insertion must not shock the user.
+	// Bare-hand megacell insertion must not shock the user.
 	_megacell_charger_test_setup_area_power(src, stage)
 	charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
 	user.forceMove(_megacell_charger_test_user_turf(charger))
 	user.drop_all_held_items()
+	gloves = user.get_item_by_slot(ITEM_SLOT_GLOVES)
+	if(gloves)
+		qdel(gloves)
 	megacell = allocate(/obj/item/stock_parts/power_store/battery/empty)
 	user.put_in_active_hand(megacell, forced = TRUE)
 	initial_fire_loss = user.get_fire_loss()
 	var/interaction_result = charger.item_interaction(user, megacell, list())
-	TEST_ASSERT_EQUAL(initial_fire_loss, user.get_fire_loss(), "Megacell insertion shocked the user.")
+	TEST_ASSERT_EQUAL(initial_fire_loss, user.get_fire_loss(), "Bare-hand megacell insertion shocked the user.")
 	TEST_ASSERT_EQUAL(interaction_result, ITEM_INTERACT_SUCCESS, "Megacell insertion failed.")
 	TEST_ASSERT(charger.charging == megacell, "Megacell was not inserted into charger.")
 
@@ -106,13 +110,6 @@
 
 	victim.heal_bodypart_damage(brute = victim.get_brute_loss(), burn = victim.get_fire_loss())
 	var/initial_fire_loss = victim.get_fire_loss()
-	TEST_ASSERT(charger.shock_if_live(victim, 100), "Powered megacell charger failed to shock user.")
-	TEST_ASSERT(victim.get_fire_loss() > initial_fire_loss, "Powered megacell charger did not deal burn damage.")
-
-	victim.heal_bodypart_damage(brute = victim.get_brute_loss(), burn = victim.get_fire_loss())
-	var/obj/item/clothing/gloves/color/yellow/insulated_gloves = allocate(/obj/item/clothing/gloves/color/yellow)
-	victim.equip_to_slot_if_possible(insulated_gloves, ITEM_SLOT_GLOVES)
-	initial_fire_loss = victim.get_fire_loss()
 	mount.hanging_support_atom.Bumped(victim)
 	charger.Bumped(victim)
-	TEST_ASSERT_EQUAL(initial_fire_loss, victim.get_fire_loss(), "Insulated gloves failed to block charger bump shock.")
+	TEST_ASSERT_EQUAL(initial_fire_loss, victim.get_fire_loss(), "Bumping the megacell charger shocked the user.")

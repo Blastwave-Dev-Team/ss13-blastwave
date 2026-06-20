@@ -31,7 +31,6 @@
 		make_terminal()
 		terminal?.connect_to_network()
 		find_and_mount_on_atom()
-		register_wall_bump_shock()
 	else if(!mapload)
 		buildstage = MEGACELL_CHARGER_FRAME
 		panel_open = TRUE
@@ -39,7 +38,6 @@
 	update_appearance()
 
 /obj/machinery/power/megacell_charger/Destroy()
-	unregister_wall_bump_shock()
 	if(terminal)
 		disconnect_terminal()
 	QDEL_NULL(charging)
@@ -96,29 +94,6 @@
 	if(!(tool.obj_flags & CONDUCTS_ELECTRICITY))
 		return FALSE
 	return shock_if_live(user, chance)
-
-/obj/machinery/power/megacell_charger/proc/register_wall_bump_shock()
-	unregister_wall_bump_shock()
-	var/datum/component/atom_mounted/mount = GetComponent(/datum/component/atom_mounted)
-	if(!mount?.hanging_support_atom)
-		return
-	RegisterSignal(mount.hanging_support_atom, COMSIG_ATOM_BUMPED, PROC_REF(on_support_bumped))
-
-/obj/machinery/power/megacell_charger/proc/unregister_wall_bump_shock()
-	var/datum/component/atom_mounted/mount = GetComponent(/datum/component/atom_mounted)
-	if(!mount?.hanging_support_atom)
-		return
-	UnregisterSignal(mount.hanging_support_atom, COMSIG_ATOM_BUMPED)
-
-/obj/machinery/power/megacell_charger/proc/on_support_bumped(datum/source, atom/movable/bumped_atom)
-	SIGNAL_HANDLER
-	if(isliving(bumped_atom))
-		shock_if_live(bumped_atom)
-
-/obj/machinery/power/megacell_charger/Bumped(atom/movable/bumped_atom)
-	if(isliving(bumped_atom))
-		shock_if_live(bumped_atom)
-	return ..()
 
 /obj/machinery/power/megacell_charger/proc/parts_complete()
 	for(var/requirement in req_components)
@@ -273,7 +248,6 @@
 	panel_open = FALSE
 	connect_to_network()
 	RefreshParts()
-	register_wall_bump_shock()
 	update_appearance()
 	balloon_alert(user, "construction complete")
 
@@ -283,7 +257,6 @@
 	icon = 'modular_nova/modules/aesthetics/apc/icons/apc.dmi'
 	buildstage = MEGACELL_CHARGER_PARTS
 	panel_open = TRUE
-	unregister_wall_bump_shock()
 	update_appearance()
 	balloon_alert(user, "welds cut")
 
@@ -486,8 +459,6 @@
 	if(.)
 		return
 	if(buildstage < MEGACELL_CHARGER_COMPLETE)
-		return
-	if(shock_if_live(user))
 		return
 	if(!charging)
 		return
