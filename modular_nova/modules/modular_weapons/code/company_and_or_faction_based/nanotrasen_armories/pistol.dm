@@ -59,7 +59,7 @@
 
 /obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox
 	name = "\improper Commissar (Vox)"
-	desc = "An admin-only gag variant of the Commissar with integrated vox audio. Not intended for normal roundstart use."
+	desc = "There's a strange little speaker attached to the side of the pistol. It's giving you a sense of authority and command."
 	var/funnysounds = TRUE
 	var/cooldown = 0
 
