@@ -25,3 +25,73 @@
 	spread = 5 //maybe needs to go lower in the future, we shall see
 /obj/item/gun/ballistic/rifle/c96/give_manufacturer_examine()
 	AddElement(/datum/element/manufacturer_examine, COMPANY_NANOTRASEN)
+
+/obj/item/gun/ballistic/automatic/pistol/commander
+	name = "\improper Commander"
+	desc = "A modification on the classic M1911 handgun, this one is chambered in 9mm. Much like its predecessor, it suffers from low capacity."
+	icon = 'modular_nova/modules/modular_weapons/icons/obj/company_and_or_faction_based/nanotrasen_armories/ballistic.dmi'
+	icon_state = "commander"
+	w_class = WEIGHT_CLASS_NORMAL
+	accepted_magazine_type = /obj/item/ammo_box/magazine/co9mm
+	can_suppress = FALSE
+	fire_sound = 'sound/items/weapons/gun/pistol/shot_alt.ogg'
+	rack_sound = 'sound/items/weapons/gun/pistol/rack.ogg'
+	lock_back_sound = 'sound/items/weapons/gun/pistol/slide_lock.ogg'
+	bolt_drop_sound = 'sound/items/weapons/gun/pistol/slide_drop.ogg'
+
+/obj/item/gun/ballistic/automatic/pistol/commander/give_manufacturer_examine()
+	AddElement(/datum/element/manufacturer_examine, COMPANY_NANOTRASEN)
+
+/obj/item/gun/ballistic/automatic/pistol/commander/no_mag
+	spawnwithmagazine = FALSE
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar
+	name = "\improper Commissar"
+	desc = "A custom-designed 1911 handgun to further enhance its effectiveness in troop discipline."
+	var/funnysounds = TRUE
+	var/cooldown = 0
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/equipped(mob/living/user, slot)
+	. = ..()
+	if(slot == ITEM_SLOT_HANDS && funnysounds) // We do this instead of equip_sound as we only want this to play when it's wielded
+		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/pickup.ogg', 30, FALSE)
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/shoot_live_shot(mob/living/user, pointblank = 0, atom/pbtarget = null, message = 1)
+	. = ..()
+	if(prob(50) && funnysounds)
+		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/shot.ogg', 30, FALSE)
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/shoot_with_empty_chamber(mob/living/user)
+	. = ..()
+	if(prob(50) && funnysounds)
+		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/dry.ogg', 30, FALSE)
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/insert_magazine(mob/user, obj/item/ammo_box/magazine/AM, display_message = TRUE)
+	. = ..()
+	if(bolt_locked)
+		drop_bolt(user)
+		if(. && funnysounds)
+			playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/magazine.ogg', 30, FALSE)
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/multitool_act(mob/living/user, obj/item/tool)
+	. = ..()
+	funnysounds = !funnysounds
+	to_chat(user, span_notice("You toggle [src]'s vox audio functions."))
+	return ITEM_INTERACT_SUCCESS
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/click_alt(mob/user)
+	if(!isliving(user) || !user.can_perform_action(src, FORBID_TELEKINESIS_REACH))
+		return
+	if((cooldown < world.time - 200) && funnysounds)
+		user.audible_message("<font color='red' size='5'><b>DON'T TURN AROUND!</b></font>")
+		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/dontturnaround.ogg', 50, FALSE, 4)
+		cooldown = world.time
+	return CLICK_ACTION_SUCCESS
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/examine(mob/user)
+	. = ..()
+	if(funnysounds)
+		. += span_info("Alt-click to use \the [src] vox hailer.")
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/no_mag
+	spawnwithmagazine = FALSE
