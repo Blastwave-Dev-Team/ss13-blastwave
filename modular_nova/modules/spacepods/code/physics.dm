@@ -225,6 +225,13 @@
 /obj/spacepod/newtonian_move(inertia_angle, instant = FALSE, start_delay = 0, drift_force = 1 NEWTONS, controlled_cap = null, force_loop = TRUE)
 	return FALSE
 
+/obj/spacepod/CanPass(atom/movable/mover, border_dir)
+	if(isprojectile(mover))
+		var/obj/projectile/proj = mover
+		if(!proj.ignore_source_check && proj.firer?.loc == src)
+			return TRUE
+	return ..()
+
 /obj/spacepod/Bumped(atom/movable/bumped_atom)
 	if(bumped_atom.dir & NORTH)
 		velocity_y += bump_impulse
@@ -282,7 +289,10 @@
 	var/sy = -fx
 	var/ox = (offset_x * ICON_SIZE_X) + (ICON_SIZE_X / 2)
 	var/oy = (offset_y * ICON_SIZE_Y) + (ICON_SIZE_Y / 2)
-	var/list/origins = list(list(ox + fx * 16 - sx * 16, oy + fy * 16 - sy * 16), list(ox + fx * 16 + sx * 16, oy + fy * 16 + sy * 16))
+	var/list/origins = list(
+		list(ox + fx * SPACEPOD_CANNON_FORWARD_OFFSET - sx * SPACEPOD_CANNON_LATERAL_OFFSET, oy + fy * SPACEPOD_CANNON_FORWARD_OFFSET - sy * SPACEPOD_CANNON_LATERAL_OFFSET),
+		list(ox + fx * SPACEPOD_CANNON_FORWARD_OFFSET + sx * SPACEPOD_CANNON_LATERAL_OFFSET, oy + fy * SPACEPOD_CANNON_FORWARD_OFFSET + sy * SPACEPOD_CANNON_LATERAL_OFFSET),
+	)
 	for(var/list/origin in origins)
 		var/this_x = origin[1]
 		var/this_y = origin[2]
@@ -304,6 +314,7 @@
 		var/obj/projectile/proj = new proj_type(origin_turf)
 		proj.starting = origin_turf
 		proj.firer = pilot
+		proj.impacted[WEAKREF(src)] = TRUE
 		proj.def_zone = BODY_ZONE_CHEST
 		proj.original = target
 		proj.pixel_x = round(this_x)

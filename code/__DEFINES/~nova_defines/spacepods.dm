@@ -9,6 +9,11 @@
 
 #define SPACEPOD_POWER_SCALE (STANDARD_BATTERY_VALUE / STANDARD_CELL_VALUE)
 
+/// Pixels forward from pod center to cannon muzzle along the facing unit vector (clears 64x64 hull at oblique angles).
+#define SPACEPOD_CANNON_FORWARD_OFFSET 48
+/// Pixels lateral from pod center to each dual cannon along the perpendicular unit vector.
+#define SPACEPOD_CANNON_LATERAL_OFFSET 16
+
 #define SPACEPOD_SLOT_CARGO "cargo"
 #define SPACEPOD_SLOT_MISC "misc"
 #define SPACEPOD_SLOT_WEAPON "weapon"
