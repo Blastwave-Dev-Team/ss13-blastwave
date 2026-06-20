@@ -31,4 +31,6 @@
 #define TECHWEB_NODE_XENOARCH_MACHINES "xenoarch_machines"
 #define TECHWEB_NODE_XENOARCH_STORAGE "xenoarch_storage"
 #define TECHWEB_NODE_AMMOBENCH_MORE "ammobench_addtl"
+#define TECHWEB_NODE_ARMORY_MUNITIONS "armory_munitions"
+#define TECHWEB_NODE_ARMORY_ORDNANCE "armory_ordnance"
 #define TECHWEB_NODE_RBMK "rbmk2"

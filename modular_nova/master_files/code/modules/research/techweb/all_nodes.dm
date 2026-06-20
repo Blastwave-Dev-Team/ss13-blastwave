@@ -1,6 +1,32 @@
 
 // NEW NODES
 
+/datum/techweb_node/armory_munitions
+	id = TECHWEB_NODE_ARMORY_MUNITIONS
+	display_name = "Armory Munitions"
+	description = "Printable magazine bodies for standard station armory ballistic weapons."
+	prereq_ids = list(TECHWEB_NODE_RIOT_SUPRESSION)
+	design_ids = list(
+		"mag_c35sol_pistol",
+		"mag_c35sol_pistol_stendo",
+		"mag_c40sol_rifle",
+		"mag_c40sol_rifle_standard",
+		"mag_c980_grenade",
+	)
+	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_2_POINTS)
+	announce_channels = list(RADIO_CHANNEL_SECURITY)
+
+/datum/techweb_node/armory_ordnance
+	id = TECHWEB_NODE_ARMORY_ORDNANCE
+	display_name = "Armory Ordnance"
+	description = "Heavy-capacity magazine bodies for armory grenade launchers."
+	prereq_ids = list(TECHWEB_NODE_EXPLOSIVES)
+	design_ids = list(
+		"mag_c980_grenade_drum",
+	)
+	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_3_POINTS)
+	announce_channels = list(RADIO_CHANNEL_SECURITY)
+
 /datum/techweb_node/adv_vision
 	id = TECHWEB_NODE_ADVANCED_VISION
 	display_name = "Combat Cybernetic Eyes"
