@@ -14,7 +14,7 @@
 
 #define MEGACELL_CHARGER_PIXEL_OFFSET 26
 
-/// Baseline megacell tiers only — matches big_cell_charger.dmi cell overlays (cellbig, hcellbig, scellbig, hpcellbig).
+/// Baseline megacell tiers — matches big_cell_charger.dmi cell overlays (cellbig, hcellbig, scellbig, hpcellbig, bscellbig).
 GLOBAL_LIST_INIT(megacell_charger_allowed_batteries, typecacheof(list(
 	/obj/item/stock_parts/power_store/battery,
 	/obj/item/stock_parts/power_store/battery/empty,
@@ -25,4 +25,6 @@ GLOBAL_LIST_INIT(megacell_charger_allowed_batteries, typecacheof(list(
 	/obj/item/stock_parts/power_store/battery/super/empty,
 	/obj/item/stock_parts/power_store/battery/hyper,
 	/obj/item/stock_parts/power_store/battery/hyper/empty,
+	/obj/item/stock_parts/power_store/battery/bluespace,
+	/obj/item/stock_parts/power_store/battery/bluespace/empty,
 ), only_root_path = TRUE))

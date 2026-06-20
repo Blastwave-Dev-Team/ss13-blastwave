@@ -101,6 +101,19 @@
 	TEST_ASSERT_EQUAL(interaction_result, ITEM_INTERACT_SUCCESS, "Megacell insertion failed.")
 	TEST_ASSERT(charger.charging == megacell, "Megacell was not inserted into charger.")
 
+	// Bluespace megacell insertion must be accepted.
+	_megacell_charger_test_setup_area_power(src, stage)
+	charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
+	user.forceMove(_megacell_charger_test_user_turf(charger))
+	user.drop_all_held_items()
+	var/obj/item/stock_parts/power_store/battery/bluespace/empty/bluespace_megacell = allocate(/obj/item/stock_parts/power_store/battery/bluespace/empty)
+	user.put_in_active_hand(bluespace_megacell, forced = TRUE)
+	initial_fire_loss = user.get_fire_loss()
+	interaction_result = charger.item_interaction(user, bluespace_megacell, list())
+	TEST_ASSERT_EQUAL(initial_fire_loss, user.get_fire_loss(), "Bluespace megacell insertion shocked the user.")
+	TEST_ASSERT_EQUAL(interaction_result, ITEM_INTERACT_SUCCESS, "Bluespace megacell insertion failed.")
+	TEST_ASSERT(charger.charging == bluespace_megacell, "Bluespace megacell was not inserted into charger.")
+
 /datum/unit_test/megacell_charger_wall_bump/Run()
 	var/obj/machinery/power/megacell_charger/wall/charger = _megacell_charger_test_setup_charger(src, powered = TRUE)
 	var/mob/living/carbon/human/victim = allocate(/mob/living/carbon/human/consistent, _megacell_charger_test_user_turf(charger))
