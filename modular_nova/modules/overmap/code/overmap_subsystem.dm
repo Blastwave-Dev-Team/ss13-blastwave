@@ -12,7 +12,7 @@ SUBSYSTEM_DEF(overmap)
 		/datum/controller/subsystem/mapping,
 		/datum/controller/subsystem/shuttle,
 	)
-	ss_flags = SS_KEEP_TIMING
+	ss_flags = NONE
 	runlevels = RUNLEVEL_SETUP | RUNLEVEL_GAME
 
 	/// Width/height of the overmap grid (square).
