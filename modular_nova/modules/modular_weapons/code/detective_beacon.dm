@@ -9,11 +9,20 @@
 	company_source = "Nanotrasen Rapid Equipment Deployment Division"
 	company_message = span_bold("Supply Pod incoming, please stand by.")
 
+/obj/item/choice_beacon/detective/interact(mob/user)
+	if(!isliving(user))
+		return
+	var/mob/living/living_user = user
+	if(!can_use_beacon(living_user))
+		return
+	open_options_menu(living_user)
+
 /obj/item/choice_beacon/detective/can_use_beacon(mob/living/user)
-	if(user.mind?.assigned_role == JOB_DETECTIVE)
+	if(user.mind?.assigned_role?.title == JOB_DETECTIVE)
 		return ..()
 
 	playsound(src, 'sound/machines/buzz/buzz-sigh.ogg', 40, TRUE)
+	to_chat(user, span_warning("This beacon is restricted to Nanotrasen detectives."))
 	return FALSE
 
 /obj/item/choice_beacon/detective/sidearm

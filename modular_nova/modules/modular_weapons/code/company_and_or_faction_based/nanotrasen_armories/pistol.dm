@@ -47,39 +47,50 @@
 
 /obj/item/gun/ballistic/automatic/pistol/commander/commissar
 	name = "\improper Commissar"
-	desc = "A custom-designed 1911 handgun to further enhance its effectiveness in troop discipline."
+	desc = "An NT Armories-issue variant of the Commander with a threaded barrel for pistol suppressors. Issued to investigative personnel who prefer a magazine-fed sidearm."
+	can_suppress = TRUE
+	suppressed_sound = 'sound/items/weapons/gun/pistol/shot_suppressed.ogg'
+	suppressor_x_offset = 10
+	suppressor_y_offset = -1
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/no_mag
+	spawnwithmagazine = FALSE
+
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox
+	name = "\improper Commissar (Vox)"
+	desc = "An admin-only gag variant of the Commissar with integrated vox audio. Not intended for normal roundstart use."
 	var/funnysounds = TRUE
 	var/cooldown = 0
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/equipped(mob/living/user, slot)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/equipped(mob/living/user, slot)
 	. = ..()
-	if(slot == ITEM_SLOT_HANDS && funnysounds) // We do this instead of equip_sound as we only want this to play when it's wielded
+	if(slot == ITEM_SLOT_HANDS && funnysounds)
 		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/pickup.ogg', 30, FALSE)
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/shoot_live_shot(mob/living/user, pointblank = 0, atom/pbtarget = null, message = 1)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/shoot_live_shot(mob/living/user, pointblank = 0, atom/pbtarget = null, message = 1)
 	. = ..()
 	if(prob(50) && funnysounds)
 		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/shot.ogg', 30, FALSE)
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/shoot_with_empty_chamber(mob/living/user)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/shoot_with_empty_chamber(mob/living/user)
 	. = ..()
 	if(prob(50) && funnysounds)
 		playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/dry.ogg', 30, FALSE)
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/insert_magazine(mob/user, obj/item/ammo_box/magazine/AM, display_message = TRUE)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/insert_magazine(mob/user, obj/item/ammo_box/magazine/AM, display_message = TRUE)
 	. = ..()
 	if(bolt_locked)
 		drop_bolt(user)
 		if(. && funnysounds)
 			playsound(src, 'modular_nova/modules/modular_weapons/sounds/commissar/magazine.ogg', 30, FALSE)
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/multitool_act(mob/living/user, obj/item/tool)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/multitool_act(mob/living/user, obj/item/tool)
 	. = ..()
 	funnysounds = !funnysounds
 	to_chat(user, span_notice("You toggle [src]'s vox audio functions."))
 	return ITEM_INTERACT_SUCCESS
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/click_alt(mob/user)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/click_alt(mob/user)
 	if(!isliving(user) || !user.can_perform_action(src, FORBID_TELEKINESIS_REACH))
 		return
 	if((cooldown < world.time - 200) && funnysounds)
@@ -88,10 +99,10 @@
 		cooldown = world.time
 	return CLICK_ACTION_SUCCESS
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/examine(mob/user)
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/examine(mob/user)
 	. = ..()
 	if(funnysounds)
 		. += span_info("Alt-click to use \the [src] vox hailer.")
 
-/obj/item/gun/ballistic/automatic/pistol/commander/commissar/no_mag
+/obj/item/gun/ballistic/automatic/pistol/commander/commissar/vox/no_mag
 	spawnwithmagazine = FALSE
