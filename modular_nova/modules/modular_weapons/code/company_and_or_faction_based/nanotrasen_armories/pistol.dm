@@ -34,6 +34,7 @@
 	w_class = WEIGHT_CLASS_NORMAL
 	accepted_magazine_type = /obj/item/ammo_box/magazine/co9mm
 	can_suppress = FALSE
+	mag_display = FALSE
 	fire_sound = 'sound/items/weapons/gun/pistol/shot_alt.ogg'
 	rack_sound = 'sound/items/weapons/gun/pistol/rack.ogg'
 	lock_back_sound = 'sound/items/weapons/gun/pistol/slide_lock.ogg'
