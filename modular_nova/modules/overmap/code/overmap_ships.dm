@@ -27,7 +27,7 @@
 
 /obj/structure/overmap/ship/Destroy()
 	LAZYREMOVE(SSovermap.simulated_ships, src)
-	SSovermap.moving -= src
+	STOP_PROCESSING(SSfastprocess, src)
 	return ..()
 
 /// Whether the ship is effectively stationary.
@@ -125,7 +125,7 @@
 		activate_physics()
 
 /// Physics integration. Applies thrust toward desired velocity, integrates
-/// position. Called by SSovermap.fire() each tick.
+/// position. Called by SSfastprocess via `process()` each tick.
 /obj/structure/overmap/ship/physics_tick(dt)
 	if(!has_heading && is_still() && !has_gravity_influence())
 		deactivate_physics()
@@ -288,7 +288,7 @@
 	// Hull icon generation is async (sleeps while Rust DLL processes).
 	// Spawn it so it doesn't block the undock flow.
 	INVOKE_ASYNC(src, PROC_REF(generate_hull_icon))
-	update_screen()
+	update_screen(TRUE)
 
 /obj/structure/overmap/ship/simulated/Destroy()
 	if(shuttle?.current_ship == src)
@@ -307,13 +307,13 @@
 	if(avg_fuel_amnt < 1)
 		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
 	if(desired_throttle > 0.01)
-		var/burn_pct = desired_throttle * 100 * OVERMAP_PHYSICS_WAIT * 0.1
-		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
-			if(!engine.enabled)
-				continue
-			engine.burn_engine(burn_pct)
-			engine.burning = FALSE
 		refresh_engines()
+		var/burn_pct = desired_throttle * 100 * dt * 10
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+			if(!engine.enabled || !engine.thruster_active)
+				continue
+			engine.burn_engine(burn_pct, skip_engine_update = TRUE)
+			engine.burning = FALSE
 	..()
 
 /// Resync the ship icon's overmap position with whatever Z the bound shuttle
@@ -347,14 +347,14 @@
 			forceMove(free_tile)
 		docked = null
 		state = OVERMAP_SHIP_FLYING
-		update_screen()
+		update_screen(TRUE)
 		return FALSE
 	if(!docked && docked_object)
 		forceMove(docked_object)
 		docked = docked_object
 		state = OVERMAP_SHIP_IDLE
 		all_stop()
-		update_screen()
+		update_screen(TRUE)
 		return FALSE
 
 /// Approximate ship mass from the bound shuttle's area turf count.
@@ -446,7 +446,7 @@
 		forceMove(get_turf(docked))
 		docked = null
 	state = OVERMAP_SHIP_FLYING
-	update_screen()
+	update_screen(TRUE)
 	if(istype(prev_docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/encounter = prev_docked
 		encounter.unload_level()
@@ -526,7 +526,7 @@
 	state = OVERMAP_SHIP_IDLE
 	all_stop()
 	scanned_objects = null
-	update_screen()
+	update_screen(TRUE)
 
 /// Active radar sweep. Finds all overmap objects within sensor_range using
 /// pixel-distance (accounts for sub-tile positions from pixel movement).

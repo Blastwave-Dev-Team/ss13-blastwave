@@ -38,24 +38,42 @@
 	soi_sq = sphere_of_influence * sphere_of_influence
 	update_pixel_pos()
 	SSovermap.gravity_wells |= src
+	update_orbit_registration()
 
 /obj/structure/overmap/celestial/Destroy()
 	SSovermap.gravity_wells -= src
+	STOP_PROCESSING(SSfastprocess, src)
 	return ..()
+
+/obj/structure/overmap/celestial/process(seconds_per_tick)
+	update_orbit(world.time / (1 SECONDS))
+
+/// Start or stop SSfastprocess ticks for Kepler orbit integration.
+/obj/structure/overmap/celestial/proc/update_orbit_registration()
+	if(orbital_parent)
+		START_PROCESSING(SSfastprocess, src)
+	else
+		STOP_PROCESSING(SSfastprocess, src)
+
+/// Assign an orbital parent and register for per-body orbit ticks.
+/obj/structure/overmap/celestial/proc/set_orbital_parent(obj/structure/overmap/celestial/parent)
+	orbital_parent = parent ? WEAKREF(parent) : null
+	update_orbit_registration()
 
 /// Sync cached pixel position from tile + step offsets.
 /obj/structure/overmap/celestial/proc/update_pixel_pos()
 	px = (x - 1) * ICON_SIZE_ALL + step_x
 	py = (y - 1) * ICON_SIZE_ALL + step_y
 
-/// Update position from Kepler orbital parameters. Called by SSovermap
-/// each physics tick. Bodies with no orbital_parent are fixed.
+/// Update position from Kepler orbital parameters. Ticked by SSfastprocess
+/// via `process()` when `orbital_parent` is set. Fixed bodies skip processing.
 /obj/structure/overmap/celestial/proc/update_orbit(time_seconds)
 	if(!orbital_parent)
 		return
 	var/obj/structure/overmap/celestial/parent = orbital_parent.resolve()
 	if(!parent)
 		orbital_parent = null
+		update_orbit_registration()
 		return
 
 	var/mean_anomaly = ((time_seconds / orbital_period) * 360 + phase_offset)

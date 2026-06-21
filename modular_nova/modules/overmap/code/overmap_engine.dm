@@ -85,10 +85,10 @@
 	var/power_fraction = get_power_fraction()
 	return thrust * power_fraction * isp
 
-/obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100)
+/obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100, skip_engine_update = FALSE)
 	if(!enabled)
 		return 0
-	if(!update_engine())
+	if(!skip_engine_update && !update_engine())
 		return 0
 	var/power_fraction = get_power_fraction()
 	var/isp = get_isp_efficiency()

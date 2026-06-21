@@ -21,10 +21,10 @@
 		return FALSE
 	return TRUE
 
-/obj/machinery/power/shuttle_engine/overmap/void/burn_engine(percentage = 100)
+/obj/machinery/power/shuttle_engine/overmap/void/burn_engine(percentage = 100, skip_engine_update = FALSE)
 	if(!enabled)
 		return 0
-	if(!update_engine())
+	if(!skip_engine_update && !update_engine())
 		return 0
 	return thrust * (percentage / 100)
 

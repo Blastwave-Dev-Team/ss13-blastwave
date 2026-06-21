@@ -71,7 +71,7 @@
 			use_energy(active_power_usage)
 		// Refresh so vis_contents is populated and cam_background is sized
 		// before the popup widget binds. Mirrors the CameraConsole pattern.
-		current_ship?.update_screen()
+		current_ship?.update_screen(TRUE)
 		ui = new(user, src, "HelmConsole", name)
 		ui.open()
 		// Window must exist before `display_to` so cam_screen + cam_background

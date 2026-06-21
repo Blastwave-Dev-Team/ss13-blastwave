@@ -91,6 +91,8 @@
 	var/vel_x = 0
 	/// Velocity Y component in tiles/second (positive = north).
 	var/vel_y = 0
+	/// Earliest world.time we may rebuild cam_screen without `force`.
+	var/next_screen_update = 0
 
 	// Camera-surface plumbing. Initialized only if `render_map` is TRUE.
 	// Modern Nova replaced WS' manual plane_master + background plumbing with
@@ -113,12 +115,16 @@
 		map_name = "overmap_[id]_map"
 		cam_screen = new
 		cam_screen.generate_view(map_name)
-		update_screen()
+		update_screen(TRUE)
 
 /obj/structure/overmap/Destroy()
 	LAZYREMOVE(SSovermap.overmap_objects, src)
+	STOP_PROCESSING(SSfastprocess, src)
 	QDEL_NULL(cam_screen)
 	return ..()
+
+/obj/structure/overmap/process(seconds_per_tick)
+	physics_tick(seconds_per_tick)
 
 /obj/structure/overmap/Move(atom/newloc, direction, glide_size_override, update_dir)
 	if(!newloc || newloc == loc)
@@ -137,7 +143,6 @@
 
 /obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
 	. = ..()
-	update_screen()
 
 /obj/structure/overmap/set_glide_size(target)
 	return
@@ -191,9 +196,12 @@
 	Moved(oldloc, direction)
 	return TRUE
 
-/obj/structure/overmap/proc/update_screen()
+/obj/structure/overmap/proc/update_screen(force = FALSE)
 	if(!render_map || !cam_screen)
 		return
+	if(!force && world.time < next_screen_update)
+		return
+	next_screen_update = world.time + OVERMAP_SCREEN_UPDATE_INTERVAL
 	var/list/visible_turfs = list()
 	for(var/turf/T in view(sensor_range, src))
 		visible_turfs += T
@@ -299,8 +307,7 @@
 /obj/structure/overmap/proc/receive_damage(amount)
 	integrity = max(integrity - (amount / overmap_armor), 0)
 
-/// Called by SSovermap each physics tick for entities in the moving list.
-/// Base implementation integrates velocity into pixel displacement.
+/// Integrates velocity into pixel displacement. Ticked by SSfastprocess via `process()`.
 /obj/structure/overmap/proc/physics_tick(dt)
 	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON && abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
 		deactivate_physics()
@@ -317,15 +324,15 @@
 /obj/structure/overmap/proc/on_physics_blocked(dx_px, dy_px)
 	return
 
-/// Add this entity to SSovermap's physics processing list.
+/// Begin SSfastprocess physics ticks for this entity.
 /obj/structure/overmap/proc/activate_physics()
-	SSovermap.moving |= src
+	START_PROCESSING(SSfastprocess, src)
 
-/// Remove this entity from SSovermap's physics processing list.
+/// Stop physics ticks and zero velocity.
 /obj/structure/overmap/proc/deactivate_physics()
 	vel_x = 0
 	vel_y = 0
-	SSovermap.moving -= src
+	STOP_PROCESSING(SSfastprocess, src)
 
 /* STAR — now defined in overmap_celestial.dm as /obj/structure/overmap/celestial/star */
 

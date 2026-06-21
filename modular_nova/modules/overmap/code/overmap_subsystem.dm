@@ -12,7 +12,7 @@ SUBSYSTEM_DEF(overmap)
 		/datum/controller/subsystem/mapping,
 		/datum/controller/subsystem/shuttle,
 	)
-	ss_flags = NONE
+	ss_flags = SS_BACKGROUND
 	runlevels = RUNLEVEL_SETUP | RUNLEVEL_GAME
 
 	/// Width/height of the overmap grid (square).
@@ -21,8 +21,6 @@ SUBSYSTEM_DEF(overmap)
 	var/list/overmap_objects
 	/// All currently registered ship objects (subset of overmap_objects).
 	var/list/simulated_ships
-	/// Entities with non-zero velocity, processed each fire().
-	var/static/list/obj/structure/overmap/moving = list()
 	/// Celestial bodies that exert gravitational pull.
 	var/static/list/obj/structure/overmap/gravity_wells = list()
 	/// All currently registered helm consoles. Used to rebind helms when a
@@ -69,27 +67,14 @@ SUBSYSTEM_DEF(overmap)
 	for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav in navs)
 		nav.link_shuttle()
 
-/datum/controller/subsystem/overmap/fire(resumed)
-	var/dt = wait / (1 SECONDS)
-	var/time_s = world.time / (1 SECONDS)
-	// Update celestial body orbits
-	for(var/obj/structure/overmap/celestial/body as anything in gravity_wells)
-		if(QDELETED(body))
-			gravity_wells -= body
-			continue
-		body.update_orbit(time_s)
-	// Process moving entities
-	for(var/obj/structure/overmap/entity as anything in moving)
-		if(QDELETED(entity))
-			moving -= entity
-			continue
-		entity.physics_tick(dt)
-	// Process overmap events (hazards affecting co-located ships)
+/datum/controller/subsystem/overmap/fire(resumed = FALSE)
 	for(var/obj/structure/overmap/event/E as anything in events)
 		if(QDELETED(E))
 			LAZYREMOVE(events, E)
 			continue
 		E.apply_effect()
+		if(MC_TICK_CHECK)
+			return
 
 /// Allocate a fresh Z-level dedicated to the overmap grid. We don't go
 /// through `request_turf_block_reservation` because we want a stable,
