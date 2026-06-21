@@ -60,10 +60,10 @@
 	orbital_parent = parent ? WEAKREF(parent) : null
 	update_orbit_registration()
 
-/// Sync cached pixel position from tile + step offsets.
+/// Sync cached pixel position from tile + fractional offset.
 /obj/structure/overmap/celestial/proc/update_pixel_pos()
-	px = (x - 1) * ICON_SIZE_ALL + step_x
-	py = (y - 1) * ICON_SIZE_ALL + step_y
+	px = get_overmap_abs_px()
+	py = get_overmap_abs_py()
 
 /// Update position from Kepler orbital parameters. Ticked by SSfastprocess
 /// via `process()` when `orbital_parent` is set. Fixed bodies skip processing.
@@ -89,22 +89,16 @@
 	// Convert absolute pixel position back to tile + step
 	var/new_x = round(orbit_x / ICON_SIZE_ALL) + 1
 	var/new_y = round(orbit_y / ICON_SIZE_ALL) + 1
-	var/new_sx = round(orbit_x - (new_x - 1) * ICON_SIZE_ALL)
-	var/new_sy = round(orbit_y - (new_y - 1) * ICON_SIZE_ALL)
-
-	// Clamp step to valid range
-	if(new_sx < 0)
-		new_sx += ICON_SIZE_ALL
-		new_x -= 1
-	if(new_sy < 0)
-		new_sy += ICON_SIZE_ALL
-		new_y -= 1
 
 	var/turf/dest = locate(new_x, new_y, z)
-	if(dest && dest != loc)
+	if(!dest)
+		return
+	if(dest != loc)
 		forceMove(dest)
-	step_x = new_sx
-	step_y = new_sy
+	offset_x = (orbit_x - (new_x - 1) * ICON_SIZE_ALL) / ICON_SIZE_ALL
+	offset_y = (orbit_y - (new_y - 1) * ICON_SIZE_ALL) / ICON_SIZE_ALL
+	pixel_x = offset_x * ICON_SIZE_ALL
+	pixel_y = offset_y * ICON_SIZE_ALL
 	update_pixel_pos()
 
 /// Compute escape velocity at a given distance from this body.

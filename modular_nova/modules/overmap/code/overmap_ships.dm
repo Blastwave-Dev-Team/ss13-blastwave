@@ -36,8 +36,8 @@
 
 /// Whether any gravity well is currently influencing this ship.
 /obj/structure/overmap/ship/proc/has_gravity_influence()
-	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
-	var/ship_py = (y - 1) * ICON_SIZE_ALL + step_y
+	var/ship_px = get_overmap_abs_px()
+	var/ship_py = get_overmap_abs_py()
 	for(var/obj/structure/overmap/celestial/body as anything in SSovermap.gravity_wells)
 		var/dx = body.px - ship_px
 		var/dy = body.py - ship_py
@@ -142,8 +142,8 @@
 		apply_braking(dt)
 
 	// Gravity pass: apply gravitational acceleration from nearby bodies
-	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
-	var/ship_py = (y - 1) * ICON_SIZE_ALL + step_y
+	var/ship_px = get_overmap_abs_px()
+	var/ship_py = get_overmap_abs_py()
 	for(var/obj/structure/overmap/celestial/body as anything in SSovermap.gravity_wells)
 		var/dx = body.px - ship_px
 		var/dy = body.py - ship_py
@@ -173,16 +173,15 @@
 
 	..()
 	update_icon_state()
+	apply_overmap_visual(dt)
 
 /// Handle blocked movement by zeroing velocity on the blocked axis.
-/obj/structure/overmap/ship/on_physics_blocked(dx_px, dy_px)
-	if(abs(dx_px) > abs(dy_px))
-		vel_x = 0
-	else if(abs(dy_px) > abs(dx_px))
-		vel_y = 0
-	else
-		vel_x = 0
-		vel_y = 0
+/obj/structure/overmap/ship/on_axis_blocked(direction)
+	switch(direction)
+		if(EAST, WEST)
+			vel_x = 0
+		if(NORTH, SOUTH)
+			vel_y = 0
 	if(is_still())
 		has_heading = FALSE
 
@@ -350,6 +349,7 @@
 		update_screen(TRUE)
 		return FALSE
 	if(!docked && docked_object)
+		overmap_reset_visual_offset()
 		forceMove(docked_object)
 		docked = docked_object
 		state = OVERMAP_SHIP_IDLE
@@ -522,6 +522,7 @@
 	if(state != OVERMAP_SHIP_DOCKING)
 		return
 	if(docked)
+		overmap_reset_visual_offset()
 		forceMove(docked)
 	state = OVERMAP_SHIP_IDLE
 	all_stop()
@@ -536,16 +537,16 @@
 	COOLDOWN_START(src, scan_cooldown, OVERMAP_SCAN_COOLDOWN)
 	var/scan_px = sensor_range * ICON_SIZE_ALL
 	var/scan_sq = scan_px * scan_px
-	var/my_px = (x - 1) * ICON_SIZE_ALL + step_x
-	var/my_py = (y - 1) * ICON_SIZE_ALL + step_y
+	var/my_px = get_overmap_abs_px()
+	var/my_py = get_overmap_abs_py()
 	var/count = 0
 	for(var/obj/structure/overmap/other as anything in SSovermap.overmap_objects)
 		if(other == src || QDELETED(other))
 			continue
 		if(other.z != z)
 			continue
-		var/dx = ((other.x - 1) * ICON_SIZE_ALL + other.step_x) - my_px
-		var/dy = ((other.y - 1) * ICON_SIZE_ALL + other.step_y) - my_py
+		var/dx = other.get_overmap_abs_px() - my_px
+		var/dy = other.get_overmap_abs_py() - my_py
 		if(dx * dx + dy * dy > scan_sq)
 			continue
 		var/ref = REF(other)

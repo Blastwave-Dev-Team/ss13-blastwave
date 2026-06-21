@@ -39,8 +39,12 @@
 
 /// Cached hull icon. Once generated, reused for the remainder of the round.
 /obj/structure/overmap/ship/simulated/var/icon/cached_hull_icon
+/// TRUE while generate_hull_icon is running async — prevents duplicate DLL calls.
+/obj/structure/overmap/ship/simulated/var/generating_hull_icon = FALSE
 /// Cached minimap icon (higher-res, north-up) used by the systems console.
 /obj/structure/overmap/ship/simulated/var/icon/cached_minimap_icon
+/// TRUE while generate_hull_minimap_icon is running async.
+/obj/structure/overmap/ship/simulated/var/generating_minimap_icon = FALSE
 /// Persisted hull layout bounds, set when the layout JSON is built. The systems
 /// console uses these to inverse-map a clicked minimap region back to world
 /// turf coordinates (the minimap is north-up, so the only transform is a Y-flip).
@@ -151,25 +155,31 @@
 /obj/structure/overmap/ship/simulated/proc/generate_hull_icon()
 	if(cached_hull_icon)
 		return cached_hull_icon
+	if(generating_hull_icon)
+		return null
+	generating_hull_icon = TRUE
 
 	var/json = build_hull_layout_json()
 	if(!json)
+		generating_hull_icon = FALSE
 		return null
 
 	var/lib_name = get_hull_renderer_lib()
 	if(!lib_name)
 		log_game("OVERMAP: Hull icon DLL not found — using default icon")
+		generating_hull_icon = FALSE
 		return null
 
 	var/result = call_ext(lib_name, "byond,await:generate_hull")(json)
 
 	if(!result)
 		log_game("OVERMAP: Hull icon generation failed — Rust DLL returned null")
+		generating_hull_icon = FALSE
 		return null
 
-	// Result is an absolute file path to the rendered PNG
 	if(!fexists(result))
 		log_game("OVERMAP: Hull icon generation failed — output file not found: [result]")
+		generating_hull_icon = FALSE
 		return null
 
 	var/icon/hull = new(file(result))
@@ -177,10 +187,11 @@
 
 	if(!hull)
 		log_game("OVERMAP: Hull icon generation failed — could not create icon from result")
+		generating_hull_icon = FALSE
 		return null
 
 	cached_hull_icon = hull
-	// Apply immediately
+	generating_hull_icon = FALSE
 	icon = cached_hull_icon
 	icon_state = ""
 	return cached_hull_icon
@@ -195,29 +206,37 @@
 /obj/structure/overmap/ship/simulated/proc/generate_hull_minimap_icon()
 	if(cached_minimap_icon)
 		return cached_minimap_icon
+	if(generating_minimap_icon)
+		return null
+	generating_minimap_icon = TRUE
 
 	var/json = build_hull_layout_json()
 	if(!json)
+		generating_minimap_icon = FALSE
 		return null
 
 	var/lib_name = get_hull_renderer_lib()
 	if(!lib_name)
 		log_game("OVERMAP: Minimap DLL not found — no minimap available")
+		generating_minimap_icon = FALSE
 		return null
 
 	var/result = call_ext(lib_name, "byond,await:generate_hull_minimap")(json)
 	if(!result)
 		log_game("OVERMAP: Minimap generation failed — Rust DLL returned null")
+		generating_minimap_icon = FALSE
 		return null
 
 	var/list/meta = json_decode(result)
 	if(!islist(meta) || !meta["path"])
 		log_game("OVERMAP: Minimap generation failed — malformed metadata: [result]")
+		generating_minimap_icon = FALSE
 		return null
 
 	var/png_path = meta["path"]
 	if(!fexists(png_path))
 		log_game("OVERMAP: Minimap generation failed — output file not found: [png_path]")
+		generating_minimap_icon = FALSE
 		return null
 
 	var/icon/minimap = new(file(png_path))
@@ -225,9 +244,11 @@
 
 	if(!minimap)
 		log_game("OVERMAP: Minimap generation failed — could not create icon from result")
+		generating_minimap_icon = FALSE
 		return null
 
 	cached_minimap_icon = minimap
+	generating_minimap_icon = FALSE
 	return cached_minimap_icon
 
 /// Generate (if needed) the systems-console minimap, register it as a runtime

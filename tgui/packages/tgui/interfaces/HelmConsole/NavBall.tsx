@@ -1,4 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+const HELM_DEBOUNCE_MS = 100;
+
+function useDebouncedCallback<T extends (...args: any[]) => void>(
+  callback: T,
+  delay: number,
+): T {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestArgs = useRef<Parameters<T>>();
+  const latestCb = useRef(callback);
+  latestCb.current = callback;
+
+  return useMemo(
+    () =>
+      ((...args: Parameters<T>) => {
+        latestArgs.current = args;
+        if (timer.current === null) {
+          latestCb.current(...args);
+          timer.current = setTimeout(() => {
+            timer.current = null;
+            if (latestArgs.current) {
+              latestCb.current(...latestArgs.current);
+            }
+          }, delay);
+        }
+      }) as T,
+    [delay],
+  );
+}
 
 type NavBallProps = {
   actualAngle: number;
@@ -215,9 +244,11 @@ export function NavBall(props: NavBallProps) {
     [],
   );
 
-  const sendDesired = useCallback(() => {
+  const sendDesiredRaw = useCallback(() => {
     onSetDesired(localAngle.current, localThrottle.current);
   }, [onSetDesired]);
+
+  const sendDesired = useDebouncedCallback(sendDesiredRaw, HELM_DEBOUNCE_MS);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {

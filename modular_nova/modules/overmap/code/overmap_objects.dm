@@ -73,7 +73,7 @@
 	icon_state = "object"
 	anchored = TRUE
 	density = FALSE
-	animate_movement = NONE
+	animate_movement = NO_STEPS
 	/// Identifier - used to resolve docks and look the object up.
 	var/id
 	/// Whether this object should render a viewscreen-style camera surface.
@@ -93,6 +93,14 @@
 	var/vel_y = 0
 	/// Earliest world.time we may rebuild cam_screen without `force`.
 	var/next_screen_update = 0
+	/// Admin diag: stay on SSfastprocess while stationary (no icon motion).
+	var/diag_hold_physics = FALSE
+	/// Fractional-tile position (tile units). Reconciled via Move(); rendered with pixel_x/y + animate.
+	var/offset_x = 0
+	var/offset_y = 0
+	/// Offset at the start of the current physics tick (for animate interpolation).
+	var/motion_last_offset_x = 0
+	var/motion_last_offset_y = 0
 
 	// Camera-surface plumbing. Initialized only if `render_map` is TRUE.
 	// Modern Nova replaced WS' manual plane_master + background plumbing with
@@ -143,6 +151,116 @@
 
 /obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
 	. = ..()
+	if(old_loc && loc != old_loc)
+		for(var/obj/structure/overmap/peer in old_loc)
+			if(peer == src)
+				continue
+			peer.on_overmap_uncrossed(src, loc)
+		for(var/obj/structure/overmap/peer in loc)
+			if(peer == src)
+				continue
+			peer.on_overmap_crossed(src, old_loc)
+
+/// Absolute pixel X on the overmap grid (tile anchor + fractional offset).
+/obj/structure/overmap/proc/get_overmap_abs_px()
+	return (x - 1) * ICON_SIZE_ALL + round(offset_x * ICON_SIZE_ALL)
+
+/// Absolute pixel Y on the overmap grid (tile anchor + fractional offset).
+/obj/structure/overmap/proc/get_overmap_abs_py()
+	return (y - 1) * ICON_SIZE_ALL + round(offset_y * ICON_SIZE_ALL)
+
+/// Zero fractional offset and snap visuals to the tile anchor (post-teleport / stop).
+/obj/structure/overmap/proc/overmap_reset_visual_offset()
+	offset_x = 0
+	offset_y = 0
+	step_x = 0
+	step_y = 0
+	motion_last_offset_x = 0
+	motion_last_offset_y = 0
+	pixel_x = 0
+	pixel_y = 0
+	animate(src, pixel_x = 0, pixel_y = 0, time = 0, flags = ANIMATION_END_NOW)
+
+/// Reconcile fractional offsets with tile coordinates via Move(), spacepod-style.
+/obj/structure/overmap/proc/reconcile_overmap_offsets()
+	while((offset_x > 0 && vel_x > 0) || (offset_y > 0 && vel_y > 0) || (offset_x < 0 && vel_x < 0) || (offset_y < 0 && vel_y < 0))
+		var/failed_x = FALSE
+		var/failed_y = FALSE
+		if(offset_x > 0 && vel_x > 0)
+			if(!Move(get_step(src, EAST)))
+				offset_x = 0
+				failed_x = TRUE
+				on_axis_blocked(EAST)
+			else
+				offset_x -= 1
+				motion_last_offset_x -= 1
+		else if(offset_x < 0 && vel_x < 0)
+			if(!Move(get_step(src, WEST)))
+				offset_x = 0
+				failed_x = TRUE
+				on_axis_blocked(WEST)
+			else
+				offset_x += 1
+				motion_last_offset_x += 1
+		else
+			failed_x = TRUE
+		if(offset_y > 0 && vel_y > 0)
+			if(!Move(get_step(src, NORTH)))
+				offset_y = 0
+				failed_y = TRUE
+				on_axis_blocked(NORTH)
+			else
+				offset_y -= 1
+				motion_last_offset_y -= 1
+		else if(offset_y < 0 && vel_y < 0)
+			if(!Move(get_step(src, SOUTH)))
+				offset_y = 0
+				failed_y = TRUE
+				on_axis_blocked(SOUTH)
+			else
+				offset_y += 1
+				motion_last_offset_y += 1
+		else
+			failed_y = TRUE
+		if(failed_x && failed_y)
+			break
+	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_x > 0.5)
+			if(Move(get_step(src, EAST)))
+				offset_x -= 1
+				motion_last_offset_x -= 1
+			else
+				offset_x = 0
+		if(offset_x < -0.5)
+			if(Move(get_step(src, WEST)))
+				offset_x += 1
+				motion_last_offset_x += 1
+			else
+				offset_x = 0
+	if(abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_y > 0.5)
+			if(Move(get_step(src, NORTH)))
+				offset_y -= 1
+				motion_last_offset_y -= 1
+			else
+				offset_y = 0
+		if(offset_y < -0.5)
+			if(Move(get_step(src, SOUTH)))
+				offset_y += 1
+				motion_last_offset_y += 1
+			else
+				offset_y = 0
+
+/// Client-side glide for fractional motion; does not touch step_x/step_y.
+/obj/structure/overmap/proc/apply_overmap_visual(dt)
+	var/anim_time = max(dt * 10, 1)
+	pixel_x = motion_last_offset_x * ICON_SIZE_ALL
+	pixel_y = motion_last_offset_y * ICON_SIZE_ALL
+	animate(src, transform = transform, pixel_x = offset_x * ICON_SIZE_ALL, pixel_y = offset_y * ICON_SIZE_ALL, time = anim_time, flags = ANIMATION_END_NOW)
+
+/// Called when Move() fails along an axis during offset reconciliation.
+/obj/structure/overmap/proc/on_axis_blocked(direction)
+	return
 
 /obj/structure/overmap/set_glide_size(target)
 	return
@@ -150,54 +268,13 @@
 /obj/structure/overmap/newtonian_move(inertia_angle, instant, start_delay, drift_force, controlled_cap, force_loop)
 	return FALSE
 
-/// Sub-tile pixel movement. Displaces the entity by (dx_px, dy_px) pixels,
-/// handling tile boundary crossings via Move(). Returns FALSE if blocked.
-/obj/structure/overmap/proc/step_p(dx_px, dy_px)
-	var/new_sx = step_x + dx_px
-	var/new_sy = step_y + dy_px
-	var/tile_dx = 0
-	var/tile_dy = 0
-	if(new_sx >= ICON_SIZE_ALL)
-		tile_dx = round(new_sx / ICON_SIZE_ALL)
-		new_sx -= tile_dx * ICON_SIZE_ALL
-	else if(new_sx < 0)
-		tile_dx = -round((-new_sx + ICON_SIZE_ALL - 1) / ICON_SIZE_ALL)
-		new_sx -= tile_dx * ICON_SIZE_ALL
-	if(new_sy >= ICON_SIZE_ALL)
-		tile_dy = round(new_sy / ICON_SIZE_ALL)
-		new_sy -= tile_dy * ICON_SIZE_ALL
-	else if(new_sy < 0)
-		tile_dy = -round((-new_sy + ICON_SIZE_ALL - 1) / ICON_SIZE_ALL)
-		new_sy -= tile_dy * ICON_SIZE_ALL
-	if(!tile_dx && !tile_dy)
-		step_x = round(new_sx)
-		step_y = round(new_sy)
-		return TRUE
-	var/turf/dest = locate(x + tile_dx, y + tile_dy, z)
-	if(!dest || dest.density)
-		return FALSE
-	var/atom/oldloc = loc
-	loc = dest
-	step_x = round(new_sx)
-	step_y = round(new_sy)
-	var/direction = get_dir(oldloc, dest)
-	oldloc.Exited(src, direction)
-	dest.Entered(src, oldloc)
-	// Manually fire overmap adjacency hooks for peer objects since
-	// direct loc assignment doesn't cascade Crossed/Uncrossed.
-	for(var/obj/structure/overmap/peer in oldloc)
-		if(peer == src)
-			continue
-		peer.on_overmap_uncrossed(src, dest)
-	for(var/obj/structure/overmap/peer in dest)
-		if(peer == src)
-			continue
-		peer.on_overmap_crossed(src, oldloc)
-	Moved(oldloc, direction)
-	return TRUE
+/obj/structure/overmap/proc/cam_has_viewers()
+	return cam_screen && length(cam_screen.viewers_to_huds)
 
 /obj/structure/overmap/proc/update_screen(force = FALSE)
 	if(!render_map || !cam_screen)
+		return
+	if(!force && !cam_has_viewers())
 		return
 	if(!force && world.time < next_screen_update)
 		return
@@ -268,6 +345,9 @@
 		lighting_pm.alpha = 0
 	return pop_planes
 
+/atom/movable/screen/map_view/overmap/hide_from(mob/hide_from)
+	. = ..()
+
 /// Render the live view: turfs in vis_contents, transparent background
 /// just defines the popup widget bounds (turfs paint on FLOOR_PLANE which
 /// is below GAME_PLANE — an opaque background would cover them).
@@ -309,29 +389,38 @@
 
 /// Integrates velocity into pixel displacement. Ticked by SSfastprocess via `process()`.
 /obj/structure/overmap/proc/physics_tick(dt)
+	var/atom/start_loc = loc
 	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON && abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
-		deactivate_physics()
+		if(!diag_hold_physics)
+			deactivate_physics()
 		return
-	var/dx_px = vel_x * dt * ICON_SIZE_ALL
-	var/dy_px = vel_y * dt * ICON_SIZE_ALL
-	var/limit = OVERMAP_INTERPOLATE_LIMIT
-	dx_px = clamp(dx_px, -limit, limit)
-	dy_px = clamp(dy_px, -limit, limit)
-	if(!step_p(dx_px, dy_px))
-		on_physics_blocked(dx_px, dy_px)
-
-/// Called when step_p fails (hit an edge or obstacle). Override for behavior.
-/obj/structure/overmap/proc/on_physics_blocked(dx_px, dy_px)
-	return
+	var/dx_tiles = vel_x * dt
+	var/dy_tiles = vel_y * dt
+	var/max_tile_delta = OVERMAP_INTERPOLATE_LIMIT / ICON_SIZE_ALL
+	dx_tiles = clamp(dx_tiles, -max_tile_delta, max_tile_delta)
+	dy_tiles = clamp(dy_tiles, -max_tile_delta, max_tile_delta)
+	motion_last_offset_x = offset_x
+	motion_last_offset_y = offset_y
+	offset_x += dx_tiles
+	offset_y += dy_tiles
+	reconcile_overmap_offsets()
+	if(loc != start_loc && cam_has_viewers())
+		update_screen()
 
 /// Begin SSfastprocess physics ticks for this entity.
 /obj/structure/overmap/proc/activate_physics()
+	if(render_map && cam_screen && cam_has_viewers())
+		cam_screen.show_camera_static()
 	START_PROCESSING(SSfastprocess, src)
 
 /// Stop physics ticks and zero velocity.
 /obj/structure/overmap/proc/deactivate_physics()
+	diag_hold_physics = FALSE
+	overmap_reset_visual_offset()
 	vel_x = 0
 	vel_y = 0
+	if(render_map && cam_screen && cam_has_viewers())
+		update_screen(TRUE)
 	STOP_PROCESSING(SSfastprocess, src)
 
 /* STAR — now defined in overmap_celestial.dm as /obj/structure/overmap/celestial/star */

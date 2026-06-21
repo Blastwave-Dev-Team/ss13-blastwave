@@ -60,8 +60,8 @@
 /// SSovermap global tick (events). Entity physics and orbits use SSfastprocess.wait (also 0.2s).
 #define OVERMAP_PHYSICS_WAIT 2
 
-/// Minimum interval between throttled `update_screen()` rebuilds during flight.
-#define OVERMAP_SCREEN_UPDATE_INTERVAL 1 SECONDS
+/// Minimum interval between throttled `update_screen()` rebuilds during flight (~20fps).
+#define OVERMAP_SCREEN_UPDATE_INTERVAL 0.5 SECONDS
 
 /// Max pixel displacement per physics tick. Prevents ships from clipping
 /// through edge turfs. Must be less than ICON_SIZE_ALL (32) to guarantee

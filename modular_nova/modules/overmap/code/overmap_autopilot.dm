@@ -8,8 +8,8 @@
 /obj/structure/overmap/ship/proc/apply_station_keeping(dt)
 	if(!station_keeping)
 		return
-	var/ship_px = (x - 1) * ICON_SIZE_ALL + step_x
-	var/ship_py = (y - 1) * ICON_SIZE_ALL + step_y
+	var/ship_px = get_overmap_abs_px()
+	var/ship_py = get_overmap_abs_py()
 	var/obj/structure/overmap/celestial/nearest = null
 	var/nearest_dist_sq = INFINITY
 	for(var/obj/structure/overmap/celestial/body as anything in SSovermap.gravity_wells)
