@@ -1,0 +1,6 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Blastwave logo branding"
+  - rscdel: "Nova logo branding"
+  - qol: "updated PR template"

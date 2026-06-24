@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "fixed spacepod weapons stuttering on the pod hull and potentially hitting the pilot when flying faster than their own projectiles"

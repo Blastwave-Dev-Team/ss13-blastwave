@@ -13,7 +13,11 @@ GLOBAL_LIST_INIT(rod_recipes, list ( \
 	new/datum/stack_recipe("stairs frame", /obj/structure/stairs_frame, 10, time = 5 SECONDS, crafting_flags = CRAFT_CHECK_DENSITY | CRAFT_ONE_PER_TURF | CRAFT_ON_SOLID_GROUND, category = CAT_STRUCTURE), \
 	new/datum/stack_recipe("probing cane", /obj/item/cane/white, 3, time = 1 SECONDS, crafting_flags = CRAFT_CHECK_DENSITY | CRAFT_SKIP_MATERIALS_PARITY, category = CAT_TOOLS), \
 	new/datum/stack_recipe("sharpened iron rod", /obj/item/ammo_casing/rebar, 1, time = 0.2 SECONDS, crafting_flags = CRAFT_CHECK_DENSITY, category = CAT_WEAPON_AMMO), \
-	))
+	new/datum/stack_recipe("fore port spacepod frame", /obj/item/pod_parts/pod_frame/fore_port, 15, time = 3 SECONDS, category = CAT_MISC), \
+	new/datum/stack_recipe("fore starboard spacepod frame", /obj/item/pod_parts/pod_frame/fore_starboard, 15, time = 3 SECONDS, category = CAT_MISC), \
+	new/datum/stack_recipe("aft port spacepod frame", /obj/item/pod_parts/pod_frame/aft_port, 15, time = 3 SECONDS, category = CAT_MISC), \
+	new/datum/stack_recipe("aft starboard spacepod frame", /obj/item/pod_parts/pod_frame/aft_starboard, 15, time = 3 SECONDS, category = CAT_MISC), \
+	)) // NOVA EDIT ADDITION - SPACEPODS - the four spacepod frame recipes above
 
 /obj/item/stack/rods
 	name = "iron rod"
