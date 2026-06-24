@@ -5972,6 +5972,7 @@
 #include "code\modules\paperwork\clipboard.dm"
 #include "code\modules\paperwork\contract.dm"
 #include "code\modules\paperwork\desk_bell.dm"
+#include "code\modules\paperwork\deskflags.dm"
 #include "code\modules\paperwork\fax.dm"
 #include "code\modules\paperwork\filingcabinet.dm"
 #include "code\modules\paperwork\folders.dm"
@@ -9714,4 +9715,3 @@
 #include "modular_nova\modules\xenomorph\alien.dm"
 #include "modular_nova\modules\xenomorph\queen.dm"
 // END_INCLUDE
-#include "code\modules\paperwork\deskflags.dm"

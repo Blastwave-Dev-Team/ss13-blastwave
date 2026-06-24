@@ -23,6 +23,7 @@
 	desc = "A premium coat with real fur round the neck, it seems to have some armor padding inside as well."
 	icon = 'icons/obj/clothing/suits/jacket.dmi'
 	worn_icon = 'icons/mob/clothing/suits/jacket.dmi'
+	icon_state = "centcom_coat"
 
 /obj/item/clothing/head/nanotrasen_consultant
 	name = "solfed representative's hat"
