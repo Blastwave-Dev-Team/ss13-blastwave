@@ -15,6 +15,9 @@
 	caliber = CALIBER_9MM
 	max_ammo = 8
 
+/obj/item/ammo_box/magazine/co9mm/starts_empty
+	start_empty = TRUE
+
 /obj/item/ammo_box/magazine/co9mm/update_icon_state()
 	. = ..()
 	icon_state = "[base_icon_state]-[ammo_count()]"
