@@ -32,11 +32,22 @@
 		"stamp-chap" = 'icons/stamp_icons/large_stamp-chap.png',
 		"stamp-mime" = 'icons/stamp_icons/large_stamp-mime.png',
 		"stamp-centcom" = 'icons/stamp_icons/large_stamp-centcom.png',
-		"stamp-syndicate" = 'icons/stamp_icons/large_stamp-syndicate.png'
+		"stamp-syndicate" = 'icons/stamp_icons/large_stamp-syndicate.png',
+		// SOLFED ADDITION
+		"stamp-solfed-court" = 'icons/stamp_icons/large_stamp-solfed-court.png',
+		"stamp-solfed-prosecutor-gen" = 'icons/stamp_icons/large_stamp-solfed-prosecutor-gen.png',
+		"stamp-solfed-highcom" = 'icons/stamp_icons/large_stamp-solfed-highcom.png',
+		// LOGOS (Workaround, since adding logos doesn't work)
+		"stamp-ntlogo" = 'icons/ui/logos/nanotrasen-logo.png',
+		"stamp-solfed-logo-1" = 'icons/ui/logos/solfed_logo_1.png',
+		"stamp-solfed-logo-2" = 'icons/ui/logos/solfed_logo_2.png'
+
 	)
 
 // Contains 256x128 versions of various in game company logos
 /datum/asset/simple/logos
 	assets = list(
 		"nanotrasen-logo" = 'icons/ui/logos/nanotrasen-logo.png',
+		"solfed-logo-1" = 'icons/ui/logos/solfed_logo_1.png',
+		"solfed-logo-2" = 'icons/ui/logos/solfed_logo_2.png'
 	)

@@ -69,12 +69,12 @@
 	)
 	job = /datum/job/blueshield
 
-/datum/id_trim/job/nanotrasen_consultant
-	assignment = "Nanotrasen Consultant"
-	trim_state = "trim_centcom"
-	department_color = COLOR_GREEN
-	subdepartment_color = COLOR_GREEN
-	sechud_icon_state = SECHUD_NT_CONSULTANT
+/datum/id_trim/job/solfed_representative
+	assignment = "SolFed Representative"
+	trim_state = "trim_solfed"
+	department_color = COLOR_DARK_RED
+	subdepartment_color = COLOR_DARK_RED
+	sechud_icon_state = SECHUD_SOLFED_REP
 	extra_access = list()
 	minimal_access = list(
 		ACCESS_AI_UPLOAD,
@@ -121,7 +121,7 @@
 		ACCESS_CAPTAIN,
 		ACCESS_CHANGE_IDS,
 	)
-	job = /datum/job/nanotrasen_consultant
+	job = /datum/job/solfed_representative
 
 /datum/id_trim/job/corrections_officer
 	assignment = "Corrections Officer"

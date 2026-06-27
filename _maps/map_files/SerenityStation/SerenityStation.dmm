@@ -1601,16 +1601,16 @@
 	},
 /area/station/security/holding_cell)
 "ayD" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/effect/spawner/random/bureaucracy/stamp,
 /obj/item/flashlight/lamp/green{
 	pixel_x = -9;
 	pixel_y = 5
 	},
-/obj/structure/sign/plaques/kiddie/perfect_man{
-	pixel_y = 32
+/obj/structure/sign/flag/terragov{
+	pixel_x = -32
 	},
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "ayQ" = (
 /obj/structure/closet/secure_closet/corrections_officer,
@@ -3044,8 +3044,21 @@
 /obj/effect/turf_decal/siding/wood{
 	dir = 4
 	},
-/obj/structure/table/wood,
-/turf/open/floor/wood/large,
+/obj/structure/table/wood/fancy/black,
+/obj/item/deskflag/solfed{
+	pixel_x = 8;
+	pixel_y = 15
+	},
+/obj/item/paper/solfed_rep_guide1{
+	pixel_x = 7
+	},
+/obj/item/paper/solfed_rep_guide2{
+	pixel_x = -1
+	},
+/obj/item/paper/solfed_rep_guide3{
+	pixel_x = -6
+	},
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "aSB" = (
 /obj/structure/window/reinforced/plasma/spawner/directional/east,
@@ -3355,7 +3368,7 @@
 /area/station/engineering/atmos)
 "aWQ" = (
 /obj/effect/turf_decal/siding/wood,
-/obj/structure/window/reinforced/fulltile,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /obj/structure/curtain/cloth/fancy/mechanical{
 	icon_state = "bounty-open";
 	icon_type = "bounty";
@@ -6529,7 +6542,7 @@
 /obj/effect/turf_decal/siding/wood{
 	dir = 4
 	},
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/folder/red{
 	pixel_x = 7;
 	pixel_y = 4
@@ -6538,7 +6551,7 @@
 	pixel_x = -6;
 	pixel_y = 4
 	},
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "bSc" = (
 /obj/effect/spawner/random/structure/crate,
@@ -10202,7 +10215,7 @@
 	},
 /obj/effect/landmark/start/nanotrasen_consultant,
 /obj/machinery/airalarm/directional/south,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "cUR" = (
 /obj/machinery/door/airlock/maintenance,
@@ -11204,7 +11217,7 @@
 /turf/closed/wall,
 /area/station/security/checkpoint/medical)
 "djT" = (
-/obj/structure/table/wood/fancy/green,
+/obj/structure/table/wood/fancy/black,
 /obj/item/paper_bin{
 	pixel_x = 3;
 	pixel_y = 4
@@ -19473,7 +19486,7 @@
 "fEL" = (
 /obj/structure/filingcabinet/security,
 /obj/machinery/airalarm/directional/south,
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "fEN" = (
 /turf/closed/wall,
@@ -20981,7 +20994,7 @@
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2{
 	dir = 4
 	},
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "gaM" = (
 /obj/effect/turf_decal/weather/dirt{
@@ -21897,12 +21910,12 @@
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
-/obj/machinery/door/airlock/corporate{
-	id_tag = "consultantdoor";
-	name = "Consultant's Office"
+/obj/machinery/door/airlock/shuttle/ferry{
+	name = "Sol Federation Representative's Office"
 	},
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
 /obj/machinery/door/firedoor,
+/obj/machinery/scanner_gate/preset_guns,
 /turf/open/floor/iron/dark/side,
 /area/station/command/heads_quarters/nt_rep)
 "goT" = (
@@ -24825,7 +24838,7 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/captain/private)
 "hfk" = (
-/obj/machinery/door/airlock/maintenance,
+/obj/machinery/door/airlock/maintenance_hatch,
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
 /obj/effect/turf_decal/siding/wood{
 	dir = 1
@@ -26510,6 +26523,16 @@
 /obj/effect/landmark/start/hangover,
 /turf/open/floor/iron/dark,
 /area/station/hallway/primary/central/fore)
+"hCD" = (
+/obj/effect/turf_decal/trimline/blue/filled/line,
+/obj/structure/disposalpipe/segment{
+	dir = 4
+	},
+/obj/structure/sign/flag/terragov_2{
+	pixel_y = -32
+	},
+/turf/open/floor/iron,
+/area/station/hallway/secondary/command)
 "hCE" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
@@ -27508,6 +27531,10 @@
 	},
 /turf/open/floor/iron/white,
 /area/station/security/medical)
+"hRs" = (
+/obj/structure/sign/flag/terragov,
+/turf/closed/wall/r_wall,
+/area/station/command/heads_quarters/nt_rep)
 "hRy" = (
 /obj/machinery/status_display/evac/directional/north,
 /obj/machinery/firealarm/directional/west,
@@ -29035,7 +29062,7 @@
 /turf/open/floor/iron,
 /area/station/commons/dorms)
 "imK" = (
-/obj/structure/window/reinforced/fulltile,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /obj/structure/curtain/cloth/fancy/mechanical{
 	icon_state = "bounty-open";
 	icon_type = "bounty";
@@ -29106,7 +29133,7 @@
 /turf/open/floor/plating,
 /area/station/maintenance/department/security/prison_upper)
 "inS" = (
-/obj/structure/table/wood/fancy/green,
+/obj/structure/table/wood/fancy/black,
 /obj/structure/sign/painting/library{
 	pixel_x = 32
 	},
@@ -30504,7 +30531,7 @@
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 4
 	},
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "iJg" = (
 /obj/effect/spawner/random/maintenance,
@@ -38303,8 +38330,8 @@
 /obj/structure/bed/double{
 	dir = 4
 	},
-/obj/item/bedsheet/centcom/double{
-	dir = 1
+/obj/item/bedsheet/black/double{
+	dir = 4
 	},
 /obj/structure/noticeboard/captain{
 	dir = 8;
@@ -38312,7 +38339,7 @@
 	pixel_x = -32
 	},
 /obj/machinery/light/directional/west,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "kWm" = (
 /obj/machinery/light/small/directional/east,
@@ -44757,7 +44784,7 @@
 /obj/structure/sign/painting/library{
 	pixel_x = -32
 	},
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "mOU" = (
 /obj/structure/cable,
@@ -45536,6 +45563,13 @@
 /obj/structure/dresser,
 /turf/open/floor/carpet/royalblack,
 /area/station/service/chapel/office)
+"ncn" = (
+/obj/structure/plaque/static_plaque/golden{
+	name = "NOTICE: Federal Property";
+	desc = "This office and all associated fixtures, records, and communications equipment are the property of the Sol Federation federal government. Unauthorized entry, interference, obstruction of duties, damage to property, or any form of hostile action directed toward this office or its occupant is strictly prohibited. This designation is protected under Federal Law. Any violation, attempted or completed, constitutes a Federal criminal offence and will be subject to investigation and prosecution under applicable statutes. All station personnel are required to respect the operational independence and protected status of this office."
+	},
+/turf/closed/wall/r_wall,
+/area/station/command/heads_quarters/nt_rep)
 "ncv" = (
 /obj/machinery/door/airlock/maintenance{
 	name = "Hydroponics Maintenance"
@@ -47758,8 +47792,14 @@
 /obj/effect/turf_decal/bot_red,
 /obj/machinery/firealarm/directional/north,
 /obj/structure/closet/secure_closet/nanotrasen_consultant,
-/obj/item/clothing/gloves/combat/naval,
 /obj/item/clothing/accessory/medal/gold/ordom,
+/obj/item/clothing/accessory/nova/solfedribbon/rank3,
+/obj/item/clothing/under/solfed/official_civil,
+/obj/item/clothing/under/solfed/officer_lowrnk,
+/obj/item/storage/lunchbox/solfed,
+/obj/item/clothing/accessory/nova/acc_medal/neckpin/solfed,
+/obj/item/clothing/under/rank/civilian/lawyer/black,
+/obj/item/clothing/suit/jacket/tailcoat/lawyer_black,
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "nPd" = (
@@ -47794,7 +47834,7 @@
 /obj/machinery/photocopier/prebuilt,
 /obj/machinery/light/directional/west,
 /obj/item/radio/intercom/directional/west,
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "nPu" = (
 /obj/machinery/conveyor_switch/oneway{
@@ -59973,7 +60013,7 @@
 /obj/machinery/camera/directional/west{
 	c_tag = "Command - NT Rep's Office"
 	},
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "rwq" = (
 /obj/effect/spawner/random/vending/snackvend,
@@ -63424,20 +63464,20 @@
 /obj/effect/turf_decal/siding/wood{
 	dir = 4
 	},
-/obj/structure/table/wood,
-/obj/item/stamp/centcom{
-	pixel_x = 4;
-	pixel_y = 4
+/obj/structure/table/wood/fancy/black,
+/obj/item/stamp/solfed{
+	pixel_x = -8;
+	pixel_y = -3
 	},
 /obj/item/stamp/denied{
 	pixel_x = -7;
 	pixel_y = 9
 	},
-/obj/item/stamp{
-	pixel_x = -7;
-	pixel_y = 1
+/obj/item/table_clock{
+	pixel_y = 8;
+	pixel_x = 5
 	},
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "syi" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
@@ -63611,7 +63651,7 @@
 	dir = 4
 	},
 /obj/effect/landmark/start/nanotrasen_consultant,
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "sAF" = (
 /obj/structure/cable,
@@ -63792,7 +63832,7 @@
 /turf/open/floor/iron,
 /area/station/engineering/atmos)
 "sDm" = (
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "sDF" = (
 /obj/effect/mapping_helpers/broken_floor,
@@ -64779,7 +64819,7 @@
 /turf/open/floor/iron/dark/small,
 /area/station/commons/dorms/room6)
 "sRc" = (
-/obj/structure/table/wood/fancy/green,
+/obj/structure/table/wood/fancy/black,
 /obj/machinery/fax{
 	fax_name = "Consultant's Office";
 	name = "Consultant's Fax Machine";
@@ -67565,8 +67605,8 @@
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
-/obj/machinery/door/airlock/corporate{
-	name = "Consultant's Quarters"
+/obj/machinery/door/airlock/shuttle/ferry{
+	name = "Sol Federation Representative's Office"
 	},
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
 /turf/open/floor/wood/large,
@@ -69737,10 +69777,16 @@
 /turf/open/floor/iron,
 /area/station/cargo/cargo_projects)
 "uli" = (
-/obj/item/kirbyplants/random,
 /obj/machinery/light_switch/directional/north,
 /obj/machinery/power/apc/auto_name/directional/east,
 /obj/structure/cable,
+/obj/structure/platform/gold,
+/obj/structure/statue/silver/nova/large/glow/order{
+	pixel_y = 10
+	},
+/obj/structure/railing{
+	dir = 10
+	},
 /turf/open/floor/iron/dark/smooth_corner{
 	dir = 8
 	},
@@ -78767,14 +78813,14 @@
 /turf/open/floor/wood,
 /area/station/service/theater)
 "wQn" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/paper/fluff/gateway,
 /obj/item/book/manual/wiki/security_space_law{
 	pixel_x = -5;
 	pixel_y = 3
 	},
 /obj/structure/sign/calendar/directional/north,
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "wQu" = (
 /obj/effect/turf_decal/box,
@@ -80203,7 +80249,7 @@
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
-/turf/open/floor/wood/large,
+/turf/open/floor/wood/tile,
 /area/station/command/heads_quarters/nt_rep)
 "xna" = (
 /obj/structure/cable,
@@ -178579,7 +178625,7 @@ wGM
 xOT
 iNV
 cxT
-oZW
+ncn
 ayD
 nPq
 rwe
@@ -178836,7 +178882,7 @@ hYY
 fPe
 iNV
 nrh
-oZW
+hRs
 wQn
 sAE
 sDm
@@ -179863,7 +179909,7 @@ iUK
 cUI
 kBt
 iNV
-uUl
+hCD
 oZW
 uli
 djT

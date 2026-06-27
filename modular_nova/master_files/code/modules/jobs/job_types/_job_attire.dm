@@ -11,7 +11,7 @@
 /datum/job/captain
 	akula_outfit = /datum/outfit/akula/command
 
-/datum/job/nanotrasen_consultant
+/datum/job/solfed_representative
 	akula_outfit = /datum/outfit/akula/command
 
 /datum/job/cargo_technician

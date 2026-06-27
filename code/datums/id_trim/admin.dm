@@ -1,12 +1,25 @@
 /// Trim for admins and debug cards. Has every single access in the game.
 /datum/id_trim/admin
-	assignment = "Jannie"
-	trim_state = "trim_janitor"
+	assignment = "Admin"
+	trim_state = "trim_captain"
 	department_color = COLOR_CENTCOM_BLUE
 	subdepartment_color = COLOR_SERVICE_LIME
 	threat_modifier = -INFINITY
 	big_pointer = TRUE
 	pointer_color = COLOR_GREEN
+
+/datum/id_trim/solfed
+	assignment = "SolFed Official"
+	trim_state = "trim_captain"
+	department_color = COLOR_DARK_RED
+	subdepartment_color = COLOR_SECURITY_RED
+	threat_modifier = -INFINITY
+	big_pointer = TRUE
+	pointer_color = COLOR_DARK_RED
+
+/datum/id_trim/solfed/New()
+	. = ..()
+	access = SSid_access.get_region_access_list(list(REGION_ALL_GLOBAL))
 
 /datum/id_trim/admin/New()
 	. = ..()

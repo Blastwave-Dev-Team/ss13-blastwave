@@ -351,15 +351,15 @@
 		"Pantomimist",
 	)
 
-/datum/job/nanotrasen_consultant
+/datum/job/solfed_representative
 	alt_titles = list(
-		"Nanotrasen Representative",
-		"Nanotrasen Consultant",
-		"Nanotrasen Regulatory Advisor",
-		"Nanotrasen Diplomat",
-		"Corporate Adjutant",
-		"Corporate Representative",
-		"Corporate Advocate",
+		"Sol Federation Representative",
+		"Federal Liaison",
+		"Consulate Officer",
+		"Federal Ambassador",
+		"State Emissary",
+		"Federation Attache",
+		"Government Envoy",
 	)
 
 /datum/job/orderly
