@@ -26,14 +26,20 @@
 	var/obj/item/fuel_core/fuel_core
 	/// Adjacent fuel injector weakref.
 	var/datum/weakref/linked_injector
+	/// Layer-2 propellant feed port toward the fuel manifold.
+	var/datum/gas_machine_connector/feed_connector
+	/// TRUE when linked to the injector via L2 pipenet rather than adjacency.
+	var/link_via_pipe = FALSE
 
 /obj/machinery/power/shuttle_engine/overmap/Initialize(mapload)
 	. = ..()
+	feed_connector = new(loc, src, dir, CELL_VOLUME * 0.5, OVERMAP_HNT_FEED_LAYER)
 	update_engine()
 	update_icon_state()
 
 /obj/machinery/power/shuttle_engine/overmap/Destroy()
 	QDEL_NULL(fuel_core)
+	QDEL_NULL(feed_connector)
 	linked_injector = null
 	return ..()
 
@@ -43,17 +49,27 @@
 
 /obj/machinery/power/shuttle_engine/overmap/proc/scan_for_injector()
 	linked_injector = null
+	link_via_pipe = FALSE
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	if(feed_pipe)
+		var/area/shuttle_area = get_area(src)
+		if(shuttle_area)
+			for(var/obj/machinery/overmap/fuel_injector/injector in shuttle_area)
+				if(overmap_hnt_feed_pipeline(injector.feed_connector) == feed_pipe)
+					set_linked_injector(injector, TRUE)
+					return
 	for(var/direction in GLOB.cardinals)
 		for(var/obj/machinery/overmap/fuel_injector/found in get_step(get_turf(src), direction))
 			if(found.dir != dir)
 				continue
-			set_linked_injector(found)
+			set_linked_injector(found, FALSE)
 			return
 
-/obj/machinery/power/shuttle_engine/overmap/proc/set_linked_injector(obj/machinery/overmap/fuel_injector/injector)
+/obj/machinery/power/shuttle_engine/overmap/proc/set_linked_injector(obj/machinery/overmap/fuel_injector/injector, via_pipe = FALSE)
 	if(!injector)
 		return
 	linked_injector = WEAKREF(injector)
+	link_via_pipe = via_pipe
 	if(!(WEAKREF(src) in injector.linked_engines))
 		injector.linked_engines += WEAKREF(src)
 
@@ -94,19 +110,23 @@
 	var/isp = get_isp_efficiency()
 	if(!isp)
 		return 0
-	var/effective_thrust = thrust * power_fraction * isp * (percentage / 100)
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_propellant())
-		var/requested_moles = effective_thrust / max(isp * OVERMAP_G0 * OVERMAP_PROP_MOLES_PER_THRUST, 0.01)
+		var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+		var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
+		if(ship?.processing_fuel_batch)
+			return thrust * power_fraction * isp * (percentage / 100)
+		var/requested_moles = overmap_engine_propellant_share_moles(thrust, power_fraction, percentage)
 		var/list/burn_result = injector.consume_for_burn(requested_moles, power_fraction)
 		var/burn_fraction = burn_result[1]
 		var/effective_isp = burn_result[2]
 		if(burn_fraction <= 0)
 			return 0
-		effective_thrust = thrust * power_fraction * effective_isp * (percentage / 100) * burn_fraction
+		var/effective_thrust = thrust * power_fraction * effective_isp * (percentage / 100) * burn_fraction
 		use_energy(max_power_draw * power_fraction * (percentage / 100))
 		burning = TRUE
 		return effective_thrust
+	var/effective_thrust = thrust * power_fraction * isp * (percentage / 100)
 	if(fuel_core && !fuel_core.is_depleted())
 		var/consumption = effective_thrust / max(fuel_core.efficiency * OVERMAP_G0, 0.01) * 0.01
 		fuel_core.reaction_mass = max(0, fuel_core.reaction_mass - consumption)
@@ -201,7 +221,7 @@
 	. += span_notice("It is currently [enabled ? "enabled" : "disabled"]. Use a multitool to toggle.")
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector)
-		. += span_notice("Linked to [injector].")
+		. += span_notice("Linked to [injector][link_via_pipe ? " via propellant manifold" : " by adjacency"].")
 	if(fuel_core)
 		. += span_notice("Fuel core: [fuel_core.core_type] ([round(fuel_core.reaction_mass / fuel_core.reaction_mass_max * 100)]% remaining).")
 	else if(!injector)

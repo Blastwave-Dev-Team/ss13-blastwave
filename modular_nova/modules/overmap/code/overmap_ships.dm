@@ -264,6 +264,8 @@
 	var/list/scanned_objects
 	/// Cooldown on active radar sweeps.
 	COOLDOWN_DECLARE(scan_cooldown)
+	/// TRUE while batched injector fuel burns are being processed this tick.
+	var/processing_fuel_batch = FALSE
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -308,12 +310,40 @@
 	if(desired_throttle > 0.01)
 		refresh_engines()
 		var/burn_pct = desired_throttle * 100 * dt * 10
+		process_engine_fuel_burns(burn_pct)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
 			if(!engine.enabled || !engine.thruster_active)
+				continue
+			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+			if(injector?.has_propellant())
 				continue
 			engine.burn_engine(burn_pct, skip_engine_update = TRUE)
 			engine.burning = FALSE
 	..()
+
+/// Batch chamber burns for injector-fed engines grouped by fuel injector.
+/obj/structure/overmap/ship/simulated/proc/process_engine_fuel_burns(burn_pct)
+	if(!shuttle)
+		return list()
+	var/list/by_injector = list()
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+		if(!engine.enabled || !engine.thruster_active)
+			continue
+		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+		if(!injector?.has_propellant())
+			continue
+		LAZYADD(by_injector[injector], engine)
+	if(!length(by_injector))
+		return list()
+	processing_fuel_batch = TRUE
+	var/list/all_thrust = list()
+	for(var/obj/machinery/overmap/fuel_injector/injector as anything in by_injector)
+		var/list/thrust_results = injector.process_tick_burn(by_injector[injector], burn_pct)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in thrust_results)
+			all_thrust[engine] = thrust_results[engine]
+			engine.burning = FALSE
+	processing_fuel_batch = FALSE
+	return all_thrust
 
 /// Resync the ship icon's overmap position with whatever Z the bound shuttle
 /// currently occupies. Called from M3's `shuttle_move` NOVA EDIT after every
@@ -407,10 +437,22 @@
 		calculate_mass()
 	calculate_avg_fuel()
 	var/thrust_used = 0
+	var/list/by_injector = list()
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
 		if(!engine.enabled)
 			continue
+		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+		if(injector?.has_propellant())
+			LAZYADD(by_injector[injector], engine)
+			continue
 		thrust_used += engine.burn_engine(percentage)
+	if(length(by_injector))
+		processing_fuel_batch = TRUE
+		for(var/obj/machinery/overmap/fuel_injector/injector as anything in by_injector)
+			var/list/thrust_results = injector.process_tick_burn(by_injector[injector], percentage)
+			for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in thrust_results)
+				thrust_used += thrust_results[engine]
+		processing_fuel_batch = FALSE
 	est_thrust = thrust_used
 	if(n_dir)
 		burn_direction(n_dir, clamp(percentage / 100, 0, 1))

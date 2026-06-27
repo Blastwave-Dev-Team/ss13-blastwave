@@ -354,7 +354,10 @@
 /obj/machinery/power/apc/auto_name/directional/east,
 /obj/structure/cable,
 /obj/effect/decal/cleanable/dirt,
-/obj/machinery/overmap/fuel_injector,
+/obj/machinery/atmospherics/pipe/smart/simple/general/hidden/layer2,
+/obj/machinery/overmap/fuel_injector{
+	dir = 4
+	},
 /turf/open/floor/iron/shuttle/exploration/uside{
 	dir = 1
 	},
@@ -394,7 +397,10 @@
 	},
 /area/shuttle/mining/large/advanced)
 "be" = (
-/obj/machinery/power/shuttle_engine/overmap/standard,
+/obj/machinery/atmospherics/pipe/smart/simple/general/hidden/layer2,
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 4
+	},
 /turf/closed/wall/mineral/titanium/shuttle_wall/mining_large{
 	icon_state = "5,1"
 	},

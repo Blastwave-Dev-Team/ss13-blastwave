@@ -2,8 +2,8 @@
 // Hybrid propellant processor: any atmos mix, LINDA chemical burn + thermal expulsion.
 
 /obj/machinery/overmap/fuel_injector
-	name = "overmap fuel injector"
-	desc = "Processes piped or tanked propellant for linked overmap thrusters."
+	name = "fuel injector"
+	desc = "Processes piped or tanked propellant for linked thrusters."
 	icon = 'modular_nova/modules/overmap/icons/fuel_machine.dmi'
 	icon_state = "machine"
 	density = TRUE
@@ -16,7 +16,9 @@
 	var/datum/gas_mixture/air_contents
 	var/datum/gas_machine_connector/input_connector
 	var/datum/gas_machine_connector/exhaust_connector
+	var/datum/gas_machine_connector/feed_connector
 	var/list/datum/weakref/linked_engines = list()
+	var/link_rescan_counter = 0
 
 	var/obj/item/tank/fuel_tank
 	var/chamber_volume = TANK_STANDARD_VOLUME
@@ -27,6 +29,10 @@
 	var/burning = FALSE
 	var/consuming = FALSE
 	var/max_operating_pressure = OVERMAP_FUEL_DEFAULT_PRESSURE
+	/// Assoc gas_path -> TRUE if allowed from L1 into chamber.
+	var/list/intake_filter = list()
+	/// Assoc gas_path -> TRUE if scrubbed from chamber to L3.
+	var/list/scrub_filter = list()
 
 /obj/machinery/overmap/fuel_injector/Initialize(mapload)
 	. = ..()
@@ -34,14 +40,17 @@
 	air_contents.set_temperature(T20C)
 	recalculate_max_moles()
 	input_connector = new(loc, src, dir, CELL_VOLUME * 0.5, PIPING_LAYER_MIN)
+	feed_connector = new(loc, src, dir, CELL_VOLUME * 0.5, OVERMAP_HNT_FEED_LAYER)
 	exhaust_connector = new(loc, src, dir, CELL_VOLUME * 0.5, PIPING_LAYER_DEFAULT)
 	if(mapload)
 		fill_default_mix()
-	update_adjacent_engines()
+	init_fuel_injector_filter_defaults(src)
+	update_linked_engines()
 	RegisterSignal(src, COMSIG_ATOM_DIR_CHANGE, PROC_REF(on_dir_change))
 
 /obj/machinery/overmap/fuel_injector/Destroy()
 	QDEL_NULL(input_connector)
+	QDEL_NULL(feed_connector)
 	QDEL_NULL(exhaust_connector)
 	linked_engines.Cut()
 	QDEL_NULL(air_contents)
@@ -49,11 +58,49 @@
 
 /obj/machinery/overmap/fuel_injector/Moved(atom/old_loc, movement_dir, forced, list/old_locs, momentum_change)
 	. = ..()
-	update_adjacent_engines()
+	update_linked_engines()
 
 /obj/machinery/overmap/fuel_injector/proc/on_dir_change(datum/source, old_dir, new_dir)
 	SIGNAL_HANDLER
-	update_adjacent_engines()
+	update_linked_engines()
+
+/obj/machinery/overmap/fuel_injector/proc/get_piped_engines()
+	var/list/engines = list()
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	if(!feed_pipe)
+		return engines
+	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	if(!port)
+		return engines
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in port.engine_list)
+		if(overmap_hnt_feed_pipeline(engine.feed_connector) == feed_pipe)
+			engines += engine
+	return engines
+
+/obj/machinery/overmap/fuel_injector/proc/link_adjacent_engines()
+	for(var/direction in GLOB.cardinals)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine in get_step(get_turf(src), direction))
+			if(engine.dir != dir)
+				continue
+			engine.set_linked_injector(src, FALSE)
+			linked_engines += WEAKREF(engine)
+
+/obj/machinery/overmap/fuel_injector/proc/update_linked_engines()
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
+		if(engine)
+			engine.clear_injector_link(src)
+	linked_engines.Cut()
+	var/list/piped = get_piped_engines()
+	if(length(piped))
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in piped)
+			engine.set_linked_injector(src, TRUE)
+			linked_engines += WEAKREF(engine)
+	else
+		link_adjacent_engines()
+
+/obj/machinery/overmap/fuel_injector/proc/update_adjacent_engines()
+	update_linked_engines()
 
 /obj/machinery/overmap/fuel_injector/proc/recalculate_max_moles()
 	max_moles = (max_operating_pressure * chamber_volume) / (R_IDEAL_GAS_EQUATION * T20C)
@@ -102,22 +149,13 @@
 /obj/machinery/overmap/fuel_injector/proc/get_preheat_efficiency()
 	return 1 + 0.1 * (micro_laser_rating - 1)
 
-/obj/machinery/overmap/fuel_injector/proc/update_adjacent_engines()
-	for(var/datum/weakref/engine_ref as anything in linked_engines)
-		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
-		if(engine)
-			engine.clear_injector_link(src)
-	linked_engines.Cut()
-	for(var/direction in GLOB.cardinals)
-		for(var/obj/machinery/power/shuttle_engine/overmap/engine in get_step(get_turf(src), direction))
-			if(engine.dir != dir)
-				continue
-			engine.set_linked_injector(src)
-			linked_engines += WEAKREF(engine)
-
 /obj/machinery/overmap/fuel_injector/process_atmos()
 	if(!is_operational || !air_contents)
 		return
+	link_rescan_counter++
+	if(link_rescan_counter >= 20)
+		link_rescan_counter = 0
+		update_linked_engines()
 	process_intake()
 	process_exhaust_filter()
 
@@ -131,7 +169,19 @@
 	var/datum/gas_mixture/removed = pipe.air.remove_ratio(transfer_ratio)
 	if(!removed?.total_moles())
 		return
-	air_contents.merge(removed)
+	var/datum/gas_mixture/rejected = new(removed.volume)
+	for(var/gas_id as anything in removed.gases.Copy())
+		if(intake_filter[gas_id])
+			continue
+		var/moles = removed.gases[gas_id][MOLES]
+		if(moles <= 0)
+			continue
+		rejected.adjust_gas(gas_id, moles)
+		removed.adjust_gas(gas_id, -moles)
+	if(rejected.total_moles())
+		pipe.air.merge(rejected)
+	if(removed.total_moles())
+		air_contents.merge(removed)
 	input_connector.gas_connector.update_parents()
 
 /obj/machinery/overmap/fuel_injector/proc/process_exhaust_filter()
@@ -143,7 +193,7 @@
 	var/datum/gas_mixture/scrubbed = new(CELL_VOLUME)
 	var/remaining_transfer = MAX_TRANSFER_RATE * 0.1
 	for(var/gas_id in air_contents.gases)
-		if(!overmap_should_scrub_gas(gas_id))
+		if(!scrub_filter[gas_id])
 			continue
 		var/moles = air_contents.gases[gas_id][MOLES]
 		if(moles <= 0)
@@ -199,11 +249,46 @@
 		if(lost > 0)
 			expelled.adjust_gas(gas_id, lost)
 
-	var/effective_isp = base_isp * clamp(power_fraction, 0, 1) * overmap_gas_isp_multiplier(expelled) * chemical_bonus
+	var/effective_isp = base_isp * overmap_gas_isp_multiplier(expelled) * chemical_bonus
 	consuming = FALSE
 	burning = burn_fraction > 0
 	update_appearance()
 	return list(burn_fraction, effective_isp)
+
+/obj/machinery/overmap/fuel_injector/proc/process_tick_burn(list/obj/machinery/power/shuttle_engine/overmap/engines, burn_pct)
+	if(!length(engines) || consuming)
+		return list()
+	var/list/valid = list()
+	var/total_moles = 0
+	var/total_pf = 0
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in engines)
+		if(!engine || engine.get_linked_injector() != src)
+			continue
+		if(!engine.enabled || !engine.thruster_active)
+			continue
+		var/power_fraction = engine.get_power_fraction()
+		var/m_i = overmap_engine_propellant_share_moles(engine.thrust, power_fraction, burn_pct)
+		if(m_i <= 0)
+			continue
+		valid += engine
+		total_moles += m_i
+		total_pf += power_fraction
+	if(!length(valid) || total_moles <= 0 || !has_propellant())
+		return list()
+	var/weighted_pf = total_pf / length(valid)
+	var/list/burn_result = consume_for_burn(total_moles, weighted_pf)
+	var/burn_fraction = burn_result[1]
+	var/effective_isp = burn_result[2]
+	if(burn_fraction <= 0 || effective_isp <= 0)
+		return list()
+	var/list/thrust_results = list()
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in valid)
+		var/power_fraction = engine.get_power_fraction()
+		var/thrust = engine.thrust * power_fraction * effective_isp * burn_fraction * (burn_pct / 100)
+		engine.use_energy(engine.max_power_draw * power_fraction * (burn_pct / 100))
+		engine.burning = TRUE
+		thrust_results[engine] = thrust
+	return thrust_results
 
 /obj/machinery/overmap/fuel_injector/proc/apply_preheat()
 	var/target = PLASMA_MINIMUM_BURN_TEMPERATURE
@@ -241,11 +326,21 @@
 			return FALSE
 	return TRUE
 
+/obj/machinery/overmap/fuel_injector/proc/get_flameout_release_turf()
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
+		if(!engine)
+			continue
+		var/turf/exhaust_turf = get_step(get_turf(engine), engine.dir)
+		if(exhaust_turf)
+			return exhaust_turf
+	return get_step(src, dir)
+
 /obj/machinery/overmap/fuel_injector/proc/do_flameout(mob/user)
 	if(!can_flameout())
 		balloon_alert(user, "linked engines must be off!")
 		return
-	var/turf/release_turf = get_step(src, dir)
+	var/turf/release_turf = get_flameout_release_turf()
 	if(!release_turf || !air_contents?.total_moles())
 		balloon_alert(user, "nothing to dump")
 		return
@@ -257,9 +352,128 @@
 	update_appearance()
 	balloon_alert(user, "flameout complete")
 
+/obj/machinery/overmap/fuel_injector/proc/get_linked_ship_mass()
+	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
+	if(!istype(ship))
+		return list(0, TRUE)
+	if(!ship.mass)
+		ship.calculate_mass()
+	return list(ship.mass || 0, FALSE)
+
+/obj/machinery/overmap/fuel_injector/ui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "FuelInjector", name)
+		ui.open()
+
+/obj/machinery/overmap/fuel_injector/ui_static_data(mob/user)
+	. = list()
+	.["gas_metadata"] = overmap_propellant_gas_data()
+
+/obj/machinery/overmap/fuel_injector/ui_data(mob/user)
+	var/list/input_data = fuel_injector_pipeline_ui_data(input_connector, max_moles)
+	var/list/exhaust_data = fuel_injector_pipeline_ui_data(exhaust_connector)
+	exhaust_data["max_pressure"] = MAX_OUTPUT_PRESSURE
+
+	var/datum/pipeline/input_pipe = input_connector?.gas_connector?.parents?[1]
+	var/intake_rejection = input_pipe?.air ? fuel_injector_intake_rejection_ratio(input_pipe.air, intake_filter) : 0
+
+	var/list/ship_mass_data = get_linked_ship_mass()
+	var/ship_mass = ship_mass_data[1]
+	var/ship_mass_unknown = ship_mass_data[2]
+	var/estimated_isp = fuel_injector_estimate_isp(src)
+	var/gas_multiplier = overmap_gas_isp_multiplier(air_contents)
+	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(air_contents)
+	var/power_fraction = fuel_injector_estimate_power_fraction(src)
+	var/list/manifold = fuel_injector_manifold_share_stats(src)
+
+	. = list(
+		"input" = input_data,
+		"chamber" = list(
+			"connected" = TRUE,
+			"pressure" = round(return_chamber_pressure(), 0.1),
+			"temperature" = round(return_chamber_temperature(), 0.1),
+			"total_moles" = round(return_fuel(), 0.1),
+			"max_moles" = max_moles,
+			"max_pressure" = max_operating_pressure,
+			"burning" = burning,
+			"consuming" = consuming,
+			"gas_composition" = fuel_injector_gas_composition(air_contents),
+		),
+		"exhaust" = exhaust_data,
+		"filters" = list(
+			"intake" = fuel_injector_filter_entries(intake_filter),
+			"scrub" = fuel_injector_filter_entries(scrub_filter),
+			"intake_rejection_ratio" = intake_rejection,
+			"scrub_eligible_ratio" = fuel_injector_scrub_eligible_ratio(air_contents, scrub_filter),
+		),
+		"performance" = list(
+			"estimated_isp" = round(estimated_isp, 3),
+			"thrust_efficiency" = round(min(estimated_isp / FUEL_INJECTOR_ISP_NOMINAL_MAX, 1), 3),
+			"delta_v" = ship_mass_unknown ? 0 : round(fuel_injector_estimate_delta_v(src, ship_mass), 2),
+			"base_isp" = base_isp,
+			"gas_multiplier" = round(gas_multiplier, 3),
+			"chemical_bonus" = chemical_bonus,
+			"power_fraction" = round(power_fraction, 3),
+			"linked_engines" = length(linked_engines),
+			"piped_engines" = manifold["piped_engines"],
+			"adjacent_engines" = manifold["adjacent_engines"],
+			"link_mode" = manifold["piped_engines"] ? "piped" : (manifold["adjacent_engines"] ? "adjacent" : "none"),
+			"active_share_count" = manifold["active_share_count"],
+			"per_engine_moles" = round(manifold["per_engine_moles"], 3),
+			"total_tick_moles" = round(manifold["total_tick_moles"], 3),
+			"feed_connected" = manifold["feed_connected"],
+			"ship_mass" = ship_mass,
+			"ship_mass_unknown" = ship_mass_unknown,
+		),
+		"status_pills" = fuel_injector_derive_chamber_status(src),
+		"tank" = fuel_tank ? list(
+			"installed" = TRUE,
+			"name" = fuel_tank.name,
+			"moles" = round(fuel_tank.air_contents?.total_moles() || 0, 0.1),
+		) : null,
+		"can_flameout" = can_flameout(),
+		"parts" = list(
+			"matter_bin_rating" = matter_bin_rating,
+			"micro_laser_rating" = micro_laser_rating,
+			"chamber_volume" = chamber_volume,
+		),
+	)
+
+/obj/machinery/overmap/fuel_injector/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)
+	. = ..()
+	if(.)
+		return
+	switch(action)
+		if("toggle_intake_filter")
+			var/gas_path = gas_id2path(params["gas_id"])
+			if(!gas_path || !ispath(gas_path, /datum/gas))
+				return
+			intake_filter[gas_path] = !intake_filter[gas_path]
+			. = TRUE
+		if("toggle_scrub_filter")
+			var/gas_path = gas_id2path(params["gas_id"])
+			if(!gas_path || !ispath(gas_path, /datum/gas))
+				return
+			scrub_filter[gas_path] = !scrub_filter[gas_path]
+			. = TRUE
+		if("filter_preset")
+			apply_fuel_injector_filter_preset(src, params["preset"])
+			. = TRUE
+		if("flameout")
+			if(!can_flameout())
+				return
+			var/mob/user = ui.user
+			if(!do_after(user, 2 SECONDS, target = src))
+				return
+			do_flameout(user)
+			. = TRUE
+
 /obj/machinery/overmap/fuel_injector/examine(mob/user)
 	. = ..()
-	. += span_notice("Fuel input: piping layer [PIPING_LAYER_MIN]. Exhaust filter: piping layer [PIPING_LAYER_DEFAULT].")
+	. += span_notice("Fuel input: piping layer [PIPING_LAYER_MIN]. Propellant feed: piping layer [OVERMAP_HNT_FEED_LAYER]. Exhaust filter: piping layer [PIPING_LAYER_DEFAULT].")
+	. += span_notice("Use to open the fuel processor interface.")
 	if(!can_flameout())
 		. += span_notice("Linked engine must be off before flameout.")
 	else

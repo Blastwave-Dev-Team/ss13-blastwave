@@ -179,6 +179,8 @@
 			if(injector)
 				engine_entry["pressure"] = round(injector.return_chamber_pressure(), 0.1)
 				engine_entry["temperature"] = round(injector.return_chamber_temperature(), 0.1)
+				engine_entry["linkType"] = engine.link_via_pipe ? "piped" : "adjacent"
+				engine_entry["shareCount"] = fuel_injector_count_active_share_engines(injector)
 			.["engineInfo"] += list(engine_entry)
 
 /obj/machinery/computer/helm/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/state)

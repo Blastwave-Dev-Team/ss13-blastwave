@@ -93,6 +93,12 @@
 /// Thrust-to-moles knob; tune for ~10 min full-tank burn at full throttle.
 #define OVERMAP_PROP_MOLES_PER_THRUST 0.05
 
+/// Nominal max ISP for thrust-efficiency display in the fuel injector UI.
+#define FUEL_INJECTOR_ISP_NOMINAL_MAX 1.5
+
+/// Layer-2 propellant manifold between fuel injectors and HNT engines.
+#define OVERMAP_HNT_FEED_LAYER 2
+
 #define OVERMAP_THERMAL_EXHAUST_TEMP 2000
 #define OVERMAP_CHEMICAL_ISP_BONUS 1.15
 #define OVERMAP_EXHAUST_ISP_THRESHOLD 0.5

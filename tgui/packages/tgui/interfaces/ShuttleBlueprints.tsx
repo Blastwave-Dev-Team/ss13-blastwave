@@ -245,7 +245,14 @@ const ShuttleConstruction = () => {
                     {`${size}/${maxShuttleSize}`}
                   </ProgressBar>
                 </Stack.Item>
-              ) : undefined}
+              ) : (
+                <Stack.Item>
+                  <Box color="label">
+                    Use shuttle frame rods on plating or open space to start a
+                    frame, then stand on the frame to build.
+                  </Box>
+                </Stack.Item>
+              )}
             </Stack>
           </Stack.Item>
           <Stack.Item>

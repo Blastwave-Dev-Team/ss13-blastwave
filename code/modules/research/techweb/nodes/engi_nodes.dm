@@ -187,10 +187,14 @@
 /datum/techweb_node/shuttle_engineering
 	id = TECHWEB_NODE_SHUTTLE_ENG
 	display_name = "Shuttle Engineering"
-	description = "Materials and equipment for constructing shuttles"
+	description = "Materials and equipment for constructing shuttles, including overmap consoles and propulsion."
 	prereq_ids = list(TECHWEB_NODE_ENERGY_MANIPULATION, TECHWEB_NODE_APPLIED_BLUESPACE)
 	design_ids = list(
 		"borg_upgrade_engineering_shuttle_blueprints",
+		"overmap_fuel_injector",
+		"overmap_fusion_thruster",
+		"overmap_helm_console",
+		"overmap_nav_computer",
 		"propulsion_engine",
 		"shuttle_blueprints",
 		"shuttle_control",

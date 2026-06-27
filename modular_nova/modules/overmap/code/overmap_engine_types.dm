@@ -37,10 +37,10 @@
 /obj/machinery/power/shuttle_engine/overmap/void/get_current_thrust()
 	return thrust
 
-/// Standard overmap engine that requires a fuel core and ship power.
+/// Hall-Nuclear-Thermal overmap engine — grid-powered Hall acceleration fed by a linked fuel injector.
 /obj/machinery/power/shuttle_engine/overmap/standard
-	name = "fusion thruster"
-	desc = "A standard overmap thruster. Consumes propellant from a linked fuel injector and draws power from the ship grid. Optional fuel cores work as emergency fallback."
+	name = "Hall-Nuclear-Thermal engine"
+	desc = "An overmap thruster that accelerates propellant from a linked fuel injector via Hall-effect coupling and nuclear-thermal expulsion. Draws power from the ship grid. Optional fuel cores work as emergency fallback."
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap/standard
 	thrust = 30

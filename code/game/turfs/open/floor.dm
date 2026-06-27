@@ -131,6 +131,9 @@
 	. = ..()
 	if(.)
 		return .
+	if(istype(object, /obj/item/stack/rods/shuttle))
+		if(build_shuttle_frame_with_rods(object, user))
+			return TRUE
 	if(overfloor_placed && istype(object, /obj/item/stack/tile))
 		try_replace_tile(object, user, modifiers)
 		return TRUE
