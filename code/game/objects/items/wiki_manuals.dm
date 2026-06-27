@@ -2,7 +2,40 @@
 
 /// The size of the window that the wiki books open in.
 #define BOOK_WINDOW_BROWSE_SIZE "970x710"
-/// This macro will resolve to code that will open up the associated wiki page in the window.
+/// Full-page iframe for the Blastwave book content proxy (no MediaWiki chrome cropping).
+#define BOOK_PAGE_IFRAME(title, wikiurl, link_identifier) {"
+<html>
+	<head>
+		<meta http-equiv='Content-Type' content='text/html; charset=UTF-8'>
+		<title>[html_encode(title)]</title>
+		<style>
+			body {
+				margin: 0;
+			}
+			p {
+				margin: 8px;
+			}
+			iframe {
+				border: 0;
+				width: 100%;
+				height: 100vh;
+				display: none;
+			}
+			body.loaded p {
+				display: none;
+			}
+			body.loaded iframe {
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<p>You start skimming through the manual...</p>
+		<iframe src="[wikiurl]/[link_identifier]" onload="document.body.classList.add('loaded')"></iframe>
+	</body>
+</html>
+"}
+/// Legacy MediaWiki iframe that crops site chrome (useskin=vector).
 #define WIKI_PAGE_IFRAME(title, wikiurl, link_identifier) {"
 <html>
 	<head>
@@ -57,7 +90,9 @@
 			return
 		DIRECT_OUTPUT(user, link("[wiki_url]/[page_link]"))
 	else
-		DIRECT_OUTPUT(user, browse(WIKI_PAGE_IFRAME(name, wiki_url, page_link), "window=manual;size=[BOOK_WINDOW_BROWSE_SIZE]")) // if you change this GUARANTEE that it works.
+		var/use_book_proxy = findtext(wiki_url, "book.blastwave.space") || findtext(wiki_url, "localhost:3001")
+		var/iframe_template = use_book_proxy ? BOOK_PAGE_IFRAME(name, wiki_url, page_link) : WIKI_PAGE_IFRAME(name, wiki_url, page_link)
+		DIRECT_OUTPUT(user, browse(iframe_template, "window=manual;size=[BOOK_WINDOW_BROWSE_SIZE]")) // if you change this GUARANTEE that it works.
 
 /obj/item/book/manual/wiki/chemistry
 	name = "Chemistry Textbook"
@@ -246,4 +281,5 @@
 	page_link = "Tactical_Game_Cards"
 
 #undef BOOK_WINDOW_BROWSE_SIZE
+#undef BOOK_PAGE_IFRAME
 #undef WIKI_PAGE_IFRAME

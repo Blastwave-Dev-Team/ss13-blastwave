@@ -203,7 +203,7 @@ IPINTEL_REJECT_BAD
 # FORUMURL http://tgstation13.org/phpBB/index.php
 
 ## Wiki address
-# WIKIURL https://wiki.novasector13.com/wiki
+# WIKIURL https://book.blastwave.space
 
 ## Rules address
 # RULESURL https://wiki.novasector13.com/wiki/Policies
