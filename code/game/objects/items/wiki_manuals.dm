@@ -280,6 +280,12 @@
 	starting_title = "Tactical Game Cards - Player's Handbook"
 	page_link = "Tactical_Game_Cards"
 
+/// Community-authored wiki textbook; page_link is set when spawned from the archive or library printer.
+/obj/item/book/manual/wiki/ugc
+	name = "Community Textbook"
+	icon_state = "book7"
+	starting_author = "Community"
+
 #undef BOOK_WINDOW_BROWSE_SIZE
 #undef BOOK_PAGE_IFRAME
 #undef WIKI_PAGE_IFRAME

@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: feedback
+      MYSQL_USER: tgstation
+      MYSQL_PASSWORD: tgstation
+    ports:
+      - "3306:3306"
+    volumes:
+      - ../../SQL/tgstation_schema_prefixed.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./init/02-textbook-category.sql:/docker-entrypoint-initdb.d/02-textbook-category.sql:ro
+      - ./init/03-sample-textbook.sql:/docker-entrypoint-initdb.d/03-sample-textbook.sql:ro
+      - library_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+
+volumes:
+  library_db_data:

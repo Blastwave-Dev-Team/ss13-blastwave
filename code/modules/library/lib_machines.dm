@@ -405,6 +405,7 @@ GLOBAL_VAR_INIT(library_table_modified, 0)
 			data["posters"] = list()
 			for(var/poster_name in SSlibrary.printable_posters)
 				data["posters"] += poster_name
+			data["can_print_wiki_paths"] = can_print_wiki_paths(user.client)
 
 	return data
 
@@ -536,6 +537,21 @@ GLOBAL_VAR_INIT(library_table_modified, 0)
 			var/poster_name = params["poster_name"]
 			attempt_print(CALLBACK(src, PROC_REF(print_poster), poster_name))
 			return TRUE
+		if("print_ugc_textbook")
+			var/title = params["title"]
+			var/page_slug = params["page_slug"]
+			var/author = params["author"]
+			attempt_print(CALLBACK(src, PROC_REF(print_ugc_textbook), title, page_slug, author))
+			return TRUE
+		if("upload_ugc_textbook")
+			if(!prevent_db_spam())
+				say("Database cables refreshing. Please wait a moment.")
+				return TRUE
+			var/title = params["title"]
+			var/page_slug = params["page_slug"]
+			var/author = params["author"]
+			INVOKE_ASYNC(src, PROC_REF(upload_ugc_textbook), title, page_slug, author)
+			return TRUE
 		if("lore_spawn")
 			if(obj_flags & EMAGGED && can_spawn_lore)
 				print_forbidden_lore(usr)
@@ -651,6 +667,63 @@ GLOBAL_VAR_INIT(library_table_modified, 0)
 		return
 	new /obj/item/poster(loc, new poster_type)
 
+/obj/machinery/computer/libraryconsole/bookmanagement/proc/print_ugc_textbook(title, page_slug, author)
+	if(QDELETED(src))
+		return
+
+	var/restrict_to_ugc = !can_print_wiki_paths(usr?.client)
+	var/obj/item/book/manual/wiki/ugc/printed_book = spawn_ugc_textbook(get_turf(src), title, author, page_slug, restrict_to_ugc = restrict_to_ugc)
+	if(!printed_book)
+		say("Invalid textbook details. Print aborted.")
+		return
+
+	visible_message(span_notice("[src]'s printer hums as it produces a bound community textbook."))
+	log_paper("[key_name(usr)] has printed textbook \"[printed_book.book_data.title]\" ([printed_book.page_link]) from a book management console.")
+
+/obj/machinery/computer/libraryconsole/bookmanagement/proc/upload_ugc_textbook(title, page_slug, author)
+	if(QDELETED(src))
+		return
+
+	var/restrict_to_ugc = !can_print_wiki_paths(usr?.client)
+	var/page_link = resolve_textbook_page_link(page_slug, restrict_to_ugc)
+	if(!page_link)
+		say("Invalid wiki page path. Upload aborted.")
+		return
+
+	var/datum/book_info/staging = new()
+	staging.set_title(title)
+	staging.set_author(author || "Community")
+	if(!staging.title)
+		say("No title detected. Aborting")
+		return
+
+	if(!SSdbcore.Connect())
+		say("Connection to Archive has been severed. Aborting.")
+		return
+
+	var/msg = "has uploaded the textbook titled [staging.title] ([page_link])"
+	var/datum/db_query/query_library_upload = SSdbcore.NewQuery({"
+		INSERT INTO [format_table_name("library")] (author, title, content, category, ckey, datetime, round_id_created)
+		VALUES (:author, :title, :content, :category, :ckey, Now(), :round_id)
+	"}, list(
+		"title" = staging.title,
+		"author" = staging.author,
+		"content" = page_link,
+		"category" = BOOK_CATEGORY_TEXTBOOK,
+		"ckey" = usr.ckey,
+		"round_id" = GLOB.round_id,
+	))
+	if(!query_library_upload.Execute())
+		qdel(query_library_upload)
+		say("Database error encountered uploading to Archive")
+		return
+
+	usr.log_message(msg, LOG_GAME)
+	qdel(query_library_upload)
+	library_updated()
+	say("Upload Complete. Textbook will be available for printing and library shelves.")
+	update_db_info()
+
 /obj/machinery/computer/libraryconsole/bookmanagement/proc/print_book(id)
 	if (!SSdbcore.Connect())
 		say("Connection to Archive has been severed. Aborting.")
@@ -670,17 +743,26 @@ GLOBAL_VAR_INIT(library_table_modified, 0)
 		var/author = query_library_print.item[2]
 		var/title = query_library_print.item[3]
 		var/content = query_library_print.item[4]
+		var/category = query_library_print.item[5]
 		if(!QDELETED(src))
-			var/obj/item/book/printed_book = new(get_turf(src))
-			printed_book.name = "Book: [title]"
-			printed_book.book_data = new()
-			var/datum/book_info/fill = printed_book.book_data
-			fill.set_title(title, trusted = TRUE)
-			fill.set_author(author, trusted = TRUE)
-			fill.set_content(content, trusted = TRUE)
-			printed_book.gen_random_icon_state()
-			visible_message(span_notice("[src]'s printer hums as it produces a completely bound book. How did it do that?"))
-			log_paper("[key_name(usr)] has printed \"[title]\" (id: [id]) by [author] from a book management console.")
+			if(category == BOOK_CATEGORY_TEXTBOOK)
+				var/obj/item/book/manual/wiki/ugc/printed_book = spawn_ugc_textbook(get_turf(src), title, author, content, trusted = TRUE)
+				if(!printed_book)
+					say("PRINTER ERROR! Invalid textbook archive entry.")
+					break
+				visible_message(span_notice("[src]'s printer hums as it produces a bound community textbook."))
+				log_paper("[key_name(usr)] has printed UGC textbook \"[title]\" (id: [id]) by [author] from a book management console.")
+			else
+				var/obj/item/book/printed_book = new(get_turf(src))
+				printed_book.name = "Book: [title]"
+				printed_book.book_data = new()
+				var/datum/book_info/fill = printed_book.book_data
+				fill.set_title(title, trusted = TRUE)
+				fill.set_author(author, trusted = TRUE)
+				fill.set_content(content, trusted = TRUE)
+				printed_book.gen_random_icon_state()
+				visible_message(span_notice("[src]'s printer hums as it produces a completely bound book. How did it do that?"))
+				log_paper("[key_name(usr)] has printed \"[title]\" (id: [id]) by [author] from a book management console.")
 		break
 	qdel(query_library_print)
 
