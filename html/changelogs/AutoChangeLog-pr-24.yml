@@ -1,0 +1,6 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Detectives choose their sidearm at roundstart via beacon, Colt Detective Special or Commissar pistol"
+  - rscadd: "Added the NT Commander 9mm pistol and co9mm magazines, orderable from armory-restricted cargo"
+  - sound: "Commissar pistol includes optional joke audio effects ported from Whitesands"
