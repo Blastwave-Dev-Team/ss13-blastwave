@@ -31,6 +31,12 @@
 // Overmap object IDs.
 #define MAIN_OVERMAP_OBJECT_ID "home"
 #define AWAY_OVERMAP_OBJECT_ID_MINING "mining"
+#define DES_TWO_OVERMAP_OBJECT_ID "des_two"
+
+// Affiliation flags for cross-faction stealth.
+#define OVERMAP_AFFILIATION_NT "nt"
+#define OVERMAP_AFFILIATION_DS2 "ds2"
+#define OVERMAP_AFFILIATION_NEUTRAL "neutral"
 
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"

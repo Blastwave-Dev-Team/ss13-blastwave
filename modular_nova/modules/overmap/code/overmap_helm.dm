@@ -109,6 +109,8 @@
 	.["otherInfo"] = list()
 	var/list/seen_refs = list()
 	for(var/obj/structure/overmap/other in current_ship.close_overmap_objects)
+		if(!SSovermap.can_view_installation(current_ship, other))
+			continue
 		var/ref = REF(other)
 		seen_refs += ref
 		.["otherInfo"] += list(list(
@@ -127,6 +129,8 @@
 				continue
 			var/obj/structure/overmap/scanned = locate(scan_ref)
 			if(!scanned || QDELETED(scanned))
+				continue
+			if(!SSovermap.can_view_installation(current_ship, scanned))
 				continue
 			.["otherInfo"] += list(list(
 				"name" = scanned.name,
@@ -244,11 +248,17 @@
 			var/obj/structure/overmap/target = locate(params["target"]) in current_ship.close_overmap_objects
 			if(!target)
 				return TRUE
+			if(!SSovermap.can_view_installation(current_ship, target))
+				say("Unable to establish link with target.")
+				return TRUE
 			say(ship.overmap_object_act(target, usr))
 			return TRUE
 		if("act_overmap")
 			var/obj/structure/overmap/target = locate(params["ship_to_act"]) in current_ship.close_overmap_objects
 			if(!target)
+				return TRUE
+			if(!SSovermap.can_view_installation(current_ship, target))
+				say("Unable to establish link with target.")
 				return TRUE
 			say(ship.overmap_object_act(target, usr))
 			return TRUE

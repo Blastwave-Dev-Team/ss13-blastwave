@@ -131,9 +131,11 @@
 	. = ..()
 	if(.)
 		return .
+	// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION
 	if(istype(object, /obj/item/stack/rods/shuttle))
 		if(build_shuttle_frame_with_rods(object, user))
 			return TRUE
+	// NOVA EDIT ADDITION END
 	if(overfloor_placed && istype(object, /obj/item/stack/tile))
 		try_replace_tile(object, user, modifiers)
 		return TRUE

@@ -15,3 +15,7 @@
 /datum/config_entry/number/max_overmap_dynamic_events
 	default = 4
 	min_val = 0
+
+/datum/config_entry/number/max_overmap_named_sites
+	default = 10
+	min_val = 0

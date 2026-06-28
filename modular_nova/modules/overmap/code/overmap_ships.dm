@@ -522,6 +522,8 @@
 		return "Ship must be stopped to dock."
 	if(!shuttle)
 		return "Shuttle not found."
+	if(!SSovermap.can_view_installation(src, target))
+		return "Unable to establish docking link with target."
 
 	if(istype(target, /obj/structure/overmap/level))
 		for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav as anything in SSovermap.navs)
@@ -590,6 +592,8 @@
 		var/dx = other.get_overmap_abs_px() - my_px
 		var/dy = other.get_overmap_abs_py() - my_py
 		if(dx * dx + dy * dy > scan_sq)
+			continue
+		if(!SSovermap.can_view_installation(src, other))
 			continue
 		var/ref = REF(other)
 		if(LAZYACCESS(scanned_objects, ref))

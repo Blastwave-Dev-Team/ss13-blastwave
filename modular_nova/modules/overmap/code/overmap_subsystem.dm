@@ -43,6 +43,10 @@ SUBSYSTEM_DEF(overmap)
 	var/list/radius_tiles = list()
 	/// Global cooldown on dynamic encounter loading.
 	COOLDOWN_DECLARE(encounter_cooldown)
+	/// Template IDs already placed as named sites — excluded from dynamic picks.
+	var/list/placed_site_template_ids = list()
+	/// Whether the syndicate beacon has revealed the NT station to DS2.
+	var/station_revealed_to_ds2 = FALSE
 
 /datum/controller/subsystem/overmap/Initialize()
 	generator_type = CONFIG_GET(string/overmap_generator_type)
@@ -211,6 +215,8 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/create_map()
 	place_station()
 	place_mining()
+	if(SSmapping.current_map.overmap_space_ruins)
+		seed_space_sites()
 	spawn_encounters()
 	spawn_events()
 
@@ -454,6 +460,9 @@ SUBSYSTEM_DEF(overmap)
 			if(ispath(candidate))
 				candidate = new candidate
 			if(max(candidate.width, candidate.height) <= max_ruin_dimension)
+				// Skip ruins already placed as named overmap sites
+				if(candidate.id in placed_site_template_ids)
+					continue
 				viable_ruins[ruin_name] = candidate
 		if(length(viable_ruins))
 			ruin_type = viable_ruins[pick(viable_ruins)]
@@ -513,3 +522,208 @@ SUBSYSTEM_DEF(overmap)
 	secondary_dock.dwidth = round(dock_size / 2)
 
 	return encounter_reservation
+
+// --- Space site seeding (Phase 3) ---
+
+/// Seed named space ruin POIs onto the overmap grid. Priority pass for
+/// always_place ruins, then budget fill from the weighted space ruin pool.
+/// Only called when `overmap_space_ruins` is TRUE on the map config.
+/datum/controller/subsystem/overmap/proc/seed_space_sites()
+	var/list/space_ruins = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
+	if(!length(space_ruins))
+		return
+
+	var/list/placed_template_ids = list()
+	var/max_sites = CONFIG_GET(number/max_overmap_named_sites)
+
+	// Priority pass: always_place ruins get guaranteed slots.
+	for(var/ruin_name in space_ruins)
+		var/datum/map_template/ruin/candidate = space_ruins[ruin_name]
+		if(ispath(candidate))
+			candidate = new candidate
+		if(!candidate.always_place)
+			continue
+		var/obj/structure/overmap/level/site/site = spawn_overmap_site(candidate)
+		if(site)
+			placed_template_ids += candidate.id
+			placed_site_template_ids += candidate.id
+			// DS2 gets installation stealth
+			if(candidate.id == "des_two")
+				site.installation_stealth = TRUE
+
+	// Budget fill: pick from remaining weighted pool up to max_sites.
+	var/budget = CONFIG_GET(number/space_budget)
+	var/list/available = list()
+	for(var/ruin_name in space_ruins)
+		var/datum/map_template/ruin/candidate = space_ruins[ruin_name]
+		if(ispath(candidate))
+			candidate = new candidate
+		if(candidate.always_place || candidate.unpickable)
+			continue
+		if(candidate.id in placed_template_ids)
+			continue
+		available[candidate] = candidate.placement_weight
+
+	while(budget > 0 && length(available) && length(placed_template_ids) < max_sites)
+		var/datum/map_template/ruin/picked = pick_weight(available)
+		if(!picked)
+			break
+		if(picked.cost > budget)
+			available -= picked
+			continue
+		var/obj/structure/overmap/level/site/site = spawn_overmap_site(picked)
+		if(!site)
+			break
+		placed_template_ids += picked.id
+		placed_site_template_ids += picked.id
+		budget -= picked.cost
+		if(!picked.allow_duplicates)
+			available -= picked
+
+/// Spawn a single named site POI: reserve a turf block, load the ruin
+/// template, create docking ports, and place the `/level/site` on the grid.
+/datum/controller/subsystem/overmap/proc/spawn_overmap_site(datum/map_template/ruin/template)
+	if(!template)
+		return null
+
+	var/turf/grid_turf = get_unused_overmap_square()
+	if(!grid_turf)
+		WARNING("spawn_overmap_site: no free overmap tile for [template.name]")
+		return null
+
+	var/site_id = template.id || "site_[length(overmap_objects)]"
+	var/size = max(template.width, template.height) + 8
+	var/dock_size = round(size / 2)
+
+	var/datum/turf_reservation/reserve = SSmapping.request_turf_block_reservation(size, size)
+	if(!reserve)
+		WARNING("spawn_overmap_site: failed to reserve turf block for [template.name]")
+		return null
+
+	var/turf/bottom_left = reserve.bottom_left_turfs[1]
+	if(!bottom_left)
+		QDEL_NULL(reserve)
+		return null
+
+	// Load the ruin template
+	var/turf/ruin_turf = locate( \
+		bottom_left.x + dock_size + 2, \
+		bottom_left.y + dock_size, \
+		bottom_left.z)
+	if(ruin_turf)
+		template.load(ruin_turf)
+
+	// Create primary dock
+	var/turf/dock_turf = locate( \
+		bottom_left.x + dock_size, \
+		bottom_left.y + round(dock_size / 2), \
+		bottom_left.z)
+	var/obj/docking_port/stationary/primary_dock = new(dock_turf)
+	primary_dock.dir = WEST
+	primary_dock.name = "\improper [template.name]"
+	primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[site_id]"
+	primary_dock.height = dock_size
+	primary_dock.width = dock_size
+	primary_dock.dwidth = round(dock_size / 2)
+
+	// Create secondary (ferry) dock
+	var/turf/secondary_turf = locate( \
+		bottom_left.x + dock_size, \
+		bottom_left.y + CEILING(dock_size * 1.5, 1), \
+		bottom_left.z)
+	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
+	secondary_dock.dir = WEST
+	secondary_dock.name = "\improper [template.name]"
+	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[site_id]"
+	secondary_dock.height = dock_size
+	secondary_dock.width = dock_size
+	secondary_dock.dwidth = round(dock_size / 2)
+
+	// Place the site on the overmap grid
+	var/list/site_zs = list(bottom_left.z)
+	var/obj/structure/overmap/level/site/site = new(grid_turf, site_id, site_zs, template)
+	site.reserve = reserve
+	site.preloaded = TRUE
+
+	// Handle always_spawn_with chains
+	if(template.always_spawn_with)
+		for(var/chain_type in template.always_spawn_with)
+			if(template.always_spawn_with[chain_type] != PLACE_SAME_Z)
+				continue
+			for(var/ruin_name in SSmapping.ruins_templates)
+				var/datum/map_template/ruin/linked = SSmapping.ruins_templates[ruin_name]
+				if(!istype(linked, chain_type))
+					continue
+				var/turf/chain_turf = locate( \
+					bottom_left.x + 2, \
+					bottom_left.y + 2, \
+					bottom_left.z)
+				if(chain_turf)
+					linked.load(chain_turf)
+				LAZYADD(site.chained_templates, linked)
+
+	return site
+
+// --- Cross-faction installation stealth (Phase 6) ---
+
+/// Called when a syndicate station beacon is activated. Permanently reveals
+/// the NT station to DS2-affiliated viewers for the rest of the round.
+/datum/controller/subsystem/overmap/proc/reveal_station_to_ds2()
+	if(station_revealed_to_ds2)
+		return
+	station_revealed_to_ds2 = TRUE
+	log_game("OVERMAP: NT station revealed to DS2 via syndicate beacon.")
+
+/// Determine whether `viewer` (a ship or overmap object) is allowed to see
+/// `target` (a level with installation_stealth). Returns TRUE if visible.
+///
+/// Only blocks cross-faction pairs:
+/// - DS2 viewer + main target when !station_revealed_to_ds2
+/// - NT viewer + des_two target → always FALSE in v1
+/datum/controller/subsystem/overmap/proc/can_view_installation(obj/structure/overmap/viewer, obj/structure/overmap/target)
+	if(!istype(target, /obj/structure/overmap/level))
+		return TRUE
+	var/obj/structure/overmap/level/level_target = target
+	if(!level_target.installation_stealth)
+		return TRUE
+
+	var/viewer_affiliation = get_affiliation(viewer)
+	var/target_id = level_target.id
+
+	// Same-faction always sees home
+	if(viewer_affiliation == OVERMAP_AFFILIATION_NT && target_id == MAIN_OVERMAP_OBJECT_ID)
+		return TRUE
+	if(viewer_affiliation == OVERMAP_AFFILIATION_DS2 && target_id == DES_TWO_OVERMAP_OBJECT_ID)
+		return TRUE
+
+	// Cross-faction blocks
+	if(viewer_affiliation == OVERMAP_AFFILIATION_DS2 && target_id == MAIN_OVERMAP_OBJECT_ID)
+		return station_revealed_to_ds2
+	if(viewer_affiliation == OVERMAP_AFFILIATION_NT && target_id == DES_TWO_OVERMAP_OBJECT_ID)
+		return FALSE
+
+	// Neutral viewers see everything
+	return TRUE
+
+/// Resolve the faction affiliation of an overmap object. Ships derive
+/// affiliation from their home Z; levels use their own ID.
+/datum/controller/subsystem/overmap/proc/get_affiliation(obj/structure/overmap/thing)
+	if(!thing)
+		return OVERMAP_AFFILIATION_NEUTRAL
+	if(istype(thing, /obj/structure/overmap/level/main))
+		return OVERMAP_AFFILIATION_NT
+	if(istype(thing, /obj/structure/overmap/level/site))
+		var/obj/structure/overmap/level/site/site = thing
+		if(site.id == DES_TWO_OVERMAP_OBJECT_ID)
+			return OVERMAP_AFFILIATION_DS2
+	if(istype(thing, /obj/structure/overmap/ship/simulated))
+		var/obj/structure/overmap/ship/simulated/ship = thing
+		if(ship.shuttle)
+			var/home_z = ship.shuttle.z
+			var/obj/structure/overmap/level/home_level = get_overmap_object_by_z(home_z)
+			if(home_level)
+				if(home_level.id == DES_TWO_OVERMAP_OBJECT_ID)
+					return OVERMAP_AFFILIATION_DS2
+				if(home_level.id == MAIN_OVERMAP_OBJECT_ID)
+					return OVERMAP_AFFILIATION_NT
+	return OVERMAP_AFFILIATION_NEUTRAL

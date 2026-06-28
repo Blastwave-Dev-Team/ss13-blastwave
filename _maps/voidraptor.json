@@ -14,7 +14,9 @@
 	"orbit_shift_replacement": "Attention crew, it appears that someone has shifted your ship into more dangerous territory.",
 	"job_changes": {
 		"Cook": {
-			"additional_cqc_areas": ["/area/station/service/cafeteria"]
+			"additional_cqc_areas": [
+				"/area/station/service/cafeteria"
+			]
 		},
 		"Captain": {
 			"special_charter": "ship"

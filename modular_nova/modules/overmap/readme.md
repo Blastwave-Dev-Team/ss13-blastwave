@@ -25,13 +25,21 @@ plan. Post-prototype backlog (events, dynamic encounters, planet
 generator stub, solar generator, configuration entries, wraparound
 polish, more shuttle area_spawn entries) is tracked separately.
 
+Space ruin spawning is now overmap-controlled: when `overmap_space_ruins`
+is TRUE in map config, SSmapping no longer creates crosslinked space ruin
+Zs. Instead, SSovermap.seed_space_sites() places ruin templates as named
+`/level/site` POIs on isolated reserved Zs.
+
+Cross-faction stealth hides the NT station from DS2 viewers (and vice
+versa in v1) until a deployable syndicate beacon is activated.
+
 ## Files added
 
 ### New modular files
 
 - `modular_nova/modules/overmap/code/overmap_subsystem.dm` - SSovermap.
 - `modular_nova/modules/overmap/code/overmap_objects.dm` - turfs, area,
-  base `/obj/structure/overmap`, level subtypes (main, mining), star.
+  base `/obj/structure/overmap`, level subtypes (main, mining, site), star.
 - `modular_nova/modules/overmap/code/overmap_ships.dm` - base ship and
   `/ship/simulated` (shuttle-bound) types.
 - `modular_nova/modules/overmap/code/overmap_helm.dm` - helm console
@@ -43,14 +51,27 @@ polish, more shuttle area_spawn entries) is tracked separately.
 - `modular_nova/modules/overmap/code/overmap_circuits.dm` - circuit
   boards for helm, nav, engine, heater.
 - `modular_nova/modules/overmap/code/overmap_area_spawn.dm` -
-  `/datum/area_spawn` entries that retrofit existing Nova shuttles with
-  helm + nav + engines without `.dmm` edits.
-- `modular_nova/modules/overmap/icons/*.dmi` - sprites copied from
-  Whitesands and renamed to flatten the icons folder per Nova convention.
+  `/datum/area_spawn` entries for helm, nav, engines, and the wall-mount
+  distress beacon.
+- `modular_nova/modules/overmap/code/overmap_distress_beacon.dm` -
+  wall-mount NT distress beacon (additive evac call path).
+- `modular_nova/modules/overmap/code/overmap_syndicate_beacon.dm` -
+  deployable syndicate station beacon (reveals NT to DS2).
+- `modular_nova/modules/overmap/icons/*.dmi` - sprites including
+  `stationary_beacons.dmi` (NT wall beacon + syndicate deployable states).
 - `tgui/packages/tgui/interfaces/HelmConsole.tsx` - the helm UI rewrite.
+- `tgui/packages/tgui/interfaces/DistressBeacon.tsx` - evac beacon TGUI.
 - `code/__DEFINES/~nova_defines/overmap.dm` - cross-file defines.
+- `code/modules/unit_tests/~nova/overmap_ruins.dm` - unit tests for
+  site POIs, stealth gating, crosslinked Z prevention, beacon.
 
-### Core file changes (NOVA EDIT ADDITION OVERMAP)
+### master_files overrides
+
+- `modular_nova/master_files/code/controllers/subsystem/mapping.dm` -
+  adds `overmap_space_ruins` var on `/datum/map_config`; extends
+  `setup_ruins()` to skip space ruin seeding when flag is set.
+
+### Core file changes (NOVA EDIT ADDITION/CHANGE OVERMAP)
 
 - `code/modules/shuttle/mobile_port/mobile_port.dm` - adds
   `var/obj/structure/overmap/ship/simulated/current_ship` to
@@ -62,6 +83,15 @@ polish, more shuttle area_spawn entries) is tracked separately.
   the existing SSliquids hook so liquid handling fires first.
 - `code/__HELPERS/names.dm` - syncs `SSovermap.main.name` to
   `GLOB.station_name` whenever the station is renamed.
+- `code/datums/map_config.dm` - JSON parse for `overmap_space_ruins`
+  config flag (NOVA EDIT ADDITION - OVERMAP).
+- `code/modules/unit_tests/_unit_tests.dm` - include for
+  `~nova/overmap_ruins.dm` (NOVA EDIT ADDITION - OVERMAP).
+
+### Config (map JSON, not .dmm)
+
+- `_maps/metastation.json` - `space_ruin_levels: 0`,
+  `space_empty_levels: 0`, `overmap_space_ruins: true`.
 
 ## Credits
 

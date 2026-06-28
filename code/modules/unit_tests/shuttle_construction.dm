@@ -42,7 +42,8 @@
 	apply_shuttle_rods(target, rods, user)
 
 	TEST_ASSERT_EQUAL(rods.get_amount(), rod_count - 1, "Shuttle frame rod should be consumed")
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Visible turf should be plating after anchoring frame rods")
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Turf should remain plating after anchoring frame rods")
+	TEST_ASSERT(!locate(/obj/structure/lattice) in target, "Frame rods should not spawn a lattice object on plating")
 	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Plating should have shuttle construction trait")
 	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target], "Plating should be registered to a shuttle frame")
 	TEST_ASSERT(!target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), "Skipover should not be inserted during frame construction")
@@ -81,10 +82,8 @@
 
 	apply_shuttle_rods(target, rods, user)
 
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Anchoring rods on tiled floor should place plating on top")
-	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "New plating layer should have shuttle construction trait")
-	var/list/baseturf_list = islist(target.baseturfs) ? target.baseturfs : list(target.baseturfs)
-	TEST_ASSERT(baseturf_list.Find(EXPECTED_FLOOR_TYPE), "Prior floor type should be preserved in baseturfs")
+	TEST_ASSERT(istype(target, EXPECTED_FLOOR_TYPE), "Anchoring rods on tiled floor should preserve the original turf type")
+	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Tiled floor should have shuttle construction trait")
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_tiled_floor/Destroy()
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)

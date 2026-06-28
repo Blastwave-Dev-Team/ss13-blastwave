@@ -45,9 +45,11 @@
 /turf/open/floor/plating/attackby(obj/item/C, mob/user, list/modifiers)
 	if(..())
 		return
+	// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION
 	if(istype(C, /obj/item/stack/rods/shuttle))
 		if(build_shuttle_frame_with_rods(C, user))
 			return
+	// NOVA EDIT ADDITION END
 	if(istype(C, /obj/item/stack/rods) && attachment_holes)
 		if(broken || burnt)
 			if(!iscyborg(user))

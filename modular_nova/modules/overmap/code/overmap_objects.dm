@@ -438,6 +438,9 @@
 	var/list/linked_levels
 	/// If the shuttle nav console can change the docking location.
 	var/custom_docking = TRUE
+	/// When TRUE, visibility to other ships is filtered via
+	/// SSovermap.can_view_installation(). Only main + des_two use this.
+	var/installation_stealth = FALSE
 	render_map = TRUE
 
 /obj/structure/overmap/level/Initialize(mapload, _id, list/_zs)
@@ -458,6 +461,7 @@
 	icon_state = "station"
 	id = MAIN_OVERMAP_OBJECT_ID
 	sensor_range = 6
+	installation_stealth = TRUE
 
 /obj/structure/overmap/level/main/Initialize(mapload, _id, list/_zs)
 	if(SSovermap.main)
@@ -504,3 +508,39 @@
 	desc = "A small orbital supply structure."
 	icon_state = "object"
 	sensor_range = 4
+
+// NAMED RUIN SITES — created by SSovermap.seed_space_sites()
+
+/// A named space ruin POI placed on the overmap at roundstart. Unlike
+/// `/dynamic` encounters (lazy-loaded on player Act), sites are preloaded
+/// on isolated reserved Zs so they always exist and cannot be EVA'd to.
+/obj/structure/overmap/level/site
+	name = "Unknown Signal"
+	desc = "A point of interest in deep space."
+	icon_state = "object"
+	sensor_range = 4
+	/// The primary ruin template loaded onto this site's reserved Z.
+	var/datum/map_template/ruin/ruin_template
+	/// Additional templates chained to the same reservation (always_spawn_with).
+	var/list/datum/map_template/ruin/chained_templates
+	/// The turf reservation backing this site.
+	var/datum/turf_reservation/reserve
+	/// If TRUE, the reservation persists for the round (not cleaned up).
+	var/preserve_level = TRUE
+	/// Whether the level has been loaded yet.
+	var/preloaded = FALSE
+
+/obj/structure/overmap/level/site/Initialize(mapload, _id, list/_zs, datum/map_template/ruin/_template)
+	. = ..()
+	if(_template)
+		ruin_template = _template
+		name = _template.name || name
+
+/obj/structure/overmap/level/site/Destroy()
+	if(reserve && !preserve_level)
+		QDEL_NULL(reserve)
+	reserve = null
+	ruin_template = null
+	chained_templates = null
+	return ..()
+

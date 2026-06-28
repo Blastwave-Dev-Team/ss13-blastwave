@@ -12,8 +12,14 @@
 	ADD_TRAIT((get_area(target)), TRAIT_HAS_SHUTTLE_CONSTRUCTION_TURF, REF(target))
 	if(!GLOB.shuttle_frames_by_turf[target])
 		assign_shuttle_construction_turf_to_frame(target)
+	// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+	shuttle_construction_turf_overlay_attached(target)
+	// NOVA EDIT ADDITION END
 
 /datum/element/shuttle_construction_turf/Detach(turf/source, ...)
+	// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+	shuttle_construction_turf_overlay_detached(source)
+	// NOVA EDIT ADDITION END
 	. = ..()
 	UnregisterSignal(source, list(COMSIG_TURF_CHANGE, COMSIG_TURF_ATTEMPT_LATTICE_REPLACEMENT, COMSIG_TURF_ADDED_TO_SHUTTLE, SIGNAL_REMOVETRAIT(TRAIT_SHUTTLE_CONSTRUCTION_TURF)))
 	REMOVE_TRAIT((get_area(source)), TRAIT_HAS_SHUTTLE_CONSTRUCTION_TURF, REF(source))
