@@ -684,7 +684,7 @@
 		var/dz = newloc.z
 		new_locs = block(
 			dx, dy, dz,
-			dx + ceil(bound_width / 32), dy + ceil(bound_height / 32), dz
+			dx + ceil(bound_width / 32) - 1, dy + ceil(bound_height / 32) - 1, dz
 		) // If this is a multi-tile object then we need to predict the new locs and check if they allow our entrance.
 		for(var/atom/entering_loc as anything in new_locs)
 			if(!entering_loc.Enter(src))
@@ -1176,7 +1176,7 @@
 				var/dz = destination.z
 				var/list/new_locs = block(
 					dx, dy, dz,
-					dx + ROUND_UP(bound_width / ICON_SIZE_X), dy + ROUND_UP(bound_height / ICON_SIZE_Y), dz
+					dx + ROUND_UP(bound_width / ICON_SIZE_X) - 1, dy + ROUND_UP(bound_height / ICON_SIZE_Y) - 1, dz
 				)
 				if(old_area && old_area != destarea)
 					old_area.Exited(src, movement_dir)
