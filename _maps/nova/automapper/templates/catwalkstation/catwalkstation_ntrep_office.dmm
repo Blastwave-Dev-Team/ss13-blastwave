@@ -107,8 +107,8 @@
 "A" = (
 /obj/structure/table/wood,
 /obj/machinery/fax{
-	fax_name = "Nanotrasen Consultant's Office";
-	name = "Nanotrasen Consultant's Fax Machine"
+	fax_name = "Sol Federation Representative's Office";
+	fax_name = "Sol Federation Representative's Fax Machine";
 	},
 /turf/open/floor/carpet/executive,
 /area/station/command/heads_quarters/nt_rep)

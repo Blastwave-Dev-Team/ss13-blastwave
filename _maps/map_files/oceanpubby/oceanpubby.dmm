@@ -8573,7 +8573,7 @@
 /obj/structure/flora/grass/jungle,
 /obj/structure/flora/bush/grassy,
 /obj/structure/flora/bush/flowers_br,
-/obj/structure/window/reinforced/fulltile,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /obj/structure/curtain/cloth/fancy/mechanical{
 	icon_state = "bounty-open";
 	icon_type = "bounty";
@@ -8719,7 +8719,7 @@
 /area/station/hallway/primary/central/fore)
 "aLz" = (
 /obj/structure/aquarium/prefilled,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "aLA" = (
 /obj/structure/closet/secure_closet/nanotrasen_consultant,
@@ -8727,7 +8727,13 @@
 	pixel_y = 32
 	},
 /obj/structure/sign/calendar/directional/east,
-/turf/open/floor/carpet/green,
+/obj/item/clothing/accessory/nova/solfedribbon/rank3,
+/obj/item/clothing/accessory/nova/acc_medal/neckpin/solfed/official,
+/obj/item/clothing/under/solfed/official_civil,
+/obj/item/clothing/under/solfed/officer_lowrnk,
+/obj/item/storage/lunchbox/solfed,
+/obj/item/storage/toolbox/guncase/nova/solfedspec/pistol,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "aLB" = (
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2,
@@ -9017,7 +9023,7 @@
 /obj/structure/chair/comfy/beige{
 	dir = 4
 	},
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "aMY" = (
 /obj/structure/chair/comfy/brown{
@@ -9027,7 +9033,7 @@
 /obj/effect/landmark/start/nanotrasen_consultant,
 /obj/machinery/power/apc/auto_name/directional/east,
 /obj/structure/cable,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "aMZ" = (
 /obj/structure/closet,
@@ -9292,7 +9298,7 @@
 /obj/machinery/airalarm/directional/south,
 /obj/structure/cable,
 /obj/machinery/light/directional/south,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "aOw" = (
 /obj/structure/grille/broken,
@@ -28642,7 +28648,12 @@
 /turf/open/floor/iron/dark,
 /area/station/security/mechbay)
 "eki" = (
-/obj/structure/filingcabinet/employment,
+/obj/structure/table/wood/fancy/black,
+/obj/machinery/fax{
+	fax_name = "SolFed Representative's Fax Machine";
+	name = "SolFed Representative's Fax Machine";
+	pixel_y = 3
+	},
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "ekm" = (
@@ -32293,7 +32304,7 @@
 /turf/open/floor/plating,
 /area/station/security/range)
 "gHb" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/flashlight/lamp/green{
 	pixel_x = 7;
 	pixel_y = 10
@@ -32307,7 +32318,14 @@
 	pixel_y = 7
 	},
 /obj/item/radio/intercom/directional/north,
-/turf/open/floor/carpet/green,
+/obj/item/paper/solfed_rep_guide1,
+/obj/item/paper/solfed_rep_guide2,
+/obj/item/paper/solfed_rep_guide3,
+/obj/item/stamp/solfed,
+/obj/item/deskflag/solfed{
+	pixel_x = -10
+	},
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "gHR" = (
 /obj/structure/cable,
@@ -32526,6 +32544,20 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/cyan/hidden/layer4,
 /turf/open/floor/iron/large,
 /area/station/security/armory)
+"gRT" = (
+/obj/structure/flora/grass/jungle,
+/obj/structure/flora/bush/grassy,
+/obj/structure/flora/bush/flowers_br,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/obj/structure/curtain/cloth/fancy/mechanical{
+	icon_state = "bounty-open";
+	icon_type = "bounty";
+	id = "consultant";
+	name = "curtain"
+	},
+/obj/structure/sign/flag/terragov,
+/turf/open/floor/grass,
+/area/station/command/heads_quarters/nt_rep)
 "gRU" = (
 /obj/item/kirbyplants/organic/plant11,
 /obj/effect/turf_decal/trimline/purple/filled/line,
@@ -33571,7 +33603,7 @@
 "hIE" = (
 /obj/structure/cable,
 /obj/machinery/light_switch/directional/south,
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "hIQ" = (
 /obj/machinery/light/directional/south,
@@ -35487,7 +35519,7 @@
 /obj/structure/flora/bush/grassy,
 /obj/structure/flora/bush/sunny,
 /obj/structure/flora/bush/flowers_pp,
-/obj/structure/window/reinforced/fulltile,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /obj/structure/curtain/cloth/fancy/mechanical{
 	icon_state = "bounty-open";
 	icon_type = "bounty";
@@ -41201,7 +41233,7 @@
 /obj/structure/flora/grass/jungle,
 /obj/structure/flora/bush/grassy,
 /obj/structure/flora/bush/flowers_yw,
-/obj/structure/window/reinforced/fulltile,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /obj/structure/curtain/cloth/fancy/mechanical{
 	icon_state = "bounty-open";
 	icon_type = "bounty";
@@ -45110,7 +45142,7 @@
 /obj/machinery/modular_computer/preset/command{
 	dir = 4
 	},
-/turf/open/floor/carpet/green,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "qaH" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{
@@ -45372,13 +45404,13 @@
 /turf/open/floor/iron/dark,
 /area/station/engineering/atmos/hfr_room)
 "qjb" = (
-/obj/structure/table/wood,
-/obj/machinery/fax{
-	fax_name = "Consultant's Office";
-	name = "Consultant's Fax Machine";
-	pixel_y = 3
-	},
 /obj/machinery/newscaster/directional/south,
+/obj/structure/platform/gold,
+/obj/structure/statue/silver/nova/large/glow/order{
+	pixel_y = 9;
+	layer = 5;
+	anchored = 1
+	},
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "qjx" = (
@@ -51446,7 +51478,10 @@
 	specialfunctions = 4
 	},
 /obj/structure/cable,
-/turf/open/floor/carpet/green,
+/obj/structure/sign/flag/terragov{
+	pixel_x = 32
+	},
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "uly" = (
 /obj/structure/table/reinforced,
@@ -55279,12 +55314,12 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{
 	dir = 8
 	},
-/obj/machinery/door/airlock/corporate{
-	id_tag = "consultantdoor";
-	name = "Consultant's Office"
+/obj/machinery/door/airlock/shuttle/ferry{
+	name = "Sol Federation Representative's Office"
 	},
 /obj/effect/turf_decal/siding/wood/corner,
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
+/obj/machinery/scanner_gate/preset_guns,
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "wSb" = (
@@ -55797,6 +55832,20 @@
 	},
 /turf/open/floor/iron/white,
 /area/station/science/ordnance)
+"xeb" = (
+/obj/structure/flora/grass/jungle,
+/obj/structure/flora/bush/grassy,
+/obj/structure/flora/bush/flowers_yw,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/obj/structure/curtain/cloth/fancy/mechanical{
+	icon_state = "bounty-open";
+	icon_type = "bounty";
+	id = "consultant";
+	name = "curtain"
+	},
+/obj/structure/sign/flag/terragov_2,
+/turf/open/floor/grass,
+/area/station/command/heads_quarters/nt_rep)
 "xee" = (
 /obj/structure/lattice,
 /obj/structure/disposalpipe/segment,
@@ -82285,7 +82334,7 @@ aGX
 hRF
 ilz
 riB
-nmn
+xeb
 eki
 aMV
 qjb
@@ -82799,7 +82848,7 @@ aGX
 hmv
 ilz
 ofh
-aKK
+gRT
 aLz
 aMX
 aOv

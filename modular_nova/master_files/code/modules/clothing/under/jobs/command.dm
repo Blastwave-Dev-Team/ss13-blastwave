@@ -93,7 +93,7 @@
 
 /obj/item/clothing/under/rank/blueshield/consult
 	name = "blueshield's consulting suit"
-	desc = "A not so tactical uniform, held up to a greater standard of care by the company, tailored to be fancy with its golden trims matching that of the Nanotrasen Consultant. A symbol of unity, cohesion, and an annoyingly massive amount of paperwork."
+	desc = "A not so tactical uniform, held up to a greater standard of care by the company, tailored to be fancy with its golden trims matching that of the Sol Federation Representative. A symbol of unity, cohesion, and an annoyingly massive amount of paperwork."
 	icon_state = "bs_consult"
 
 /obj/item/clothing/under/rank/blueshield/consult/skirt
@@ -133,7 +133,7 @@
 	armor_type = /datum/armor/clothing_under/rank_blueshield
 
 /*
-*	NT CONSULTANT
+*	SOLFED REP
 */
 //See Blueshield note - tl;dr, this role is a station role, while Centcom.dmi is more event roles
 
@@ -141,16 +141,16 @@
 	icon = 'modular_nova/master_files/icons/obj/clothing/under/command.dmi'
 	worn_icon = 'modular_nova/master_files/icons/mob/clothing/under/command.dmi'
 	worn_icon_digi = 'modular_nova/master_files/icons/mob/clothing/under/command_digi.dmi'
-	desc = "It's a green jumpsuit with some gold markings denoting the rank of \"Nanotrasen Consultant\"."
-	name = "nanotrasen consultant's jumpsuit"
-	icon_state = "nt_consultant"
+	desc = "It's a black and red jumpsuit with some gold markings denoting the rank of \"Sol Federation Representative\"."
+	name = "solfed representative's jumpsuit"
+	icon_state = "solfed_consult"
 	sensor_mode = SENSOR_COORDS
 	random_sensor = FALSE
 
 /obj/item/clothing/under/rank/nanotrasen_consultant/skirt
-	name = "nanotrasen consultant's jumpskirt"
-	desc = "It's a green jumpskirt with some gold markings denoting the rank of \"Nanotrasen Consultant\"."
-	icon_state = "nt_consultant_skirt"
+	name = "solfed representative's suitskirt"
+	desc = "It's a black and red jumpskirt with some gold markings denoting the rank of \"Sol Federation Representative\"."
+	icon_state = "solfed_consult_skirt"
 	body_parts_covered = CHEST|GROIN|ARMS
 	dying_key = DYE_REGISTRY_JUMPSKIRT
 	female_sprite_flags = FEMALE_UNIFORM_TOP_ONLY
@@ -158,16 +158,16 @@
 	gets_cropped_on_taurs = FALSE
 
 /obj/item/clothing/under/imperial/nanotrasen_consultant
-	name = "nanotrasen consultant's naval uniform"
-	desc = "An upper level uniform granted to consultants and representatives alike, representing CentCom's grand naval fleet."
+	name = "solfed representative's naval uniform"
+	desc = "An upper level uniform granted to consultants and solfed representatives alike."
 	icon_state = "/obj/item/clothing/under/imperial/nanotrasen_consultant"
-	greyscale_colors = "#54a57e#54a57e#47464e#373741#ffce5b#ffce5b#f2b050"
+	greyscale_colors = "#b58526#1f1f1f#47464e#373741#ffce5b#ffce5b#f2b050"
 	flags_1 = NONE
 
 /obj/item/clothing/under/imperialskirt/nanotrasen_consultant
-	name = "nanotrasen consultant's naval skirt"
-	desc = "An upper level uniform granted to consultants and representatives alike, representing CentCom's grand naval fleet."
-	greyscale_colors = "#54a57e#47464e#373741#ffce5b#ffce5b#f2b050"
+	name = "solfed representative's naval skirt"
+	desc = "An upper level uniform granted to consultants and solfed representatives alike."
+	greyscale_colors = "#b58526#47464e#373741#ffce5b#ffce5b#f2b050"
 	icon_state = "/obj/item/clothing/under/imperialskirt/nanotrasen_consultant"
 	flags_1 = NONE
 

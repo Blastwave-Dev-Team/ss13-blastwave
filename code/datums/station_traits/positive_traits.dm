@@ -296,7 +296,7 @@
 		// NOVA EDIT ADDITION START - MODULAR JOBS
 		/datum/job/virologist = /obj/item/organ/lungs/cybernetic/tier2,
 		/datum/job/blueshield = /obj/item/organ/cyberimp/brain/anti_stun,
-		/datum/job/nanotrasen_consultant = /obj/item/organ/heart/cybernetic/tier3,
+		/datum/job/solfed_representative = /obj/item/organ/heart/cybernetic/tier3,
 		/datum/job/barber = /obj/item/organ/ears/cybernetic/whisper,
 		/datum/job/corrections_officer = /obj/item/organ/cyberimp/arm/toolkit/flash,
 		/datum/job/orderly = /obj/item/organ/cyberimp/brain/anti_drop,

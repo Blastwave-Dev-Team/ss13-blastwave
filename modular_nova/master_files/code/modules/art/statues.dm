@@ -128,7 +128,7 @@
 
 /obj/structure/statue/silver/nova/large
 	name = "Sol Federation Memorium"
-	desc = "To all the soldiers, whom have fallen bravely in the line of duty protecting this beautiful galaxy..."
+	desc = "In honored memory of those who gave their lives in service to the Federation. They stood watch in times of peril, defended the liberties of its citizens, and carried the banner of civilization to the farthest reaches of the galaxy. Their sacrifice shall not be forgotten. DUTY. HONOR. SERVICE"
 	icon = 'modular_nova/master_files/icons/obj/art/statuelarge.dmi'
 	icon_state = "obelisk_solfed"
 
@@ -175,8 +175,8 @@
 	icon_state = "light_statue"
 
 /obj/structure/statue/silver/nova/large/glow/order
-	name = "Statue of Order"
-	desc = "A statue, with a great feeling of order, and community, through unity aand order."
+	name = "Federal Declaration of Rights"
+	desc = "All citizens of the Federation have the innate and inviolable right to freedom of speech, the right to vote, the right to freedom of religion and conscience, the right to peaceful assembly, the right to petition the government for redress of grievances, the right to due process of law, the right to equal protection under the law, the right to be secure in their persons, homes, papers, and effects against unreasonable searches and seizures, and the right to life, liberty, and property, which shall not be deprived except by due process of law."
 	icon_state = "order"
 
 /obj/structure/statue/silver/nova/large/glow/love

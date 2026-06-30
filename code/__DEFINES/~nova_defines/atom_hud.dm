@@ -8,7 +8,7 @@
 #define SECHUD_SCIENCE_GUARD "hudscienceguard"
 // Nova Nanotrasen
 #define SECHUD_BLUESHIELD "hudblueshield"
-#define SECHUD_NT_CONSULTANT "hudnanotrasenconsultant"
+#define SECHUD_SOLFED_REP "hudsolfedrep"
 // Nova DS2
 #define SECHUD_DS2_DOCTOR "hud_ds2doctor"
 #define SECHUD_DS2_RESEARCHER "hud_ds2researcher"

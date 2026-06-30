@@ -781,10 +781,12 @@
 "df" = (
 /obj/structure/table/wood,
 /obj/item/clipboard{
-	pixel_x = -6
+	pixel_x = 8;
+	pixel_y = 18
 	},
 /obj/item/folder/documents{
-	pixel_x = -6
+	pixel_x = 8;
+	pixel_y = 16
 	},
 /obj/item/stamp/denied{
 	pixel_x = 6;
@@ -795,6 +797,36 @@
 	pixel_y = 3
 	},
 /obj/item/stamp/centcom,
+/obj/item/stamp/solfed{
+	desc = "A standard Sol Federation approval stamp. Standard for the SolFed Representative";
+	pixel_y = 11;
+	pixel_x = -9
+	},
+/obj/item/stamp/solfed_court{
+	desc = "A rubber stamp from the Sol Federation Federal Court. For approving and validating any official court documents.";
+	pixel_x = -9;
+	pixel_y = 7
+	},
+/obj/item/stamp/solfed_highcom{
+	desc = "The official stamp of the Sol Federation Military High Command. Typically only used on documents regarding military affairs.";
+	pixel_y = 3;
+	pixel_x = -9
+	},
+/obj/item/stamp/solfed_logo_1{
+	desc = "A rubber stamop for the first SolFed department logo choice, a standard wreath around a system with a central star.";
+	pixel_y = -1;
+	pixel_x = -9
+	},
+/obj/item/stamp/solfed_logo_2{
+	desc = "A rubber stamp for the second sol federation department logo: a circular wreath around a system.";
+	pixel_y = -5;
+	pixel_x = -9
+	},
+/obj/item/stamp/solfed_prosecutor_gen{
+	pixel_y = -9;
+	desc = "The official rubber stamp of the Federal Prosecutor General of the Solar Federation government. Typically only used when stamping federal arrest warrants for serious crimes.";
+	pixel_x = -9
+	},
 /turf/open/floor/carpet/green,
 /area/centcom/central_command_areas/admin)
 "dh" = (
@@ -11507,17 +11539,10 @@
 /obj/structure/table/wood,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden,
 /obj/machinery/recharger{
-	pixel_y = 3;
-	pixel_x = -10
+	pixel_y = -3;
+	pixel_x = -38
 	},
-/obj/item/camera{
-	pixel_x = 4;
-	pixel_y = 9
-	},
-/obj/item/storage/photo_album{
-	pixel_x = 3;
-	pixel_y = -5
-	},
+/obj/machinery/fax/admin/solfed,
 /turf/open/floor/carpet/green,
 /area/centcom/central_command_areas/admin)
 "Yt" = (

@@ -356,6 +356,7 @@
 #include "~nova\automapper.dm"
 #include "~nova\digi_underclothes.dm"
 #include "~nova\liver_nova.dm"
+#include "~nova\megacell_charger.dm"
 #include "~nova\neuroware_chips.dm"
 #include "~nova\opposing_force.dm"
 #include "~nova\overmap_ruins.dm"
