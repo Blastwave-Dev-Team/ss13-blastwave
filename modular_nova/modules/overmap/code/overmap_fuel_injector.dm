@@ -46,6 +46,7 @@
 		fill_default_mix()
 	init_fuel_injector_filter_defaults(src)
 	update_linked_engines()
+	register_context()
 	RegisterSignal(src, COMSIG_ATOM_DIR_CHANGE, PROC_REF(on_dir_change))
 
 /obj/machinery/overmap/fuel_injector/Destroy()
@@ -474,6 +475,7 @@
 	. = ..()
 	. += span_notice("Fuel input: piping layer [PIPING_LAYER_MIN]. Propellant feed: piping layer [OVERMAP_HNT_FEED_LAYER]. Exhaust filter: piping layer [PIPING_LAYER_DEFAULT].")
 	. += span_notice("Use to open the fuel processor interface.")
+	. += span_notice("A <i>screwdriver</i> [panel_open ? "closes" : "opens"] the maintenance panel. With the panel open, a <i>wrench</i> rotates it, <i>right-click wrench</i> [anchored ? "unanchors" : "anchors"] it, and a <i>crowbar</i> deconstructs it.")
 	if(!can_flameout())
 		. += span_notice("Linked engine must be off before flameout.")
 	else
@@ -516,6 +518,42 @@
 		update_appearance()
 		return
 	return ..()
+
+/obj/machinery/overmap/fuel_injector/screwdriver_act(mob/living/user, obj/item/tool)
+	return default_deconstruction_screwdriver(user, tool)
+
+/obj/machinery/overmap/fuel_injector/crowbar_act(mob/living/user, obj/item/tool)
+	return default_deconstruction_crowbar(user, tool)
+
+/// Primary wrench rotates the injector (and its propellant connectors) while the panel is open.
+/obj/machinery/overmap/fuel_injector/wrench_act(mob/living/user, obj/item/tool)
+	return default_change_direction_wrench(user, tool)
+
+/// Secondary (right-click) wrench anchors/unanchors, mirroring atmos machines.
+/obj/machinery/overmap/fuel_injector/wrench_act_secondary(mob/living/user, obj/item/tool)
+	if(!panel_open)
+		balloon_alert(user, "open panel!")
+		return ITEM_INTERACT_SUCCESS
+	if(default_unfasten_wrench(user, tool) == SUCCESSFUL_UNFASTEN)
+		update_linked_engines()
+	return ITEM_INTERACT_SUCCESS
+
+/obj/machinery/overmap/fuel_injector/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
+	if(isnull(held_item))
+		return NONE
+	switch(held_item.tool_behaviour)
+		if(TOOL_SCREWDRIVER)
+			context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] maintenance panel"
+			return CONTEXTUAL_SCREENTIP_SET
+		if(TOOL_WRENCH)
+			context[SCREENTIP_CONTEXT_LMB] = "Rotate"
+			context[SCREENTIP_CONTEXT_RMB] = "[anchored ? "Unanchor" : "Anchor"]"
+			return CONTEXTUAL_SCREENTIP_SET
+		if(TOOL_CROWBAR)
+			if(panel_open)
+				context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
+				return CONTEXTUAL_SCREENTIP_SET
+	return NONE
 
 /obj/machinery/overmap/fuel_injector/click_alt(mob/user)
 	if(!can_flameout())

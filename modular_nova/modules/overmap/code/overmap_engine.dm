@@ -198,6 +198,12 @@
 		return
 	return ..()
 
+/obj/machinery/power/shuttle_engine/overmap/screwdriver_act(mob/living/user, obj/item/tool)
+	. = default_deconstruction_screwdriver(user, tool)
+	if(. == ITEM_INTERACT_SUCCESS)
+		update_engine()
+		update_icon_state()
+
 /obj/machinery/power/shuttle_engine/overmap/crowbar_act(mob/living/user, obj/item/tool)
 	if(fuel_core)
 		to_chat(user, span_notice("You pry [fuel_core] out of [src]."))
@@ -206,6 +212,11 @@
 		update_engine()
 		update_icon_state()
 		return ITEM_INTERACT_SUCCESS
+	if(panel_open && anchored)
+		balloon_alert(user, "unweld and unwrench first!")
+		return ITEM_INTERACT_BLOCKING
+	if(panel_open)
+		return default_deconstruction_crowbar(user, tool)
 	return ..()
 
 /obj/machinery/power/shuttle_engine/overmap/multitool_act(mob/living/user, obj/item/tool)
@@ -216,9 +227,28 @@
 	update_icon_state()
 	return ITEM_INTERACT_SUCCESS
 
+/obj/machinery/power/shuttle_engine/overmap/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
+	. = ..()
+	if(isnull(held_item))
+		return
+	if(held_item.tool_behaviour == TOOL_SCREWDRIVER)
+		context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] maintenance panel"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_MULTITOOL)
+		context[SCREENTIP_CONTEXT_LMB] = "[enabled ? "Disable" : "Enable"] engine"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_CROWBAR)
+		if(fuel_core)
+			context[SCREENTIP_CONTEXT_LMB] = "Remove fuel core"
+			return CONTEXTUAL_SCREENTIP_SET
+		if(panel_open && !anchored)
+			context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
+			return CONTEXTUAL_SCREENTIP_SET
+
 /obj/machinery/power/shuttle_engine/overmap/examine(mob/user)
 	. = ..()
 	. += span_notice("It is currently [enabled ? "enabled" : "disabled"]. Use a multitool to toggle.")
+	. += span_notice("A <i>screwdriver</i> [panel_open ? "closes" : "opens"] the maintenance panel[panel_open ? "; while open and detached from the floor, a <i>crowbar</i> deconstructs it" : " (cuts thrust while open)"].")
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector)
 		. += span_notice("Linked to [injector][link_via_pipe ? " via propellant manifold" : " by adjacency"].")

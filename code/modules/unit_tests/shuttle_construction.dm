@@ -204,5 +204,181 @@
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_builds_plating
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_builds_plating/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	RESET_TO_EXPECTED(target)
+	apply_shuttle_rods(target, rods, user)
+
+	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
+	TEST_ASSERT(frame, "Frame should exist before tile placement")
+	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be present before tile")
+
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "shuttle_frame_build_plating_with_tile should succeed")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Tile on rod-frame floor should produce plating, got [target.type]")
+	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Frame trait should survive plating")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be cleared after plating")
+	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Turf should remain in the same shuttle frame")
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should be gone after plating")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_builds_plating/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_then_tile
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_then_tile/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	prepare_plating(target)
+	apply_shuttle_rods(target, rods, user)
+
+	target.shuttle_frame_build_plating_with_tile(tiles, user)
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "First tile should produce plating")
+
+	target = tiles.place_tile(target, user)
+	TEST_ASSERT(target, "Second tile (place_tile) should return the new turf")
+	TEST_ASSERT(istype(target, EXPECTED_FLOOR_TYPE), "Second tile should produce iron floor via normal place_tile")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_then_tile/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rcd_builds_plating
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rcd_builds_plating/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	RESET_TO_EXPECTED(target)
+	apply_shuttle_rods(target, rods, user)
+
+	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
+	var/list/rcd_data = list("[RCD_DESIGN_MODE]" = RCD_TURF, "[RCD_DESIGN_PATH]" = /turf/open/floor/plating/rcd)
+	TEST_ASSERT(target.shuttle_frame_rcd_act(rcd_data), "shuttle_frame_rcd_act should succeed on rod-frame turf")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "RCD on rod-frame turf should produce plating, got [target.type]")
+	TEST_ASSERT(!iswallturf(target), "RCD should NOT produce a wall on rod-frame turf")
+	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Frame trait should survive RCD plating")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be cleared after RCD plating")
+	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Turf should remain in the same shuttle frame")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rcd_builds_plating/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_space_no_overlay
+
+/datum/unit_test/shuttle_construction/shuttle_frame_space_no_overlay/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
+
+	target.ChangeTurf(/turf/open/space, /turf/open/space)
+	target.build_with_rods(rods, user)
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Space-lattice path should NOT produce a rod overlay")
+
+	target.build_with_floor_tiles(tiles, user)
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Floor tile on lattice should produce plating")
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Plating built over space lattice should NOT have a rod overlay")
+
+	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
+	target.assemble_baseturfs(initial(target.baseturfs))
+
+/datum/unit_test/shuttle_construction/shuttle_frame_space_no_overlay/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_station_overlay
+
+/datum/unit_test/shuttle_construction/shuttle_frame_station_overlay/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	RESET_TO_EXPECTED(target)
+	apply_shuttle_rods(target, rods, user)
+
+	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Station rod frame should have the lattice overlay")
+
+	target.shuttle_frame_build_plating_with_tile(tiles, user)
+	target = get_turf(target)
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Overlay should be gone after building plating over station rods")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_station_overlay/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_examine_marker
+
+/datum/unit_test/shuttle_construction/shuttle_frame_examine_marker/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	RESET_TO_EXPECTED(target)
+	apply_shuttle_rods(target, rods, user)
+
+	var/list/examine_lines = target.examine(user)
+	var/found_hint = FALSE
+	for(var/line in examine_lines)
+		if(findtext(line, "Shuttle frame rods"))
+			found_hint = TRUE
+			break
+	TEST_ASSERT(found_hint, "Examine should contain shuttle frame rod hint on a rod-frame turf")
+
+	target.shuttle_frame_build_plating_with_tile(tiles, user)
+	target = get_turf(target)
+	examine_lines = target.examine(user)
+	found_hint = FALSE
+	for(var/line in examine_lines)
+		if(findtext(line, "Shuttle frame rods"))
+			found_hint = TRUE
+			break
+	TEST_ASSERT(!found_hint, "Examine should NOT contain shuttle frame rod hint after plating is built")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_examine_marker/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods
+
+/datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	RESET_TO_EXPECTED(target)
+	apply_shuttle_rods(target, rods, user)
+
+	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build plating over rods")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Built layer should be plating")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be hidden while plating is built")
+
+	target.ScrapeAway()
+	target = get_turf(target)
+	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Deconstructing plating should re-expose the frame rods")
+	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should return after deconstruction")
+	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Re-exposed turf should remain in the same shuttle frame")
+
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should be able to rebuild plating on the re-exposed frame turf")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
 #undef RESET_TO_EXPECTED
 #undef EXPECTED_FLOOR_TYPE

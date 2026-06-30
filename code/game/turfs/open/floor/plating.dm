@@ -49,6 +49,9 @@
 	if(istype(C, /obj/item/stack/rods/shuttle))
 		if(build_shuttle_frame_with_rods(C, user))
 			return
+	if(istype(C, /obj/item/stack/tile))
+		if(shuttle_frame_build_plating_with_tile(C, user))
+			return
 	// NOVA EDIT ADDITION END
 	if(istype(C, /obj/item/stack/rods) && attachment_holes)
 		if(broken || burnt)

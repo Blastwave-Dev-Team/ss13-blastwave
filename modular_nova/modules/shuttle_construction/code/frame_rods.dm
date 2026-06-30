@@ -19,6 +19,6 @@
 		balloon_alert(user, "need a shuttle frame rod!")
 		return TRUE
 	playsound(src, 'sound/items/weapons/genhit.ogg', 50, TRUE)
-	AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, REF(used_rods), /datum/element/shuttle_construction_turf)
+	AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE, /datum/element/shuttle_construction_turf)
 	to_chat(user, span_notice("You anchor shuttle frame rods into the [name]."))
 	return TRUE

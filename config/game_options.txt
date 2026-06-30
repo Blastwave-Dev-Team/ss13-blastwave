@@ -505,7 +505,10 @@ ICEMOON_BUDGET 90
 OCEAN_BUDGET 60
 
 ## Space Ruin Budget
-Space_Budget 0
+## When overmap_space_ruins is enabled, this budget controls how many
+## additional random space ruins are placed as named overmap site POIs
+## (after always_place ruins like DS2/Tarkon/Anchor Buoy).
+Space_Budget 16
 
 ## Time in ds from when a player latejoins till the arrival shuttle docks at the station
 ## Must be at least 30. At least 55 recommended to be visually/aurally appropriate
@@ -638,3 +641,5 @@ MAX_OVERMAP_EVENTS 12
 MAX_OVERMAP_EVENT_CLUSTERS 3
 ## Maximum dynamic encounter objects (dockable ruins/anomalies).
 MAX_OVERMAP_DYNAMIC_EVENTS 4
+## Maximum named ruin site POIs on the overmap (budget-fill cap after always_place).
+MAX_OVERMAP_NAMED_SITES 10

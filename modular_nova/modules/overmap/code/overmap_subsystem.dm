@@ -47,6 +47,8 @@ SUBSYSTEM_DEF(overmap)
 	var/list/placed_site_template_ids = list()
 	/// Whether the syndicate beacon has revealed the NT station to DS2.
 	var/station_revealed_to_ds2 = FALSE
+	/// All registered landing zone landmarks (for nav console zone discovery).
+	var/list/landing_zones
 
 /datum/controller/subsystem/overmap/Initialize()
 	generator_type = CONFIG_GET(string/overmap_generator_type)
@@ -497,7 +499,7 @@ SUBSYSTEM_DEF(overmap)
 		bottom_left.y + round(dock_size / 2), \
 		bottom_left.z)
 	var/obj/docking_port/stationary/primary_dock = new(dock_turf)
-	primary_dock.dir = WEST
+	primary_dock.dir = visiting_shuttle?.dir || WEST
 	primary_dock.name = "\improper Uncharted Space"
 	primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
 	primary_dock.height = dock_size
@@ -514,12 +516,18 @@ SUBSYSTEM_DEF(overmap)
 		bottom_left.y + CEILING(dock_size * 1.5, 1), \
 		bottom_left.z)
 	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
-	secondary_dock.dir = WEST
+	secondary_dock.dir = visiting_shuttle?.dir || WEST
 	secondary_dock.name = "\improper Uncharted Space"
 	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[dock_id]"
 	secondary_dock.height = dock_size
 	secondary_dock.width = dock_size
 	secondary_dock.dwidth = round(dock_size / 2)
+
+	// Create a landing zone spanning the usable reservation area
+	var/obj/effect/landmark/overmap_landing_zone/zone = new(bottom_left)
+	zone.zone_name = "Uncharted Space"
+	zone.zone_width = total_size - 2
+	zone.zone_height = total_size - 2
 
 	return encounter_reservation
 
@@ -638,6 +646,12 @@ SUBSYSTEM_DEF(overmap)
 	secondary_dock.height = dock_size
 	secondary_dock.width = dock_size
 	secondary_dock.dwidth = round(dock_size / 2)
+
+	// Create a landing zone spanning the usable reservation area
+	var/obj/effect/landmark/overmap_landing_zone/zone = new(bottom_left)
+	zone.zone_name = template.name
+	zone.zone_width = size - 2
+	zone.zone_height = size - 2
 
 	// Place the site on the overmap grid
 	var/list/site_zs = list(bottom_left.z)

@@ -72,3 +72,36 @@
 /datum/unit_test/overmap_distress_beacon/Run()
 	var/obj/machinery/distress_beacon/beacon = allocate(/obj/machinery/distress_beacon)
 	TEST_ASSERT_EQUAL(beacon.transmitting, FALSE, "Beacon should start not transmitting.")
+
+/// Verify that ship.set_nav_target propagates to the nav console's z_lock on open.
+/datum/unit_test/overmap_nav_camera_targeting
+
+/datum/unit_test/overmap_nav_camera_targeting/Run()
+	if(!SSovermap.initialized)
+		return
+
+	var/obj/structure/overmap/ship/simulated/ship = locate() in SSovermap.overmap_objects
+	if(!ship?.shuttle)
+		return
+
+	var/target_z = 1
+	var/list/station_zs = SSmapping.levels_by_trait(ZTRAIT_STATION)
+	if(length(station_zs))
+		target_z = station_zs[1]
+
+	var/list/test_dock_ids = list("test_dock_alpha", "test_dock_beta")
+	ship.set_nav_target(SSovermap.main, list(target_z), test_dock_ids)
+
+	TEST_ASSERT_EQUAL(ship.nav_dock_zs[1], target_z, "Ship nav_dock_zs[1] should equal target Z after set_nav_target.")
+
+	var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav = locate() in SSovermap.navs
+	if(!nav)
+		return
+	if(!nav.linked_port)
+		nav.link_shuttle()
+	if(nav.linked_port?.current_ship != ship)
+		return
+
+	nav.sync_from_ship(ship)
+	TEST_ASSERT_EQUAL(length(nav.z_lock), 1, "Nav z_lock should have 1 entry after sync.")
+	TEST_ASSERT_EQUAL(nav.z_lock[1], target_z, "Nav z_lock[1] should equal target body's Z, not shuttle's transit Z.")

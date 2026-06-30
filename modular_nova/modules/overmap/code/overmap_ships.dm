@@ -266,6 +266,12 @@
 	COOLDOWN_DECLARE(scan_cooldown)
 	/// TRUE while batched injector fuel burns are being processed this tick.
 	var/processing_fuel_batch = FALSE
+	/// Pending nav-camera docking target (written by helm `dock()`, read by nav console on open).
+	var/obj/structure/overmap/nav_dock_target
+	/// Z-levels the nav camera should display for the pending target.
+	var/list/nav_dock_zs
+	/// Stationary dock IDs relevant to the pending target (for jump-to-location in the nav UI).
+	var/list/nav_dock_ids
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -296,7 +302,17 @@
 		shuttle.current_ship = null
 	shuttle = null
 	docked = null
+	nav_dock_target = null
+	nav_dock_zs = null
+	nav_dock_ids = null
 	return ..()
+
+/// Write the pending docking target so the nav console can read it lazily.
+/// Called by `dock()` when no automatic stationary port is found.
+/obj/structure/overmap/ship/simulated/proc/set_nav_target(obj/structure/overmap/target, list/zs, list/dock_ids)
+	nav_dock_target = target
+	nav_dock_zs = zs?.Copy()
+	nav_dock_ids = dock_ids?.Copy()
 
 /// Override physics_tick: if docked, do nothing. If out of fuel, decay.
 /obj/structure/overmap/ship/simulated/physics_tick(dt)
@@ -525,11 +541,6 @@
 	if(!SSovermap.can_view_installation(src, target))
 		return "Unable to establish docking link with target."
 
-	if(istype(target, /obj/structure/overmap/level))
-		for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav as anything in SSovermap.navs)
-			if(nav.linked_port == shuttle)
-				nav.set_target_level(target)
-
 	var/list/candidates = list(
 		"[shuttle.shuttle_id]_[target.id]",
 		"[OVERMAP_DOCK_PREFIX]_[target.id]",
@@ -552,6 +563,8 @@
 		break
 
 	if(!picked)
+		var/list/target_zs = resolve_nav_target_zs(target)
+		set_nav_target(target, target_zs, candidates)
 		return "No automatic dock found - use the navigation computer to designate a landing pad on [target.name]."
 
 	docked = target
@@ -560,6 +573,21 @@
 	var/transit_time = shuttle.ignitionTime + (shuttle.callTime * shuttle.engine_coeff) + (3 SECONDS)
 	addtimer(CALLBACK(src, PROC_REF(complete_dock)), transit_time)
 	return "Commencing docking at [target.name]..."
+
+/// Derive the real Z-levels for a docking target so the nav camera can open there.
+/obj/structure/overmap/ship/simulated/proc/resolve_nav_target_zs(obj/structure/overmap/target)
+	if(istype(target, /obj/structure/overmap/level))
+		var/obj/structure/overmap/level/level_target = target
+		return level_target.linked_levels?.Copy()
+	if(istype(target, /obj/structure/overmap/dynamic))
+		var/obj/structure/overmap/dynamic/encounter = target
+		if(encounter.reserve)
+			var/turf/bl = encounter.reserve.bottom_left_turfs?[1]
+			if(bl)
+				return list(bl.z)
+		if(encounter.reserve_dock)
+			return list(encounter.reserve_dock.z)
+	return list()
 
 /// Snap icon onto docked overmap object and return to idle.
 /obj/structure/overmap/ship/simulated/proc/complete_dock()
@@ -571,6 +599,7 @@
 	state = OVERMAP_SHIP_IDLE
 	all_stop()
 	scanned_objects = null
+	set_nav_target(null, null, null)
 	update_screen(TRUE)
 
 /// Active radar sweep. Finds all overmap objects within sensor_range using

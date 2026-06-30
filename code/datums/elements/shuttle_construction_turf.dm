@@ -31,7 +31,19 @@
 	SIGNAL_HANDLER
 	var/list/old_trait_sources = GET_TRAIT_SOURCES(source, TRAIT_SHUTTLE_CONSTRUCTION_TURF)
 	old_trait_sources = old_trait_sources.Copy()
+	// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION - track whether the top turf layer is being removed so deconstructing built plating can re-expose frame rods
+	var/old_depth = source.count_baseturfs()
+	var/new_depth = old_depth
+	if(islist(new_baseturfs))
+		new_depth = length(new_baseturfs)
+	else if(!isnull(new_baseturfs))
+		new_depth = 1
+	var/is_uncovering = new_depth < old_depth
+	post_change_callbacks += CALLBACK(src, PROC_REF(post_turf_changed), old_trait_sources, is_uncovering)
+	// NOVA EDIT ADDITION END
+	/* NOVA EDIT - ORIGINAL
 	post_change_callbacks += CALLBACK(src, PROC_REF(post_turf_changed), old_trait_sources)
+	*/
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[source]
 	frame.possibly_valid_changing_turfs[source] = TRUE
 
@@ -39,7 +51,7 @@
 	SIGNAL_HANDLER
 	post_successful_replacement_callbacks += CALLBACK(src, PROC_REF(register_lattice))
 
-/datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, turf/new_turf)
+/datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, is_uncovering, turf/new_turf) // NOVA EDIT CHANGE - ORIGINAL: /datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, turf/new_turf)
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[new_turf]
 	frame.possibly_valid_changing_turfs -= new_turf
 	if(isfloorturf(new_turf) || iswallturf(new_turf))
@@ -49,6 +61,9 @@
 	if(length(trait_sources))
 		for(var/source in trait_sources)
 			new_turf.AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, source, type)
+		// NOVA EDIT ADDITION START - SHUTTLE_CONSTRUCTION - re-expose frame rods when built plating is deconstructed back to the landing pad
+		shuttle_construction_turf_reexpose_rods(new_turf, trait_sources, is_uncovering)
+		// NOVA EDIT ADDITION END
 	else
 		frame.remove_turf(new_turf)
 
