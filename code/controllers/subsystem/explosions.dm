@@ -308,7 +308,7 @@ ADMIN_VERB(check_bomb_impacts, R_DEBUG, "Check Bomb Impact", "See what the effec
  * - explosion_direction: The angle in which the explosion is pointed (for directional explosions.)
  * - explosion_arc: The angle of the arc covered by a directional explosion (if 360 the explosion is non-directional.)
  */
-/datum/controller/subsystem/explosions/proc/propagate_blastwave(atom/epicenter, devastation_range, heavy_impact_range, light_impact_range, flame_range, flash_range, adminlog, ignorecap, silent, smoke, protect_epicenter, atom/explosion_cause, explosion_direction, explosion_arc)
+/datum/controller/subsystem/explosions/proc/propagate_blastwave(atom/epicenter, devastation_range, heavy_impact_range, light_impact_range, flame_range, flash_range, adminlog, ignorecap, silent, smoke, protect_epicenter, atom/explosion_cause, explosion_direction, explosion_arc, z_spread_dir = ZSPREAD_ORIGIN)
 	epicenter = get_turf(epicenter)
 	if(!epicenter)
 		return
@@ -492,6 +492,80 @@ ADMIN_VERB(check_bomb_impacts, R_DEBUG, "Check Bomb Impact", "See what the effec
 
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_EXPLOSION, epicenter, devastation_range, heavy_impact_range, light_impact_range, took, orig_dev_range, orig_heavy_range, orig_light_range, explosion_cause, explosion_index)
 
+	if(z_spread_dir != ZSPREAD_NONE)
+		handle_z_spread(epicenter, devastation_range, heavy_impact_range, light_impact_range, flame_range, flash_range, explosion_cause, explosion_direction, explosion_arc, z_spread_dir)
+
+/**
+ * Propagates an explosion vertically to crosslinked Z-levels.
+ *
+ * Reuses [/datum/controller/subsystem/explosions/proc/propagate_blastwave] itself for each hop: every vertical step
+ * re-centers a real, weaker explosion on the neighbor turf, so the floors/ceilings between levels are destroyed by the
+ * normal turf ex_act. The z_spread_dir token keeps the cascade outward-only (never bouncing back into a level it already
+ * hit) and self-limiting, so on a normal two-level station it resolves to exactly one hop up or one down depending on
+ * the originating explosion's location.
+ *
+ * Arguments:
+ * - [epicenter][/turf]: The turf the parent explosion was centered on.
+ * - dev / heavy / light / flame / flash: The parent explosion's ranges.
+ * - [cause][/atom]: The atom blamed for the explosion, for logging.
+ * - dir / arc: Directional explosion parameters, carried through unchanged.
+ * - z_spread_dir: One of ZSPREAD_ORIGIN / ZSPREAD_UP / ZSPREAD_DOWN. Decides which vertical directions to walk.
+ */
+/datum/controller/subsystem/explosions/proc/handle_z_spread(turf/epicenter, dev, heavy, light, flame, flash, atom/cause, dir, arc, z_spread_dir)
+	if(!CONFIG_GET(flag/multiz_explosions))
+		return
+	if(!isturf(epicenter))
+		return
+
+	// Origin fires both ways; a mid-cascade hop only ever continues the way it came, preventing ping-pong.
+	var/do_up = (z_spread_dir == ZSPREAD_ORIGIN || z_spread_dir == ZSPREAD_UP)
+	var/do_down = (z_spread_dir == ZSPREAD_ORIGIN || z_spread_dir == ZSPREAD_DOWN)
+
+	// The chain is "damaging" if it either started from a large enough origin or is already mid-cascade.
+	var/damaging = (z_spread_dir != ZSPREAD_ORIGIN) || (dev >= CONFIG_GET(number/multiz_explosion_min_devastation))
+	var/falloff = CONFIG_GET(number/multiz_explosion_falloff)
+
+	if(do_up)
+		z_spread_step(GET_TURF_ABOVE(epicenter), dev, heavy, light, flame, flash, cause, dir, arc, ZSPREAD_UP, damaging, falloff)
+	if(do_down)
+		z_spread_step(GET_TURF_BELOW(epicenter), dev, heavy, light, flame, flash, cause, dir, arc, ZSPREAD_DOWN, damaging, falloff)
+
+/// Handles a single vertical hop of an explosion. See [/datum/controller/subsystem/explosions/proc/handle_z_spread].
+/datum/controller/subsystem/explosions/proc/z_spread_step(turf/target, dev, heavy, light, flame, flash, atom/cause, dir, arc, next_dir, damaging, falloff)
+	if(!target)
+		return
+
+	// Non-damaging chains (small explosives) just rattle the neighbor's floor tiles.
+	if(!damaging)
+		disturb_floor(target)
+		return
+
+	var/reduced_dev = max(0, dev - falloff)
+	var/reduced_heavy = max(0, heavy - falloff)
+	var/reduced_light = max(0, light - falloff)
+	var/reduced_flame = max(0, flame - falloff)
+	var/reduced_flash = max(0, flash - falloff)
+
+	// Blast too weak to punch through: rattle instead of detonating again (the cascade's fizzle edge).
+	if(!(reduced_dev || reduced_heavy || reduced_light))
+		disturb_floor(target)
+		return
+
+	// silent: sound is single-sourced from the primary shake_the_room. ignorecap: don't re-cap already-capped ranges.
+	propagate_blastwave(target, reduced_dev, reduced_heavy, reduced_light, reduced_flame, reduced_flash, adminlog = FALSE, ignorecap = TRUE, silent = TRUE, smoke = FALSE, protect_epicenter = FALSE, explosion_cause = cause, explosion_direction = dir, explosion_arc = arc, z_spread_dir = next_dir)
+
+/// Pops and throws floor tiles in a radius around a turf. Used for the non-damaging cross-Z rattle.
+/datum/controller/subsystem/explosions/proc/disturb_floor(turf/target)
+	if(!isturf(target))
+		return
+	var/disturb_range = CONFIG_GET(number/multiz_explosion_disturb_range)
+	var/disturb_prob = CONFIG_GET(number/multiz_explosion_disturb_prob)
+	if(disturb_range < 0 || disturb_prob <= 0)
+		return
+	for(var/turf/open/floor/floor_turf in circle_range_turfs(target, disturb_range))
+		if(prob(disturb_prob))
+			floor_turf.disturb_from_blast()
+
 // Explosion SFX defines...
 /// The probability that a quaking explosion will make the station creak per unit. Maths!
 #define QUAKE_CREAK_PROB 30
@@ -538,6 +612,28 @@ ADMIN_VERB(check_bomb_impacts, R_DEBUG, "Check Bomb Impact", "See what the effec
 	var/frequency = get_rand_frequency()
 	var/blast_z = epicenter.z
 	var/area/epicenter_area = get_area(epicenter)
+
+	// Cross-Z sound: collect the crosslinked neighbor Z-levels this blast should also be heard/felt on.
+	var/sound_range = CONFIG_GET(number/multiz_explosion_sound_range)
+	var/sound_penalty = CONFIG_GET(number/multiz_explosion_sound_penalty)
+	// Flat list of z-levels (not associative): DM treats list[number] as a positional index, so a numeric
+	// z used as an assoc key would write out of bounds and runtime. Store the z-levels and test them with `in`.
+	var/list/linked_zs
+	if(sound_range > 0)
+		linked_zs = list()
+		var/turf/walker = epicenter
+		for(var/i in 1 to sound_range)
+			walker = GET_TURF_ABOVE(walker)
+			if(!walker)
+				break
+			linked_zs += walker.z
+		walker = epicenter
+		for(var/i in 1 to sound_range)
+			walker = GET_TURF_BELOW(walker)
+			if(!walker)
+				break
+			linked_zs += walker.z
+
 	if(isnull(creaking)) // Autoset creaking.
 		var/on_station = SSmapping.level_trait(epicenter.z, ZTRAIT_STATION)
 		if(on_station && prob((quake_factor * QUAKE_CREAK_PROB) + (echo_factor * ECHO_CREAK_PROB))) // Huge explosions are near guaranteed to make the station creak and whine, smaller ones might.
@@ -547,12 +643,20 @@ ADMIN_VERB(check_bomb_impacts, R_DEBUG, "Check Bomb Impact", "See what the effec
 
 	for(var/mob/listener as anything in GLOB.player_list)
 		var/turf/listener_turf = get_turf(listener)
-		if(!listener_turf || listener_turf.z != blast_z)
+		if(!listener_turf)
+			continue
+		if(listener_turf.z != blast_z && !(linked_zs && (listener_turf.z in linked_zs)))
 			continue
 
-		var/distance = get_dist(epicenter, listener_turf)
-		if(epicenter == listener_turf)
-			distance = 0
+		var/z_delta = abs(listener_turf.z - blast_z)
+		var/distance
+		if(z_delta)
+			// Different Z: get_dist is unreliable across levels, so replicate its planar (Chebyshev) metric and add a vertical penalty.
+			distance = max(abs(epicenter.x - listener_turf.x), abs(epicenter.y - listener_turf.y)) + (z_delta * sound_penalty)
+		else
+			distance = get_dist(epicenter, listener_turf)
+			if(epicenter == listener_turf)
+				distance = 0
 		var/base_shake_amount = sqrt(near_distance / (distance + 1))
 
 		if(distance <= round(near_distance + world.view - 2, 1)) // If you are close enough to see the effects of the explosion first-hand (ignoring walls)

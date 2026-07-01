@@ -93,6 +93,9 @@
 
 /datum/config_entry/flag/reactionary_explosions //If we use reactionary explosions, explosions that react to walls and doors
 
+/datum/config_entry/flag/multiz_explosions //Master toggle for cross-Z explosion propagation (the damaging vertical cascade and tile rattle)
+	default = TRUE
+
 /datum/config_entry/flag/protect_roles_from_antagonist //If security and such can be traitor/cult/other
 
 /datum/config_entry/flag/protect_assistant_from_antagonist //If assistants can be traitor/cult/other
@@ -386,6 +389,37 @@
 		GLOB.MAX_EX_LIGHT_RANGE = config_entry_value
 		GLOB.MAX_EX_FLASH_RANGE = config_entry_value
 		GLOB.MAX_EX_FLAME_RANGE = config_entry_value
+
+/// Minimum primary devastation range for an explosion to deal cross-Z damage (separates syndicate bombs from C-4/X-4).
+/datum/config_entry/number/multiz_explosion_min_devastation
+	default = 1
+	min_val = 0
+
+/// Tiles subtracted from each explosion range ring per Z-level hop (the vertical "sphere" falloff).
+/datum/config_entry/number/multiz_explosion_falloff
+	default = 3
+	min_val = 1
+
+/// How many linked Z-levels an explosion's sound and screenshake travels (0 disables cross-Z sound).
+/datum/config_entry/number/multiz_explosion_sound_range
+	default = 1
+	min_val = 0
+
+/// Effective-distance tiles added per Z-level of separation, used to attenuate cross-Z sound/screenshake.
+/datum/config_entry/number/multiz_explosion_sound_penalty
+	default = 8
+	min_val = 0
+
+/// Radius of the non-damaging floor-tile rattle on neighbor levels.
+/datum/config_entry/number/multiz_explosion_disturb_range
+	default = 3
+	min_val = 0
+
+/// Per-tile chance (percent) to pop and throw a floor tile during the non-damaging rattle.
+/datum/config_entry/number/multiz_explosion_disturb_prob
+	default = 60
+	min_val = 0
+	max_val = 100
 
 /datum/config_entry/number/emergency_shuttle_autocall_threshold
 	min_val = 0
