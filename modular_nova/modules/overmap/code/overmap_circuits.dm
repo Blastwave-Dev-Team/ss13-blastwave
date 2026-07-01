@@ -35,3 +35,17 @@
 	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
 	build_path = /obj/machinery/overmap/fuel_injector
 	needs_anchored = FALSE
+
+/obj/item/circuitboard/machine/landing_corner
+	name = "Landing Zone Corner Beacon"
+	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	build_path = /obj/machinery/landing_corner
+	req_components = list(
+		/datum/stock_part/scanning_module = 1,
+		/obj/item/stack/sheet/glass = 1,
+	)
+
+/obj/item/circuitboard/computer/landing_controller
+	name = "Landing Zone Controller"
+	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	build_path = /obj/machinery/computer/landing_controller

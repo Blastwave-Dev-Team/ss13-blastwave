@@ -19,3 +19,7 @@
 /datum/config_entry/number/max_overmap_named_sites
 	default = 10
 	min_val = 0
+
+/datum/config_entry/number/max_overmap_landing_zone_dimension
+	default = 80
+	min_val = 10

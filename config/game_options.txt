@@ -643,3 +643,5 @@ MAX_OVERMAP_EVENT_CLUSTERS 3
 MAX_OVERMAP_DYNAMIC_EVENTS 4
 ## Maximum named ruin site POIs on the overmap (budget-fill cap after always_place).
 MAX_OVERMAP_NAMED_SITES 10
+## Maximum per-side dimension (tiles) for a player-constructed landing zone (sized to the largest evac shuttle).
+MAX_OVERMAP_LANDING_ZONE_DIMENSION 80

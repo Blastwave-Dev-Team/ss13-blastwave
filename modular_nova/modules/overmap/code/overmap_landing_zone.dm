@@ -38,6 +38,24 @@
 /obj/effect/landmark/overmap_landing_zone/proc/get_center_turf()
 	return locate(x + round(zone_width / 2), y + round(zone_height / 2), z)
 
+/// Returns the first mobile shuttle whose footprint overlaps this zone's bbox
+/// on the zone's Z, or null if the zone is clear. `ignore_port` is skipped so a
+/// navigating shuttle does not count itself as an occupant.
+/obj/effect/landmark/overmap_landing_zone/proc/get_occupant(obj/docking_port/mobile/ignore_port)
+	var/zone_x2 = x + zone_width - 1
+	var/zone_y2 = y + zone_height - 1
+	for(var/obj/docking_port/mobile/port as anything in SSshuttle.mobile_docking_ports)
+		if(port == ignore_port || port.z != z)
+			continue
+		var/list/bounds = port.return_coords()
+		var/port_x1 = min(bounds[1], bounds[3])
+		var/port_x2 = max(bounds[1], bounds[3])
+		var/port_y1 = min(bounds[2], bounds[4])
+		var/port_y2 = max(bounds[2], bounds[4])
+		if(port_x1 <= zone_x2 && port_x2 >= x && port_y1 <= zone_y2 && port_y2 >= y)
+			return port
+	return null
+
 /// Returns TRUE if the given bounding box (x1,y1 to x2,y2) is entirely within this zone.
 /obj/effect/landmark/overmap_landing_zone/proc/contains_bbox(x1, y1, x2, y2, check_z)
 	if(check_z != z)

@@ -78,6 +78,10 @@
 			continue
 		if(!zone.can_fit_shuttle(shuttle_port.width, shuttle_port.height))
 			continue
+		// Skip zones already occupied by another shuttle so we never route onto
+		// an occupied pad; passing shuttle_port excludes the navigating shuttle.
+		if(zone.get_occupant(shuttle_port))
+			continue
 		target_zones += zone
 
 /// Override checkLandingSpot to additionally validate that the shuttle bbox

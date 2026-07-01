@@ -9253,6 +9253,7 @@
 #include "modular_nova\modules\overmap\code\overmap_admin_verbs.dm"
 #include "modular_nova\modules\overmap\code\overmap_subsystem.dm"
 #include "modular_nova\modules\overmap\code\overmap_area_spawn.dm"
+#include "modular_nova\modules\overmap\code\overmap_landing_beacon.dm"
 #include "modular_nova\modules\overmap\code\overmap_landing_zone.dm"
 #include "modular_nova\modules\overmap\code\overmap_distress_beacon.dm"
 #include "modular_nova\modules\overmap\code\overmap_syndicate_beacon.dm"

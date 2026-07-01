@@ -49,7 +49,15 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `modular_nova/modules/overmap/code/overmap_engine.dm`,
   `overmap_engine_types.dm`, `overmap_heater.dm` - shuttle thrust/fuel.
 - `modular_nova/modules/overmap/code/overmap_circuits.dm` - circuit
-  boards for helm, nav, engine, heater.
+  boards for helm, nav, engine, heater, landing controller, and corner beacon.
+- `modular_nova/modules/overmap/code/overmap_landing_beacon.dm` -
+  player-constructable landing zones: `/obj/machinery/landing_corner`
+  light beacons linked via multitool to a `/obj/machinery/computer/landing_controller`
+  console (records-style login, command/engineering access) that derives a
+  rectangular landmark, gated by `max_overmap_landing_zone_dimension`.
+- `tgui/packages/tgui/interfaces/OvermapLandingController.tsx` - the
+  landing controller UI (login gate, zone naming, corner validation,
+  occupancy). Static mock: `tgui/prototypes/OvermapLandingController.html`.
 - `modular_nova/modules/overmap/code/overmap_area_spawn.dm` -
   `/datum/area_spawn` entries for helm, nav, engines, and the wall-mount
   distress beacon.
