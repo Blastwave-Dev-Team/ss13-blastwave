@@ -14,6 +14,8 @@ jobs:
     if: ( !contains(github.event.head_commit.message, '[ci skip]') && github.event.workflow_run.run_attempt == 1 )
     name: Show Screenshot Test Results
     runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write # to comment screenshot test results on PRs
     steps:
       - name: "Check for ARTIFACTS_FILE_HOUSE_KEY"
         id: secrets_set
