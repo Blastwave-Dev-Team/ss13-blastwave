@@ -197,6 +197,10 @@
 		return FALSE
 	if(required_organ_flag && !(affected_organ.organ_flags & required_organ_flag))
 		return FALSE
+	// NOVA EDIT ADDITION - Non-breathing mobs can't damage their (nonfunctional) lungs, e.g. hemophages smoking
+	if(slot == ORGAN_SLOT_LUNGS && amount > 0 && HAS_TRAIT(src, TRAIT_NOBREATH))
+		return FALSE
+	// NOVA EDIT ADDITION END
 	return affected_organ.apply_organ_damage(amount, maximum)
 
 /**

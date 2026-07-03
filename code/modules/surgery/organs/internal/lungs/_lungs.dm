@@ -856,6 +856,10 @@
 	if(failed && !(organ_flags & ORGAN_FAILING))
 		failed = FALSE
 		return
+	// NOVA EDIT ADDITION - Non-breathing mobs don't cough or struggle for breath from damaged (nonfunctional) lungs
+	if(HAS_TRAIT(owner, TRAIT_NOBREATH))
+		return
+	// NOVA EDIT ADDITION END
 	if(damage >= low_threshold)
 		var/do_i_cough = SPT_PROB((damage < high_threshold) ? 2.5 : 5, seconds_per_tick) // between : past high
 		if(do_i_cough)

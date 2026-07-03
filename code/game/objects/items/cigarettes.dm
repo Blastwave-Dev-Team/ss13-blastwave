@@ -540,7 +540,7 @@ CIGARETTE PACKETS ARE IN FANCY.DM
 /// Called when a mob gets smoke blown in their face.
 /obj/item/cigarette/proc/smoke_in_face(mob/living/getting_smoked)
 	getting_smoked.add_mood_event("smoke_bm", /datum/mood_event/smoke_in_face)
-	if(prob(20) && !HAS_TRAIT(getting_smoked, TRAIT_SMOKER) && !HAS_TRAIT(getting_smoked, TRAIT_ANOSMIA))
+	if(prob(20) && !HAS_TRAIT(getting_smoked, TRAIT_SMOKER) && !HAS_TRAIT(getting_smoked, TRAIT_ANOSMIA) && !HAS_TRAIT(getting_smoked, TRAIT_NOBREATH)) // NOVA EDIT CHANGE - ORIGINAL: if(prob(20) && !HAS_TRAIT(getting_smoked, TRAIT_SMOKER) && !HAS_TRAIT(getting_smoked, TRAIT_ANOSMIA))
 		getting_smoked.emote("cough")
 
 /// Handles processing the reagents in the cigarette.
