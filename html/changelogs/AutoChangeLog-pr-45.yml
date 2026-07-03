@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - code_imp: "fix the SolFed's maps lints"
