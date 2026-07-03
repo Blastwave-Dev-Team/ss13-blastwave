@@ -50,15 +50,12 @@
 	},
 /obj/structure/statue/silver/nova/large/glow/order{
 	pixel_y = 9;
-	layer = 5;
 	anchored = 1
 	},
 /obj/structure/railing{
 	dir = 6
 	},
-/obj/structure/platform/gold{
-	layer = 2
-	},
+/obj/structure/platform/gold,
 /turf/open/floor/mineral/titanium/tiled/yellow,
 /area/station/command/heads_quarters/nt_rep)
 "h" = (
@@ -185,15 +182,12 @@
 /obj/machinery/airalarm/directional/north,
 /obj/structure/statue/silver/nova/large{
 	pixel_y = 9;
-	anchored = 1;
-	layer = 5
+	anchored = 1
 	},
 /obj/structure/railing{
 	dir = 10
 	},
-/obj/structure/platform/gold{
-	layer = 2
-	},
+/obj/structure/platform/gold,
 /turf/open/floor/mineral/titanium/tiled/yellow,
 /area/station/command/heads_quarters/nt_rep)
 "w" = (
