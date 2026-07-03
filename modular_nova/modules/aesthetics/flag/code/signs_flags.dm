@@ -63,6 +63,11 @@
 	icon_state = "flag_solfed"
 	item_flag = /obj/item/sign/flag/terragov
 
+/obj/structure/sign/flag/terragov_2
+	name = "flag of Sol Eagle"
+	desc = "The flag of the national eagle of the Sol Federation, its talons holding a golden olive branch and a sword."
+	icon_state = "flag_solfed_2"
+
 /obj/structure/sign/flag/hc
 	name = "flag of the Heliostatic Coalition"
 	desc = "The flag of the Heliostatic Coalition. The design of the 'True SolFed', as is evident by what seems to be very much not Sol."

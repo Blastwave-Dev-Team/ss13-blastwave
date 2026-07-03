@@ -58,6 +58,7 @@ GLOBAL_VAR_INIT(fax_autoprinting, FALSE)
 	/// List with a fake-networks(not a fax actually), for request manager.
 	var/list/special_networks = list(
 		nanotrasen = list(fax_name = "NT HR Department", fax_id = "central_command", color = "teal", emag_needed = FALSE),
+		solfed = list(fax_name = "SolFed Local Office 45BS9T", fax_id = "solfed", color = "navy", emag_needed = FALSE),
 		syndicate = list(fax_name = "Sabotage Department", fax_id = "syndicate", color = "red", emag_needed = TRUE),
 	)
 
@@ -68,6 +69,15 @@ GLOBAL_VAR_INIT(fax_autoprinting, FALSE)
 	var/area/current_area = get_area(src)
 	name = "[current_area.name]'s Fax Machine"
 	fax_name = "[current_area.name]"
+	return ..()
+
+/obj/machinery/fax/admin/solfed
+	name = "Sol Federation Office Fax"
+
+/obj/machinery/fax/admin/solfed/Initialize(mapload)
+	fax_name = "[special_networks["solfed"]["fax_name"]]"
+	fax_id = special_networks["solfed"]["fax_id"]
+	syndicate_network = FALSE
 	return ..()
 
 /obj/machinery/fax/admin/syndicate

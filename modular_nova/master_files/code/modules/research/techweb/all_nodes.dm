@@ -5,6 +5,7 @@
 	id = TECHWEB_NODE_ARMORY_MUNITIONS
 	display_name = "Armory Munitions"
 	description = "Printable magazine bodies for standard station armory ballistic weapons."
+	hidden = TRUE
 	prereq_ids = list(TECHWEB_NODE_RIOT_SUPRESSION)
 	design_ids = list(
 		"mag_c35sol_pistol",
@@ -20,11 +21,24 @@
 	id = TECHWEB_NODE_ARMORY_ORDNANCE
 	display_name = "Armory Ordnance"
 	description = "Heavy-capacity magazine bodies for armory grenade launchers."
+	hidden = TRUE
 	prereq_ids = list(TECHWEB_NODE_EXPLOSIVES)
 	design_ids = list(
 		"mag_c980_grenade_drum",
 	)
 	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_3_POINTS)
+	announce_channels = list(RADIO_CHANNEL_SECURITY)
+
+/datum/techweb_node/commander_munitions
+	id = TECHWEB_NODE_COMMANDER_MUNITIONS
+	display_name = "Commander Munitions"
+	description = "Printable magazine bodies for NT Commander and Commissar sidearms."
+	hidden = TRUE
+	prereq_ids = list(TECHWEB_NODE_SEC_EQUIP)
+	design_ids = list(
+		"mag_co9mm",
+	)
+	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_2_POINTS)
 	announce_channels = list(RADIO_CHANNEL_SECURITY)
 
 /datum/techweb_node/adv_vision

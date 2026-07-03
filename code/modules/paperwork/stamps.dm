@@ -120,5 +120,39 @@
 	icon_state = "stamp-syndicate"
 	dye_color = DYE_SYNDICATE
 
+// SOLFED STAMPS
+
+/obj/item/stamp/solfed_court
+	name = "Solfed Federal Court stamp"
+	icon_state = "stamp-solfed-court"
+	dye_color = DYE_CAPTAIN
+
+/obj/item/stamp/solfed_highcom
+	name = "Solfed High Command stamp"
+	icon_state = "stamp-solfed-highcom"
+	dye_color = DYE_QM
+
+/obj/item/stamp/solfed_prosecutor_gen
+	name = "Solfed Prosecutor General stamp"
+	icon_state = "stamp-solfed-prosecutor-gen"
+	dye_color = DYE_HOS
+
+// LOGO WORKAROUND (since adding logos doesn't work :C)
+
+/obj/item/stamp/nt_logo
+	name = "Nanotrasen Logo stamp"
+	icon_state = "stamp-ntlogo"
+	dye_color = DYE_HOP
+
+/obj/item/stamp/solfed_logo_1
+	name = "Sol Federation Logo stamp #1"
+	icon_state = "stamp-solfed-logo-1"
+	dye_color = DYE_CAPTAIN
+
+/obj/item/stamp/solfed_logo_2
+	name = "Sol Federation Logo stamp #2"
+	icon_state = "stamp-solfed-logo-2"
+	dye_color = DYE_CAPTAIN
+
 /obj/item/stamp/attack_paw(mob/user, list/modifiers)
 	return attack_hand(user, modifiers)

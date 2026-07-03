@@ -100,10 +100,10 @@
 	flags_1 = null
 
 /obj/item/clothing/head/hats/imperial/nanotrasen_consultant
-	name = "nanotrasen consultant's naval cap"
-	desc = "A naval cap with a pin signifying a nanotrasen consultant in the center."
+	name = "sol federation representative's naval cap"
+	desc = "A naval cap with a pin signifying a sol federation representative in the center."
 	icon_state = "/obj/item/clothing/head/hats/imperial/nanotrasen_consultant"
-	greyscale_colors = "#54a57e#ffce5b"
+	greyscale_colors = "#141414#ffce5b"
 	flags_1 = null
 
 /obj/item/clothing/head/hats/imperial/blueshield
