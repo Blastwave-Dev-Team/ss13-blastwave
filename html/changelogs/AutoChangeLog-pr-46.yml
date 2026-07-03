@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "More CI fixes"
