@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - qol: "CI fixes for permissions"
