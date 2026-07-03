@@ -348,7 +348,8 @@
 /obj/structure/platform/gold,
 /obj/structure/statue/silver/nova/large{
 	pixel_y = 10;
-	anchored = 1
+	anchored = 1;
+	layer = 5
 	},
 /turf/open/indestructible/hoteltile,
 /area/station/hallway/primary/central)
@@ -658,6 +659,7 @@
 /obj/structure/platform/gold,
 /obj/structure/statue/silver/nova/large/glow/order{
 	pixel_y = 9;
+	layer = 5;
 	anchored = 1
 	},
 /obj/structure/railing{

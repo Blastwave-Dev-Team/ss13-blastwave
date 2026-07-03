@@ -45408,6 +45408,7 @@
 /obj/structure/platform/gold,
 /obj/structure/statue/silver/nova/large/glow/order{
 	pixel_y = 9;
+	layer = 5;
 	anchored = 1
 	},
 /turf/open/floor/wood/large,
