@@ -49,7 +49,6 @@
 	pixel_y = 7
 	},
 /turf/open/floor/mineral/silver,
-/turf/open/floor/mineral/silver,
 /area/station/command/heads_quarters/nt_rep)
 "h" = (
 /obj/machinery/light/directional/west,
@@ -181,7 +180,6 @@
 /obj/structure/platform/gold,
 /obj/structure/statue/silver/nova/large/glow/order{
 	pixel_y = 9;
-	layer = 5;
 	anchored = 1
 	},
 /obj/structure/railing{
@@ -217,7 +215,6 @@
 /obj/item/clothing/suit/fedcoat/medsci,
 /obj/item/clothing/under/solfed,
 /obj/item/encryptionkey/headset_solfed,
-/turf/open/floor/mineral/silver,
 /turf/open/floor/mineral/silver,
 /area/station/command/heads_quarters/nt_rep)
 "E" = (
@@ -320,7 +317,6 @@
 /area/station/command/heads_quarters/nt_rep)
 "U" = (
 /obj/structure/fireplace,
-/turf/open/floor/mineral/silver,
 /turf/open/floor/mineral/silver,
 /area/station/command/heads_quarters/nt_rep)
 "V" = (
