@@ -16,6 +16,10 @@
 	var/zone_width = 30
 	/// Height of the landing region in tiles (Y axis).
 	var/zone_height = 30
+	/// Cardinal direction a docked shuttle must have a clear launch path toward.
+	/// Read by the bay-exit check at undock time. NONE means "no designated exit"
+	/// (bay-exit falls back to checking all four faces).
+	var/exit_direction = NONE
 
 /obj/effect/landmark/overmap_landing_zone/Initialize(mapload)
 	. = ..()

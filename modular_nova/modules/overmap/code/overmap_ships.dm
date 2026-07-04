@@ -423,7 +423,7 @@
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
 		engine.update_engine()
 		if(engine.enabled && engine.thruster_active)
-			calc += engine.thrust
+			calc += engine.get_rated_thrust()
 	est_thrust = calc
 
 /// Average percent fullness across enabled engines.
@@ -488,6 +488,9 @@
 	prepare_for_flight()
 	if(avg_fuel_amnt <= 0)
 		return "Engines have no fuel!"
+	var/launch_block = check_launch_clearance()
+	if(launch_block)
+		return launch_block
 	shuttle.destination = null
 	shuttle.mode = SHUTTLE_IGNITING
 	shuttle.setTimer(shuttle.ignitionTime)

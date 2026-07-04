@@ -3,42 +3,50 @@
 // shuttle / shuttle_engine boards so deconstructing and rebuilding works.
 
 /obj/item/circuitboard/computer/shuttle/helm
-	name = "Helm Console"
+	name = "Astrogation Helm"
+	desc = "A computer board. Full ship piloting: throttle, heading, autopilot, and NavBall."
 	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/computer/helm
 
 /obj/item/circuitboard/computer/shuttle/helm/viewscreen
-	name = "Helm Viewscreen"
+	name = "Astrogation Viewscreen"
+	desc = "A computer board. Displays the astrogation helm interface as a wall-mounted screen."
 	build_path = /obj/machinery/computer/helm/viewscreen
 
 /obj/item/circuitboard/computer/shuttle/overmap_nav
-	name = "Overmap Navigation Computer"
+	name = "Astrogation Navigation Console"
+	desc = "A computer board. Camera-based landing at astrogation landing zones and points of interest."
 	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
 
 /obj/item/circuitboard/machine/engine/overmap
-	name = "Overmap Thruster"
-	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	name = "Astrogation Thruster"
+	desc = "A machine board. A basic low-thrust engine for interstellar travel."
+	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/power/shuttle_engine/overmap
 	needs_anchored = FALSE
 
 /obj/item/circuitboard/machine/engine/overmap/void
 	name = "Void Thruster"
+	desc = "A machine board. Experimental zero-fuel engine. Thrust from nothing."
 	build_path = /obj/machinery/power/shuttle_engine/overmap/void
 
 /obj/item/circuitboard/machine/engine/overmap/standard
-	name = "Hall-Nuclear-Thermal Engine Board"
+	name = "Hall-Nuclear-Thermal Engine"
+	desc = "A machine board. High-performance astrogation engine with nuclear-thermal assist and a hall-only emergency mode."
 	build_path = /obj/machinery/power/shuttle_engine/overmap/standard
 
 /obj/item/circuitboard/machine/overmap/fuel_injector
-	name = "Fuel Injector Board"
-	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	name = "Fuel Injector"
+	desc = "A machine board. Processes piped or tanked propellant for linked astrogation engines."
+	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/overmap/fuel_injector
 	needs_anchored = FALSE
 
 /obj/item/circuitboard/machine/landing_corner
 	name = "Landing Zone Corner Beacon"
-	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	desc = "A machine board. Marks one corner of an astrogation landing zone rectangle."
+	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/landing_corner
 	req_components = list(
 		/datum/stock_part/scanning_module = 1,
@@ -47,5 +55,6 @@
 
 /obj/item/circuitboard/computer/landing_controller
 	name = "Landing Zone Controller"
-	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	desc = "A computer board. Manages a player-built astrogation landing zone from four corner beacons."
+	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/computer/landing_controller

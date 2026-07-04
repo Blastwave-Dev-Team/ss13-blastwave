@@ -26,6 +26,8 @@ type CornerEntry = {
 type Data = {
   authenticated: BooleanLike;
   zone_label: string;
+  exit_direction: number;
+  exit_direction_name: string;
   cap: number;
   active: BooleanLike;
   invalid_reason: string | null;
@@ -39,6 +41,19 @@ type Data = {
 };
 
 const MAX_CORNERS = 4;
+
+// BYOND cardinal direction bitflags.
+const DIR_NORTH = 1;
+const DIR_SOUTH = 2;
+const DIR_EAST = 4;
+const DIR_WEST = 8;
+
+const EXIT_DIRECTIONS: { dir: number; label: string; icon: string }[] = [
+  { dir: DIR_NORTH, label: 'North', icon: 'arrow-up' },
+  { dir: DIR_SOUTH, label: 'South', icon: 'arrow-down' },
+  { dir: DIR_EAST, label: 'East', icon: 'arrow-right' },
+  { dir: DIR_WEST, label: 'West', icon: 'arrow-left' },
+];
 
 export const OvermapLandingController = () => {
   const { data } = useBackend<Data>();
@@ -188,7 +203,7 @@ const CornersSection = () => {
 
 const ControllerView = () => {
   const { act, data } = useBackend<Data>();
-  const { zone_label } = data;
+  const { zone_label, exit_direction } = data;
   const [draftName, setDraftName] = useState(zone_label);
 
   return (
@@ -213,6 +228,26 @@ const ControllerView = () => {
               </Button>
             </Stack.Item>
           </Stack>
+          <Box color="label" mt={1} mb={0.5}>
+            Launch exit direction
+          </Box>
+          <Stack>
+            {EXIT_DIRECTIONS.map((entry) => (
+              <Stack.Item key={entry.dir}>
+                <Button
+                  icon={entry.icon}
+                  selected={exit_direction === entry.dir}
+                  onClick={() => act('set_exit_dir', { dir: entry.dir })}
+                >
+                  {entry.label}
+                </Button>
+              </Stack.Item>
+            ))}
+          </Stack>
+          <Box color="label" italic mt={0.5}>
+            Ships launching from this zone must have a clear path to space toward
+            the selected edge.
+          </Box>
         </Section>
       </Stack.Item>
       <Stack.Item>

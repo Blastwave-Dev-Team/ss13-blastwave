@@ -34,7 +34,7 @@ type EngineInfo = {
   maxFuel: number;
   enabled: BooleanLike;
   ref: string;
-  fuelSource?: 'injector' | 'core' | 'none';
+  fuelSource?: 'injector' | 'hall-only' | 'none';
   pressure?: number;
   temperature?: number;
 };
@@ -319,7 +319,9 @@ const EnginesTab = () => {
               )}
             {engine.fuelSource !== 'injector' && (
               <div className="HelmPanel__engine-telemetry HelmPanel__engine-telemetry--muted">
-                {engine.fuelSource === 'core' ? 'fuel core' : 'no fuel source'}
+                {engine.fuelSource === 'hall-only'
+                  ? 'hall-only (emergency)'
+                  : 'no fuel source'}
               </div>
             )}
           </div>

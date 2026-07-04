@@ -100,6 +100,9 @@
 	var/obj/effect/landmark/overmap_landing_zone/active_zone
 	/// Player-facing name pushed onto the managed landmark.
 	var/zone_label
+	/// Cardinal launch/exit direction pushed onto the managed landmark. The bay-exit
+	/// check validates the shuttle's clearance toward this edge at undock time.
+	var/exit_direction = NORTH
 	/// Reason the zone is not currently valid, for the UI/examine. Null when valid.
 	var/invalid_reason
 	/// Last computed zone dimensions, cached for the UI/examine.
@@ -236,6 +239,7 @@
 	active_zone.zone_width = width
 	active_zone.zone_height = height
 	active_zone.zone_name = zone_label
+	active_zone.exit_direction = exit_direction
 
 /// Returns the name of the shuttle currently occupying the active zone, if any.
 /obj/machinery/computer/landing_controller/proc/get_zone_occupant()
@@ -247,6 +251,7 @@
 /obj/machinery/computer/landing_controller/examine(mob/user)
 	. = ..()
 	. += span_notice("Linked corners: [length(corners)]/4.")
+	. += span_notice("Designated launch exit: [dir2text(exit_direction)].")
 	if(!QDELETED(active_zone))
 		. += span_notice("Active landing zone: [zone_width_cache] x [zone_height_cache] tiles.")
 	else if(invalid_reason)
@@ -289,6 +294,8 @@
 		return data
 
 	data["zone_label"] = zone_label
+	data["exit_direction"] = exit_direction
+	data["exit_direction_name"] = dir2text(exit_direction)
 	data["cap"] = CONFIG_GET(number/max_overmap_landing_zone_dimension)
 	data["active"] = !QDELETED(active_zone)
 	data["invalid_reason"] = invalid_reason
@@ -345,6 +352,14 @@
 			zone_label = new_label
 			if(!QDELETED(active_zone))
 				active_zone.zone_name = zone_label
+			return TRUE
+		if("set_exit_dir")
+			var/new_dir = text2num(params["dir"])
+			if(!(new_dir in GLOB.cardinals))
+				return FALSE
+			exit_direction = new_dir
+			if(!QDELETED(active_zone))
+				active_zone.exit_direction = exit_direction
 			return TRUE
 		if("validate")
 			recompute_zone()

@@ -5,8 +5,8 @@
 // picks it up lazily when the player opens the console.
 
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
-	name = "overmap navigation computer"
-	desc = "Designates a landing pad on whatever overmap body the bound shuttle is currently next to."
+	name = "astrogation navigation console"
+	desc = "Designates a landing pad on whatever astrogation body the bound shuttle is currently next to."
 	circuit = /obj/item/circuitboard/computer/shuttle/overmap_nav
 	whitelist_turfs = list(
 		/turf/open/space,

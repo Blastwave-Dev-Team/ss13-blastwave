@@ -2,7 +2,7 @@
 // Autolathe designs and cargo pack for overmap shuttle construction.
 
 /datum/design/board/overmap_fuel_injector
-	name = "Fuel Injector Board"
+	name = "Astrogation Fuel Injector Board"
 	desc = "The circuit board for a hybrid propellant processor."
 	id = "overmap_fuel_injector"
 	build_path = /obj/item/circuitboard/machine/overmap/fuel_injector
@@ -13,8 +13,8 @@
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
 /datum/design/board/overmap_helm_console
-	name = "Helm Console Board"
-	desc = "The circuit board for an overmap helm control console."
+	name = "Astrogation Helm Board"
+	desc = "The circuit board for an astrogation helm console."
 	id = "overmap_helm_console"
 	build_path = /obj/item/circuitboard/computer/shuttle/helm
 	build_type = IMPRINTER
@@ -24,8 +24,8 @@
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
 /datum/design/board/overmap_nav_computer
-	name = "Overmap Navigation Computer Board"
-	desc = "The circuit board for an overmap navigation computer."
+	name = "Astrogation Navigation Console Board"
+	desc = "The circuit board for an astrogation navigation console."
 	id = "overmap_nav_computer"
 	build_path = /obj/item/circuitboard/computer/shuttle/overmap_nav
 	build_type = IMPRINTER
@@ -36,7 +36,7 @@
 
 /datum/design/board/overmap_fusion_thruster
 	name = "Hall-Nuclear-Thermal Engine Board"
-	desc = "The circuit board for an overmap Hall-Nuclear-Thermal engine."
+	desc = "The circuit board for an astrogation Hall-Nuclear-Thermal engine."
 	id = "overmap_fusion_thruster"
 	build_path = /obj/item/circuitboard/machine/engine/overmap/standard
 	build_type = IMPRINTER

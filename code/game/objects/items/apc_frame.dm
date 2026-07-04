@@ -8,7 +8,9 @@
 /obj/item/wallframe/apc/try_build(turf/on_wall, user)
 	var/turf/T = get_turf(on_wall) //the user is not where it needs to be.
 	var/area/A = get_area(user)
-	if(A.apc)
+	// Shuttle frames get their own dedicated APC/area on completion, so allow building
+	// one atop shuttle construction rods even inside an existing area that already has an APC.
+	if(A.apc && !HAS_TRAIT(T, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
 		to_chat(user, span_warning("This area already has an APC!"))
 		return FALSE //only one APC per area
 	if(!A.requires_power || A.always_unpowered)

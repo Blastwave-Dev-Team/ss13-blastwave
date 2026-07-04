@@ -9,8 +9,8 @@
 // are implemented in M5 and act_overmap (docking) in M6.
 
 /obj/machinery/computer/helm
-	name = "helm control console"
-	desc = "Used to view or control the ship via the overmap."
+	name = "astrogation helm"
+	desc = "Used to view or control the ship via the astrogation display. Handles throttle, heading, autopilot, and NavBall."
 	icon_screen = "shuttle"
 	icon_keyboard = "tech_key"
 	circuit = /obj/item/circuitboard/computer/shuttle/helm
@@ -37,6 +37,19 @@
 	LAZYREMOVE(SSovermap.helms, src)
 	current_ship = null
 	return ..()
+
+/obj/machinery/computer/helm/examine(mob/user)
+	. = ..()
+	if(viewer)
+		return
+	var/obj/structure/overmap/ship/simulated/ship = current_ship
+	if(!istype(ship) || ship.state != OVERMAP_SHIP_IDLE || !ship.shuttle)
+		return
+	var/launch_block = ship.check_launch_clearance()
+	if(launch_block)
+		. += span_warning("Launch hold: bay exit obstructed. Clear a path to space or open the bay doors.")
+	else
+		. += span_notice("Launch path is clear.")
 
 /// Rebind this helm to its target overmap object. Resolution priority:
 ///   1. `override_id` if set (admin / area_spawn flow)
@@ -178,7 +191,7 @@
 				"maxFuel" = engine.return_fuel_cap(),
 				"enabled" = engine.enabled,
 				"ref" = REF(engine),
-				"fuelSource" = injector ? "injector" : (engine.fuel_core ? "core" : "none"),
+				"fuelSource" = injector ? "injector" : (istype(engine, /obj/machinery/power/shuttle_engine/overmap/standard) ? "hall-only" : "none"),
 			)
 			if(injector)
 				engine_entry["pressure"] = round(injector.return_chamber_pressure(), 0.1)
@@ -275,7 +288,7 @@
 /// whatever ship the parent helm console is bound to. Used in cockpits where
 /// you want passengers to see the map without being able to fly.
 /obj/machinery/computer/helm/viewscreen
-	name = "ship viewscreen"
+	name = "astrogation viewscreen"
 	icon = 'icons/obj/machines/wallmounts.dmi'
 	icon_state = "telescreen"
 	layer = SIGN_LAYER

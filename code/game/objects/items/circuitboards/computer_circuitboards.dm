@@ -733,9 +733,11 @@
 		machine.connect_to_shuttle(TRUE, shuttle)
 
 /obj/item/circuitboard/computer/shuttle/flight_control
-	name = "Shuttle Flight Control"
+	name = "Shuttle Flight Console"
+	desc = "A computer board. Legacy shuttle flight controls - moves a shuttle between its fixed, predefined docking routes."
 	build_path = /obj/machinery/computer/shuttle/custom_shuttle
 
 /obj/item/circuitboard/computer/shuttle/docker
-	name = "Shuttle Navigation Computer"
+	name = "Shuttle Docker Console"
+	desc = "A computer board. Legacy shuttle docking - designates landing at fixed stationary ports."
 	build_path = /obj/machinery/computer/camera_advanced/shuttle_docker/custom

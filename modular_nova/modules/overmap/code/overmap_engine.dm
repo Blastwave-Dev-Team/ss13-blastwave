@@ -5,16 +5,46 @@
 // fuel and return thrust" semantics that the helm and movement code rely on.
 //
 // Engines draw power from the ship's electrical grid and consume reaction mass
-// from a linked fuel injector (primary) or inserted fuel core (fallback).
+// from a linked fuel injector. The HNT (`/standard`) subtype adds a hall-only
+// fallback that produces reduced thrust from grid power alone when no propellant
+// is available.
+
+/// A machine connector whose hidden L2 pipe port faces opposite the connected
+/// machine's facing. Thrusters point `dir` toward their exhaust, so their fuel
+/// intake (and the propellant manifold) sits on the back side. The stock
+/// connector always faces `connected_machine.dir`, which pointed the port at the
+/// exhaust tile and prevented pipes laid behind the engine from ever connecting.
+/datum/gas_machine_connector/reversed
+
+/datum/gas_machine_connector/reversed/New(location, obj/machinery/connecting_machine, direction, gas_volume, piping_layer = PIPING_LAYER_DEFAULT)
+	. = ..()
+	if(QDELETED(src) || isnull(gas_connector))
+		return
+	// Rebuild the connection facing the reversed direction. Reusing the stock
+	// disconnect/reconnect pair keeps node bookkeeping symmetric.
+	disconnect_connector()
+	reconnect_connector()
+
+/datum/gas_machine_connector/reversed/reconnect_connector()
+	gas_connector.dir = turn(connected_machine.dir, 180)
+	gas_connector.piping_layer = piping_layer
+	gas_connector.set_init_directions()
+	gas_connector.atmos_init()
+	var/obj/machinery/atmospherics/node = gas_connector.nodes[1]
+	if(node)
+		node.atmos_init()
+		node.add_member(gas_connector)
+		gas_connector.update_parents()
+	SSair.add_to_rebuild_queue(gas_connector)
 
 /obj/machinery/power/shuttle_engine/overmap
-	name = "overmap thruster"
-	desc = "An overmap-rated thruster. Toggleable from a linked helm console."
+	name = "astrogation thruster"
+	desc = "An astrogation-rated thruster. Toggleable from a linked helm console."
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap
 	/// Toggleable from helm. Disabled engines neither consume fuel nor provide thrust.
 	var/enabled = TRUE
-	/// Base thrust output at full power with a 1.0x efficiency core.
+	/// Base thrust output at full power with a 1.0x efficiency injector.
 	var/thrust = 25
 	/// Maximum power draw from the grid in watts.
 	var/max_power_draw = 50000
@@ -22,8 +52,6 @@
 	var/thruster_active = FALSE
 	/// Whether this engine currently has a burn in progress (for fuel consumption).
 	var/burning = FALSE
-	/// Inserted fuel core item. NULL if no core loaded.
-	var/obj/item/fuel_core/fuel_core
 	/// Adjacent fuel injector weakref.
 	var/datum/weakref/linked_injector
 	/// Layer-2 propellant feed port toward the fuel manifold.
@@ -33,12 +61,13 @@
 
 /obj/machinery/power/shuttle_engine/overmap/Initialize(mapload)
 	. = ..()
-	feed_connector = new(loc, src, dir, CELL_VOLUME * 0.5, OVERMAP_HNT_FEED_LAYER)
+	// Fuel enters from the intake side (behind the thrust direction), so the L2
+	// feed port must face the reverse of the engine's facing.
+	feed_connector = new /datum/gas_machine_connector/reversed(loc, src, dir, CELL_VOLUME * 0.5, OVERMAP_HNT_FEED_LAYER)
 	update_engine()
-	update_icon_state()
+	update_appearance()
 
 /obj/machinery/power/shuttle_engine/overmap/Destroy()
-	QDEL_NULL(fuel_core)
 	QDEL_NULL(feed_connector)
 	linked_injector = null
 	return ..()
@@ -90,8 +119,6 @@
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_propellant())
 		return injector.base_isp
-	if(fuel_core && !fuel_core.is_depleted())
-		return fuel_core.efficiency
 	return 0
 
 /obj/machinery/power/shuttle_engine/overmap/proc/get_current_thrust()
@@ -100,6 +127,11 @@
 		return 0
 	var/power_fraction = get_power_fraction()
 	return thrust * power_fraction * isp
+
+/// Nominal thrust capability used for the ship's est_thrust readout. Subtypes with
+/// a degraded mode (e.g. HNT hall-only) override this to report their reduced output.
+/obj/machinery/power/shuttle_engine/overmap/proc/get_rated_thrust()
+	return thrust
 
 /obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100, skip_engine_update = FALSE)
 	if(!enabled)
@@ -126,37 +158,18 @@
 		use_energy(max_power_draw * power_fraction * (percentage / 100))
 		burning = TRUE
 		return effective_thrust
-	var/effective_thrust = thrust * power_fraction * isp * (percentage / 100)
-	if(fuel_core && !fuel_core.is_depleted())
-		var/consumption = effective_thrust / max(fuel_core.efficiency * OVERMAP_G0, 0.01) * 0.01
-		fuel_core.reaction_mass = max(0, fuel_core.reaction_mass - consumption)
-		if(fuel_core.is_depleted())
-			core_depleted()
-		use_energy(max_power_draw * power_fraction * (percentage / 100))
-		burning = TRUE
-		return effective_thrust
 	return 0
-
-/obj/machinery/power/shuttle_engine/overmap/proc/core_depleted()
-	visible_message(span_warning("[src] sputters as its fuel core is depleted!"))
-	thruster_active = FALSE
-	burning = FALSE
-	update_icon_state()
 
 /obj/machinery/power/shuttle_engine/overmap/proc/return_fuel()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector)
 		return injector.return_fuel()
-	if(fuel_core)
-		return fuel_core.reaction_mass
 	return 0
 
 /obj/machinery/power/shuttle_engine/overmap/proc/return_fuel_cap()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector)
 		return injector.return_fuel_cap()
-	if(fuel_core)
-		return fuel_core.reaction_mass_max
 	return 0
 
 /obj/machinery/power/shuttle_engine/overmap/proc/return_chamber_pressure()
@@ -179,39 +192,16 @@
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_propellant())
 		return TRUE
-	if(fuel_core && !fuel_core.is_depleted())
-		return TRUE
 	thruster_active = FALSE
 	return FALSE
-
-/obj/machinery/power/shuttle_engine/overmap/attackby(obj/item/attacking_item, mob/user, params)
-	if(istype(attacking_item, /obj/item/fuel_core))
-		if(fuel_core)
-			to_chat(user, span_warning("There is already a fuel core installed. Remove it first."))
-			return
-		if(!user.transferItemToLoc(attacking_item, src))
-			return
-		fuel_core = attacking_item
-		to_chat(user, span_notice("You insert [attacking_item] into [src]."))
-		update_engine()
-		update_icon_state()
-		return
-	return ..()
 
 /obj/machinery/power/shuttle_engine/overmap/screwdriver_act(mob/living/user, obj/item/tool)
 	. = default_deconstruction_screwdriver(user, tool)
 	if(. == ITEM_INTERACT_SUCCESS)
 		update_engine()
-		update_icon_state()
+		update_appearance()
 
 /obj/machinery/power/shuttle_engine/overmap/crowbar_act(mob/living/user, obj/item/tool)
-	if(fuel_core)
-		to_chat(user, span_notice("You pry [fuel_core] out of [src]."))
-		fuel_core.forceMove(get_turf(src))
-		fuel_core = null
-		update_engine()
-		update_icon_state()
-		return ITEM_INTERACT_SUCCESS
 	if(panel_open && anchored)
 		balloon_alert(user, "unweld and unwrench first!")
 		return ITEM_INTERACT_BLOCKING
@@ -224,8 +214,15 @@
 	enabled = !enabled
 	balloon_alert(user, "engine [enabled ? "enabled" : "disabled"]")
 	update_engine()
-	update_icon_state()
+	update_appearance()
 	return ITEM_INTERACT_SUCCESS
+
+/obj/machinery/power/shuttle_engine/overmap/update_overlays()
+	. = ..()
+	if(!panel_open)
+		return
+	// Borrow the nuclear-device open-hatch cavity for the exposed maintenance internals look.
+	. += mutable_appearance('icons/obj/machines/nuke.dmi', "panel-removed")
 
 /obj/machinery/power/shuttle_engine/overmap/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
 	. = ..()
@@ -238,9 +235,6 @@
 		context[SCREENTIP_CONTEXT_LMB] = "[enabled ? "Disable" : "Enable"] engine"
 		return CONTEXTUAL_SCREENTIP_SET
 	if(held_item.tool_behaviour == TOOL_CROWBAR)
-		if(fuel_core)
-			context[SCREENTIP_CONTEXT_LMB] = "Remove fuel core"
-			return CONTEXTUAL_SCREENTIP_SET
 		if(panel_open && !anchored)
 			context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
 			return CONTEXTUAL_SCREENTIP_SET
@@ -252,7 +246,10 @@
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector)
 		. += span_notice("Linked to [injector][link_via_pipe ? " via propellant manifold" : " by adjacency"].")
-	if(fuel_core)
-		. += span_notice("Fuel core: [fuel_core.core_type] ([round(fuel_core.reaction_mass / fuel_core.reaction_mass_max * 100)]% remaining).")
-	else if(!injector)
-		. += span_warning("No fuel source. Link a fuel injector or insert a fuel core.")
+	else
+		. += no_fuel_examine()
+
+/// Examine line shown when no fuel injector is linked. Overridden by engines
+/// that have an alternate thrust source (e.g. the HNT's hall-only fallback).
+/obj/machinery/power/shuttle_engine/overmap/proc/no_fuel_examine()
+	return span_warning("No fuel source. Link a fuel injector to supply propellant.")

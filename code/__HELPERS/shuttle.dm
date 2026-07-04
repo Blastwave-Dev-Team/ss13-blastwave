@@ -342,7 +342,9 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 		var/turf/checked_turf = pick(turfs)
 		var/area/checked_area = checked_turf.loc
 		var/list/area_turfs = checked_area.get_turfs_by_zlevel(z)
-		if(!checked_area.allow_shuttle_docking)
+		// Player-built shuttle frames carry TRAIT_SHUTTLE_CONSTRUCTION_TURF. They are allowed to
+		// overlap existing station areas that normally forbid docking, so exempt those turfs.
+		if(!checked_area.allow_shuttle_docking && !HAS_TRAIT(checked_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
 			. |= INTERSECTS_NON_WHITELISTED_AREA
 		if(checked_area.apc)
 			var/obj/machinery/power/apc/apc = checked_area.apc
