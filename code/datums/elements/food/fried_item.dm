@@ -19,6 +19,10 @@
 
 	var/atom/this_food = target
 
+	if(isitem(this_food))
+		var/obj/item/fried_thing = this_food
+		fried_thing.times_deep_fried++
+
 	switch(fry_time)
 		if(0 to FRYING_TIME_FRIED)
 			this_food.add_atom_colour(fried_colors[1], FIXED_COLOUR_PRIORITY)

@@ -187,6 +187,13 @@ GLOBAL_LIST_INIT(oilfry_blacklisted_items, typecacheof(list(
 
 /obj/machinery/deepfryer/proc/start_fry(obj/item/frying_item, mob/user)
 	to_chat(user, span_notice("You put [frying_item] into [src]."))
+
+	if(istype(frying_item, /obj/item/food/burger/superbite) && !HAS_TRAIT(frying_item, TRAIT_FOOD_FRIED))
+		visible_message(span_notice("You red-blooded American."), vision_distance = 7)
+		playsound(src, 'sound/machines/fryer/star_spangled_banner.ogg', 50, FALSE)
+	else if(frying_item.times_deep_fried >= 2)
+		to_chat(user, span_notice("You fatass."))
+
 	if(istype(frying_item, /obj/item/freeze_cube))
 		log_bomber(user, "put a freeze cube in a", src)
 		visible_message(span_userdanger("[src] starts glowing... Oh no..."))
@@ -217,6 +224,8 @@ GLOBAL_LIST_INIT(oilfry_blacklisted_items, typecacheof(list(
 /obj/machinery/deepfryer/attack_hand(mob/living/user, list/modifiers)
 	if(frying)
 		to_chat(user, span_notice("You eject [frying] from [src]."))
+		if(cook_time >= FRYING_TIME_BURNT)
+			to_chat(user, span_notice("You fatass."))
 		frying.forceMove(drop_location())
 		if(Adjacent(user) && !issilicon(user))
 			user.put_in_hands(frying)
