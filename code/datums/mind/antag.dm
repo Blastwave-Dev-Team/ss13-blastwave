@@ -230,13 +230,20 @@
 * and gives them a fallback spell if no uplink was found
 */
 /datum/mind/proc/try_give_equipment_fallback()
-	var/uplink_exists
+	var/datum/uplink_handler/uplink_handler
 	var/datum/antagonist/traitor/traitor_datum = has_antag_datum(/datum/antagonist/traitor)
-	if(traitor_datum)
-		uplink_exists = traitor_datum.uplink_ref
-	if(!uplink_exists)
-		uplink_exists = find_syndicate_uplink(check_unlocked = TRUE)
-	if(!uplink_exists && !(locate(/datum/action/special_equipment_fallback) in current.actions))
+	if(traitor_datum?.uplink_handler)
+		uplink_handler = traitor_datum.uplink_handler
+	if(!uplink_handler)
+		var/datum/component/uplink/found_uplink = find_syndicate_uplink(check_unlocked = TRUE)
+		uplink_handler = found_uplink?.uplink_handler
+	// With an uplink, surface a free objective-equipment supply pod that delivers whatever couldn't be placed.
+	if(uplink_handler)
+		if(!(locate(/datum/uplink_item/special_equipment) in uplink_handler.extra_purchasable))
+			uplink_handler.extra_purchasable += new /datum/uplink_item/special_equipment
+		return
+	// No uplink at all (e.g. blood brothers): fall back to a directly-granted supply pod action.
+	if(!(locate(/datum/action/special_equipment_fallback) in current.actions))
 		var/datum/action/special_equipment_fallback/fallback = new(src)
 		fallback.Grant(current)
 

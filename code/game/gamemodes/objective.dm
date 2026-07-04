@@ -198,10 +198,17 @@ GLOBAL_LIST_EMPTY(objectives) //NOVA EDIT ADDITION
 	if(!ishuman(receiver?.current))
 		return
 	var/mob/living/carbon/human/receiver_current = receiver.current
+	var/delivery_pref = receiver_current.client?.prefs?.read_preference(/datum/preference/choiced/objective_equipment_delivery)
 	for(var/obj/equipment_path as anything in special_equipment)
-		var/obj/equipment_object = new equipment_path
-		if(receiver_current.equip_to_storage(equipment_object, ITEM_SLOT_BACK, indirect_action = TRUE))
-			continue
+		// Unless the antag has opted into pod delivery, try to place the gear on them directly first.
+		if(delivery_pref != OBJECTIVE_EQUIPMENT_POD)
+			var/obj/equipment_object = new equipment_path
+			if(receiver_current.equip_to_storage(equipment_object, ITEM_SLOT_BACK, indirect_action = TRUE))
+				continue
+			if(receiver_current.put_in_hands(equipment_object, del_on_fail = TRUE))
+				continue
+		// Either pod delivery was requested, or direct placement failed (put_in_hands has deleted the item):
+		// store the path so the uplink/action fallback can deliver it via a supply pod instead.
 		LAZYINITLIST(receiver.failed_special_equipment)
 		receiver.failed_special_equipment += equipment_path
 		receiver.try_give_equipment_fallback()

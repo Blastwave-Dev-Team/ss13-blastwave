@@ -501,3 +501,9 @@ GLOBAL_LIST_INIT(human_invader_antagonists, list(
 #define UPLINK_RADIO "Radio"
 #define UPLINK_PEN "Pen" //like a real spy!
 #define UPLINK_IMPLANT "Implant"
+
+//How objective-specific equipment (e.g. nuke core / supermatter kits) is delivered to the antag
+/// Attempt to place the equipment on the antag directly (backpack, then hands), falling back to the uplink pod if it doesn't fit.
+#define OBJECTIVE_EQUIPMENT_BACKPACK "Backpack"
+/// Skip direct placement entirely and always deliver via a free uplink supply pod.
+#define OBJECTIVE_EQUIPMENT_POD "Uplink Supply Pod"
