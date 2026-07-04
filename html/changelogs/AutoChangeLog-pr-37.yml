@@ -1,0 +1,8 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Librarians can print and archive community wiki textbooks (UGC) from the library console Print tab."
+  - rscadd: "Textbook category added to the library SQL archive; random textbook bookcases can spawn archived UGC guides at roundstart."
+  - qol: "Wiki-linked textbooks open in an embedded browser window via book.blastwave.space."
+  - admin: "Administrators can print/archive textbooks linked to any wiki path, not just UGC pages."
+  - server: "library.category enum extended with Textbook, run schema migration before deploy."
