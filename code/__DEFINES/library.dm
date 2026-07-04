@@ -14,5 +14,11 @@
 #define BOOK_CATEGORY_RELIGION "Religion"
 #define BOOK_CATEGORY_ADULT "Adult"
 #define BOOK_CATEGORY_REFERENCE "Reference"
+#define BOOK_CATEGORY_TEXTBOOK "Textbook"
 /// If making a book of this category it will be randomly selected from all categories
 #define BOOK_CATEGORY_RANDOM "Random"
+
+/// Maximum length for a single UGC wiki page slug segment.
+#define UGC_PAGE_SLUG_MAX_LEN 100
+/// Maximum length for a full wiki page path (including nested segments).
+#define WIKI_PAGE_PATH_MAX_LEN 200

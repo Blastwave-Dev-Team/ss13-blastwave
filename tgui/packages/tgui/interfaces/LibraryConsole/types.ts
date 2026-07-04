@@ -34,6 +34,7 @@ export type LibraryConsoleData = {
   cache_title: string;
   can_connect: BooleanLike;
   can_db_request: BooleanLike;
+  can_print_wiki_paths: BooleanLike;
   category: string;
   checkout_page_count: number;
   checkout_page: number;

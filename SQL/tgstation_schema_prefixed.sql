@@ -265,7 +265,7 @@ CREATE TABLE `SS13_library` (
   `author` varchar(45) NOT NULL,
   `title` varchar(45) NOT NULL,
   `content` text NOT NULL,
-  `category` enum('Any','Fiction','Non-Fiction','Adult','Reference','Religion') NOT NULL,
+  `category` enum('Any','Fiction','Non-Fiction','Adult','Reference','Religion','Textbook') NOT NULL,
   `ckey` varchar(32) NOT NULL DEFAULT 'LEGACY',
   `datetime` datetime NOT NULL,
   `deleted` tinyint(1) unsigned DEFAULT NULL,

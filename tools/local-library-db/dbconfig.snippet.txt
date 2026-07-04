@@ -1,0 +1,13 @@
+## Local Docker library DB (tools/local-library-db)
+## Merge these into config/dbconfig.txt, or copy this file over dbconfig.txt for local testing.
+
+SQL_ENABLED
+
+ADDRESS localhost
+PORT 3306
+
+FEEDBACK_DATABASE feedback
+FEEDBACK_TABLEPREFIX SS13_
+
+FEEDBACK_LOGIN tgstation
+FEEDBACK_PASSWORD tgstation
