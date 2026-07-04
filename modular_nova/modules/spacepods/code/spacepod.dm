@@ -30,6 +30,8 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	layer = SPACEPOD_LAYER
 	bound_width = 64
 	bound_height = 64
+	pixel_x = 0
+	pixel_y = 0
 	animate_movement = NO_STEPS
 	anchored = TRUE
 	resistance_flags = LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF // it floats above lava or something, I dunno
@@ -53,7 +55,7 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 	var/obj/item/pod_parts/armor/pod_armor = null
 	var/obj/item/stock_parts/power_store/battery/cell = null
 	var/datum/gas_mixture/cabin_air
-	var/obj/machinery/portable_atmospherics/canister/internal_tank
+	var/obj/internal_tank
 	var/last_slowprocess = 0
 
 	var/mob/living/pilot
@@ -241,6 +243,17 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		if(user.transferItemToLoc(weapon, src))
 			to_chat(user, span_notice("You insert [weapon] into the pod."))
 			cell = weapon
+		return TRUE
+	if(istype(weapon, /obj/item/tank))
+		if(!hatch_open)
+			to_chat(user, span_warning("The maintenance hatch is closed!"))
+			return TRUE
+		if(internal_tank)
+			to_chat(user, span_warning("[src] already has an internal tank!"))
+			return TRUE
+		if(user.transferItemToLoc(weapon, src))
+			to_chat(user, span_notice("You insert [weapon] into [src]."))
+			internal_tank = weapon
 		return TRUE
 	if(istype(weapon, /obj/item/spacepod_equipment))
 		if(!hatch_open)
@@ -564,8 +577,9 @@ GLOBAL_LIST_INIT(spacepod_verb_list, list(
 		if(!dropped.Adjacent(src))
 			to_chat(user, span_warning("The canister is not close enough!"))
 			return
-		if(hatch_open)
-			to_chat(user, span_warning("The hatch is shut!"))
+		if(!hatch_open)
+			to_chat(user, span_warning("The maintenance hatch is closed!"))
+			return
 		to_chat(user, span_notice("You begin inserting the canister into [src]."))
 		if(do_after(user, 5 SECONDS, target = src))
 			to_chat(user, span_notice("You insert the canister into [src]."))
