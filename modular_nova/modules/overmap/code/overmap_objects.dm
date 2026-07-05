@@ -49,7 +49,7 @@
 /* OVERMAP AREA */
 
 /area/overmap
-	name = "Overmap"
+	name = "Starmap"
 	icon_state = "yellow"
 	requires_power = FALSE
 	static_lighting = FALSE
@@ -67,7 +67,7 @@
 /// close_overmap_objects is what helms surface in their radar and what
 /// enables docking via act_overmap.
 /obj/structure/overmap
-	name = "overmap object"
+	name = "celestial object"
 	desc = "An unknown celestial object."
 	icon = 'modular_nova/modules/overmap/icons/overmap.dmi'
 	icon_state = "object"

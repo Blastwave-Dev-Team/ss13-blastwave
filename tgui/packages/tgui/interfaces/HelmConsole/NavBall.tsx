@@ -7,7 +7,7 @@ function useDebouncedCallback<T extends (...args: any[]) => void>(
   delay: number,
 ): T {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestArgs = useRef<Parameters<T>>();
+  const latestArgs = useRef<Parameters<T> | undefined>(undefined);
   const latestCb = useRef(callback);
   latestCb.current = callback;
 
@@ -45,6 +45,75 @@ const CX = 120;
 const CY = 120;
 const RADIUS = 100;
 
+/**
+ * Canvas colors resolved from the tgui theme variables declared in
+ * helm-console.scss, so the ball matches the rest of the UI. Values are
+ * concrete rgb() strings because canvas needs alpha variants (see alpha()).
+ */
+type NavBallPalette = {
+  /** Ball face (radial gradient base). */
+  bg: string;
+  /** Rings, spokes, and center dot. */
+  frame: string;
+  /** Compass rose labels. */
+  label: string;
+  /** Desired vector marker and focus ring. */
+  accent: string;
+  /** Actual velocity marker. */
+  actual: string;
+  /** Highlight dot inside the desired marker. */
+  text: string;
+  /** Font family for canvas text. */
+  font: string;
+};
+
+const FALLBACK_PALETTE: NavBallPalette = {
+  bg: 'rgb(13, 16, 24)',
+  frame: 'rgb(80, 160, 255)',
+  label: 'rgb(136, 204, 255)',
+  accent: 'rgb(0, 229, 255)',
+  actual: 'rgb(255, 171, 0)',
+  text: 'rgb(255, 255, 255)',
+  font: 'Consolas, monospace',
+};
+
+/** Resolves a CSS custom property to a concrete color via a probe element. */
+function resolvePalette(el: HTMLElement): NavBallPalette {
+  const resolve = (varName: string, fallback: string) => {
+    const probe = document.createElement('div');
+    probe.style.color = `var(${varName}, ${fallback})`;
+    el.appendChild(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color || fallback;
+  };
+  return {
+    bg: resolve('--helm-navball-bg', FALLBACK_PALETTE.bg),
+    frame: resolve('--helm-frame', FALLBACK_PALETTE.frame),
+    label: resolve('--color-label', FALLBACK_PALETTE.label),
+    accent: resolve('--helm-accent', FALLBACK_PALETTE.accent),
+    actual: resolve('--helm-actual', FALLBACK_PALETTE.actual),
+    text: resolve('--color-text', FALLBACK_PALETTE.text),
+    font: getComputedStyle(el).fontFamily || FALLBACK_PALETTE.font,
+  };
+}
+
+/** Returns the color with the given alpha. Expects rgb()/rgba() input. */
+function alpha(color: string, a: number): string {
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (!match) return color;
+  const [r, g, b] = match[1].split(',').map((part) => parseFloat(part));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/** Returns the color with rgb channels scaled by factor (0..1 darkens). */
+function shade(color: string, factor: number): string {
+  const match = color.match(/rgba?\(([^)]+)\)/);
+  if (!match) return color;
+  const [r, g, b] = match[1].split(',').map((part) => parseFloat(part));
+  return `rgb(${Math.round(r * factor)}, ${Math.round(g * factor)}, ${Math.round(b * factor)})`;
+}
+
 const COMPASS = [
   { label: 'N', angle: -Math.PI / 2 },
   { label: 'NE', angle: -Math.PI / 4 },
@@ -63,6 +132,7 @@ const YAW_MAX_RATE = 0.04;
 
 function drawBall(
   ctx: CanvasRenderingContext2D,
+  palette: NavBallPalette,
   actualAngle: number,
   actualSpeed: number,
   desiredAngle: number,
@@ -72,22 +142,22 @@ function drawBall(
   ctx.clearRect(0, 0, 240, 240);
 
   const bg = ctx.createRadialGradient(CX, CY, 0, CX, CY, RADIUS + 10);
-  bg.addColorStop(0, '#0d1018');
-  bg.addColorStop(0.85, '#0a0e16');
-  bg.addColorStop(1, '#060810');
+  bg.addColorStop(0, palette.bg);
+  bg.addColorStop(0.85, shade(palette.bg, 0.8));
+  bg.addColorStop(1, shade(palette.bg, 0.5));
   ctx.fillStyle = bg;
   ctx.beginPath();
   ctx.arc(CX, CY, RADIUS + 8, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = 'rgba(80, 160, 255, 0.25)';
+  ctx.strokeStyle = alpha(palette.frame, 0.25);
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.arc(CX, CY, RADIUS, 0, Math.PI * 2);
   ctx.stroke();
 
   for (const frac of [0.25, 0.5, 0.75]) {
-    ctx.strokeStyle = `rgba(80, 160, 255, ${0.06 + frac * 0.04})`;
+    ctx.strokeStyle = alpha(palette.frame, 0.06 + frac * 0.04);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(CX, CY, RADIUS * frac, 0, Math.PI * 2);
@@ -97,7 +167,7 @@ function drawBall(
   for (const dir of COMPASS) {
     const x2 = CX + Math.cos(dir.angle) * RADIUS;
     const y2 = CY + Math.sin(dir.angle) * RADIUS;
-    ctx.strokeStyle = 'rgba(80, 160, 255, 0.08)';
+    ctx.strokeStyle = alpha(palette.frame, 0.08);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(CX, CY);
@@ -113,15 +183,15 @@ function drawBall(
     const ly = CY + Math.sin(dir.angle) * labelR;
     const isCardinal = dir.label.length === 1;
     ctx.fillStyle = isCardinal
-      ? 'rgba(136, 204, 255, 0.6)'
-      : 'rgba(136, 204, 255, 0.25)';
+      ? alpha(palette.label, 0.6)
+      : alpha(palette.label, 0.25);
     ctx.font = isCardinal
-      ? 'bold 11px Consolas, monospace'
-      : '9px Consolas, monospace';
+      ? `bold 11px ${palette.font}`
+      : `9px ${palette.font}`;
     ctx.fillText(dir.label, lx, ly);
   }
 
-  ctx.fillStyle = 'rgba(80, 160, 255, 0.15)';
+  ctx.fillStyle = alpha(palette.frame, 0.15);
   ctx.beginPath();
   ctx.arc(CX, CY, 3, 0, Math.PI * 2);
   ctx.fill();
@@ -129,9 +199,9 @@ function drawBall(
   const ARC_HALF = Math.PI / 12;
   const ARC_RADIUS = RADIUS - 4;
   if (actualSpeed > 0.02) {
-    ctx.strokeStyle = 'rgba(255, 171, 0, 0.6)';
+    ctx.strokeStyle = alpha(palette.actual, 0.6);
     ctx.lineWidth = 3;
-    ctx.shadowColor = 'rgba(255, 171, 0, 0.3)';
+    ctx.shadowColor = alpha(palette.actual, 0.3);
     ctx.shadowBlur = 4;
     ctx.beginPath();
     ctx.arc(CX, CY, ARC_RADIUS, actualAngle - ARC_HALF, actualAngle + ARC_HALF);
@@ -140,23 +210,23 @@ function drawBall(
 
     const ax = CX + Math.cos(actualAngle) * actualSpeed * RADIUS;
     const ay = CY + Math.sin(actualAngle) * actualSpeed * RADIUS;
-    ctx.strokeStyle = 'rgba(255, 171, 0, 0.3)';
+    ctx.strokeStyle = alpha(palette.actual, 0.3);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(CX, CY);
     ctx.lineTo(ax, ay);
     ctx.stroke();
 
-    ctx.fillStyle = '#ffab00';
-    ctx.shadowColor = 'rgba(255, 171, 0, 0.5)';
+    ctx.fillStyle = palette.actual;
+    ctx.shadowColor = alpha(palette.actual, 0.5);
     ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.arc(ax, ay, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(255, 171, 0, 0.6)';
-    ctx.font = '8px Consolas, monospace';
+    ctx.fillStyle = alpha(palette.actual, 0.6);
+    ctx.font = `8px ${palette.font}`;
     ctx.textAlign = 'left';
     ctx.fillText('ACT', ax + 8, ay + 3);
   }
@@ -165,7 +235,7 @@ function drawBall(
     const dx = CX + Math.cos(desiredAngle) * desiredThrottle * RADIUS;
     const dy = CY + Math.sin(desiredAngle) * desiredThrottle * RADIUS;
 
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
+    ctx.strokeStyle = alpha(palette.accent, 0.2);
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -174,27 +244,27 @@ function drawBall(
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.fillStyle = '#00e5ff';
-    ctx.shadowColor = 'rgba(0, 229, 255, 0.6)';
+    ctx.fillStyle = palette.accent;
+    ctx.shadowColor = alpha(palette.accent, 0.6);
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(dx, dy, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillStyle = alpha(palette.text, 0.4);
     ctx.beginPath();
     ctx.arc(dx, dy, 2, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(0, 229, 255, 0.6)';
-    ctx.font = '8px Consolas, monospace';
+    ctx.fillStyle = alpha(palette.accent, 0.6);
+    ctx.font = `8px ${palette.font}`;
     ctx.textAlign = 'left';
     ctx.fillText('DES', dx + 8, dy + 3);
   }
 
   if (focused) {
-    ctx.strokeStyle = 'rgba(0, 229, 255, 0.2)';
+    ctx.strokeStyle = alpha(palette.accent, 0.2);
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(CX, CY, RADIUS + 4, 0, Math.PI * 2);
@@ -216,6 +286,7 @@ export function NavBall(props: NavBallProps) {
   } = props;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const palette = useRef<NavBallPalette>(FALLBACK_PALETTE);
   const [focused, setFocused] = useState(false);
   const dragging = useRef(false);
   const localAngle = useRef(serverDesiredAngle);
@@ -229,6 +300,12 @@ export function NavBall(props: NavBallProps) {
     localAngle.current = serverDesiredAngle;
     localThrottle.current = serverDesiredThrottle;
   }, [serverDesiredAngle, serverDesiredThrottle]);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      palette.current = resolvePalette(canvasRef.current);
+    }
+  }, []);
 
   const mouseToAngleThrottle = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
@@ -396,6 +473,7 @@ export function NavBall(props: NavBallProps) {
       if (ctx) {
         drawBall(
           ctx,
+          palette.current,
           actualAngle,
           actualSpeed,
           localAngle.current,

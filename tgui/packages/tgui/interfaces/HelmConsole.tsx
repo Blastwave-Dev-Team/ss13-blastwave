@@ -18,6 +18,13 @@ type ShipInfo = {
   est_thrust?: number;
 };
 
+type LandingZone = {
+  name: string;
+  ref: string;
+  width: number;
+  height: number;
+};
+
 type OtherShip = {
   name: string;
   integrity: number;
@@ -26,6 +33,7 @@ type OtherShip = {
   distance?: number;
   adjacent?: BooleanLike;
   type?: 'level' | 'dynamic' | 'ship' | 'event' | 'unknown';
+  landingZones?: LandingZone[];
 };
 
 type EngineInfo = {
@@ -82,7 +90,7 @@ export const HelmConsole = () => {
             />
           ) : (
             <NoticeBox>
-              Helm not bound to any overmap object. Move it to a shuttle, or
+              Helm not bound to any starmap object. Move it to a shuttle, or
               set its target via VV.
             </NoticeBox>
           )}
@@ -381,39 +389,86 @@ const RadarTab = () => {
         </div>
       ) : (
         otherInfo.map((contact) => (
-          <div className="HelmPanel__radar-item" key={contact.ref}>
-            <div style={{ flex: 1 }}>
-              <div className="HelmPanel__radar-name">
-                <span
-                  style={{
-                    opacity: 0.6,
-                    fontSize: '10px',
-                    marginRight: '4px',
-                  }}
+          <div key={contact.ref}>
+            <div className="HelmPanel__radar-item">
+              <div style={{ flex: 1 }}>
+                <div className="HelmPanel__radar-name">
+                  <span
+                    style={{
+                      opacity: 0.6,
+                      fontSize: '10px',
+                      marginRight: '4px',
+                    }}
+                  >
+                    [{contactTypeLabel(contact.type)}]
+                  </span>
+                  {contact.name}
+                </div>
+                <div
+                  style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
                 >
-                  [{contactTypeLabel(contact.type)}]
-                </span>
-                {contact.name}
+                  {contact.adjacent
+                    ? 'Adjacent'
+                    : `${String(contact.bearing ?? 0).padStart(3, '0')}° / ${contact.distance ?? '?'} tile${(contact.distance ?? 0) !== 1 ? 's' : ''}`}
+                </div>
               </div>
-              <div
-                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
-              >
-                {contact.adjacent
-                  ? 'Adjacent'
-                  : `${String(contact.bearing ?? 0).padStart(3, '0')}° / ${contact.distance ?? '?'} tile${(contact.distance ?? 0) !== 1 ? 's' : ''}`}
+              <div className="HelmPanel__radar-actions">
+                {contact.adjacent && contact.type !== 'event' ? (
+                  <button
+                    className="HelmPanel__btn"
+                    disabled={!canDock}
+                    onClick={() => act('dock', { target: contact.ref })}
+                  >
+                    {contact.type === 'dynamic' ? 'Explore' : 'Dock'}
+                  </button>
+                ) : null}
               </div>
             </div>
-            <div className="HelmPanel__radar-actions">
-              {contact.adjacent && contact.type !== 'event' ? (
-                <button
-                  className="HelmPanel__btn"
-                  disabled={!canDock}
-                  onClick={() => act('dock', { target: contact.ref })}
-                >
-                  {contact.type === 'dynamic' ? 'Explore' : 'Dock'}
-                </button>
-              ) : null}
-            </div>
+            {contact.adjacent && (contact.landingZones?.length ?? 0) > 0 ? (
+              <div style={{ marginLeft: '16px' }}>
+                {contact.landingZones!.map((zone) => (
+                  <div className="HelmPanel__radar-item" key={zone.ref}>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        className="HelmPanel__radar-name"
+                        style={{ fontSize: '11px' }}
+                      >
+                        <span
+                          style={{
+                            opacity: 0.6,
+                            fontSize: '10px',
+                            marginRight: '4px',
+                          }}
+                        >
+                          [LZ]
+                        </span>
+                        {zone.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          opacity: 0.7,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {zone.width}x{zone.height} tiles
+                      </div>
+                    </div>
+                    <div className="HelmPanel__radar-actions">
+                      <button
+                        className="HelmPanel__btn"
+                        disabled={!canDock}
+                        onClick={() =>
+                          act('dock', { target: contact.ref, lz: zone.ref })
+                        }
+                      >
+                        Land
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         ))
       )}

@@ -12,6 +12,11 @@ GLOBAL_LIST_INIT(shuttle_frame_overlays_by_turf, list())
 		return
 	if(SHUTTLE_ROD_TRAIT_SOURCE in trait_sources)
 		return
+	// Plating still covers the rods, so keep them hidden. Removing a tile scrapes back to
+	// the built plating (not the original landing pad), and rods should only re-appear when
+	// the plating itself is scraped away.
+	if(isplatingturf(new_turf))
+		return
 	new_turf.AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE, /datum/element/shuttle_construction_turf)
 	update_shuttle_frame_overlay(new_turf)
 	update_shuttle_frame_neighbor_overlays(new_turf)

@@ -194,6 +194,8 @@
 		"overmap_fuel_injector",
 		"overmap_fusion_thruster",
 		"overmap_helm_console",
+		"overmap_landing_controller", // BLASTWAVE EDIT ADDITION
+		"overmap_landing_corner", // BLASTWAVE EDIT ADDITION
 		"overmap_nav_computer",
 		"propulsion_engine",
 		"shuttle_blueprints",

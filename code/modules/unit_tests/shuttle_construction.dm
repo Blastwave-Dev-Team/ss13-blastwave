@@ -27,13 +27,13 @@
 	TEST_ASSERT(istype(target, /turf/open/floor/plating), "[target] should be bare plating after ScrapeAway")
 	return target
 
-/datum/unit_test/shuttle_construction/proc/apply_shuttle_rods(turf/target, obj/item/stack/rods/shuttle/rods, mob/user)
+/datum/unit_test/shuttle_construction/proc/apply_shuttle_rods(turf/open/target, obj/item/stack/rods/shuttle/rods, mob/user)
 	TEST_ASSERT(target.build_shuttle_frame_with_rods(rods, user), "build_shuttle_frame_with_rods should succeed on [target.type]")
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_plating
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_plating/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	prepare_plating(target)
@@ -55,7 +55,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_plating_attackby
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_plating_attackby/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	prepare_plating(target)
@@ -74,7 +74,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_tiled_floor
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_tiled_floor/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	RESET_TO_EXPECTED(target)
@@ -92,7 +92,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_trait_survives_tiling
 
 /datum/unit_test/shuttle_construction/shuttle_frame_trait_survives_tiling/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -143,7 +143,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_reject_duplicate
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_reject_duplicate/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	prepare_plating(target)
@@ -162,7 +162,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_regular_rods_unchanged
 
 /datum/unit_test/shuttle_construction/shuttle_frame_regular_rods_unchanged/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/rods = allocate(/obj/item/stack/rods/ten)
 	prepare_plating(target)
@@ -180,7 +180,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_space_lattice_unchanged
 
 /datum/unit_test/shuttle_construction/shuttle_frame_space_lattice_unchanged/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
@@ -207,7 +207,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_tile_builds_plating
 
 /datum/unit_test/shuttle_construction/shuttle_frame_tile_builds_plating/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -233,7 +233,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_tile_then_tile
 
 /datum/unit_test/shuttle_construction/shuttle_frame_tile_then_tile/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -255,7 +255,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_rcd_builds_plating
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rcd_builds_plating/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	RESET_TO_EXPECTED(target)
@@ -278,7 +278,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_space_no_overlay
 
 /datum/unit_test/shuttle_construction/shuttle_frame_space_no_overlay/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -303,7 +303,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_station_overlay
 
 /datum/unit_test/shuttle_construction/shuttle_frame_station_overlay/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -323,7 +323,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_examine_marker
 
 /datum/unit_test/shuttle_construction/shuttle_frame_examine_marker/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -355,7 +355,7 @@
 /datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods
 
 /datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods/Run()
-	var/turf/target = run_loc_floor_bottom_left
+	var/turf/open/target = run_loc_floor_bottom_left
 	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
 	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
 	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
@@ -377,6 +377,80 @@
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should be able to rebuild plating on the re-exposed frame turf")
 
 /datum/unit_test/shuttle_construction/shuttle_frame_deconstruct_reexposes_rods/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_preserves_landing_pad
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_preserves_landing_pad/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+
+	// Station landing pad: iron floor over station plating over space.
+	target.ChangeTurf(/turf/open/floor/iron, list(/turf/open/space, /turf/open/floor/plating))
+	apply_shuttle_rods(target, rods, user)
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over station rods")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Hull layer should be plating")
+
+	insert_shuttle_skipover(target)
+	TEST_ASSERT_EQUAL(target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), 1, "Skipover should sit directly beneath the hull plating, not under the station floors")
+	var/list/stack = target.baseturfs
+	TEST_ASSERT_EQUAL(stack[length(stack) - 1], /turf/open/floor/iron, "Station floor should remain below the skipover")
+
+	// Idempotent: a second call must not stack another skipover.
+	insert_shuttle_skipover(target)
+	var/skipover_count = 0
+	for(var/base in target.baseturfs)
+		if(base == /turf/baseturf_skipover/shuttle)
+			skipover_count++
+	TEST_ASSERT_EQUAL(skipover_count, 1, "Repeated skipover insertion should be idempotent")
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_preserves_landing_pad/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_tiled_hull
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_tiled_hull/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+
+	// Station pad, hull plating built over rods, then hull floor tiled on top.
+	target.ChangeTurf(/turf/open/floor/iron, list(/turf/open/space, /turf/open/floor/plating))
+	apply_shuttle_rods(target, rods, user)
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over station rods")
+	target = get_turf(target)
+	target = tiles.place_tile(target, user)
+	TEST_ASSERT(target, "place_tile should return the tiled hull floor")
+
+	insert_shuttle_skipover(target)
+	TEST_ASSERT_EQUAL(target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), 2, "Skipover should sit beneath the hull plating (depth 2 under a tiled hull)")
+	var/list/stack = target.baseturfs
+	TEST_ASSERT_EQUAL(stack[length(stack)], /turf/open/floor/plating, "Hull plating should be above the skipover")
+	TEST_ASSERT_EQUAL(stack[length(stack) - 2], /turf/open/floor/iron, "Station floor should remain below the skipover")
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_tiled_hull/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_space_build
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_space_build/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+
+	// Space build: bare hull plating straight over space.
+	target.ChangeTurf(/turf/open/floor/plating, list(/turf/open/space))
+	insert_shuttle_skipover(target)
+	TEST_ASSERT_EQUAL(target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), 1, "Skipover should sit directly beneath bare hull plating")
+	var/list/stack = target.baseturfs
+	TEST_ASSERT_EQUAL(stack[1], /turf/open/space, "Space should remain the bottom of the stack")
+
+/datum/unit_test/shuttle_construction/shuttle_skipover_space_build/Destroy()
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 

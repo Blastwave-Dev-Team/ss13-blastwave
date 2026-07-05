@@ -5,7 +5,7 @@
 
 /obj/item/clothing/head/neurohelm
 	name = "neurohelm"
-	desc = "A neural interface helmet that translates EEG signals into ship control commands. Grants direct overmap piloting when worn aboard a ship."
+	desc = "A neural interface helmet that translates EEG signals into ship control commands. Grants direct astrogation piloting when worn aboard a ship."
 	icon_state = "securecap"
 	inhand_icon_state = "securecap"
 	armor_type = /datum/armor/none
@@ -54,7 +54,7 @@
 	// Resolve ship from shuttle
 	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(user)
 	if(!port?.current_ship)
-		to_chat(user, span_warning("You are not aboard a ship with overmap presence."))
+		to_chat(user, span_warning("You are not aboard a ship with astrogation presence."))
 		return
 	var/obj/structure/overmap/ship/ship = port.current_ship
 	if(!istype(ship))
@@ -69,7 +69,7 @@
 
 	piloting = TRUE
 	ADD_TRAIT(user, TRAIT_NEUROHELM_PILOTING, REF(src))
-	to_chat(user, span_notice("Neural link established. Your vision shifts to the overmap. Move to thrust."))
+	to_chat(user, span_notice("Neural link established. Your vision shifts to the starmap. Move to thrust."))
 
 /obj/item/clothing/head/neurohelm/proc/stop_piloting()
 	if(!piloting)

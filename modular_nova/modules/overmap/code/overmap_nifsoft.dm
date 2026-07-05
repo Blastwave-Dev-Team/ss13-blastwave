@@ -4,8 +4,8 @@
 // causes feedback shock (conflict penalty).
 
 /datum/nifsoft/overmap_pilot
-	name = "Overmap Pilot Interface"
-	program_desc = "Neural ship control software. When active, your perspective shifts to the overmap and movement commands translate to ship thrust."
+	name = "Astrogation Pilot Interface"
+	program_desc = "Neural ship control software. When active, your perspective shifts to the starmap and movement commands translate to ship thrust."
 	active_mode = TRUE
 	active_cost = 3
 	activation_cost = 5
@@ -53,7 +53,7 @@
 	// Resolve ship from shuttle
 	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(linked_mob)
 	if(!port?.current_ship)
-		to_chat(linked_mob, span_warning("You are not aboard a ship with overmap presence."))
+		to_chat(linked_mob, span_warning("You are not aboard a ship with astrogation presence."))
 		deactivate_self()
 		return
 	var/obj/structure/overmap/ship/ship = port.current_ship
@@ -70,7 +70,7 @@
 		return
 
 	ADD_TRAIT(linked_mob, TRAIT_NIF_PILOTING, REF(src))
-	to_chat(linked_mob, span_notice("Neural pilot link established. Your vision shifts to the overmap."))
+	to_chat(linked_mob, span_notice("Neural pilot link established. Your vision shifts to the starmap."))
 
 /datum/nifsoft/overmap_pilot/proc/stop_piloting()
 	if(pilot_link?.linked_mob)

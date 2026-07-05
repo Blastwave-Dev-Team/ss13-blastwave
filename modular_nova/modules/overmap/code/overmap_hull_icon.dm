@@ -190,6 +190,15 @@
 		generating_hull_icon = FALSE
 		return null
 
+	// Normalize to the nose-SOUTH convention that update_icon_state()'s heading
+	// transform (270 - face_angle) is calibrated for. The renderer output is the
+	// live world layout rotated 180, so the nose sits at image angle
+	// (180 + front_angle); undo the ship's front angle so front-NORTH ships are
+	// unchanged and any other build orientation lands nose-south too.
+	var/front_angle = SIMPLIFY_DEGREES(dir2angle(shuttle.dir) + 180 - dir2angle(shuttle.port_direction))
+	if(front_angle)
+		hull.Turn(360 - front_angle)
+
 	cached_hull_icon = hull
 	generating_hull_icon = FALSE
 	icon = cached_hull_icon

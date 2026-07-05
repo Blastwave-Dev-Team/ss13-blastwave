@@ -69,3 +69,21 @@
 	var/zone_x2 = x + zone_width - 1
 	var/zone_y2 = y + zone_height - 1
 	return (x1 >= zone_x1 && y1 >= zone_y1 && x2 <= zone_x2 && y2 <= zone_y2)
+
+/// Returns TRUE if the given turf lies within this zone's bounds.
+/obj/effect/landmark/overmap_landing_zone/proc/contains_turf(turf/checked_turf)
+	if(checked_turf.z != z)
+		return FALSE
+	return (checked_turf.x >= x && checked_turf.x <= x + zone_width - 1 && checked_turf.y >= y && checked_turf.y <= y + zone_height - 1)
+
+/// Returns TRUE if the given turf lies within any registered overmap landing zone.
+/// Landing zones grant implicit shuttle-docking permission, letting shuttle
+/// blueprints finalize a frame there without station blueprints toggling
+/// `allow_shuttle_docking` on the underlying area.
+/proc/turf_in_overmap_landing_zone(turf/checked_turf)
+	if(!checked_turf)
+		return FALSE
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
+		if(zone.contains_turf(checked_turf))
+			return TRUE
+	return FALSE

@@ -190,7 +190,14 @@
 			stack_trace("Bad areastring path for [src], [areastring]")
 	else if(isarea(our_area) && areastring == null)
 		area = our_area
-	if(area)
+	// BLASTWAVE EDIT ADDITION - Shuttle construction: an APC built on a shuttle frame inside an
+	// existing powered area must not take over that area. Registration is deferred until
+	// shuttle blueprints create the shuttle area, whose set_turfs_to_area() calls
+	// assign_to_area() on any APC within. The area var stays set for naming/UI only;
+	// area mutation procs are guarded on `area.apc == src`.
+	var/turf/apc_turf = get_turf(src) // BLASTWAVE EDIT ADDITION
+	var/defer_area_registration = area?.apc && HAS_TRAIT(apc_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF) // BLASTWAVE EDIT ADDITION
+	if(area && !defer_area_registration) // BLASTWAVE EDIT CHANGE - ORIGINAL: if(area)
 		if(area.apc)
 			log_mapping("Duplicate APC created at [AREACOORD(src)] [area.type]. Original at [AREACOORD(area.apc)] [area.type].")
 		area.apc = src
@@ -300,13 +307,15 @@
 
 	disconnect_from_area()
 	area = target_area
+	area.apc = src // BLASTWAVE EDIT CHANGE - register before update_area_power_usage(), which is now guarded on area.apc == src
 	update_area_power_usage(TRUE)
-	area.apc = src
 	auto_name = TRUE
 
 	update_appearance(UPDATE_NAME)
 
 /obj/machinery/power/apc/proc/update_area_power_usage(state)
+	if(isnull(area) || area.apc != src) // BLASTWAVE EDIT ADDITION - unregistered APCs (deferred shuttle-frame builds) must not drive the host area's power
+		return
 	//apc is non functional so force disable
 	if(state && (has_electronics != APC_ELECTRONICS_SECURED || (machine_stat & (BROKEN | MAINT)) || QDELETED(cell)))
 		state = FALSE
@@ -326,7 +335,8 @@
 		return
 
 	update_area_power_usage(FALSE)
-	area.apc = null
+	if(area.apc == src) // BLASTWAVE EDIT ADDITION - don't null out another APC's registration (deferred shuttle-frame builds never registered)
+		area.apc = null
 	area = null
 
 /obj/machinery/power/apc/Exited(atom/movable/gone, direction)
@@ -566,6 +576,8 @@
 		last_charging = charging
 		charging = APC_NOT_CHARGING
 	if(isnull(area))
+		return
+	if(area.apc != src) // BLASTWAVE EDIT ADDITION - unregistered APCs must not clear/charge against the host area's accounting
 		return
 
 	var/total_static_energy_usage = 0

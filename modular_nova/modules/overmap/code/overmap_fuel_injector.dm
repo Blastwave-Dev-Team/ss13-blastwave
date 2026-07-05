@@ -29,6 +29,10 @@
 	var/burning = FALSE
 	var/consuming = FALSE
 	var/max_operating_pressure = OVERMAP_FUEL_DEFAULT_PRESSURE
+	/// Glow-plug chamber preheater toggle. Draws power each tick to walk the chamber toward the setpoint.
+	var/preheat_enabled = FALSE
+	/// Target chamber temperature (K) for the preheater. Clamped to the micro laser's reachable range.
+	var/preheat_setpoint = PLASMA_MINIMUM_BURN_TEMPERATURE
 	/// Assoc gas_path -> TRUE if allowed from L1 into chamber.
 	var/list/intake_filter = list()
 	/// Assoc gas_path -> TRUE if scrubbed from chamber to L3.
@@ -150,7 +154,7 @@
 /obj/machinery/overmap/fuel_injector/proc/get_preheat_efficiency()
 	return 1 + 0.1 * (micro_laser_rating - 1)
 
-/obj/machinery/overmap/fuel_injector/process_atmos()
+/obj/machinery/overmap/fuel_injector/process_atmos(seconds_per_tick)
 	if(!is_operational || !air_contents)
 		return
 	link_rescan_counter++
@@ -158,11 +162,28 @@
 		link_rescan_counter = 0
 		update_linked_engines()
 	process_intake()
+	process_preheat(seconds_per_tick || 0.5)
+	process_chamber_reaction()
 	process_exhaust_filter()
+
+/// Keep a lit chamber burning: react the mix every tick (same pattern as
+/// portable atmospherics) so ignition self-sustains instead of only reacting
+/// during engine thrust or the one-shot igniter spark. Skipped while
+/// consume_for_burn() owns the mix, since that runs its own react loop.
+/obj/machinery/overmap/fuel_injector/proc/process_chamber_reaction()
+	if(consuming)
+		return
+	var/reacted = air_contents.react(src)
+	if(burning != !!reacted)
+		burning = !!reacted
+		update_appearance()
 
 /obj/machinery/overmap/fuel_injector/proc/process_intake()
 	var/datum/pipeline/pipe = input_connector?.gas_connector?.parents?[1]
-	if(!pipe?.air)
+	// A connector with no pipes attached still gets a pipenet, but with air.volume = 0
+	// (machine airs live in other_airs). remove_ratio() on it creates zero-volume
+	// mixtures and stack-traces every tick, so bail until real pipe is attached.
+	if(!pipe?.air || pipe.air.volume <= 0)
 		return
 	if(air_contents.return_pressure() >= max_operating_pressure)
 		return
@@ -187,7 +208,7 @@
 
 /obj/machinery/overmap/fuel_injector/proc/process_exhaust_filter()
 	var/datum/pipeline/exhaust_pipe = exhaust_connector?.gas_connector?.parents?[1]
-	if(!exhaust_pipe?.air)
+	if(!exhaust_pipe?.air || exhaust_pipe.air.volume <= 0) // see process_intake() - don't vent into an unpiped (zero-volume) net
 		return
 	if(exhaust_pipe.air.return_pressure() >= MAX_OUTPUT_PRESSURE)
 		return
@@ -218,9 +239,8 @@
 	for(var/gas_id in air_contents.gases)
 		before_moles[gas_id] = air_contents.gases[gas_id][MOLES]
 
-	if(air_contents.temperature < PLASMA_MINIMUM_BURN_TEMPERATURE)
-		apply_preheat()
-
+	// No hidden preheat here: a cold chamber simply reacts nothing and falls
+	// through to thermal expulsion. Players ignite or preheat deliberately.
 	var/chemical_bonus = 1
 	var/reacted = FALSE
 	for(var/i in 1 to OVERMAP_REACT_ITERATIONS)
@@ -291,16 +311,62 @@
 		thrust_results[engine] = thrust
 	return thrust_results
 
-/obj/machinery/overmap/fuel_injector/proc/apply_preheat()
-	var/target = PLASMA_MINIMUM_BURN_TEMPERATURE
-	if(air_contents.temperature >= target)
+/// Spark the chamber. If the mix is combustible this kicks it to reaction
+/// temperature and lets the chemistry self-heat; if nothing reacts, the
+/// temperature bump is reverted so sparking can't be used as free heating.
+/obj/machinery/overmap/fuel_injector/proc/ignite_chamber(mob/user)
+	if(consuming)
+		if(user)
+			balloon_alert(user, "chamber busy!")
+		return FALSE
+	if(!air_contents?.total_moles())
+		if(user)
+			balloon_alert(user, "chamber empty!")
+		return FALSE
+	use_energy(OVERMAP_IGNITE_SPARK_ENERGY)
+	do_sparks(2, TRUE, src)
+	var/original_temperature = air_contents.temperature
+	if(air_contents.temperature < PLASMA_MINIMUM_BURN_TEMPERATURE)
+		air_contents.set_temperature(PLASMA_MINIMUM_BURN_TEMPERATURE)
+	var/reacted = FALSE
+	for(var/i in 1 to OVERMAP_REACT_ITERATIONS)
+		if(!air_contents.react(src))
+			break
+		reacted = TRUE
+	if(!reacted)
+		air_contents.set_temperature(original_temperature)
+		if(user)
+			balloon_alert(user, "mixture won't ignite!")
+		return FALSE
+	playsound(src, 'sound/items/tools/welder.ogg', 40, TRUE)
+	if(user)
+		balloon_alert(user, "chamber ignited")
+	update_appearance()
+	return TRUE
+
+/// Highest preheat setpoint the installed micro laser can hold.
+/obj/machinery/overmap/fuel_injector/proc/get_preheat_setpoint_max()
+	return OVERMAP_PREHEAT_SETPOINT_MAX(micro_laser_rating)
+
+/// Glow-plug heating: walk the chamber toward the setpoint with bounded
+/// per-tick power. Heat delivered scales with micro laser tier; the grid is
+/// billed the delivered heat divided by preheat efficiency.
+/obj/machinery/overmap/fuel_injector/proc/process_preheat(seconds_per_tick)
+	if(!preheat_enabled || !air_contents?.total_moles())
+		return
+	var/setpoint = clamp(preheat_setpoint, T20C, get_preheat_setpoint_max())
+	if(air_contents.temperature >= setpoint)
 		return
 	var/cp = air_contents.heat_capacity()
 	if(cp <= 0)
 		return
-	var/energy = cp * (target - air_contents.temperature)
-	use_energy(energy / get_preheat_efficiency())
-	air_contents.set_temperature(target)
+	var/max_energy = OVERMAP_PREHEAT_POWER_BASE * micro_laser_rating * seconds_per_tick
+	var/needed_energy = cp * (setpoint - air_contents.temperature)
+	var/applied = min(max_energy, needed_energy)
+	if(applied <= 0)
+		return
+	use_energy(applied / get_preheat_efficiency())
+	air_contents.set_temperature(air_contents.temperature + applied / cp)
 
 /obj/machinery/overmap/fuel_injector/proc/remove_thermal_moles(amount, power_fraction)
 	if(amount <= 0 || !air_contents.total_moles())
@@ -402,6 +468,14 @@
 			"consuming" = consuming,
 			"gas_composition" = fuel_injector_gas_composition(air_contents),
 		),
+		"preheat" = list(
+			"enabled" = preheat_enabled,
+			"setpoint" = preheat_setpoint,
+			"setpoint_min" = T20C,
+			"setpoint_max" = get_preheat_setpoint_max(),
+			"power_draw" = OVERMAP_PREHEAT_POWER_BASE * micro_laser_rating / get_preheat_efficiency(),
+			"ignition_temp" = PLASMA_MINIMUM_BURN_TEMPERATURE,
+		),
 		"exhaust" = exhaust_data,
 		"filters" = list(
 			"intake" = fuel_injector_filter_entries(intake_filter),
@@ -470,6 +544,18 @@
 				return
 			do_flameout(user)
 			. = TRUE
+		if("toggle_preheat")
+			preheat_enabled = !preheat_enabled
+			. = TRUE
+		if("set_preheat_target")
+			var/target = text2num(params["target"])
+			if(isnull(target))
+				return
+			preheat_setpoint = clamp(target, T20C, get_preheat_setpoint_max())
+			. = TRUE
+		if("ignite")
+			ignite_chamber(ui.user)
+			. = TRUE
 
 /obj/machinery/overmap/fuel_injector/examine(mob/user)
 	. = ..()
@@ -482,6 +568,7 @@
 		. += span_notice("Alt-click to dump the chamber (flameout) when engines are off.")
 	if(air_contents?.total_moles())
 		. += span_notice("Chamber: [round(air_contents.total_moles(), 0.1)] mol, [round(air_contents.return_pressure(), 0.1)] kPa, [round(air_contents.temperature, 0.1)] K.")
+	. += span_notice("The chamber preheater is [preheat_enabled ? "holding [round(preheat_setpoint)] K" : "off"]. Combustible mixes can be lit with the igniter from the interface.")
 
 /obj/machinery/overmap/fuel_injector/update_icon_state()
 	if(machine_stat & BROKEN)

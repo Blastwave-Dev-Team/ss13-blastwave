@@ -101,7 +101,7 @@
 	var/area/turf_area = target.loc
 	if(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
 		holder.image_state = "green"
-		if(turf_area.allow_shuttle_docking)
+		if(turf_area.allow_shuttle_docking || turf_in_overmap_landing_zone(target)) // BLASTWAVE EDIT CHANGE - ORIGINAL: if(turf_area.allow_shuttle_docking)
 			if(!GLOB.custom_areas[turf_area] && turf_area.apc)
 				var/obj/machinery/power/apc/apc = turf_area.apc
 				var/turf/apc_turf = get_turf(apc)

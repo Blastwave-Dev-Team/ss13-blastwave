@@ -112,6 +112,13 @@
 /// Max LINDA react() iterations per burn tick.
 #define OVERMAP_REACT_ITERATIONS 5
 
+/// Fuel injector glow-plug heater wattage per micro laser tier (heat delivered to the chamber).
+#define OVERMAP_PREHEAT_POWER_BASE 20000
+/// Highest chamber preheat setpoint (K) reachable at a given micro laser rating.
+#define OVERMAP_PREHEAT_SETPOINT_MAX(rating) (500 + 250 * ((rating) - 1))
+/// Energy (joules) billed per igniter spark attempt, successful or not.
+#define OVERMAP_IGNITE_SPARK_ENERGY 2000
+
 // --- Ship control flags (bitfield) ---
 
 /// Ship can be operated from a helm console (ByondUi camera + TGUI).

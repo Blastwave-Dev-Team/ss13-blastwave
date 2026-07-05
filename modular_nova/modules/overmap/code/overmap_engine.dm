@@ -33,8 +33,15 @@
 	var/obj/machinery/atmospherics/node = gas_connector.nodes[1]
 	if(node)
 		node.atmos_init()
-		node.add_member(gas_connector)
-		gas_connector.update_parents()
+		// Immediately joining the neighbor's pipenet is only safe when the
+		// neighbor is a pipe that has one. Against another bare connector, or
+		// mid-shuttle-rotation, its pipeline can be null and add_member()
+		// runtimes. The rebuild queued below links everything up regardless.
+		if(istype(node, /obj/machinery/atmospherics/pipe))
+			var/obj/machinery/atmospherics/pipe/pipe_node = node
+			if(pipe_node.parent)
+				pipe_node.add_member(gas_connector)
+				gas_connector.update_parents()
 	SSair.add_to_rebuild_queue(gas_connector)
 
 /obj/machinery/power/shuttle_engine/overmap
@@ -64,13 +71,28 @@
 	// Fuel enters from the intake side (behind the thrust direction), so the L2
 	// feed port must face the reverse of the engine's facing.
 	feed_connector = new /datum/gas_machine_connector/reversed(loc, src, dir, CELL_VOLUME * 0.5, OVERMAP_HNT_FEED_LAYER)
+	// The stock connector only reorients on COMSIG_MACHINERY_DEFAULT_ROTATE_WRENCH,
+	// but engines rotate through the simple_rotation element (bare setDir), so we
+	// track direction changes ourselves. POST variant: DIR_CHANGE fires before
+	// `dir` is written, which would make the reconnect read the stale facing.
+	RegisterSignal(src, COMSIG_ATOM_POST_DIR_CHANGE, PROC_REF(on_dir_change))
 	update_engine()
 	update_appearance()
 
 /obj/machinery/power/shuttle_engine/overmap/Destroy()
+	UnregisterSignal(src, COMSIG_ATOM_POST_DIR_CHANGE)
 	QDEL_NULL(feed_connector)
 	linked_injector = null
 	return ..()
+
+/// Reorient the L2 feed port when the engine is rotated in place.
+/obj/machinery/power/shuttle_engine/overmap/proc/on_dir_change(datum/source, old_dir, new_dir)
+	SIGNAL_HANDLER
+	if(old_dir == new_dir || isnull(feed_connector))
+		return
+	feed_connector.disconnect_connector()
+	feed_connector.reconnect_connector()
+	scan_for_injector()
 
 /obj/machinery/power/shuttle_engine/overmap/Moved(atom/old_loc, movement_dir, forced, list/old_locs, momentum_change)
 	. = ..()

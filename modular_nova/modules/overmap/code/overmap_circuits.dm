@@ -14,7 +14,7 @@
 	build_path = /obj/machinery/computer/helm/viewscreen
 
 /obj/item/circuitboard/computer/shuttle/overmap_nav
-	name = "Astrogation Navigation Console"
+	name = "Astrogation Landing Console"
 	desc = "A computer board. Camera-based landing at astrogation landing zones and points of interest."
 	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
@@ -42,6 +42,12 @@
 	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/overmap/fuel_injector
 	needs_anchored = FALSE
+	// Frame construction requires a parts list: circuit_added() copies it
+	// unconditionally, so a null list runtimes. These match RefreshParts().
+	req_components = list(
+		/datum/stock_part/matter_bin = 1,
+		/datum/stock_part/micro_laser = 1,
+	)
 
 /obj/item/circuitboard/machine/landing_corner
 	name = "Landing Zone Corner Beacon"

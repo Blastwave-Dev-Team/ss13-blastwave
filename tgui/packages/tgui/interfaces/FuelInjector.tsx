@@ -10,6 +10,7 @@ import {
   NoticeBox,
   ProgressBar,
   Section,
+  Slider,
   Stack,
   Tooltip,
 } from 'tgui-core/components';
@@ -60,6 +61,15 @@ type GasMetadata = {
   scrub_default: BooleanLike;
 };
 
+type Preheat = {
+  enabled: BooleanLike;
+  setpoint: number;
+  setpoint_min: number;
+  setpoint_max: number;
+  power_draw: number;
+  ignition_temp: number;
+};
+
 type Data = {
   input: SidePanel;
   chamber: SidePanel & {
@@ -67,6 +77,7 @@ type Data = {
     consuming: BooleanLike;
     max_pressure: number;
   };
+  preheat: Preheat;
   exhaust: SidePanel;
   filters: {
     intake: FilterEntry[];
@@ -430,11 +441,75 @@ const FlowArrow = () => (
   </Stack.Item>
 );
 
+type ChamberConditioningProps = {
+  chamber: Data['chamber'];
+  preheat: Preheat;
+  onIgnite: () => void;
+  onTogglePreheat: () => void;
+  onSetTarget: (target: number) => void;
+};
+
+const ChamberConditioning = (props: ChamberConditioningProps) => {
+  const { chamber, preheat, onIgnite, onTogglePreheat, onSetTarget } = props;
+  const atIgnitionTemp = chamber.temperature >= preheat.ignition_temp;
+
+  return (
+    <Section
+      title="Chamber Conditioning"
+      buttons={
+        <Button
+          icon="bolt"
+          color="orange"
+          content="Ignite"
+          disabled={!!chamber.consuming || chamber.total_moles <= 0}
+          tooltip={
+            chamber.total_moles <= 0
+              ? 'Chamber is empty'
+              : 'Spark the chamber. Combustible mixes self-heat; inert mixes fizzle.'
+          }
+          onClick={onIgnite}
+        />
+      }
+    >
+      <LabeledList>
+        <LabeledList.Item label="Preheater">
+          <Button
+            icon={preheat.enabled ? 'power-off' : 'times'}
+            selected={!!preheat.enabled}
+            content={preheat.enabled ? 'On' : 'Off'}
+            onClick={onTogglePreheat}
+          />
+          <Box as="span" color="label" ml={1}>
+            {(preheat.power_draw / 1000).toFixed(0)} kW while heating
+          </Box>
+        </LabeledList.Item>
+        <LabeledList.Item label="Setpoint">
+          <Slider
+            value={preheat.setpoint}
+            minValue={preheat.setpoint_min}
+            maxValue={preheat.setpoint_max}
+            step={5}
+            unit="K"
+            onChange={(_e, value) => onSetTarget(value)}
+          />
+        </LabeledList.Item>
+        <LabeledList.Item label="Ignition threshold">
+          <Box as="span" color={atIgnitionTemp ? 'good' : 'label'}>
+            {preheat.ignition_temp.toFixed(0)} K
+            {atIgnitionTemp ? ' — chamber at temperature' : ''}
+          </Box>
+        </LabeledList.Item>
+      </LabeledList>
+    </Section>
+  );
+};
+
 export const FuelInjector = () => {
   const { act, data } = useBackend<Data>();
   const {
     input,
     chamber,
+    preheat,
     exhaust,
     filters,
     performance,
@@ -578,6 +653,17 @@ export const FuelInjector = () => {
                   maxPressure={chamber.max_pressure}
                 />
               </Section>
+              {preheat && (
+                <ChamberConditioning
+                  chamber={chamber}
+                  preheat={preheat}
+                  onIgnite={() => act('ignite')}
+                  onTogglePreheat={() => act('toggle_preheat')}
+                  onSetTarget={(target) =>
+                    act('set_preheat_target', { target })
+                  }
+                />
+              )}
               <GasList
                 composition={chamber.gas_composition || {}}
                 totalMoles={chamber.total_moles}

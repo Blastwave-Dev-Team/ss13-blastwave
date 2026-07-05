@@ -12,7 +12,10 @@
 		qdel(src)
 		return
 
-	gas_connector = new(location)
+	// BLASTWAVE EDIT CHANGE - was `new(location)`, which instantiates the var's
+	// declared type (the bare unary) rather than the hidden gas_connector
+	// subtype and its shuttle-transit guards. ORIGINAL: gas_connector = new(location)
+	gas_connector = new /obj/machinery/atmospherics/components/unary/gas_connector(location)
 	gas_connector.dir = connected_machine.dir
 	gas_connector.piping_layer = piping_layer
 	gas_connector.airs[1].volume = gas_volume

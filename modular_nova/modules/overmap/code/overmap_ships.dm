@@ -6,7 +6,7 @@
 
 /// Anything on the overmap that's capable of self-propelled motion.
 /obj/structure/overmap/ship
-	name = "overmap vessel"
+	name = "vessel"
 	desc = "A spacefaring vessel."
 	icon = 'modular_nova/modules/overmap/icons/overmap.dmi'
 	icon_state = "ship"
@@ -491,6 +491,11 @@
 	var/launch_block = check_launch_clearance()
 	if(launch_block)
 		return launch_block
+	// Pre-flight: the shuttle subsystem refuses transit if canMove() fails
+	// (e.g. a custom shuttle with no welded engines), so surface that now
+	// rather than silently aborting mid-ignition.
+	if(!shuttle.canMove())
+		return "Engines not responding! Ensure engines are installed and welded to the hull."
 	shuttle.destination = null
 	shuttle.mode = SHUTTLE_IGNITING
 	shuttle.setTimer(shuttle.ignitionTime)
@@ -498,9 +503,31 @@
 	state = OVERMAP_SHIP_UNDOCKING
 	return "Beginning undocking procedures..."
 
-/// Called when the shuttle's ignition timer elapses.
-/obj/structure/overmap/ship/simulated/proc/complete_undock()
+/// How many 2-second rechecks complete_undock() will wait for SSshuttle to
+/// allocate a transit zone before declaring the launch failed.
+#define UNDOCK_TRANSIT_RETRIES 10
+
+/// Called when the shuttle's ignition timer elapses. Verifies the physical
+/// shuttle actually reached hyperspace before advancing the overmap icon:
+/// the SSshuttle state machine can silently abort (transit allocation failure,
+/// lockdown, canMove() flipping FALSE), and a blind timer would leave the icon
+/// "flying" while the hull is still parked on the station Z.
+/obj/structure/overmap/ship/simulated/proc/complete_undock(retries = UNDOCK_TRANSIT_RETRIES)
 	if(state != OVERMAP_SHIP_UNDOCKING)
+		return
+	if(!shuttle)
+		state = OVERMAP_SHIP_IDLE
+		update_screen(TRUE)
+		return
+	if(!is_reserved_level(shuttle.z) && shuttle.mode != SHUTTLE_CALL)
+		if(shuttle.mode == SHUTTLE_IGNITING && retries > 0)
+			// Transit zone not allocated yet - SSshuttle retries every 2 seconds.
+			addtimer(CALLBACK(src, PROC_REF(complete_undock), retries - 1), 2 SECONDS)
+			return
+		// enterTransit() aborted or transit allocation gave up. Stay docked.
+		state = OVERMAP_SHIP_IDLE
+		update_screen(TRUE)
+		announce_to_helms("Launch aborted: engines failed to reach hyperspace. Check engine installation and try again.")
 		return
 	var/obj/structure/overmap/prev_docked = docked
 	if(docked)
@@ -512,8 +539,18 @@
 		var/obj/structure/overmap/dynamic/encounter = prev_docked
 		encounter.unload_level()
 
-/// Helm "Act" entry point.
-/obj/structure/overmap/ship/simulated/proc/overmap_object_act(obj/structure/overmap/target, mob/user)
+#undef UNDOCK_TRANSIT_RETRIES
+
+/// Say a message from every helm console currently bound to this ship, for
+/// async failures where there is no synchronous return value to relay.
+/obj/structure/overmap/ship/simulated/proc/announce_to_helms(message)
+	for(var/obj/machinery/computer/helm/helm as anything in SSovermap.helms)
+		if(helm.current_ship == src && !helm.viewer)
+			helm.say(message)
+
+/// Helm "Act" entry point. `lz_ref` optionally names a specific landing zone
+/// landmark to dock at instead of the automatic stationary-port search.
+/obj/structure/overmap/ship/simulated/proc/overmap_object_act(obj/structure/overmap/target, mob/user, lz_ref)
 	if(!target)
 		return "No target."
 	if(state != OVERMAP_SHIP_FLYING)
@@ -527,14 +564,86 @@
 		var/error = encounter.load_level(shuttle)
 		if(error)
 			return error
-		return dock(encounter)
+		return dock(encounter, lz_ref)
 	if(istype(target, /obj/structure/overmap/level))
-		return dock(target)
+		return dock(target, lz_ref)
 	return "Cannot interact with this object yet."
 
+/// Landing zones on `target`'s Z-levels that this ship's shuttle fits in its
+/// current orientation and that are unoccupied. Returns a list of landmarks.
+/obj/structure/overmap/ship/simulated/proc/get_landing_zones_for(obj/structure/overmap/target)
+	. = list()
+	if(!shuttle)
+		return
+	var/list/target_zs = resolve_nav_target_zs(target)
+	if(!length(target_zs))
+		return
+	var/list/bounds = shuttle.return_coords()
+	var/ship_w = abs(bounds[3] - bounds[1]) + 1
+	var/ship_h = abs(bounds[4] - bounds[2]) + 1
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
+		if(!(zone.z in target_zs))
+			continue
+		if(ship_w > zone.zone_width || ship_h > zone.zone_height)
+			continue
+		if(zone.get_occupant(shuttle))
+			continue
+		. += zone
+
+/// Build a one-shot stationary docking port centered in `zone`, preserving the
+/// shuttle's current orientation. Returns the port, or null if the shuttle no
+/// longer fits / the zone is occupied. The port self-deletes after the shuttle
+/// next departs it (`delete_after`).
+/obj/structure/overmap/ship/simulated/proc/create_landing_zone_port(obj/effect/landmark/overmap_landing_zone/zone)
+	var/list/bounds = shuttle.return_coords()
+	var/bbox_x1 = min(bounds[1], bounds[3])
+	var/bbox_y1 = min(bounds[2], bounds[4])
+	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
+	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
+	if(ship_w > zone.zone_width || ship_h > zone.zone_height)
+		return null
+	if(zone.get_occupant(shuttle))
+		return null
+	// Offset of the mobile port tile inside its own bbox. With the stationary
+	// port sharing the shuttle's dir and dimensions, landing reproduces the
+	// same bbox relative to the port tile, so this places the hull centered.
+	var/port_off_x = shuttle.x - bbox_x1
+	var/port_off_y = shuttle.y - bbox_y1
+	var/dest_x = zone.x + round((zone.zone_width - ship_w) / 2) + port_off_x
+	var/dest_y = zone.y + round((zone.zone_height - ship_h) / 2) + port_off_y
+	var/turf/dest = locate(dest_x, dest_y, zone.z)
+	if(!dest)
+		return null
+	var/obj/docking_port/stationary/port = new()
+	port.unregister()
+	port.delete_after = TRUE
+	port.name = zone.zone_name
+	port.shuttle_id = "[shuttle.shuttle_id]_lz"
+	port.width = shuttle.width
+	port.height = shuttle.height
+	port.dwidth = shuttle.dwidth
+	port.dheight = shuttle.dheight
+	port.register(TRUE)
+	port.setDir(shuttle.dir)
+	port.forceMove(dest)
+	if(!shuttle.check_dock(port, TRUE))
+		qdel(port)
+		return null
+	return port
+
+/// Stationary dock lookup by shuttle_id without SSshuttle.getDock()'s
+/// "couldn't find dock" warning. dock() probes several speculative IDs per
+/// attempt and misses are the expected case, not an error.
+/obj/structure/overmap/ship/simulated/proc/find_dock_quiet(id)
+	for(var/obj/docking_port/stationary/port in SSshuttle.stationary_docking_ports)
+		if(port.shuttle_id == id)
+			return port
+	return null
+
 /// Try to resolve a stationary docking port for `target` and request the
-/// shuttle to fly to it.
-/obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/target)
+/// shuttle to fly to it. If `lz_ref` is given, dock at that landing zone
+/// instead of searching pre-mapped ports.
+/obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/target, lz_ref)
 	if(state != OVERMAP_SHIP_FLYING)
 		return "Ship is not in flight."
 	if(!is_still())
@@ -544,31 +653,51 @@
 	if(!SSovermap.can_view_installation(src, target))
 		return "Unable to establish docking link with target."
 
-	var/list/candidates = list(
-		"[shuttle.shuttle_id]_[target.id]",
-		"[OVERMAP_DOCK_PREFIX]_[target.id]",
-	)
-	if(istype(target, /obj/structure/overmap/level/main))
-		candidates += "[shuttle.shuttle_id]_home"
-	if(istype(target, /obj/structure/overmap/level/mining))
-		candidates += "[shuttle.shuttle_id]_away"
-	if(istype(target, /obj/structure/overmap/dynamic))
-		candidates += "[OVERMAP_FERRY_PREFIX]_[target.id]"
-
 	var/obj/docking_port/stationary/picked
-	for(var/dock_id in candidates)
-		var/obj/docking_port/stationary/found = SSshuttle.getDock(dock_id)
-		if(!found)
-			continue
-		if(!shuttle.check_dock(found, TRUE))
-			continue
-		picked = found
-		break
 
-	if(!picked)
+	if(lz_ref)
+		var/obj/effect/landmark/overmap_landing_zone/zone = locate(lz_ref) in SSovermap.landing_zones
+		if(!zone || !(zone in get_landing_zones_for(target)))
+			return "Landing zone unavailable - it may be occupied or out of range."
+		picked = create_landing_zone_port(zone)
+		if(!picked)
+			return "Unable to designate a landing site in [zone.zone_name]."
+	else
 		var/list/target_zs = resolve_nav_target_zs(target)
-		set_nav_target(target, target_zs, candidates)
-		return "No automatic dock found - use the navigation computer to designate a landing pad on [target.name]."
+
+		// Landing-console designated pad takes priority over pre-mapped docks.
+		// The pad has to actually be on the target body: a pad designated on
+		// another planet must not let you "dock" here.
+		var/obj/docking_port/stationary/designated = find_dock_quiet("[shuttle.shuttle_id]_custom")
+		if(designated && (designated.z in target_zs) && shuttle.check_dock(designated, TRUE))
+			picked = designated
+
+		var/list/candidates = list(
+			"[shuttle.shuttle_id]_[target.id]",
+			"[OVERMAP_DOCK_PREFIX]_[target.id]",
+		)
+		if(istype(target, /obj/structure/overmap/level/main))
+			candidates += "[shuttle.shuttle_id]_home"
+		if(istype(target, /obj/structure/overmap/level/mining))
+			candidates += "[shuttle.shuttle_id]_away"
+		if(istype(target, /obj/structure/overmap/dynamic))
+			candidates += "[OVERMAP_FERRY_PREFIX]_[target.id]"
+
+		if(!picked)
+			for(var/dock_id in candidates)
+				var/obj/docking_port/stationary/found = find_dock_quiet(dock_id)
+				if(!found)
+					continue
+				if(!shuttle.check_dock(found, TRUE))
+					continue
+				picked = found
+				break
+
+		if(!picked)
+			set_nav_target(target, target_zs, candidates)
+			if(length(get_landing_zones_for(target)))
+				return "No automatic dock found - select a landing zone or use the astrogation landing console to designate a landing pad on [target.name]."
+			return "No automatic dock found - use the astrogation landing console to designate a landing pad on [target.name]."
 
 	docked = target
 	state = OVERMAP_SHIP_DOCKING

@@ -24,8 +24,8 @@
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
 /datum/design/board/overmap_nav_computer
-	name = "Astrogation Navigation Console Board"
-	desc = "The circuit board for an astrogation navigation console."
+	name = "Astrogation Landing Console Board"
+	desc = "The circuit board for an astrogation landing console."
 	id = "overmap_nav_computer"
 	build_path = /obj/item/circuitboard/computer/shuttle/overmap_nav
 	build_type = IMPRINTER
@@ -69,7 +69,7 @@
 
 /datum/supply_pack/engineering/overmap_fuel_injector
 	name = "Shuttle Construction Kit"
-	desc = "Contains circuit boards for building a basic shuttle: helm and navigation consoles, fuel injectors, Hall-Nuclear-Thermal engines, and a landing zone controller with corner beacons."
+	desc = "Contains circuit boards for building a basic shuttle: helm and landing consoles, fuel injectors, Hall-Nuclear-Thermal engines, and a landing zone controller with corner beacons."
 	cost = CARGO_CRATE_VALUE * 8
 	contains = list(
 		/obj/item/circuitboard/computer/shuttle/helm,

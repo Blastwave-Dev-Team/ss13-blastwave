@@ -121,12 +121,13 @@
 	)
 	.["otherInfo"] = list()
 	var/list/seen_refs = list()
+	var/obj/structure/overmap/ship/simulated/lz_ship = istype(current_ship, /obj/structure/overmap/ship/simulated) ? current_ship : null
 	for(var/obj/structure/overmap/other in current_ship.close_overmap_objects)
 		if(!SSovermap.can_view_installation(current_ship, other))
 			continue
 		var/ref = REF(other)
 		seen_refs += ref
-		.["otherInfo"] += list(list(
+		var/list/contact_entry = list(
 			"name" = other.name,
 			"integrity" = other.integrity,
 			"ref" = ref,
@@ -134,7 +135,20 @@
 			"distance" = get_dist(current_ship, other),
 			"adjacent" = TRUE,
 			"type" = get_contact_type(other),
-		))
+		)
+		// Adjacent POIs advertise their landing zones so the pilot can pick one to dock at.
+		if(lz_ship && istype(other, /obj/structure/overmap/level))
+			var/list/zone_entries = list()
+			for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in lz_ship.get_landing_zones_for(other))
+				zone_entries += list(list(
+					"name" = zone.zone_name,
+					"ref" = REF(zone),
+					"width" = zone.zone_width,
+					"height" = zone.zone_height,
+				))
+			if(length(zone_entries))
+				contact_entry["landingZones"] = zone_entries
+		.["otherInfo"] += list(contact_entry)
 	if(istype(current_ship, /obj/structure/overmap/ship/simulated))
 		var/obj/structure/overmap/ship/simulated/scan_ship = current_ship
 		for(var/scan_ref in scan_ship.scanned_objects)
@@ -264,7 +278,7 @@
 			if(!SSovermap.can_view_installation(current_ship, target))
 				say("Unable to establish link with target.")
 				return TRUE
-			say(ship.overmap_object_act(target, usr))
+			say(ship.overmap_object_act(target, usr, params["lz"]))
 			return TRUE
 		if("act_overmap")
 			var/obj/structure/overmap/target = locate(params["ship_to_act"]) in current_ship.close_overmap_objects

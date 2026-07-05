@@ -5,7 +5,7 @@
 // picks it up lazily when the player opens the console.
 
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
-	name = "astrogation navigation console"
+	name = "astrogation landing console"
 	desc = "Designates a landing pad on whatever astrogation body the bound shuttle is currently next to."
 	circuit = /obj/item/circuitboard/computer/shuttle/overmap_nav
 	whitelist_turfs = list(
@@ -40,6 +40,11 @@
 	if(!linked_port)
 		return
 	shuttleId = linked_port.shuttle_id
+	// Mirror connect_to_shuttle(): without this the designated port registers
+	// with the fallback id "dock" and the helm's "[shuttle_id]_custom" lookup
+	// can never find it.
+	shuttlePortId = "[linked_port.shuttle_id]_custom"
+	shuttlePortName = "[linked_port.name] landing pad"
 
 /// Before opening the camera eye, pull the current nav-docking state from
 /// the bound ship and apply it to `z_lock` / `jump_to_ports`. This replaces

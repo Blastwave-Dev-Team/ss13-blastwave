@@ -50,7 +50,7 @@
 // Uplink entry
 /datum/uplink_item/device/syndicate_station_beacon
 	name = "Station Tracking Beacon"
-	desc = "A deployable subspace beacon that reveals this station's location to allied forces on the overmap. Once activated, DS2 shuttles can navigate to and dock with the station. Single use."
+	desc = "A deployable subspace beacon that reveals this station's location to allied forces on the starmap. Once activated, DS2 shuttles can navigate to and dock with the station. Single use."
 	item = /obj/item/syndicate_station_beacon
 	cost = 6
 	surplus = 0
