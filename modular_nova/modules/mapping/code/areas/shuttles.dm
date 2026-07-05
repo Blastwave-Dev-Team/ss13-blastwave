@@ -18,7 +18,9 @@
 	name = "Slave Ship"
 	requires_power = TRUE
 
-/area/shuttle/tarkon_driver
+// Ruin subtype: the driver ships with the Port Tarkon ruin and carries space
+// turfs in its dmm - /area/shuttle/ruin is exempt from mapload space checks.
+/area/shuttle/ruin/tarkon_driver
 	name = "Tarkon Driver"
 	requires_power = TRUE
 
