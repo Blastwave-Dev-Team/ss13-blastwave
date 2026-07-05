@@ -44,16 +44,17 @@
 /obj/structure/overmap/ship/simulated/proc/check_launch_clearance()
 	if(!shuttle)
 		return null
-	var/exit_dir = shuttle.get_landing_zone_exit_dir()
-	if(shuttle.check_bay_exit(exit_dir))
+	var/obj/effect/landmark/overmap_landing_zone/zone = shuttle.get_overlapping_landing_zone()
+	var/exit_dir = zone ? zone.exit_direction : NONE
+	if(shuttle.check_bay_exit(exit_dir, zone))
 		return null
 	if(exit_dir)
 		return "Launch path obstructed toward [dir2text(exit_dir)]. Clear a route to open space or open the bay doors before launching."
 	return "Launch path obstructed. Clear a route to open space along one edge, or open the bay doors before launching."
 
-/// Returns the exit direction designated by a landing zone overlapping this
-/// shuttle's footprint, or NONE if the shuttle is not parked in a managed zone.
-/obj/docking_port/mobile/proc/get_landing_zone_exit_dir()
+/// Returns the landing zone with a designated exit direction overlapping this
+/// shuttle's footprint, or null if the shuttle is not parked in a managed zone.
+/obj/docking_port/mobile/proc/get_overlapping_landing_zone()
 	var/list/bounds = return_coords()
 	var/x1 = min(bounds[1], bounds[3])
 	var/x2 = max(bounds[1], bounds[3])
@@ -65,13 +66,16 @@
 		var/zx2 = zone.x + zone.zone_width - 1
 		var/zy2 = zone.y + zone.zone_height - 1
 		if(x1 <= zx2 && x2 >= zone.x && y1 <= zy2 && y2 >= zone.y)
-			return zone.exit_direction
-	return NONE
+			return zone
+	return null
 
 /// Validates that the shuttle has a clear launch path. Returns TRUE if launch is
 /// allowed. `exit_dir` (a cardinal) restricts the check to a single edge; NONE
-/// checks all four faces and passes if any one is fully clear.
-/obj/docking_port/mobile/proc/check_bay_exit(exit_dir = NONE)
+/// checks all four faces and passes if any one is fully clear. `zone` (the
+/// landing zone that designated `exit_dir`) extends the raycast budget so the
+/// probe depth is measured from the ZONE's exit edge, not the hull: a ship
+/// parked at the far end of a large zone must still see out of the bay.
+/obj/docking_port/mobile/proc/check_bay_exit(exit_dir = NONE, obj/effect/landmark/overmap_landing_zone/zone)
 	var/list/bounds = return_coords()
 	var/x1 = min(bounds[1], bounds[3])
 	var/x2 = max(bounds[1], bounds[3])
@@ -80,7 +84,22 @@
 	var/check_z = z
 
 	if(exit_dir)
-		return bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir)
+		// Tiles between the hull's exit edge and the zone's exit edge - still
+		// part of the launch path, so the rays cross (and wall-check) them, but
+		// they must not eat into the beyond-the-zone probe depth.
+		var/interior_run = 0
+		if(zone)
+			switch(exit_dir)
+				if(NORTH)
+					interior_run = (zone.y + zone.zone_height - 1) - y2
+				if(SOUTH)
+					interior_run = y1 - zone.y
+				if(EAST)
+					interior_run = (zone.x + zone.zone_width - 1) - x2
+				if(WEST)
+					interior_run = x1 - zone.x
+			interior_run = max(interior_run, 0)
+		return bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir, interior_run + OVERMAP_BAY_EXIT_DEPTH)
 
 	for(var/cardinal in GLOB.cardinals)
 		if(bay_exit_face_clear(x1, y1, x2, y2, check_z, cardinal))
@@ -88,9 +107,9 @@
 	return FALSE
 
 /// Per-column raycast for a designated exit direction. Every column (or row) of
-/// the exit edge must reach a space turf within OVERMAP_BAY_EXIT_DEPTH tiles
-/// without first hitting a hard wall.
-/obj/docking_port/mobile/proc/bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir)
+/// the exit edge must reach a space turf within `max_depth` tiles without first
+/// hitting a hard wall.
+/obj/docking_port/mobile/proc/bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir, max_depth = OVERMAP_BAY_EXIT_DEPTH)
 	var/dx = 0
 	var/dy = 0
 	switch(exit_dir)
@@ -113,7 +132,7 @@
 		var/base_x = vertical ? along : (exit_dir == EAST ? x2 : x1)
 		var/base_y = vertical ? (exit_dir == NORTH ? y2 : y1) : along
 		var/column_clear = FALSE
-		for(var/depth in 1 to OVERMAP_BAY_EXIT_DEPTH)
+		for(var/depth in 1 to max_depth)
 			var/turf/probe = locate(base_x + dx * depth, base_y + dy * depth, check_z)
 			if(isnull(probe))
 				break
