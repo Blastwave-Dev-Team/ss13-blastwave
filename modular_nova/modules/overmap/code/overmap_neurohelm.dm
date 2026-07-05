@@ -6,8 +6,11 @@
 /obj/item/clothing/head/neurohelm
 	name = "neurohelm"
 	desc = "A neural interface helmet that translates EEG signals into ship control commands. Grants direct astrogation piloting when worn aboard a ship."
-	icon_state = "securecap"
-	inhand_icon_state = "securecap"
+	icon = 'icons/obj/clothing/head/helmet.dmi'
+	icon_state = "perceptomatrix_helmet_inactive"
+	worn_icon = 'icons/mob/clothing/head/helmet.dmi'
+	worn_icon_state = "perceptomatrix_helmet_inactive"
+	inhand_icon_state = "helmet"
 	armor_type = /datum/armor/none
 	slot_flags = ITEM_SLOT_HEAD
 	w_class = WEIGHT_CLASS_NORMAL

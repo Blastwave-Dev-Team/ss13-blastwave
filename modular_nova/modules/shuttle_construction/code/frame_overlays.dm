@@ -59,8 +59,7 @@ GLOBAL_LIST_INIT(shuttle_frame_overlays_by_turf, list())
 		return
 	remove_shuttle_frame_overlay(target)
 	var/bitmask = calculate_shuttle_frame_lattice_bitmask(target)
-	var/mutable_appearance/rod_overlay = mutable_appearance('icons/obj/smooth_structures/lattice.dmi', "lattice-[bitmask]", LATTICE_LAYER)
-	rod_overlay.plane = FLOOR_PLANE
+	var/mutable_appearance/rod_overlay = mutable_appearance('icons/obj/smooth_structures/lattice.dmi', "lattice-[bitmask]", LATTICE_LAYER, target, FLOOR_PLANE)
 	target.add_overlay(rod_overlay)
 	GLOB.shuttle_frame_overlays_by_turf[target] = rod_overlay
 

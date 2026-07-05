@@ -6,8 +6,8 @@
 	name = "distress beacon"
 	desc = "A wall-mounted emergency distress beacon. Activating this will call the emergency evacuation shuttle."
 	icon = 'modular_nova/modules/overmap/icons/stationary_beacons.dmi'
-	icon_state = "nt_beacon"
-	base_icon_state = "nt_beacon"
+	icon_state = "beacon_wall"
+	base_icon_state = "beacon_wall"
 	density = FALSE
 	use_power = IDLE_POWER_USE
 	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION * 0.5
@@ -20,7 +20,7 @@ MAPPING_DIRECTIONAL_HELPERS(/obj/machinery/distress_beacon, 28)
 /obj/machinery/distress_beacon/update_icon_state()
 	. = ..()
 	if(transmitting)
-		icon_state = "[base_icon_state]_active"
+		icon_state = "[base_icon_state]-antennae_flashing"
 	else
 		icon_state = base_icon_state
 

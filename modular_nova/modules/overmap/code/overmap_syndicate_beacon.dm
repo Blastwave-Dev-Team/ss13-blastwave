@@ -7,7 +7,7 @@
 	name = "station tracking beacon"
 	desc = "A compact subspace beacon. When deployed and activated, it broadcasts the station's precise coordinates on syndicate frequencies."
 	icon = 'modular_nova/modules/overmap/icons/stationary_beacons.dmi'
-	icon_state = "synd_beacon_item"
+	icon_state = "beacon_syndicate-item"
 	w_class = WEIGHT_CLASS_SMALL
 	/// Whether this has already been deployed.
 	var/deployed = FALSE
@@ -34,7 +34,7 @@
 	name = "station tracking beacon"
 	desc = "A deployed subspace beacon pulsing with a faint red light. It's broadcasting something on an encrypted frequency."
 	icon = 'modular_nova/modules/overmap/icons/stationary_beacons.dmi'
-	icon_state = "synd_beacon_deployed"
+	icon_state = "beacon_syndicate-active"
 	anchored = TRUE
 	density = FALSE
 	max_integrity = 100

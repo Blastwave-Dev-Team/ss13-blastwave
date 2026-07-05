@@ -9,7 +9,12 @@
 /datum/unit_test/shuttle_construction/proc/reset_shuttle_frame_turf(turf/target)
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
 	if(frame)
-		frame.remove_turfs(frame.turfs.Copy())
+		// Remove the trait rather than calling frame.remove_turfs() directly: trait removal
+		// detaches the construction element while the frame is still registered, whereas a
+		// direct removal leaves the element attached with a dangling frame lookup, and the
+		// ChangeTurf below then runtimes in pre_turf_changed/Detach/post_turf_changed.
+		for(var/turf/frame_turf in frame.turfs.Copy())
+			REMOVE_TRAIT(frame_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, null)
 	for(var/obj/structure/lattice/lattice in target)
 		qdel(lattice)
 	RESET_TO_EXPECTED(target)

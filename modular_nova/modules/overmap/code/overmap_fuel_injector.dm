@@ -192,7 +192,7 @@
 	if(!removed?.total_moles())
 		return
 	var/datum/gas_mixture/rejected = new(removed.volume)
-	for(var/gas_id as anything in removed.gases.Copy())
+	for(var/gas_id in removed.gases.Copy())
 		if(intake_filter[gas_id])
 			continue
 		var/moles = removed.gases[gas_id][MOLES]

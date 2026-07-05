@@ -303,7 +303,7 @@
 /// you want passengers to see the map without being able to fly.
 /obj/machinery/computer/helm/viewscreen
 	name = "astrogation viewscreen"
-	icon = 'icons/obj/machines/wallmounts.dmi'
+	icon = 'icons/obj/wallmounts.dmi'
 	icon_state = "telescreen"
 	layer = SIGN_LAYER
 	density = FALSE
