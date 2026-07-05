@@ -305,6 +305,10 @@
 	name = "astrogation viewscreen"
 	icon = 'icons/obj/wallmounts.dmi'
 	icon_state = "telescreen"
+	// wallmounts.dmi has no keyboard/screen overlay states; the base computer
+	// overlays ("tech_key" keyboard, emissive icon_screen) runtime without these.
+	icon_keyboard = null
+	icon_screen = null
 	layer = SIGN_LAYER
 	density = FALSE
 	viewer = TRUE

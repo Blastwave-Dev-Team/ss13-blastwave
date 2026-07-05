@@ -104,10 +104,13 @@ SUBSYSTEM_DEF(overmap)
 				new_turf = old_turf.ChangeTurf(/turf/open/overmap/edge, /turf/open/overmap/edge)
 			else
 				new_turf = old_turf.ChangeTurf(/turf/open/overmap, /turf/open/overmap)
-			if(new_turf && get_area(new_turf) != area)
-				area.contents += new_turf
-				LISTASSERTLEN(area.turfs_by_zlevel, new_turf.z, list())
-				area.turfs_by_zlevel[new_turf.z] += new_turf
+			if(!new_turf)
+				continue
+			var/area/old_area = get_area(new_turf)
+			if(old_area != area)
+				// change_area() handles uncontaining from the old area's turf
+				// listing; direct contents += left the turf double-registered.
+				new_turf.change_area(old_area, area)
 
 /// Drop the decorative star at the center of the grid.
 /datum/controller/subsystem/overmap/proc/place_star()
