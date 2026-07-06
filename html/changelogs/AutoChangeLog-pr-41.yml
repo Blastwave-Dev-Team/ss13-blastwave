@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - map: "closed a window in the Cargo Boulder room to prevent the heat from getting out"

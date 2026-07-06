@@ -1,0 +1,6 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "Spacepods now correctly accept handheld tanks as well as freestanding canisters for internal atmosphere."
+  - bugfix: "Multi-tile objects (spacepods, large shuttle engines, etc.) no longer have a phantom extra tile of collision on their north and east sides"
+  - code_imp: "Fixed off-by-one in block() footprint calculation for multi-tile Move() and forceMove()"
