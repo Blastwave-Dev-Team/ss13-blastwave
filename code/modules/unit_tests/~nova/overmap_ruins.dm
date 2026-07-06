@@ -56,6 +56,9 @@
 		for(var/turf/T in SSmapping.used_turfs)
 			if(SSmapping.used_turfs[T] != site.reserve)
 				continue
+			// Cordon ring turfs are linked in used_turfs but lie outside the inner block.
+			if(T in site.reserve.cordon_turfs)
+				continue
 			TEST_ASSERT(site.reserve.calculate_turf_bounds_information(T), "Site [site.id] claims turf [T.x],[T.y],[T.z] outside its reservation.")
 
 /// Verify that installation_stealth is correctly set on main and des_two.
