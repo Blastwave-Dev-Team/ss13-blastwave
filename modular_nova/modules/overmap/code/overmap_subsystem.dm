@@ -412,6 +412,46 @@ SUBSYSTEM_DEF(overmap)
 			continue
 		spawn_event_cluster(event_type, T, max_events, chance / 2, depth + 1)
 
+/// Dock band width for a named site or dynamic encounter reservation.
+/datum/controller/subsystem/overmap/proc/calculate_overmap_dock_size(datum/map_template/ruin/template, obj/docking_port/mobile/visiting_shuttle, default_block_size = 0)
+	if(visiting_shuttle)
+		return max(visiting_shuttle.width, visiting_shuttle.height) + 3
+	if(template)
+		return round(max(template.width, template.height) / 2) + 3
+	return round(default_block_size / 2)
+
+/// Square reservation side length that fits `template` at the standard west-dock anchor.
+/datum/controller/subsystem/overmap/proc/calculate_overmap_site_size(datum/map_template/ruin/template, dock_size, fallback_ruin_pad = 0)
+	if(template)
+		return dock_size + max(template.width, template.height) + 4
+	return dock_size + fallback_ruin_pad
+
+/// Ruin load anchor inside a west-dock reservation, vertically centered with optional right-align.
+/datum/controller/subsystem/overmap/proc/calculate_overmap_ruin_anchor(turf/bottom_left, datum/map_template/ruin/template, dock_size, size)
+	var/ruin_x = bottom_left.x + dock_size + 2
+	var/ruin_y = bottom_left.y + round((size - template.height) / 2)
+	var/ruin_width_room = size - dock_size - 2
+	if(template.width > ruin_width_room)
+		ruin_x = bottom_left.x + size - template.width
+	return locate(ruin_x, ruin_y, bottom_left.z)
+
+/// Returns FALSE if any turf in `affected_turfs` lies outside `reserve`.
+/datum/controller/subsystem/overmap/proc/validate_ruin_turfs_fit_reservation(datum/turf_reservation/reserve, list/affected_turfs)
+	for(var/turf/T as anything in affected_turfs)
+		if(!reserve.calculate_turf_bounds_information(T))
+			return FALSE
+	return TRUE
+
+/// Load a ruin template, warn on reservation overflow, and claim the footprint.
+/datum/controller/subsystem/overmap/proc/load_overmap_ruin_into_reservation(datum/turf_reservation/reserve, datum/map_template/ruin/template, turf/ruin_turf)
+	if(!ruin_turf || !template || !reserve)
+		return
+	template.load(ruin_turf)
+	var/list/affected = template.get_affected_turfs(ruin_turf, FALSE)
+	if(!validate_ruin_turfs_fit_reservation(reserve, affected))
+		WARNING("Overmap ruin [template.name] footprint exceeds reservation at [ruin_turf.x],[ruin_turf.y],[ruin_turf.z]")
+	SSmapping.claim_turfs_for_reservation(reserve, affected)
+
 /// Reserves a turf block, optionally generates terrain and loads a ruin,
 /// then creates stationary docking ports for the visiting shuttle.
 /datum/controller/subsystem/overmap/proc/spawn_dynamic_encounter(planet_type, ruin = TRUE, dock_id, size, obj/docking_port/mobile/visiting_shuttle)
@@ -425,11 +465,8 @@ SUBSYSTEM_DEF(overmap)
 	if(!size)
 		size = round(world.maxx / 4)
 
-	var/dock_size = round(size / 2)
+	var/dock_size = calculate_overmap_dock_size(null, visiting_shuttle, size)
 	var/ruin_size = CEILING(size / 2, 1)
-	if(visiting_shuttle)
-		dock_size = max(visiting_shuttle.width, visiting_shuttle.height) + 3
-
 	var/total_size = dock_size + ruin_size
 
 	var/list/ruin_list
@@ -471,8 +508,7 @@ SUBSYSTEM_DEF(overmap)
 				viable_ruins[ruin_name] = candidate
 		if(length(viable_ruins))
 			ruin_type = viable_ruins[pick(viable_ruins)]
-			ruin_size = max(ruin_type.width, ruin_type.height) + 4
-			total_size = dock_size + ruin_size
+			total_size = calculate_overmap_site_size(ruin_type, dock_size)
 
 	var/datum/turf_reservation/encounter_reservation = SSmapping.request_turf_block_reservation(total_size, total_size)
 	if(!encounter_reservation)
@@ -489,10 +525,7 @@ SUBSYSTEM_DEF(overmap)
 		return null
 
 	if(ruin_type)
-		var/turf/ruin_turf = locate( \
-			bottom_left.x + dock_size + 2, \
-			bottom_left.y + dock_size, \
-			bottom_left.z)
+		var/turf/ruin_turf = calculate_overmap_ruin_anchor(bottom_left, ruin_type, dock_size, total_size)
 		if(ruin_turf)
 			ruin_type.load(ruin_turf)
 
@@ -603,8 +636,8 @@ SUBSYSTEM_DEF(overmap)
 		return null
 
 	var/site_id = template.id || "site_[length(overmap_objects)]"
-	var/size = max(template.width, template.height) + 8
-	var/dock_size = round(size / 2)
+	var/dock_size = calculate_overmap_dock_size(template)
+	var/size = calculate_overmap_site_size(template, dock_size)
 
 	var/datum/turf_reservation/reserve = SSmapping.request_turf_block_reservation(size, size)
 	if(!reserve)
@@ -617,12 +650,8 @@ SUBSYSTEM_DEF(overmap)
 		return null
 
 	// Load the ruin template
-	var/turf/ruin_turf = locate( \
-		bottom_left.x + dock_size + 2, \
-		bottom_left.y + dock_size, \
-		bottom_left.z)
-	if(ruin_turf)
-		template.load(ruin_turf)
+	var/turf/ruin_turf = calculate_overmap_ruin_anchor(bottom_left, template, dock_size, size)
+	load_overmap_ruin_into_reservation(reserve, template, ruin_turf)
 
 	// Create primary dock
 	var/turf/dock_turf = locate( \
@@ -672,11 +701,11 @@ SUBSYSTEM_DEF(overmap)
 				if(!istype(linked, chain_type))
 					continue
 				var/turf/chain_turf = locate( \
-					bottom_left.x + 2, \
-					bottom_left.y + 2, \
+					bottom_left.x + dock_size + 2 + template.width + 2, \
+					bottom_left.y + dock_size, \
 					bottom_left.z)
 				if(chain_turf)
-					linked.load(chain_turf)
+					load_overmap_ruin_into_reservation(reserve, linked, chain_turf)
 				LAZYADD(site.chained_templates, linked)
 
 	return site
