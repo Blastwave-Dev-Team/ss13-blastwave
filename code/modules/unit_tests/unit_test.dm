@@ -376,6 +376,8 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	// These two are locked to one type only, and shouldn't be widely available, hence why they runtime otherwise.
 	// Can't be bothered adding more to them.
 	returnable_list += list(/obj/item/organ/neck_accessory, /obj/item/organ/head_accessory)
+	// Require SSovermap context (linked Zs, bound shuttles, roundstart POI registry).
+	returnable_list += typesof(/obj/structure/overmap)
 	//NOVA EDIT ADDITION END
 	return returnable_list
 

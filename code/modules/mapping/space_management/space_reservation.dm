@@ -185,6 +185,8 @@
 		break
 	if(!passing || !istype(BL) || !istype(TR))
 		return FALSE
+	bottom_left_turfs += BL
+	top_right_turfs += TR
 	for(var/i in final)
 		var/turf/T = i
 		reserved_turfs |= T
@@ -193,8 +195,6 @@
 		T.turf_flags = (T.turf_flags | RESERVATION_TURF) & ~UNUSED_RESERVATION_TURF
 		T.empty(turf_type, turf_type_is_baseturf ? turf_type : null)
 
-	bottom_left_turfs += BL
-	top_right_turfs += TR
 	return TRUE
 
 /datum/turf_reservation/proc/reserve(width, height, z_size, z_reservation)
@@ -215,6 +215,8 @@
 /// Calculates the effective bounds information for the given turf. Returns a list of the information, or null if not applicable.
 /datum/turf_reservation/proc/calculate_turf_bounds_information(turf/target)
 	for(var/z_idx in 1 to z_size)
+		if(z_idx > length(bottom_left_turfs) || z_idx > length(top_right_turfs))
+			continue
 		var/turf/bottom_left = bottom_left_turfs[z_idx]
 		var/turf/top_right = top_right_turfs[z_idx]
 		var/bl_x = bottom_left.x

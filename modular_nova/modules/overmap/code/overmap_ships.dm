@@ -279,7 +279,7 @@
 	if(_shuttle)
 		shuttle = _shuttle
 	if(!shuttle && id)
-		shuttle = SSshuttle.getShuttle(id)
+		shuttle = SSshuttle.getShuttle(id, TRUE)
 	if(shuttle)
 		name = shuttle.name
 	if(istype(loc, /obj/structure/overmap))
