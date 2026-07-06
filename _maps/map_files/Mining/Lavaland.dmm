@@ -3864,6 +3864,9 @@
 /obj/effect/turf_decal/tile/blue/fourcorners,
 /turf/open/floor/iron,
 /area/mine/living_quarters)
+"uy" = (
+/turf/open/misc/ashplanet/rocky,
+/area/lavaland/surface/outdoors)
 "uC" = (
 /obj/effect/decal/cleanable/dirt,
 /obj/effect/turf_decal/siding/wideplating_new{
@@ -7308,6 +7311,9 @@
 "Pp" = (
 /obj/item/toy/beach_ball,
 /turf/open/misc/asteroid/basalt/lava_land_surface,
+/area/lavaland/surface/outdoors)
+"Pt" = (
+/turf/open/misc/ashplanet/ash,
 /area/lavaland/surface/outdoors)
 "PA" = (
 /obj/structure/tank_holder/extinguisher,
@@ -42528,8 +42534,8 @@ Hj
 pU
 BP
 pU
-ai
-ai
+Pt
+uy
 pU
 pU
 aj
@@ -42784,9 +42790,9 @@ EL
 EL
 pU
 pU
-ai
+uy
 BP
-ai
+uy
 pU
 pU
 aj
@@ -43041,8 +43047,8 @@ pU
 pU
 pU
 pU
-ai
-ai
+uy
+uy
 pU
 pU
 aj
@@ -44841,8 +44847,8 @@ aj
 aj
 aj
 aj
-ad
-ad
+Pt
+Pt
 pU
 aj
 aj
@@ -45099,7 +45105,7 @@ aj
 aj
 pU
 pU
-ad
+Pt
 pU
 aj
 aj
@@ -45356,7 +45362,7 @@ aj
 aj
 pU
 BP
-ai
+uy
 pU
 pU
 aj
@@ -45612,7 +45618,7 @@ aj
 aj
 aj
 pU
-ai
+uy
 pU
 pU
 pU
@@ -47411,9 +47417,9 @@ aj
 pU
 pU
 pU
-ai
+uy
 BP
-ad
+Pt
 pU
 pU
 aj
@@ -47667,10 +47673,10 @@ aj
 aj
 pU
 pU
-ai
-ad
-ad
-ai
+uy
+Pt
+Pt
+uy
 aj
 aj
 aj
@@ -47925,8 +47931,8 @@ aj
 aj
 pU
 BP
-ad
-ad
+Pt
+Pt
 pU
 aj
 aj
@@ -48181,8 +48187,8 @@ pU
 aj
 aj
 pU
-ai
-ai
+uy
+uy
 pU
 pU
 aj
@@ -50235,9 +50241,9 @@ pU
 pU
 pU
 pU
-ai
-ad
-ad
+uy
+Pt
+Pt
 pU
 pU
 pU
@@ -50491,9 +50497,9 @@ pU
 pU
 pU
 pU
-ai
-ad
-ad
+uy
+Pt
+Pt
 BP
 pU
 pU
@@ -50747,10 +50753,10 @@ pU
 pU
 pU
 pU
-ai
+uy
 BP
-ai
-ai
+uy
+uy
 pU
 pU
 pU
@@ -51003,10 +51009,10 @@ pU
 pU
 pU
 pU
-ai
-ad
-ai
-ai
+uy
+Pt
+uy
+uy
 lP
 pU
 pU
@@ -51261,10 +51267,10 @@ lt
 Ri
 eN
 pU
-ai
-ai
-ai
-ai
+uy
+uy
+uy
+uy
 pU
 pU
 aj
@@ -51520,7 +51526,7 @@ pU
 pU
 pU
 pU
-ai
+uy
 pU
 pU
 aj
