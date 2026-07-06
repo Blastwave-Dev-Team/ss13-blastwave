@@ -299,7 +299,7 @@
 	if(wearer.get_item_by_slot(ITEM_SLOT_ICLOTHING) != src)
 		return
 
-	if(has_sensor >= HAS_SENSORS && sensor_mode >= SENSOR_LIVING)
+	if(has_sensor != NO_SENSORS && sensor_mode >= SENSOR_LIVING)
 		GLOB.suit_sensors_list |= wearer
 	else
 		GLOB.suit_sensors_list -= wearer
