@@ -232,10 +232,10 @@
 		allow_space_when_planetary = json["allow_space_when_planetary"]
 	// NOVA EDIT END
 
-	// NOVA EDIT ADDITION START - OVERMAP - Overmap controls space ruin spawning
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - Overmap controls space ruin spawning
 	if ("overmap_space_ruins" in json)
 		overmap_space_ruins = json["overmap_space_ruins"]
-	// NOVA EDIT ADDITION END
+	// BLASTWAVE EDIT ADDITION END
 
 	if ("blacklist_file" in json)
 		blacklist_file = json["blacklist_file"]

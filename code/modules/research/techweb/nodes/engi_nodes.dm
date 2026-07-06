@@ -187,6 +187,7 @@
 /datum/techweb_node/shuttle_engineering
 	id = TECHWEB_NODE_SHUTTLE_ENG
 	display_name = "Shuttle Engineering"
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - add overmap console and propulsion designs
 	description = "Materials and equipment for constructing shuttles, including overmap consoles and propulsion."
 	prereq_ids = list(TECHWEB_NODE_ENERGY_MANIPULATION, TECHWEB_NODE_APPLIED_BLUESPACE)
 	design_ids = list(
@@ -194,8 +195,8 @@
 		"overmap_fuel_injector",
 		"overmap_fusion_thruster",
 		"overmap_helm_console",
-		"overmap_landing_controller", // BLASTWAVE EDIT ADDITION
-		"overmap_landing_corner", // BLASTWAVE EDIT ADDITION
+		"overmap_landing_controller",
+		"overmap_landing_corner",
 		"overmap_nav_computer",
 		"propulsion_engine",
 		"shuttle_blueprints",
@@ -204,6 +205,7 @@
 		"shuttlerods",
 		"shuttle_remote",
 	)
+	// BLASTWAVE EDIT CHANGE END
 	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_1_POINTS)
 	announce_channels = list(RADIO_CHANNEL_ENGINEERING, RADIO_CHANNEL_SCIENCE, RADIO_CHANNEL_SUPPLY)
 

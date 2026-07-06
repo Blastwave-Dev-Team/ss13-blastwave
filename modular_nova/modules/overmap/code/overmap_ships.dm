@@ -362,7 +362,7 @@
 	return all_thrust
 
 /// Resync the ship icon's overmap position with whatever Z the bound shuttle
-/// currently occupies. Called from M3's `shuttle_move` NOVA EDIT after every
+/// currently occupies. Called from M3's `shuttle_move` BLASTWAVE EDIT after every
 /// `initiate_docking`, so any non-overmap shuttle move (in-shuttle console,
 /// admin recall, etc) keeps the icon honest.
 /obj/structure/overmap/ship/simulated/proc/check_loc()

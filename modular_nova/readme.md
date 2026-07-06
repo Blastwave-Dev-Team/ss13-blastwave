@@ -188,6 +188,30 @@ you can define a child proc for it, that will get inserted into the inheritance 
 
 And that wraps the basics of it up.
 
+### Blastwave core edit markers (`BLASTWAVE EDIT`)
+
+ss13-blastwave forked from Nova Sector. Core files may still contain legacy
+`NOVA EDIT` markers from that upstream fork — leave those intact during
+rebases; do not rename them wholesale.
+
+**New** non-modular work authored for Blastwave uses `BLASTWAVE EDIT` with
+the same grammar and module-ID rules documented below (`ADDITION START/END`,
+`CHANGE`, `REMOVAL`, optional reason, module ID suffix such as `- OVERMAP`).
+
+Search tips:
+
+- Blastwave-origin core edits: `rg "BLASTWAVE EDIT"`
+- Legacy Nova fork edits: `rg "NOVA EDIT"`
+
+Example (Blastwave addition):
+
+```byond
+// BLASTWAVE EDIT ADDITION START - OVERMAP - sync station name to overmap icon
+if(SSovermap?.main)
+	SSovermap.main.name = new_name
+// BLASTWAVE EDIT ADDITION END
+```
+
 ### Non-modular changes to the core code - IMPORTANT
 
 Every once in a while, there comes a time, where editing the core files becomes inevitable.

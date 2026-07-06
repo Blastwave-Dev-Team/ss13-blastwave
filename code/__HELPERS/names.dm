@@ -104,10 +104,10 @@ GLOBAL_VAR(command_name)
 	var/old_name = GLOB.station_name
 	GLOB.station_name = new_name
 
-	// NOVA EDIT ADDITION START - OVERMAP - keep the overmap station icon's name in sync
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - keep the overmap station icon's name in sync
 	if(SSovermap?.main)
 		SSovermap.main.name = new_name
-	// NOVA EDIT ADDITION END - OVERMAP
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
 
 	var/config_server_name = CONFIG_GET(string/servername)
 	if(config_server_name)

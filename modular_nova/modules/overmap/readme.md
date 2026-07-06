@@ -48,6 +48,9 @@ versa in v1) until a deployable syndicate beacon is activated.
   subtype that filters landing targets through the overmap.
 - `modular_nova/modules/overmap/code/overmap_engine.dm`,
   `overmap_engine_types.dm`, `overmap_heater.dm` - shuttle thrust/fuel.
+- `modular_nova/modules/overmap/code/gas_connector.dm` - hidden unary
+  atmos port used by `gas_machine_connector`, with shuttle-transit-safe
+  `return_pipenet` / `add_member` guards.
 - `modular_nova/modules/overmap/code/overmap_circuits.dm` - circuit
   boards for helm, nav, engine, heater, landing controller, and corner beacon.
 - `modular_nova/modules/overmap/code/overmap_landing_beacon.dm` -
@@ -79,7 +82,7 @@ versa in v1) until a deployable syndicate beacon is activated.
   adds `overmap_space_ruins` var on `/datum/map_config`; extends
   `setup_ruins()` to skip space ruin seeding when flag is set.
 
-### Core file changes (NOVA EDIT ADDITION/CHANGE OVERMAP)
+### Core file changes (BLASTWAVE EDIT ADDITION/CHANGE OVERMAP)
 
 - `code/modules/shuttle/mobile_port/mobile_port.dm` - adds
   `var/obj/structure/overmap/ship/simulated/current_ship` to
@@ -92,9 +95,24 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `code/__HELPERS/names.dm` - syncs `SSovermap.main.name` to
   `GLOB.station_name` whenever the station is renamed.
 - `code/datums/map_config.dm` - JSON parse for `overmap_space_ruins`
-  config flag (NOVA EDIT ADDITION - OVERMAP).
+  config flag (BLASTWAVE EDIT ADDITION - OVERMAP).
+- `code/modules/atmospherics/machinery/components/unary_devices/machine_connector.dm` -
+  explicit `gas_connector` subtype instantiation and `piping_layer` support
+  (BLASTWAVE EDIT - OVERMAP).
+- `code/controllers/subsystem/mapping.dm` - `claim_turfs_for_reservation`
+  proc for post-load ruin turf claiming (BLASTWAVE EDIT - OVERMAP).
+- `code/modules/mapping/space_management/space_reservation.dm` - multiz
+  reservation bounds hardening (BLASTWAVE EDIT - OVERMAP).
+- `code/modules/library/bookcase.dm` - null `book_data` guard during ruin
+  map init (BLASTWAVE EDIT - OVERMAP).
+- `code/modules/research/techweb/nodes/engi_nodes.dm` - overmap console
+  and propulsion techweb designs (BLASTWAVE EDIT - OVERMAP).
+- `code/controllers/subsystem/shuttle.dm` - deferred `post_load` in preview
+  flow (BLASTWAVE EDIT - SHUTTLE_CONSTRUCTION).
+- `code/controllers/master.dm` - `paused_ticks` MC guard (BLASTWAVE EDIT -
+  OVERMAP).
 - `code/modules/unit_tests/_unit_tests.dm` - include for
-  `~nova/overmap_ruins.dm` (NOVA EDIT ADDITION - OVERMAP).
+  `~nova/overmap_ruins.dm` (BLASTWAVE EDIT ADDITION - OVERMAP).
 
 ### Config (map JSON, not .dmm)
 

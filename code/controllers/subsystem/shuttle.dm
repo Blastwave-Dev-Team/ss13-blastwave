@@ -311,12 +311,14 @@ SUBSYSTEM_DEF(shuttle)
 		return
 	emergency_no_recall = FALSE
 
-/datum/controller/subsystem/shuttle/proc/getShuttle(id, quiet = FALSE)
+/datum/controller/subsystem/shuttle/proc/getShuttle(id, quiet = FALSE) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/controller/subsystem/shuttle/proc/getShuttle(id)
 	for(var/obj/docking_port/mobile/M in mobile_docking_ports)
 		if(M.shuttle_id == id)
 			return M
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - suppress warnings when shuttle may not exist yet
 	if(!quiet)
 		WARNING("couldn't find shuttle with id: [id]")
+	// BLASTWAVE EDIT ADDITION END
 
 /datum/controller/subsystem/shuttle/proc/getDock(id)
 	for(var/obj/docking_port/stationary/S in stationary_docking_ports)
@@ -936,6 +938,7 @@ SUBSYSTEM_DEF(shuttle)
 		QDEL_NULL(preview_reservation)
 
 	if(!preview_shuttle)
+		// BLASTWAVE EDIT CHANGE - defer post_load until action_load registers the shuttle. ORIGINAL: load_template(loading_template)
 		load_template(loading_template, call_post_load = FALSE)
 		preview_template = loading_template
 
@@ -968,7 +971,9 @@ SUBSYSTEM_DEF(shuttle)
 		existing_shuttle.jumpToNullSpace()
 
 	preview_shuttle.register(replace)
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - run template post_load after shuttle registration
 	preview_template.post_load(preview_shuttle)
+	// BLASTWAVE EDIT ADDITION END
 	var/list/force_memory = preview_shuttle.movement_force
 	preview_shuttle.movement_force = list("KNOCKDOWN" = 0, "THROW" = 0)
 	preview_shuttle.mode = SHUTTLE_PREARRIVAL//No idle shuttle moving. Transit dock get removed if shuttle moves too long.
@@ -999,7 +1004,7 @@ SUBSYSTEM_DEF(shuttle)
  * Arguments:
  * * loading_template - The shuttle template to load
  */
-/datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template, call_post_load = TRUE)
+/datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template, call_post_load = TRUE) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template)
 	. = FALSE
 	// Load shuttle template to a fresh block reservation.
 	preview_reservation = SSmapping.request_turf_block_reservation(
@@ -1042,8 +1047,10 @@ SUBSYSTEM_DEF(shuttle)
 		WARNING(msg)
 		return
 	//Everything fine
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - optional post_load for preview vs action_load flows
 	if(call_post_load)
 		loading_template.post_load(preview_shuttle)
+	// BLASTWAVE EDIT ADDITION END
 	return TRUE
 
 /**

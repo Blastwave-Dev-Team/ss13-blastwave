@@ -285,7 +285,7 @@ SUBSYSTEM_DEF(overmap)
 /// Walk every mobile docking port that already exists at SSovermap init time
 /// and bind a `/ship/simulated` to each one. Arrivals shuttle is skipped -
 /// it's a one-shot transit visualizer, not a player-pilotable craft.
-/// Ports created post-init route through the NOVA EDIT in mobile_port.dm's
+/// Ports created post-init route through the BLASTWAVE EDIT in mobile_port.dm's
 /// `Initialize` instead.
 /datum/controller/subsystem/overmap/proc/bind_existing_shuttles()
 	for(var/obj/docking_port/mobile/port in SSshuttle.mobile_docking_ports)

@@ -1,4 +1,4 @@
-https://github.com/NovaSector/NovaSector/pull/<!--PR Number-->
+https://github.com/Blastwave-Dev-Team/ss13-blastwave/pull/15
 
 ## Shuttle Frame Rod Landing Pad Construction
 
@@ -32,4 +32,4 @@ Allows anchoring shuttle frame rods onto existing station turfs (plating or tile
 
 ### Credits:
 
-- Nova Sector contributors
+- Blastwave contributors

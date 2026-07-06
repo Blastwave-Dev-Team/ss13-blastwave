@@ -296,7 +296,9 @@
 #include "security_levels.dm"
 #include "security_officer_distribution.dm"
 #include "serving_tray.dm"
+// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
 #include "shuttle_construction.dm"
+// BLASTWAVE EDIT ADDITION END
 #include "simple_animal_freeze.dm"
 #include "siunit.dm"
 #include "slime_mood.dm"

@@ -1,3 +1,4 @@
+// MODULE ID: OVERMAP
 /// Hidden unary port used by `/datum/gas_machine_connector` for machine-side pipe hookups.
 /obj/machinery/atmospherics/components/unary/gas_connector
 	name = "gas connector"
@@ -15,7 +16,6 @@
 /obj/machinery/atmospherics/components/unary/gas_connector/set_init_directions()
 	initialize_directions = dir
 
-// BLASTWAVE EDIT ADDITION START - Shuttle transit resilience.
 // The connector rides shuttle moves via abstract_move (forced, no disconnect),
 // so after a rotated transit its parents[1] can hold a stale pipeline while
 // nodes no longer contain the pipe that's reconnecting. The base component
@@ -32,4 +32,3 @@
 		SSair.add_to_rebuild_queue(src)
 		return
 	return ..()
-// BLASTWAVE EDIT ADDITION END

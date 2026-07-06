@@ -39,7 +39,9 @@
 	pre_cordon_distance = 7
 
 /datum/turf_reservation/proc/Release()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - reset multiz layer count on release
 	z_size = 0
+	// BLASTWAVE EDIT ADDITION END
 	bottom_left_turfs.Cut()
 	top_right_turfs.Cut()
 
@@ -186,10 +188,12 @@
 		break
 	if(!passing || !istype(BL) || !istype(TR))
 		return FALSE
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - record bounds before T.empty() for multiz ruin loads
 	bottom_left_turfs += BL
 	top_right_turfs += TR
 	// Advertise only completed layers so multiz lookups during T.empty() below can resolve bounds.
 	z_size = bottom_left_turfs.len
+	// BLASTWAVE EDIT ADDITION END
 	for(var/i in final)
 		var/turf/T = i
 		reserved_turfs |= T
@@ -201,6 +205,7 @@
 	return TRUE
 
 /datum/turf_reservation/proc/reserve(width, height, z_size, z_reservation)
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - defer z_size until layers complete. ORIGINAL: src.z_size = z_size
 	var/requested_z_size = z_size
 	src.z_size = 0
 	var/failed_reservation = FALSE
@@ -208,17 +213,21 @@
 		if(!_reserve_area(width, height, z_reservation))
 			failed_reservation = TRUE
 			break
+	// BLASTWAVE EDIT CHANGE END
 
 	if(failed_reservation)
 		Release()
 		return FALSE
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - finalize layer count after all Z layers reserved
 	z_size = bottom_left_turfs.len
+	// BLASTWAVE EDIT ADDITION END
 	generate_cordon()
 	return TRUE
 
 /// Calculates the effective bounds information for the given turf. Returns a list of the information, or null if not applicable.
 /datum/turf_reservation/proc/calculate_turf_bounds_information(turf/target)
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - guard incomplete multiz bounds during reservation
 	var/layer_count = min(z_size, length(bottom_left_turfs), length(top_right_turfs))
 	if(!layer_count)
 		return null
@@ -249,6 +258,7 @@
 		return_information["offset_x"] = target.x - bl_x
 		return_information["offset_y"] = target.y - bl_y
 		return return_information
+	// BLASTWAVE EDIT CHANGE END
 	return null
 
 /// Gets the turf below the given target. Returns null if there is no turf below the target
@@ -259,7 +269,7 @@
 
 	var/z_idx = bounds_info["z_idx"]
 	var/below_idx = z_idx + 1
-	// check what z level, if its the max, then there is no turf below
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - guard multiz below lookup. ORIGINAL: if(z_idx == z_size)
 	if(below_idx > z_size || below_idx > length(bottom_left_turfs))
 		return null
 
@@ -268,6 +278,7 @@
 	var/turf/bottom_left = bottom_left_turfs[below_idx]
 	if(!istype(bottom_left))
 		return null
+	// BLASTWAVE EDIT CHANGE END
 	return locate(bottom_left.x + offset_x, bottom_left.y + offset_y, bottom_left.z)
 
 /// Gets the turf above the given target. Returns null if there is no turf above the target
@@ -278,7 +289,7 @@
 
 	var/z_idx = bounds_info["z_idx"]
 	var/above_idx = z_idx - 1
-	// check what z level, if its the min, then there is no turf above
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - guard multiz above lookup. ORIGINAL: if(z_idx == 1)
 	if(above_idx < 1 || above_idx > length(bottom_left_turfs))
 		return null
 
@@ -287,6 +298,7 @@
 	var/turf/bottom_left = bottom_left_turfs[above_idx]
 	if(!istype(bottom_left))
 		return null
+	// BLASTWAVE EDIT CHANGE END
 	return locate(bottom_left.x + offset_x, bottom_left.y + offset_y, bottom_left.z)
 
 /datum/turf_reservation/New()
