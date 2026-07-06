@@ -12,6 +12,8 @@ jobs:
   test_merge_bot:
     name: Test Merge Detector
     runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write # to comment test merge status on PRs
     steps:
       - name: Check for GET_TEST_MERGES_URL
         id: secrets_set

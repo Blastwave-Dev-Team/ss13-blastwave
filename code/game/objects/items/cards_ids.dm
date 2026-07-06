@@ -1408,6 +1408,16 @@
 	registered_age = null
 	inherent_assigned_name = "Captain"
 
+/obj/item/card/id/advanced/solfed
+	name = "\improper SolFed ID"
+	desc = "An ID straight from the Sol Federation."
+	icon_state = "card_solfed"
+	assigned_icon_state = "assigned_solfed"
+	registered_name = JOB_CENTCOM
+	registered_age = null
+	trim = /datum/id_trim/centcom
+	wildcard_slots = WILDCARD_LIMIT_CENTCOM
+
 /obj/item/card/id/advanced/centcom
 	name = "\improper CentCom ID"
 	desc = "An ID straight from Central Command."
@@ -1530,6 +1540,38 @@
 	. = ..()
 	if(!. || isnull(user.client?.holder))
 		registered_account.bank_card_talk(span_warning("Only authorized representatives of Nanotrasen may use this card."), force = TRUE)
+		return FALSE
+
+	return TRUE
+
+// For any SolFed larp
+/obj/item/card/id/advanced/debug_solfed
+	name = "\improper Sol Federation Official ID"
+	desc = "An official Solar Federation ID, granted temporary All Access by Nanotrasen corp in accordance with Federal Law. To be returned to Nanotrasen offices."
+	icon_state = "card_solfed"
+	assigned_icon_state = "assigned_centcom"
+	trim = /datum/id_trim/solfed
+	wildcard_slots = WILDCARD_LIMIT_ADMIN
+
+/obj/item/card/id/advanced/debug_solfed/Initialize(mapload)
+	. = ..()
+	set_account(new /datum/bank_account(player_account = FALSE))
+	registered_account.account_id = ADMIN_ACCOUNT_ID // this is so bank_card_talk() can work.
+	registered_account.account_job = SSjob.get_job_type(/datum/job/admin)
+	registered_account.account_balance += 999999 // MONEY! We add more money to the account every time we spawn because it's a debug item and infinite money whoopie
+
+/obj/item/card/id/advanced/debug_solfed/alt_click_can_use_id(mob/living/user)
+	. = ..()
+	if(!. || isnull(user.client?.holder)) // admins only as a safety so people don't steal all the dollars. spawn in a holochip if you want them to get some dosh
+		registered_account.bank_card_talk(span_warning("Only authorized representatives of the Solar Federation may use this card."), force = TRUE)
+		return FALSE
+
+	return TRUE
+
+/obj/item/card/id/advanced/debug_solfed/can_be_used_in_payment(mob/living/user)
+	. = ..()
+	if(!. || isnull(user.client?.holder))
+		registered_account.bank_card_talk(span_warning("Only authorized representatives of the Solar Federation may use this card."), force = TRUE)
 		return FALSE
 
 	return TRUE

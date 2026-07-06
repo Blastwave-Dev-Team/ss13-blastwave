@@ -105,7 +105,7 @@
 	species_blacklist = list(HEAD_RESTRICTED_SPECIES)
 	required_languages = list(/datum/language/common = LANGUAGE_SPOKEN)
 
-/datum/job/nanotrasen_consultant
+/datum/job/solfed_representative
 	banned_quirks = list(HEAD_RESTRICTED_QUIRKS)
 	banned_augments = list(HEAD_RESTRICTED_AUGMENTS)
 	species_blacklist = list(HEAD_RESTRICTED_SPECIES)

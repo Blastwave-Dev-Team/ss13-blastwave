@@ -1,0 +1,5 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscdel: "Removed `_basemaps.dm` entries for Catwalk, Ouroboros, Voidraptor, and Snowglobe"
+  - qol: "Flagged off unused maps for testing"

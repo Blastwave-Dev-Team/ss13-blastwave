@@ -1,6 +1,6 @@
 //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
 "a" = (
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "b" = (
 /obj/structure/chair/office{
@@ -21,16 +21,23 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "d" = (
-/obj/structure/hedge,
 /obj/effect/turf_decal/siding/wood{
 	dir = 1
 	},
 /obj/effect/turf_decal/siding/wood,
+/obj/structure/platform/gold,
+/obj/structure/statue/silver/nova/large/glow/order{
+	pixel_y = 9;
+	anchored = 1
+	},
+/obj/structure/sign/flag/terragov_2{
+	pixel_y = -32
+	},
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "f" = (
 /obj/structure/cable,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "g" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
@@ -43,7 +50,7 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "h" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/effect/spawner/random/bureaucracy/folder{
 	spawn_random_offset = 1
 	},
@@ -69,7 +76,7 @@
 /obj/machinery/modular_computer/preset/command{
 	dir = 8
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "l" = (
 /obj/structure/cable,
@@ -91,20 +98,25 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "n" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/structure/cable,
-/obj/item/stamp{
-	pixel_x = -2;
-	pixel_y = 6
-	},
 /obj/item/stamp/denied{
 	pixel_x = 8;
 	pixel_y = 6
 	},
-/obj/item/stamp/centcom{
+/obj/item/stamp/solfed,
+/obj/item/table_clock{
+	pixel_y = 14;
+	pixel_x = -5
+	},
+/obj/item/paper/solfed_rep_guide1,
+/obj/item/paper/solfed_rep_guide2{
 	pixel_x = 4
 	},
-/turf/open/floor/carpet/executive,
+/obj/item/paper/solfed_rep_guide3{
+	pixel_x = 11
+	},
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "o" = (
 /obj/effect/turf_decal/siding/wood{
@@ -116,6 +128,15 @@
 /obj/machinery/computer/security/telescreen/entertainment/directional/west,
 /obj/effect/turf_decal/siding/wood/corner,
 /turf/open/floor/wood/large,
+/area/station/command/heads_quarters/nt_rep)
+"p" = (
+/obj/machinery/door/poddoor/preopen{
+	id = "nt_rep_priv";
+	name = "Privacy Shutter"
+	},
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/obj/structure/sign/flag/terragov,
+/turf/open/floor/plating,
 /area/station/command/heads_quarters/nt_rep)
 "q" = (
 /obj/effect/turf_decal/siding/wood,
@@ -146,23 +167,24 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "u" = (
-/obj/machinery/door/airlock/maintenance,
+/obj/machinery/door/airlock/maintenance_hatch,
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
 /turf/open/floor/plating,
 /area/station/command/heads_quarters/nt_rep)
 "v" = (
 /obj/machinery/holopad,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "w" = (
 /obj/machinery/door/firedoor,
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/obj/machinery/door/airlock/corporate{
-	name = "NT Consultant's Office"
+/obj/machinery/door/airlock/shuttle/ferry{
+	name = "Sol Federation Representative's Office"
 	},
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
+/obj/machinery/scanner_gate/preset_guns,
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "x" = (
@@ -181,7 +203,7 @@
 /turf/template_noop,
 /area/template_noop)
 "z" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/machinery/fax,
 /obj/effect/turf_decal/siding/wood/end,
 /turf/open/floor/wood/large,
@@ -202,22 +224,21 @@
 /obj/structure/disposalpipe/segment{
 	dir = 5
 	},
-/obj/structure/extinguisher_cabinet/directional/south,
 /turf/open/floor/iron,
 /area/station/hallway/primary/central)
 "C" = (
 /obj/structure/cable,
-/obj/structure/chair/office{
+/obj/structure/chair/comfy/black{
 	dir = 4
 	},
 /obj/effect/landmark/start/nanotrasen_consultant,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "D" = (
 /turf/closed/wall/r_wall,
 /area/station/command/heads_quarters/nt_rep)
 "E" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/pen/blue{
 	pixel_x = 5;
 	pixel_y = 5
@@ -263,6 +284,15 @@
 	},
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
+"H" = (
+/obj/machinery/door/poddoor/preopen{
+	id = "nt_rep_priv";
+	name = "Privacy Shutter"
+	},
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/obj/structure/sign/flag/terragov_2,
+/turf/open/floor/plating,
+/area/station/command/heads_quarters/nt_rep)
 "I" = (
 /obj/machinery/firealarm/directional/east,
 /obj/item/kirbyplants/organic/plant22,
@@ -282,7 +312,7 @@
 	id = "nt_rep_priv";
 	name = "Privacy Shutter"
 	},
-/obj/effect/spawner/structure/window/reinforced,
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
 /turf/open/floor/plating,
 /area/station/command/heads_quarters/nt_rep)
 "L" = (
@@ -297,6 +327,13 @@
 /area/station/command/heads_quarters/nt_rep)
 "M" = (
 /turf/open/floor/wood/large,
+/area/station/command/heads_quarters/nt_rep)
+"N" = (
+/obj/structure/plaque/static_plaque/golden{
+	name = "NOTICE: Federal Property";
+	desc = "This office and all associated fixtures, records, and communications equipment are the property of the Sol Federation federal government. Unauthorized entry, interference, obstruction of duties, damage to property, or any form of hostile action directed toward this office or its occupant is strictly prohibited. This designation is protected under Federal Law. Any violation, attempted or completed, constitutes a Federal criminal offence and will be subject to investigation and prosecution under applicable statutes. All station personnel are required to respect the operational independence and protected status of this office."
+	},
+/turf/closed/wall/r_wall,
 /area/station/command/heads_quarters/nt_rep)
 "O" = (
 /obj/effect/turf_decal/siding/wood{
@@ -326,6 +363,16 @@
 /obj/effect/turf_decal/siding/wood{
 	dir = 4
 	},
+/obj/structure/sign/flag/terragov{
+	pixel_y = -32
+	},
+/obj/item/clothing/accessory/nova/acc_medal/neckpin/solfed,
+/obj/item/clothing/accessory/nova/solfedribbon/rank3,
+/obj/item/clothing/under/solfed/officer_lowrnk,
+/obj/item/clothing/under/solfed/official_civil,
+/obj/item/clothing/suit/jacket/tailcoat/lawyer_black,
+/obj/item/clothing/under/rank/civilian/lawyer/black,
+/obj/item/clothing/under/rank/civilian/lawyer/black/skirt,
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "S" = (
@@ -343,7 +390,7 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "U" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/paper_bin{
 	pixel_x = -2;
 	pixel_y = 6
@@ -382,12 +429,13 @@
 /turf/open/floor/wood/large,
 /area/station/command/heads_quarters/nt_rep)
 "Z" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/flashlight/lamp/green{
 	pixel_x = 5;
 	pixel_y = 8
 	},
-/turf/open/floor/carpet/executive,
+/obj/item/deskflag/solfed,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 
 (1,1,1) = {"
@@ -405,7 +453,7 @@ y
 "}
 (2,1,1) = {"
 S
-K
+p
 P
 X
 o
@@ -444,7 +492,7 @@ y
 "}
 (5,1,1) = {"
 S
-K
+H
 I
 O
 g
@@ -473,7 +521,7 @@ y
 r
 l
 B
-D
+N
 K
 s
 M
@@ -500,7 +548,7 @@ y
 y
 y
 y
-K
+p
 K
 W
 E

@@ -13,6 +13,9 @@ import { Upload } from './screens/Upload';
 import type { LibraryConsoleData } from './types';
 import { LibraryContext } from './useLibraryContext';
 
+const LIBRARY_WINDOW_WIDTH = 880;
+const LIBRARY_WINDOW_HEIGHT = 700;
+
 export function LibraryConsole(props) {
   const { data } = useBackend<LibraryConsoleData>();
   const { display_lore, screen_state } = data;
@@ -25,8 +28,8 @@ export function LibraryConsole(props) {
       <Window
         theme={display_lore ? 'spookyconsole' : ''}
         title="Library Terminal"
-        width={880}
-        height={520}
+        width={LIBRARY_WINDOW_WIDTH}
+        height={LIBRARY_WINDOW_HEIGHT}
       >
         <Window.Content>
           <Stack fill>

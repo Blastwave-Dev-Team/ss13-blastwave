@@ -66,6 +66,9 @@ GLOBAL_DATUM_INIT(communications_controller, /datum/communciations_controller, n
 				printed_paper.add_raw_text("</center>[sending.content]", advanced_html = contains_advanced_html)
 				printed_paper.color = "#deebff"
 				printed_paper.update_appearance()
+				//NEW ROLE NOTICE FOR SOLFED REP. TO BE REMOVED LATER
+				new /obj/item/paper/solfed_command_notice(C.loc)
+				//END
 
 // Called AFTER everyone is equipped with their job
 /datum/communciations_controller/proc/queue_roundstart_report()

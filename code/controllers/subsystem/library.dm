@@ -13,7 +13,7 @@ SUBSYSTEM_DEF(library)
 	var/list/books_by_area = list()
 
 	/// List of acceptable search categories for book consoles
-	var/list/search_categories = list("Any", "Fiction", "Non-Fiction", "Adult", "Reference", "Religion")
+	var/list/search_categories = list("Any", "Fiction", "Non-Fiction", "Adult", "Reference", "Religion", "Textbook")
 	/// List of acceptable categories for a book to be
 	var/list/upload_categories = list("Fiction", "Non-Fiction", "Adult", "Reference", "Religion")
 

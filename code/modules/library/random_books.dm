@@ -14,6 +14,7 @@
 	options += valid_subtypesof(/obj/item/tgui_book/manual)
 	options -= /obj/item/book/manual/random // no recursion
 	options -= /obj/item/book/manual/nuclear // why would nanotrasen stock instructions on how to nuke their own station?
+	options -= /obj/item/book/manual/wiki/ugc // requires a configured wiki slug
 	return pick(options)
 
 /obj/item/book/random
@@ -69,7 +70,7 @@
 	if(category == BOOK_CATEGORY_RANDOM)
 		category = null
 	var/datum/db_query/query_get_random_books = SSdbcore.NewQuery({"
-		SELECT title, author, content
+		SELECT title, author, content, category
 		FROM [format_table_name("library")]
 		WHERE isnull(deleted) AND (:category IS NULL OR category = :category)
 		ORDER BY rand() LIMIT :limit
@@ -77,13 +78,28 @@
 	if(query_get_random_books.Execute())
 		while(query_get_random_books.NextRow())
 			var/list/book_deets = query_get_random_books.item
+			var/book_title = book_deets[1]
+			var/book_author = book_deets[2]
+			var/book_content = book_deets[3]
+			var/book_category = book_deets[4]
+
+			if(book_category == BOOK_CATEGORY_TEXTBOOK)
+				if(existing_book)
+					var/atom/spawn_loc = get_turf(existing_book) || location
+					qdel(existing_book)
+					existing_book = null
+					. += spawn_ugc_textbook(spawn_loc, book_title, book_author, book_content, trusted = TRUE)
+				else
+					. += spawn_ugc_textbook(location, book_title, book_author, book_content, trusted = TRUE)
+				continue
+
 			var/obj/item/book/to_randomize = existing_book ? existing_book : new(location)
 
 			to_randomize.book_data = new()
 			var/datum/book_info/data = to_randomize.book_data
-			data.set_title(book_deets[1], trusted = TRUE)
-			data.set_author(book_deets[2], trusted = TRUE)
-			data.set_content(book_deets[3], trusted = TRUE)
+			data.set_title(book_title, trusted = TRUE)
+			data.set_author(book_author, trusted = TRUE)
+			data.set_content(book_content, trusted = TRUE)
 			to_randomize.name = "Book: [to_randomize.book_data.title]"
 			if(!existing_book)
 				to_randomize.gen_random_icon_state()
@@ -117,6 +133,10 @@
 	random_category = BOOK_CATEGORY_REFERENCE
 	///Chance to spawn a random manual book
 	var/ref_book_prob = 20
+
+/obj/structure/bookcase/random/textbook
+	name = "bookcase (Textbook)"
+	random_category = BOOK_CATEGORY_TEXTBOOK
 
 /obj/structure/bookcase/random/reference/Initialize(mapload)
 	. = ..()

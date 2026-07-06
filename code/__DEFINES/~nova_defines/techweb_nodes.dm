@@ -33,4 +33,5 @@
 #define TECHWEB_NODE_AMMOBENCH_MORE "ammobench_addtl"
 #define TECHWEB_NODE_ARMORY_MUNITIONS "armory_munitions"
 #define TECHWEB_NODE_ARMORY_ORDNANCE "armory_ordnance"
+#define TECHWEB_NODE_COMMANDER_MUNITIONS "commander_munitions"
 #define TECHWEB_NODE_RBMK "rbmk2"

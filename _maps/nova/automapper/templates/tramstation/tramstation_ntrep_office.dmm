@@ -6,10 +6,10 @@
 /obj/machinery/modular_computer/preset/command{
 	dir = 1
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "c" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/paper_bin/carbon{
 	pixel_y = 4;
 	pixel_x = -4
@@ -18,20 +18,22 @@
 	pixel_x = -4;
 	pixel_y = 6
 	},
-/obj/item/stamp{
-	pixel_x = 8;
-	pixel_y = 8
-	},
 /obj/item/stamp/denied{
 	pixel_x = 8
 	},
 /obj/machinery/newscaster/directional/south,
 /obj/item/radio/intercom/directional/west,
-/turf/open/floor/carpet/executive,
+/obj/item/storage/lunchbox/solfed,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "e" = (
 /obj/structure/closet/secure_closet/nanotrasen_consultant,
-/turf/open/floor/wood,
+/obj/item/clothing/accessory/nova/acc_medal/neckpin/solfed,
+/obj/item/clothing/accessory/nova/solfedribbon/rank3,
+/obj/item/storage/lunchbox/solfed,
+/obj/item/clothing/suit/jacket/tailcoat/lawyer_black,
+/obj/item/clothing/under/rank/civilian/lawyer/black,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "f" = (
 /obj/effect/spawner/structure/window/reinforced,
@@ -43,18 +45,25 @@
 /turf/open/floor/plating,
 /area/station/command/heads_quarters/nt_rep)
 "g" = (
-/obj/effect/turf_decal/siding/wood{
-	dir = 4
+/obj/machinery/firealarm/directional/north{
+	pixel_x = 19
 	},
-/obj/machinery/firealarm/directional/north,
-/turf/open/floor/wood,
+/obj/structure/statue/silver/nova/large/glow/order{
+	pixel_y = 9;
+	anchored = 1
+	},
+/obj/structure/railing{
+	dir = 6
+	},
+/obj/structure/platform/gold,
+/turf/open/floor/mineral/titanium/tiled/yellow,
 /area/station/command/heads_quarters/nt_rep)
 "h" = (
 /obj/effect/turf_decal/siding/wood,
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 4
 	},
-/turf/open/floor/wood,
+/turf/open/floor/wood/wood_10,
 /area/station/command/heads_quarters/nt_rep)
 "i" = (
 /obj/structure/cable,
@@ -63,20 +72,20 @@
 /obj/effect/turf_decal/siding/wood/corner{
 	dir = 8
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "j" = (
 /obj/effect/turf_decal/siding/wood{
 	dir = 1
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "k" = (
 /obj/effect/turf_decal/siding/wood{
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "l" = (
 /obj/structure/cable,
@@ -86,12 +95,11 @@
 /obj/effect/turf_decal/siding/wood/corner{
 	dir = 1
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "m" = (
 /obj/effect/turf_decal/siding/wood,
-/obj/structure/sign/flag/nanotrasen/directional/north,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "n" = (
 /obj/effect/turf_decal/siding/wood{
@@ -100,62 +108,91 @@
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2{
 	dir = 4
 	},
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "o" = (
 /obj/structure/cable,
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/effect/turf_decal/siding/wood{
 	dir = 8
 	},
-/turf/open/floor/carpet/executive,
+/obj/item/book/manual/wiki/security_space_law,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "p" = (
-/obj/structure/filingcabinet/employment,
 /obj/effect/turf_decal/siding/wood,
-/turf/open/floor/wood,
+/obj/structure/filingcabinet,
+/obj/structure/sign/flag/terragov{
+	pixel_x = -32
+	},
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "q" = (
-/obj/structure/table/wood,
-/turf/open/floor/carpet/executive,
+/obj/structure/table/wood/fancy/black,
+/obj/item/storage/fancy/cigarettes/cigars/cohiba,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "r" = (
 /obj/structure/cable,
-/obj/machinery/door/airlock/corporate{
-	name = "NT Consultant's Office"
+/obj/machinery/door/airlock/shuttle/ferry{
+	name = "SolFed Representative's Office"
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/door/firedoor,
 /obj/effect/mapping_helpers/airlock/access/all/cent_com/rep_door,
+/obj/machinery/scanner_gate/preset_guns,
 /turf/open/floor/iron/dark/textured_large,
 /area/station/command/heads_quarters/nt_rep)
 "s" = (
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "t" = (
-/obj/structure/table/wood,
-/obj/item/stamp/centcom{
-	pixel_y = 18;
-	pixel_x = -7
+/obj/structure/table/wood/fancy/black,
+/obj/item/stamp/solfed{
+	pixel_x = -7;
+	pixel_y = 16
 	},
-/turf/open/floor/carpet/executive,
+/obj/item/deskflag/solfed{
+	pixel_x = 8
+	},
+/obj/item/paper/solfed_rep_guide1{
+	pixel_y = 6;
+	pixel_x = -8
+	},
+/obj/item/paper/solfed_rep_guide2{
+	pixel_y = -1;
+	pixel_x = -8
+	},
+/obj/item/paper/solfed_rep_guide3{
+	pixel_y = -8;
+	pixel_x = -8
+	},
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "u" = (
 /obj/machinery/button/door/directional/west{
 	id = "nt_rep_priv";
 	name = "Privacy Shutters Control"
 	},
-/turf/open/floor/carpet/executive,
+/obj/item/kirbyplants/random,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "v" = (
-/obj/item/kirbyplants/random,
 /obj/machinery/airalarm/directional/north,
-/turf/open/floor/wood,
+/obj/structure/statue/silver/nova/large{
+	pixel_y = 9;
+	anchored = 1
+	},
+/obj/structure/railing{
+	dir = 10
+	},
+/obj/structure/platform/gold,
+/turf/open/floor/mineral/titanium/tiled/yellow,
 /area/station/command/heads_quarters/nt_rep)
 "w" = (
 /obj/item/radio/intercom/directional/east,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "x" = (
 /obj/effect/turf_decal/siding/wood/corner{
@@ -165,12 +202,12 @@
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "y" = (
 /obj/effect/turf_decal/siding/wood,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "A" = (
 /obj/effect/turf_decal/siding/wood{
@@ -179,13 +216,13 @@
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 8
 	},
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "B" = (
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "C" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/item/camera{
 	pixel_x = 6;
 	pixel_y = 3
@@ -198,21 +235,21 @@
 	pixel_x = -4;
 	pixel_y = 7
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "E" = (
-/obj/structure/table/wood,
+/obj/structure/table/wood/fancy/black,
 /obj/machinery/fax{
-	fax_name = "Nanotrasen Consultant's Office";
-	name = "Nanotrasen Consultant's Fax Machine"
+	fax_name = "Sol Federation Representative's Fax Machine";
+	name = "Sol Federation Representative's Fax Machine"
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "F" = (
 /obj/item/kirbyplants/random,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/light_switch/directional/south,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "G" = (
 /obj/effect/turf_decal/siding/wood{
@@ -222,27 +259,35 @@
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "H" = (
 /obj/machinery/light/warm/directional/west,
 /obj/structure/sign/calendar/directional/west,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
+/area/station/command/heads_quarters/nt_rep)
+"I" = (
+/obj/structure/sign/poster/official/state_laws,
+/turf/closed/wall,
 /area/station/command/heads_quarters/nt_rep)
 "J" = (
 /obj/machinery/status_display/evac/directional/north,
 /obj/machinery/light/warm/directional/north,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "K" = (
 /obj/machinery/photocopier/prebuilt,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
+/area/station/command/heads_quarters/nt_rep)
+"L" = (
+/obj/structure/sign/flag/terragov,
+/turf/closed/wall,
 /area/station/command/heads_quarters/nt_rep)
 "M" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "N" = (
 /obj/effect/turf_decal/siding/wood{
@@ -252,12 +297,12 @@
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "O" = (
 /obj/structure/chair/office,
 /obj/effect/landmark/start/nanotrasen_consultant,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "Q" = (
 /obj/structure/cable,
@@ -266,18 +311,18 @@
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "T" = (
 /obj/structure/sign/clock/directional/east,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "U" = (
 /obj/machinery/status_display/ai/directional/east,
 /obj/structure/chair/comfy/black{
 	dir = 8
 	},
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
 /area/station/command/heads_quarters/nt_rep)
 "V" = (
 /obj/structure/filingcabinet/chestdrawer,
@@ -286,13 +331,23 @@
 	},
 /obj/machinery/light/warm/directional/east,
 /obj/structure/extinguisher_cabinet/directional/east,
-/turf/open/floor/wood,
+/turf/open/floor/wood/parquet,
 /area/station/command/heads_quarters/nt_rep)
 "W" = (
 /obj/structure/chair/comfy/black,
 /obj/machinery/newscaster/directional/north,
 /obj/machinery/light/warm/directional/north,
-/turf/open/floor/carpet/executive,
+/turf/open/floor/carpet/royalblack,
+/area/station/command/heads_quarters/nt_rep)
+"Y" = (
+/obj/effect/spawner/structure/window/reinforced,
+/obj/machinery/door/poddoor/preopen{
+	id = "nt_rep_priv";
+	name = "Privacy Shutter"
+	},
+/obj/structure/cable,
+/obj/structure/sign/flag/terragov_2,
+/turf/open/floor/plating,
 /area/station/command/heads_quarters/nt_rep)
 "Z" = (
 /obj/machinery/holopad,
@@ -352,7 +407,7 @@ Z
 j
 n
 F
-a
+L
 "}
 (7,1,1) = {"
 a
@@ -370,7 +425,7 @@ q
 s
 A
 B
-f
+Y
 "}
 (9,1,1) = {"
 a
@@ -379,7 +434,7 @@ U
 w
 V
 K
-a
+I
 "}
 (10,1,1) = {"
 a

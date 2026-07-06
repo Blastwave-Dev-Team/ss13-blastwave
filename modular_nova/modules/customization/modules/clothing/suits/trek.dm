@@ -3,7 +3,7 @@
 	icon = 'modular_nova/master_files/icons/obj/clothing/suits.dmi'
 	worn_icon = 'modular_nova/master_files/icons/mob/clothing/suit.dmi'
 	name = "Federation uniform jacket"
-	desc = "A uniform jacket from the United Federation. Set phasers to awesome."
+	desc = "A uniform jacket from the Solar Federation. Set phasers to awesome."
 	icon_state = "fedcoat"
 	inhand_icon_state = "coatsecurity"
 	allowed = list(
@@ -35,7 +35,7 @@
 	inhand_icon_state = "coatengineer"
 
 /obj/item/clothing/suit/fedcoat/capt
-	icon_state = "fedcapt"
+	icon_state = "fedcapt_open"
 	inhand_icon_state = "coatcaptain"
 
 //fedcoat but modern
