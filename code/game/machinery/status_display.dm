@@ -710,7 +710,7 @@ MAPPING_DIRECTIONAL_HELPERS(/obj/machinery/status_display/evac, 32)
 		update_appearance()
 		return PROCESS_KILL
 
-	return display_shuttle_status(SSshuttle.getShuttle(shuttle_id))
+	return display_shuttle_status(SSshuttle.getShuttle(shuttle_id, TRUE))
 
 /obj/machinery/status_display/shuttle/vv_edit_var(var_name, var_value)
 	. = ..()

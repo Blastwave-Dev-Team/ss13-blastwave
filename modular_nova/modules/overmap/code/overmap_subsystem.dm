@@ -289,7 +289,7 @@ SUBSYSTEM_DEF(overmap)
 /// `Initialize` instead.
 /datum/controller/subsystem/overmap/proc/bind_existing_shuttles()
 	for(var/obj/docking_port/mobile/port in SSshuttle.mobile_docking_ports)
-		if(istype(port, /obj/docking_port/mobile/arrivals))
+		if(istype(port, /obj/docking_port/mobile/arrivals) || istype(port, /obj/docking_port/mobile/arrivals_nova))
 			continue
 		setup_shuttle_ship(port)
 
@@ -322,7 +322,7 @@ SUBSYSTEM_DEF(overmap)
 		// the shuttle returns to a known POI.
 		ship = new(null, port.shuttle_id, port)
 	else
-		WARNING("setup_shuttle_ship: shuttle [port.shuttle_id] is on an unknown Z [port.z]; skipping.")
+		// Ruin, away, and other off-grid shuttles are expected here.
 		return
 	port.current_ship = ship
 
