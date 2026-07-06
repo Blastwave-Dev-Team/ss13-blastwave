@@ -56,7 +56,9 @@
 /area/ruin/space/has_grav/outdoors
 	outdoors = TRUE
 
-/area/solars/tarkon
+// Ruin solars: lattice-over-space layout like station solars, but under
+// /area/ruin/space so mapload space verification exempts preloaded Port Tarkon.
+/area/ruin/space/solars/tarkon
 	name = "P-T Solar Array"
 	icon_state = "space_near"
 	default_gravity = STANDARD_GRAVITY

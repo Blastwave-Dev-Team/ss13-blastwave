@@ -6,11 +6,11 @@
 /obj/structure/cable,
 /obj/modular_map_connector,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "c" = (
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "j" = (
 /obj/effect/turf_decal/sand/plating,
 /obj/structure/cable,
@@ -20,22 +20,22 @@
 /obj/structure/lattice/catwalk,
 /obj/item/stack/cable_coil/thirty,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "l" = (
 /obj/machinery/power/tracker,
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "m" = (
 /obj/structure/lattice,
 /obj/item/stack/cable_coil/thirty,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "n" = (
 /obj/structure/lattice/catwalk,
 /obj/structure/cable,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "p" = (
 /turf/closed/mineral/random,
 /area/ruin/space/has_grav)
@@ -43,31 +43,31 @@
 /obj/structure/cable,
 /obj/machinery/power/solar,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "y" = (
 /obj/item/solar_assembly,
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "z" = (
 /obj/structure/lattice/catwalk,
 /obj/structure/cable,
 /mob/living/basic/carp,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "T" = (
 /obj/structure/lattice/catwalk,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "U" = (
 /obj/structure/lattice,
 /mob/living/basic/carp,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "V" = (
 /obj/structure/lattice,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 
 (1,1,1) = {"
 a
