@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - balance: "`TRAIT_NOBREATH` races no longer take lung damage from smoking"
