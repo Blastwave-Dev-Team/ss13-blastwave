@@ -867,6 +867,23 @@ GLOBAL_LIST_EMPTY(station_turfs)
 		return
 	GLOB.preset_fish_sources[fish_source].spawn_reward_from_explosion(src, severity)
 
+/**
+ * Called on a turf that is being non-destructively "rattled" by a cross-Z explosion on a neighboring level.
+ * The base behavior flings any loose (unanchored) items sitting on the turf a tile or two; floors extend this to
+ * also pop and throw their tiles. Returns TRUE if anything was actually disturbed.
+ */
+/turf/proc/disturb_from_blast()
+	. = FALSE
+	var/list/nearby
+	for(var/obj/item/loose_item in src)
+		if(loose_item.anchored)
+			continue
+		if(isnull(nearby))
+			nearby = get_adjacent_open_turfs(src)
+		var/turf/throw_target = length(nearby) ? pick(nearby) : src
+		loose_item.throw_at(throw_target, rand(1, 2), 3)
+		. = TRUE
+
 /turf/multitool_act(mob/living/user, obj/item/multitool/tool)
 	if(!fish_source || !istype(tool.buffer, /obj/machinery/fishing_portal_generator))
 		return ..()

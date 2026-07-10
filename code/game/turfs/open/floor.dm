@@ -179,6 +179,20 @@
 		return null
 	return new floor_tile(src)
 
+/turf/open/floor/disturb_from_blast()
+	// Base handles scattering any loose items on the tile.
+	. = ..()
+	if(!has_tile())
+		return
+	// Pop the tile off and fling it
+	var/obj/item/stack/tile/popped = spawn_tile()
+	make_plating()
+	if(popped)
+		var/list/nearby = get_adjacent_open_turfs(src)
+		var/turf/throw_target = length(nearby) ? pick(nearby) : src
+		popped.throw_at(throw_target, rand(1, 2), 3)
+	return TRUE
+
 /turf/open/floor/singularity_pull(atom/singularity, current_size)
 	..()
 	var/sheer = FALSE

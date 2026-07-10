@@ -8,6 +8,16 @@
 /// The default explosion severity used to mark that an object is beyond the impact range of the explosion.
 #define EXPLODE_NONE 0
 
+// Cross-Z explosion propagation direction tokens (see SSexplosions.handle_z_spread).
+/// No vertical propagation should occur.
+#define ZSPREAD_NONE 0
+/// Top-level explosion: decides whether to start a damaging cascade and fires both up and down.
+#define ZSPREAD_ORIGIN 1
+/// A vertical hop that only continues upward.
+#define ZSPREAD_UP 2
+/// A vertical hop that only continues downward.
+#define ZSPREAD_DOWN 3
+
 //gibtonite state defines
 /// Gibtonite has not been mined
 #define GIBTONITE_UNSTRUCK 0

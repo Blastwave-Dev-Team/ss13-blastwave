@@ -490,6 +490,23 @@ BOMBCAP 20
 ## LagHell (7, 14, 28)
 #BOMBCAP 28
 
+## Cross-Z explosion propagation
+## Master toggle for large explosions punching through floors/ceilings into linked Z-levels (and the tile rattle on smaller ones).
+## Comment out to disable the damaging vertical cascade entirely.
+MULTIZ_EXPLOSIONS
+## Minimum devastation range for an explosion to deal cross-Z damage. Syndicate bombs are dev 3+, C-4/X-4 are dev 0.
+MULTIZ_EXPLOSION_MIN_DEVASTATION 1
+## Tiles shaved off each range ring per Z-level hop (the vertical sphere falloff). Higher = shallower vertical reach.
+MULTIZ_EXPLOSION_FALLOFF 3
+## How many linked Z-levels explosion sound/screenshake travels. 0 disables cross-Z sound independently of the master toggle.
+MULTIZ_EXPLOSION_SOUND_RANGE 1
+## Effective-distance tiles added per Z-level of separation, attenuating cross-Z sound/screenshake.
+MULTIZ_EXPLOSION_SOUND_PENALTY 8
+## Radius of the non-damaging floor-tile rattle on neighbor levels.
+MULTIZ_EXPLOSION_DISTURB_RANGE 3
+## Per-tile chance (percent) to pop and throw a floor tile during the non-damaging rattle.
+MULTIZ_EXPLOSION_DISTURB_PROB 60
+
 
 ## Lavaland "Budget"
 ## Lavaland ruin spawning has an imaginary budget to spend on ruins, where
