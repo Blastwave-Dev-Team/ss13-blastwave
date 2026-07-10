@@ -107,6 +107,9 @@
 	/// It's used in a few places. Stop using it, and optimially replace all uses please
 	var/obj/item/master = null
 
+	/// How many completed deep frying cycles this item has been through. Used for deep fryer easter eggs.
+	var/times_deep_fried = 0
+
 	///Price of an item in a vending machine, overriding the base vending machine price. Define in terms of paycheck defines as opposed to raw numbers.
 	var/custom_price
 	///Price of an item in a vending machine, overriding the premium vending machine price. Define in terms of paycheck defines as opposed to raw numbers.
