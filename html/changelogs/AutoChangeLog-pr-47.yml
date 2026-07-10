@@ -1,0 +1,6 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "Objective specific equipment (nuke core kit, supermatter kit, etc.) is now reliably delivered even when your backpack is full at roundstart. If it cannot be placed on you, you can call it down for free from your uplink via a supply pod."
+  - rscadd: "Added an \"Uplink Objective Equipment\" character preference to choose whether objective equipment is placed on you directly or always delivered via a free uplink supply pod."
+  - bugfix: "Blood brothers can no longer roll steal objectives that require Syndicate uplink equipment they have no way to obtain."
