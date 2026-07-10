@@ -479,6 +479,7 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 	// for N/S fronts but flips E/W fronts 180 degrees. BLASTWAVE EDIT - was REVERSE_DIR(shuttle_dir)
 	mobile_port.port_direction = angle2dir_cardinal(dir2angle(port_dir) + 180 - dir2angle(shuttle_dir))
 	mobile_port.dir = port_dir
+	mobile_port.preferred_direction = shuttle_dir // BLASTWAVE EDIT ADDITION - shuttle front drives transit travel dir
 	mobile_port.calculate_docking_port_information()
 	mobile_port.turf_count = length(turfs)
 
@@ -505,6 +506,47 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 	log_shuttle("[key_name(user)] has created a shuttle at [get_area(origin)].")
 
 	return mobile_port
+
+/**
+ * Redesignate a custom shuttle's docking/front orientation without rotating
+ * hull atoms in place. Physical rotation (if any) happens on the next transit
+ * launch via initiate_docking. Returns TRUE on success.
+ */
+/proc/reorient_custom_shuttle(obj/docking_port/mobile/custom/shuttle, new_dir)
+	if(!istype(shuttle))
+		return FALSE
+	if(!(new_dir in GLOB.cardinals))
+		return FALSE
+	if(shuttle.mode != SHUTTLE_IDLE)
+		return FALSE
+	if(shuttle.dir == new_dir && shuttle.preferred_direction == new_dir)
+		return TRUE
+
+	// Same formula as create_shuttle when port_dir == shuttle_dir: relative
+	// port_direction collapses to SOUTH and preferred_direction is the front.
+	shuttle.dir = new_dir
+	shuttle.preferred_direction = new_dir
+	shuttle.port_direction = angle2dir_cardinal(dir2angle(new_dir) + 180 - dir2angle(new_dir))
+	QDEL_NULL(shuttle.assigned_transit)
+	shuttle.calculate_docking_port_information()
+
+	var/obj/docking_port/stationary/docked = shuttle.get_docked()
+	if(istype(docked))
+		docked.dir = shuttle.dir
+		docked.width = shuttle.width
+		docked.height = shuttle.height
+		docked.dwidth = shuttle.dwidth
+		docked.dheight = shuttle.dheight
+
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - invalidate hull token so front angle regenerates
+	var/obj/structure/overmap/ship/simulated/overmap_ship = shuttle.current_ship
+	if(overmap_ship)
+		overmap_ship.cached_hull_icon = null
+		overmap_ship.cached_minimap_icon = null
+		overmap_ship.update_icon_state()
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
+	return TRUE
 
 /proc/expand_shuttle(mob/user, obj/docking_port/mobile/shuttle, list/turfs, list/areas)
 	var/list/default_area_turfs = turfs.Copy()

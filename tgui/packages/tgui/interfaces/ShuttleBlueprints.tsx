@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -35,6 +35,7 @@ type ShuttleConfigurationUniqueData = {
   apcs: Record<string, BooleanLike>;
   neighboringAreas: Record<string, string>;
   idle: BooleanLike;
+  shuttleDir: Direction;
 };
 
 type ShuttleBlueprintsData = {
@@ -300,12 +301,19 @@ const ShuttleConfiguration = () => {
     size,
     maxShuttleSize,
     problems,
+    shuttleDir = Direction.NORTH,
   } = data;
+  const [shuttleDirection, setShuttleDirection] =
+    useState<Direction>(shuttleDir);
+  useEffect(() => {
+    setShuttleDirection(shuttleDir);
+  }, [shuttleDir]);
   const { name: currentAreaName, ref: currentAreaRef } = currentArea;
   const { name: mergeAreaName, ref: mergeAreaRef } = mergeArea;
   const removalApcConflict = defaultApc && apcs[currentAreaRef];
   const mergeApcConflict = apcInMergeRegion && apcs[mergeAreaRef];
   const tooLarge = (size ?? 0) > maxShuttleSize;
+  const canSetDirection = !!(idle && isMaster && onShuttle);
   return (
     <Stack fill vertical align="center" justify="space-around">
       <Stack.Item textAlign="center">
@@ -317,6 +325,40 @@ const ShuttleConfiguration = () => {
               : currentAreaName
             : 'Not on Shuttle'}
         </h3>
+      </Stack.Item>
+      <Stack.Item width="100%">
+        <Stack fill justify="space-around" align="center">
+          <Stack.Item grow>
+            <DirectionPad
+              title="Shuttle Direction"
+              tooltip="Designates which way this shuttle faces for docking and transit. The hull rotates to match the next time the shuttle launches into transit."
+              enabledDirections={Direction.ALL}
+              selectedDirection={shuttleDirection}
+              onSelect={(dir) => setShuttleDirection(dir)}
+            />
+          </Stack.Item>
+          <Stack.Item>
+            <Button.Confirm
+              disabled={!canSetDirection || shuttleDirection === shuttleDir}
+              tooltip={
+                canSetDirection
+                  ? shuttleDirection === shuttleDir
+                    ? 'The shuttle is already facing this direction.'
+                    : 'Updates docking orientation. The hull will rotate to match the next time this shuttle launches into transit.'
+                  : !isMaster
+                    ? 'Only the master blueprint can change shuttle direction.'
+                    : !idle
+                      ? 'The shuttle must be idle to change direction.'
+                      : 'You must be on the linked shuttle to do this.'
+              }
+              onClick={() =>
+                act('setShuttleDirection', { dir: shuttleDirection })
+              }
+            >
+              Set Shuttle Direction
+            </Button.Confirm>
+          </Stack.Item>
+        </Stack>
       </Stack.Item>
       <Stack.Item>
         <Input fluid placeholder="New Area Name" onChange={setName} />
@@ -489,7 +531,7 @@ export const ShuttleBlueprints = (props) => {
   const { act, data } = useBackend<ShuttleBlueprintsData>();
   const { linkedShuttle, shuttles, masterExists, isMaster } = data;
   return (
-    <Window width={450} height={340}>
+    <Window width={450} height={420}>
       <Window.Content>
         <Section
           fill

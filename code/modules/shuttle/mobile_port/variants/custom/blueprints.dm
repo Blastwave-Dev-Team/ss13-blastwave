@@ -368,6 +368,7 @@
 			apcs[REF(area)] = !!area.apc
 		data["apcs"] = apcs
 		data["idle"] = linked_shuttle.mode == SHUTTLE_IDLE
+		data["shuttleDir"] = linked_shuttle.dir
 		if(on_shuttle_frame)
 			data["size"] = length(frame.turfs) - length(frame.shuttle_covered_turfs) + linked_shuttle.turf_count
 			data["problems"] = shuttle_expand_check(current_turf, linked_shuttle)
@@ -516,6 +517,7 @@
 				shuttle_origin,
 				shuttle_turfs,
 				shuttle_areas,
+				shuttle_dir,
 				shuttle_dir,
 				name = "\improper Unnamed Shuttle",
 				id = "custom_[length(SSshuttle.custom_shuttles)+1]"
@@ -692,6 +694,40 @@
 			if(master && master != src)
 				balloon_alert(usr, "not master blueprints!")
 			clear_empty_shuttle_turfs(shuttle)
+			return TRUE
+		if("setShuttleDirection")
+			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
+			if(!shuttle)
+				balloon_alert(usr, "not linked!")
+				return TRUE
+			var/obj/item/shuttle_blueprints/master = shuttle.master_blueprint?.resolve()
+			if(master != src)
+				balloon_alert(usr, "not master blueprints!")
+				return TRUE
+			if(shuttle.mode != SHUTTLE_IDLE)
+				balloon_alert(usr, "shuttle must be idle!")
+				return TRUE
+			var/area/current_area = get_area(usr)
+			if(!shuttle.shuttle_areas[current_area])
+				balloon_alert(usr, "not on shuttle!")
+				return TRUE
+			var/new_dir = params["dir"]
+			if(!(new_dir in GLOB.cardinals))
+				return TRUE
+			if(shuttle.dir == new_dir && shuttle.preferred_direction == new_dir)
+				balloon_alert(usr, "already facing that way!")
+				return TRUE
+			balloon_alert(usr, "updating orientation...")
+			if(!do_after(usr, 3 SECONDS, src))
+				return TRUE
+			if(QDELETED(shuttle) || shuttle.mode != SHUTTLE_IDLE)
+				balloon_alert(usr, "shuttle no longer idle!")
+				return TRUE
+			if(!reorient_custom_shuttle(shuttle, new_dir))
+				balloon_alert(usr, "orientation update failed!")
+				return TRUE
+			balloon_alert(usr, "orientation set — applies on next launch")
+			return TRUE
 
 /obj/item/shuttle_blueprints/crude
 	name = "crude shuttle blueprints"

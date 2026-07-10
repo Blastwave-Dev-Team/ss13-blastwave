@@ -49,6 +49,8 @@ SUBSYSTEM_DEF(overmap)
 	var/station_revealed_to_ds2 = FALSE
 	/// All registered landing zone landmarks (for nav console zone discovery).
 	var/list/landing_zones
+	/// Helm-facing reason when spawn_dynamic_encounter() last returned null.
+	var/last_encounter_spawn_error
 
 /datum/controller/subsystem/overmap/Initialize()
 	generator_type = CONFIG_GET(string/overmap_generator_type)
@@ -442,6 +444,100 @@ SUBSYSTEM_DEF(overmap)
 			return FALSE
 	return TRUE
 
+/// Minimum square side for a west-anchored encounter reservation. Visiting
+/// shuttles can be wider than ruin templates, so the dock band alone may need
+/// `2 * dock_size` of horizontal runway.
+/datum/controller/subsystem/overmap/proc/minimum_encounter_reservation_side(dock_size, datum/map_template/ruin/ruin_type, default_block_size = 0)
+	var/ruin_pad = ruin_type ? max(ruin_type.width, ruin_type.height) + 4 : CEILING(default_block_size / 2, 1)
+	return max(dock_size + ruin_pad, (dock_size * 2) + 4)
+
+/// Returns FALSE if any turf in the docking port footprint lies outside `reserve`.
+/datum/controller/subsystem/overmap/proc/dock_port_fits_reservation(datum/turf_reservation/reserve, obj/docking_port/stationary/dock)
+	if(!reserve || !dock)
+		return FALSE
+	for(var/turf/T in dock.return_turfs())
+		if(!reserve.calculate_turf_bounds_information(T))
+			return FALSE
+	return TRUE
+
+/// Try to place a stationary encounter dock at `dir`, centered in a rectangle
+/// inside `reserve` (same placement math as helm landing-zone ports).
+/datum/controller/subsystem/overmap/proc/try_place_encounter_dock(
+	datum/turf_reservation/reserve,
+	turf/zone_origin,
+	zone_width,
+	zone_height,
+	obj/docking_port/mobile/shuttle,
+	shuttle_id,
+	dir,
+)
+	if(!reserve || !zone_origin || !shuttle || !shuttle_id || !dir)
+		return null
+	var/list/bounds = shuttle.return_coords()
+	var/bbox_x1 = min(bounds[1], bounds[3])
+	var/bbox_y1 = min(bounds[2], bounds[4])
+	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
+	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
+	if(ship_w > zone_width || ship_h > zone_height)
+		return null
+	var/port_off_x = shuttle.x - bbox_x1
+	var/port_off_y = shuttle.y - bbox_y1
+	var/dest_x = zone_origin.x + round((zone_width - ship_w) / 2) + port_off_x
+	var/dest_y = zone_origin.y + round((zone_height - ship_h) / 2) + port_off_y
+	var/turf/dest = locate(dest_x, dest_y, zone_origin.z)
+	if(!dest)
+		return null
+	var/obj/docking_port/stationary/port = new(dest)
+	port.dir = dir
+	port.name = "\improper Uncharted Space"
+	port.shuttle_id = shuttle_id
+	port.width = shuttle.width
+	port.height = shuttle.height
+	port.dwidth = shuttle.dwidth
+	port.dheight = shuttle.dheight
+	if(!dock_port_fits_reservation(reserve, port) || !shuttle.check_dock(port, TRUE))
+		qdel(port)
+		return null
+	return port
+
+/// Prefer `shuttle.dir` for encounter docks; rotate only when that heading
+/// cannot fit inside the surveyed footprint.
+/datum/controller/subsystem/overmap/proc/place_encounter_primary_dock(
+	datum/turf_reservation/reserve,
+	turf/bottom_left,
+	total_size,
+	dock_size,
+	obj/docking_port/mobile/visiting_shuttle,
+	dock_id,
+	list/dir_attempts,
+)
+	var/turf/zone_origin = locate(bottom_left.x + 1, bottom_left.y + 1, bottom_left.z)
+	var/zone_width = total_size - 2
+	var/zone_height = total_size - 2
+	var/shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
+	for(var/attempt_dir as anything in dir_attempts)
+		var/obj/docking_port/stationary/placed = try_place_encounter_dock(
+			reserve,
+			zone_origin,
+			zone_width,
+			zone_height,
+			visiting_shuttle,
+			shuttle_id,
+			attempt_dir,
+		)
+		if(placed)
+			return placed
+	return null
+
+/// Tear down a partially-built encounter and stash a helm-facing error.
+/datum/controller/subsystem/overmap/proc/abort_dynamic_encounter(datum/turf_reservation/reserve, list/cleanup_atoms, message)
+	for(var/atom/cleanup as anything in cleanup_atoms)
+		if(!QDELETED(cleanup))
+			qdel(cleanup)
+	QDEL_NULL(reserve)
+	last_encounter_spawn_error = message
+	return null
+
 /// Load a ruin template, warn on reservation overflow, and claim the footprint.
 /datum/controller/subsystem/overmap/proc/load_overmap_ruin_into_reservation(datum/turf_reservation/reserve, datum/map_template/ruin/template, turf/ruin_turf)
 	if(!ruin_turf || !template || !reserve)
@@ -457,7 +553,8 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/spawn_dynamic_encounter(planet_type, ruin = TRUE, dock_id, size, obj/docking_port/mobile/visiting_shuttle)
 	if(!COOLDOWN_FINISHED(src, encounter_cooldown))
 		return null
-	COOLDOWN_START(src, encounter_cooldown, OVERMAP_ENCOUNTER_COOLDOWN)
+
+	last_encounter_spawn_error = null
 
 	if(!dock_id)
 		CRASH("spawn_dynamic_encounter called without a dock_id!")
@@ -466,8 +563,7 @@ SUBSYSTEM_DEF(overmap)
 		size = round(world.maxx / 4)
 
 	var/dock_size = calculate_overmap_dock_size(null, visiting_shuttle, size)
-	var/ruin_size = CEILING(size / 2, 1)
-	var/total_size = dock_size + ruin_size
+	var/total_size = minimum_encounter_reservation_side(dock_size, null, size)
 
 	var/list/ruin_list
 	var/datum/map_generator/mapgen
@@ -508,63 +604,115 @@ SUBSYSTEM_DEF(overmap)
 				viable_ruins[ruin_name] = candidate
 		if(length(viable_ruins))
 			ruin_type = viable_ruins[pick(viable_ruins)]
-			total_size = calculate_overmap_site_size(ruin_type, dock_size)
+			total_size = max(
+				calculate_overmap_site_size(ruin_type, dock_size),
+				minimum_encounter_reservation_side(dock_size, ruin_type, size),
+			)
 
 	var/datum/turf_reservation/encounter_reservation = SSmapping.request_turf_block_reservation(total_size, total_size)
 	if(!encounter_reservation)
-		return null
+		return abort_dynamic_encounter(
+			null,
+			list(),
+			"NAVIGATION BUFFER SATURATED. Local translation fields cannot chart a stable survey footprint — withdraw and re-approach.",
+		)
 
-	if(mapgen && target_area)
+	if(mapgen && ispath(target_area))
 		var/list/gen_turfs = encounter_reservation.reserved_turfs.Copy()
 		if(length(gen_turfs))
-			mapgen.generate_terrain(gen_turfs)
+			var/area/gen_area = new target_area
+			gen_area.setup("Uncharted [planet_type]")
+			set_turfs_to_area(gen_turfs, gen_area)
+			gen_area.reg_in_areas_in_z()
+			mapgen.generate_terrain(gen_turfs, gen_area)
+			var/list/populated_turfs = list()
+			for(var/turf/pop_turf in gen_area)
+				populated_turfs += pop_turf
+			mapgen.populate_terrain(populated_turfs, gen_area)
 
 	var/turf/bottom_left = encounter_reservation.bottom_left_turfs[1]
 	if(!bottom_left)
-		QDEL_NULL(encounter_reservation)
-		return null
+		return abort_dynamic_encounter(
+			encounter_reservation,
+			list(),
+			"SURVEY TELEMETRY LOST. Astrogation could not resolve the generated footprint — abort approach.",
+		)
 
 	if(ruin_type)
 		var/turf/ruin_turf = calculate_overmap_ruin_anchor(bottom_left, ruin_type, dock_size, total_size)
 		if(ruin_turf)
 			ruin_type.load(ruin_turf)
 
-	// Create primary dock
-	var/turf/dock_turf = locate( \
-		bottom_left.x + dock_size, \
-		bottom_left.y + round(dock_size / 2), \
-		bottom_left.z)
-	var/obj/docking_port/stationary/primary_dock = new(dock_turf)
-	primary_dock.dir = visiting_shuttle?.dir || WEST
-	primary_dock.name = "\improper Uncharted Space"
-	primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
-	primary_dock.height = dock_size
-	primary_dock.width = dock_size
+	var/list/spawned_atoms = list()
+
+	var/list/dir_attempts = list()
 	if(visiting_shuttle)
-		primary_dock.dheight = min(visiting_shuttle.dheight, dock_size)
-		primary_dock.dwidth = min(visiting_shuttle.dwidth, dock_size)
+		dir_attempts += visiting_shuttle.dir
+	for(var/cardinal in GLOB.cardinals)
+		if(cardinal in dir_attempts)
+			continue
+		dir_attempts += cardinal
+
+	var/obj/docking_port/stationary/primary_dock
+	if(visiting_shuttle)
+		primary_dock = place_encounter_primary_dock(
+			encounter_reservation,
+			bottom_left,
+			total_size,
+			dock_size,
+			visiting_shuttle,
+			dock_id,
+			dir_attempts,
+		)
 	else
+		// No visiting hull to match — fall back to the legacy west pad.
+		var/turf/dock_turf = locate(
+			bottom_left.x + dock_size,
+			bottom_left.y + round(dock_size / 2),
+			bottom_left.z,
+		)
+		primary_dock = new(dock_turf)
+		primary_dock.dir = WEST
+		primary_dock.name = "\improper Uncharted Space"
+		primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
+		primary_dock.height = dock_size
+		primary_dock.width = dock_size
 		primary_dock.dwidth = round(dock_size / 2)
 
-	// Create secondary dock
-	var/turf/secondary_turf = locate( \
-		bottom_left.x + dock_size, \
-		bottom_left.y + CEILING(dock_size * 1.5, 1), \
-		bottom_left.z)
+	if(!primary_dock || !dock_port_fits_reservation(encounter_reservation, primary_dock))
+		return abort_dynamic_encounter(
+			encounter_reservation,
+			spawned_atoms,
+			"NO CONFIRMED LANDING CORRIDOR. Generated survey footprint cannot contain this vessel — select a smaller landing zone or withdraw.",
+		)
+	spawned_atoms += primary_dock
+
+	// Secondary ferry pad shares the primary heading when possible.
+	var/turf/secondary_turf = locate(
+		bottom_left.x + dock_size,
+		bottom_left.y + CEILING(dock_size * 1.5, 1),
+		bottom_left.z,
+	)
 	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
-	secondary_dock.dir = visiting_shuttle?.dir || WEST
+	secondary_dock.dir = primary_dock.dir
 	secondary_dock.name = "\improper Uncharted Space"
 	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[dock_id]"
 	secondary_dock.height = dock_size
 	secondary_dock.width = dock_size
 	secondary_dock.dwidth = round(dock_size / 2)
+	if(!dock_port_fits_reservation(encounter_reservation, secondary_dock))
+		qdel(secondary_dock)
+	else
+		spawned_atoms += secondary_dock
 
 	// Create a landing zone spanning the usable reservation area
 	var/obj/effect/landmark/overmap_landing_zone/zone = new(bottom_left)
 	zone.zone_name = "Uncharted Space"
 	zone.zone_width = total_size - 2
 	zone.zone_height = total_size - 2
+	spawned_atoms += zone
 
+	COOLDOWN_START(src, encounter_cooldown, OVERMAP_ENCOUNTER_COOLDOWN)
 	return encounter_reservation
 
 // --- Space site seeding (Phase 3) ---

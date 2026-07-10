@@ -60,13 +60,18 @@
 	if(reserve)
 		return
 	if(!COOLDOWN_FINISHED(SSovermap, encounter_cooldown))
-		return "WARNING! Stellar interference is restricting flight in this area. Try again in [round(COOLDOWN_TIMELEFT(SSovermap, encounter_cooldown) / 10)] seconds."
+		return "WARNING! Stellar interference is restricting local translation fields. Hold position and re-attempt docking in [round(COOLDOWN_TIMELEFT(SSovermap, encounter_cooldown) / 10)] seconds."
 	var/datum/turf_reservation/new_reserve = SSovermap.spawn_dynamic_encounter(planet, TRUE, id, visiting_shuttle = visiting_shuttle)
 	if(!new_reserve)
-		return "FATAL NAVIGATION ERROR. Please try again later."
+		return SSovermap.last_encounter_spawn_error || "FATAL NAVIGATION ERROR. Astrogation solution collapsed — withdraw and re-approach."
 	reserve = new_reserve
 	reserve_dock = SSshuttle.getDock("[OVERMAP_DOCK_PREFIX]_[id]")
 	reserve_dock_secondary = SSshuttle.getDock("[OVERMAP_FERRY_PREFIX]_[id]")
+	if(!reserve_dock)
+		QDEL_NULL(reserve)
+		reserve = null
+		reserve_dock_secondary = null
+		return "BEACON LOCK FAILED. Survey telemetry could not confirm a docking corridor on the generated footprint — abort approach."
 
 /// Attempt to unload the reserve after a ship undocks. Will not unload if
 /// living mobs with minds are still present on the reserved turfs.

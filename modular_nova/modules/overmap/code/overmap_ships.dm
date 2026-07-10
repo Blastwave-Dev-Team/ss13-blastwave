@@ -382,10 +382,8 @@
 	// If currently docked at a dynamic encounter whose reservation holds this Z, stay put.
 	if(docked && istype(docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/enc = docked
-		if(enc.reserve)
-			var/turf/bl = enc.reserve.bottom_left_turfs[1]
-			if(bl && bl.z == shuttle.z)
-				return TRUE
+		if(shuttle_turfs_within_dynamic_reserve(enc))
+			return TRUE
 	if(docked && !docked_object)
 		var/turf/free_tile = SSovermap.get_unused_overmap_square()
 		if(free_tile)
@@ -548,6 +546,16 @@
 		if(helm.current_ship == src && !helm.viewer)
 			helm.say(message)
 
+/// TRUE when every turf in the bound shuttle's footprint lies inside
+/// `encounter`'s active reservation (not merely on the same Z).
+/obj/structure/overmap/ship/simulated/proc/shuttle_turfs_within_dynamic_reserve(obj/structure/overmap/dynamic/encounter)
+	if(!shuttle || !encounter?.reserve)
+		return FALSE
+	for(var/turf/T in shuttle.return_turfs())
+		if(!encounter.reserve.calculate_turf_bounds_information(T))
+			return FALSE
+	return TRUE
+
 /// Helm "Act" entry point. `lz_ref` optionally names a specific landing zone
 /// landmark to dock at instead of the automatic stationary-port search.
 /obj/structure/overmap/ship/simulated/proc/overmap_object_act(obj/structure/overmap/target, mob/user, lz_ref)
@@ -564,7 +572,10 @@
 		var/error = encounter.load_level(shuttle)
 		if(error)
 			return error
-		return dock(encounter, lz_ref)
+		var/dock_result = dock(encounter, lz_ref)
+		if(state != OVERMAP_SHIP_DOCKING)
+			encounter.unload_level()
+		return dock_result
 	if(istype(target, /obj/structure/overmap/level))
 		return dock(target, lz_ref)
 	return "Cannot interact with this object yet."
@@ -701,7 +712,17 @@
 
 	docked = target
 	state = OVERMAP_SHIP_DOCKING
+	if(!shuttle.check_dock(picked, TRUE))
+		docked = null
+		state = OVERMAP_SHIP_FLYING
+		update_screen(TRUE)
+		return "Docking lock rejected — no confirmed approach corridor at [target.name]. Re-run survey or select a landing zone."
 	shuttle.request(picked)
+	if(shuttle.mode != SHUTTLE_IGNITING || shuttle.destination != picked)
+		docked = null
+		state = OVERMAP_SHIP_FLYING
+		update_screen(TRUE)
+		return "Docking lock rejected — engines could not commit to the surveyed corridor at [target.name]."
 	var/transit_time = shuttle.ignitionTime + (shuttle.callTime * shuttle.engine_coeff) + (3 SECONDS)
 	addtimer(CALLBACK(src, PROC_REF(complete_dock)), transit_time)
 	return "Commencing docking at [target.name]..."
@@ -725,6 +746,15 @@
 /obj/structure/overmap/ship/simulated/proc/complete_dock()
 	if(state != OVERMAP_SHIP_DOCKING)
 		return
+	if(istype(docked, /obj/structure/overmap/dynamic))
+		var/obj/structure/overmap/dynamic/encounter = docked
+		if(encounter.reserve && !shuttle_turfs_within_dynamic_reserve(encounter))
+			encounter.unload_level()
+			docked = null
+			state = OVERMAP_SHIP_FLYING
+			announce_to_helms("SURVEY MISMATCH. Vessel landed outside the charted encounter footprint — hold position and re-attempt docking.")
+			update_screen(TRUE)
+			return
 	if(docked)
 		overmap_reset_visual_offset()
 		forceMove(docked)

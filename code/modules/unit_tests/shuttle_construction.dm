@@ -459,5 +459,50 @@
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 
+/datum/unit_test/shuttle_construction/shuttle_reorient_direction
+
+/datum/unit_test/shuttle_construction/shuttle_reorient_direction/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/turf/neighbor = get_step(origin, EAST)
+	TEST_ASSERT(neighbor, "Need an adjacent turf for a two-tile shuttle")
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/list/turfs = list(origin, neighbor)
+
+	var/obj/docking_port/mobile/custom/shuttle = create_shuttle(
+		user,
+		origin,
+		turfs.Copy(),
+		list(),
+		WEST,
+		WEST,
+		name = "Reorient Test Shuttle",
+		id = "test_reorient_shuttle",
+	)
+	TEST_ASSERT(istype(shuttle), "create_shuttle should return a custom mobile port")
+	TEST_ASSERT_EQUAL(shuttle.dir, WEST, "Build direction should set mobile port dir")
+	TEST_ASSERT_EQUAL(shuttle.preferred_direction, WEST, "Build direction should set preferred_direction")
+	TEST_ASSERT_EQUAL(shuttle.port_direction, SOUTH, "Matching port/shuttle dirs yield SOUTH port_direction")
+
+	TEST_ASSERT(reorient_custom_shuttle(shuttle, SOUTH), "reorient_custom_shuttle should succeed while idle")
+	TEST_ASSERT_EQUAL(shuttle.dir, SOUTH, "Reorient should update dir")
+	TEST_ASSERT_EQUAL(shuttle.preferred_direction, SOUTH, "Reorient should update preferred_direction")
+	TEST_ASSERT_EQUAL(shuttle.port_direction, SOUTH, "Reorient with matching dirs keeps SOUTH port_direction")
+
+	var/obj/docking_port/stationary/docked = shuttle.get_docked()
+	if(docked)
+		TEST_ASSERT_EQUAL(docked.dir, SOUTH, "Docked stationary port should sync dir")
+		TEST_ASSERT_EQUAL(docked.width, shuttle.width, "Docked stationary port should sync width")
+		TEST_ASSERT_EQUAL(docked.height, shuttle.height, "Docked stationary port should sync height")
+
+	TEST_ASSERT(!reorient_custom_shuttle(shuttle, 5), "Non-cardinal dirs should be rejected")
+	qdel(shuttle)
+
+/datum/unit_test/shuttle_construction/shuttle_reorient_direction/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	var/turf/neighbor = get_step(run_loc_floor_bottom_left, EAST)
+	if(neighbor)
+		reset_shuttle_frame_turf(neighbor)
+	return ..()
+
 #undef RESET_TO_EXPECTED
 #undef EXPECTED_FLOOR_TYPE
