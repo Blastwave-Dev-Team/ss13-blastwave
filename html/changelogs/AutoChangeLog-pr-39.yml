@@ -1,0 +1,7 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Large explosions (e.g. the syndicate bomb) now punch through floors and ceilings into adjacent Z-levels, dealing reduced damage with height."
+  - rscadd: "Smaller explosions now rattle the neighboring floor, popping tiles and tossing loose items above/below the blast."
+  - sound: "Explosions now carry their boom and screenshake to linked Z-levels above and below."
+  - config: "Added MULTIZ_EXPLOSIONS and six tunables (min devastation, falloff, sound range/penalty, disturb range/probability) to control cross-Z explosion behavior."
