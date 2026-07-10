@@ -100,6 +100,17 @@ GLOBAL_DATUM_INIT(steal_item_handler, /datum/objective_item_handler, new())
 		var/datum/job/role = possible_thief.assigned_role
 		if(role.title in excludefromjob)
 			return FALSE
+	// Objectives that hand out special equipment (e.g. the nuke core or supermatter kits) rely on the thief
+	// having an uplink to retrieve that gear if it can't be placed directly. Antags without an uplink (such as
+	// blood brothers) have no way to receive it, so they should never roll these objectives.
+	if(length(special_equipment))
+		var/has_uplink = FALSE
+		for(var/datum/mind/possible_thief as anything in potential_thieves)
+			if(possible_thief.current && possible_thief.find_syndicate_uplink())
+				has_uplink = TRUE
+				break
+		if(!has_uplink)
+			return FALSE
 	return TRUE
 
 /// Returns true if the target item exists

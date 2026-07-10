@@ -239,19 +239,28 @@
 	name = "Objective-Specific Equipment"
 	weight = -3
 
-// Special equipment (Dynamically fills in uplink component)
+// Special equipment (Dynamically added to the uplink when objective equipment couldn't be placed on the antag).
+// Delivers whatever equipment failed to be granted via a syndicate supply pod, free of charge.
 /datum/uplink_item/special_equipment
 	category = /datum/uplink_category/objective_special
 	name = "Objective-Specific Equipment"
-	desc = "Equipment necessary for accomplishing specific objectives. If you are seeing this, something has gone wrong."
+	desc = "Call down a supply pod containing the equipment required for your objective. Provided free of charge."
+	item = ABSTRACT_UPLINK_ITEM
+	cost = 0
 	limited_stock = 1
 	uplink_item_flags = SYNDIE_TRIPS_CONTRABAND
-	purchasable_from = parent_type::purchasable_from & ~UPLINK_SPY // Ditto
+	purchasable_from = NONE // Only surfaced by being added to a uplink handler's extra_purchasable.
 
-/datum/uplink_item/special_equipment/purchase(mob/user, datum/component/uplink/U)
-	..()
-	if(user?.mind?.failed_special_equipment)
-		user.mind.failed_special_equipment -= item
+/datum/uplink_item/special_equipment/spawn_item(spawn_path, mob/user, datum/uplink_handler/uplink_handler, atom/movable/source)
+	if(!LAZYLEN(user?.mind?.failed_special_equipment))
+		return source
+	podspawn(list(
+		"target" = get_turf(user),
+		"style" = /datum/pod_style/syndicate,
+		"spawn" = user.mind.failed_special_equipment,
+	))
+	user.mind.failed_special_equipment = null
+	return source // for log icon
 
 /// Code that enables the ability to have limited stock that is shared by different items
 /datum/shared_uplink_stock
