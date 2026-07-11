@@ -359,6 +359,7 @@
 #include "~nova\megacell_charger.dm"
 #include "~nova\neuroware_chips.dm"
 #include "~nova\opposing_force.dm"
+#include "~nova\overmap_fuel_injector.dm"
 #include "~nova\overmap_ruins.dm"
 #include "~nova\shuttle.dm"
 // NOVA EDIT END

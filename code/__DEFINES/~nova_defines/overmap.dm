@@ -105,6 +105,11 @@
 /// Layer-2 propellant manifold between fuel injectors and HNT engines.
 #define OVERMAP_HNT_FEED_LAYER 2
 
+/// Max moles transferred chamber → L2 feed per atmos tick (pressure-regulated).
+#define OVERMAP_FEED_TRANSFER_RATE (MAX_TRANSFER_RATE * 0.15)
+/// Minimum chamber-vs-feed pressure delta (kPa) before feed push runs.
+#define OVERMAP_FEED_MIN_DELTA_P 1
+
 #define OVERMAP_THERMAL_EXHAUST_TEMP 2000
 #define OVERMAP_CHEMICAL_ISP_BONUS 1.15
 #define OVERMAP_EXHAUST_ISP_THRESHOLD 0.5

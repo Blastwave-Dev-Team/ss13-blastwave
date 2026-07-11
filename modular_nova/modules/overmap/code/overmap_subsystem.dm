@@ -515,7 +515,7 @@ SUBSYSTEM_DEF(overmap)
 	var/zone_width = total_size - 2
 	var/zone_height = total_size - 2
 	var/shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
-	for(var/attempt_dir as anything in dir_attempts)
+	for(var/attempt_dir in dir_attempts)
 		var/obj/docking_port/stationary/placed = try_place_encounter_dock(
 			reserve,
 			zone_origin,

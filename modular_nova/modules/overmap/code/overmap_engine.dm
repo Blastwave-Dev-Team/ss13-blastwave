@@ -139,6 +139,8 @@
 
 /obj/machinery/power/shuttle_engine/overmap/proc/get_isp_efficiency()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector?.has_feed_propellant())
+		return fuel_injector_estimate_isp(injector) || injector.base_isp
 	if(injector?.has_propellant())
 		return injector.base_isp
 	return 0
@@ -161,17 +163,15 @@
 	if(!skip_engine_update && !update_engine())
 		return 0
 	var/power_fraction = get_power_fraction()
-	var/isp = get_isp_efficiency()
-	if(!isp)
-		return 0
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector?.has_propellant())
+	if(injector?.has_feed_propellant())
 		var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
 		var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
 		if(ship?.processing_fuel_batch)
+			var/isp = get_isp_efficiency()
 			return thrust * power_fraction * isp * (percentage / 100)
 		var/requested_moles = overmap_engine_propellant_share_moles(thrust, power_fraction, percentage)
-		var/list/burn_result = injector.consume_for_burn(requested_moles, power_fraction)
+		var/list/burn_result = injector.consume_from_feed(requested_moles, power_fraction)
 		var/burn_fraction = burn_result[1]
 		var/effective_isp = burn_result[2]
 		if(burn_fraction <= 0)
@@ -212,7 +212,7 @@
 		return FALSE
 	scan_for_injector()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector?.has_propellant())
+	if(injector?.has_feed_propellant() || injector?.has_propellant())
 		return TRUE
 	thruster_active = FALSE
 	return FALSE

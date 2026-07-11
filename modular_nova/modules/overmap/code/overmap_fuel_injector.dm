@@ -143,13 +143,32 @@
 	return air_contents?.temperature || T20C
 
 /obj/machinery/overmap/fuel_injector/proc/return_fuel()
-	return air_contents?.total_moles() || 0
+	return get_stored_propellant_moles()
 
 /obj/machinery/overmap/fuel_injector/proc/return_fuel_cap()
 	return max_moles
 
+/// Chamber and/or L2 feed have usable propellant (gauges / status pills).
 /obj/machinery/overmap/fuel_injector/proc/has_propellant()
-	return (air_contents?.total_moles() || 0) > 0.01
+	return get_stored_propellant_moles() > 0.01
+
+/// L2 manifold has moles ready for thrust (gates chemical/thermal burn vs hall-only).
+/obj/machinery/overmap/fuel_injector/proc/has_feed_propellant()
+	var/datum/gas_mixture/feed_air = get_feed_air()
+	return (feed_air?.total_moles() || 0) > 0.01
+
+/obj/machinery/overmap/fuel_injector/proc/get_feed_air()
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	if(!feed_pipe?.air || feed_pipe.air.volume <= 0)
+		return null
+	return feed_pipe.air
+
+/obj/machinery/overmap/fuel_injector/proc/get_stored_propellant_moles()
+	var/total = air_contents?.total_moles() || 0
+	var/datum/gas_mixture/feed_air = get_feed_air()
+	if(feed_air)
+		total += feed_air.total_moles()
+	return total
 
 /obj/machinery/overmap/fuel_injector/proc/get_preheat_efficiency()
 	return 1 + 0.1 * (micro_laser_rating - 1)
@@ -165,11 +184,11 @@
 	process_preheat(seconds_per_tick || 0.5)
 	process_chamber_reaction()
 	process_exhaust_filter()
+	process_feed_output()
 
 /// Keep a lit chamber burning: react the mix every tick (same pattern as
-/// portable atmospherics) so ignition self-sustains instead of only reacting
-/// during engine thrust or the one-shot igniter spark. Skipped while
-/// consume_for_burn() owns the mix, since that runs its own react loop.
+/// portable atmospherics) so ignition self-sustains. Skipped while a burn
+/// tick owns the mix via consuming.
 /obj/machinery/overmap/fuel_injector/proc/process_chamber_reaction()
 	if(consuming)
 		return
@@ -231,48 +250,56 @@
 	exhaust_pipe.air.merge(scrubbed)
 	exhaust_connector.gas_connector.update_parents()
 
-/obj/machinery/overmap/fuel_injector/proc/consume_for_burn(requested_moles, power_fraction)
-	if(!requested_moles || !has_propellant())
+/// Continuous pressure-regulated push of post-scrub chamber mix onto the L2 feed manifold.
+/obj/machinery/overmap/fuel_injector/proc/process_feed_output()
+	if(consuming || !air_contents?.total_moles())
+		return
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	if(!feed_pipe?.air || feed_pipe.air.volume <= 0)
+		return
+	var/chamber_pressure = air_contents.return_pressure()
+	var/feed_pressure = feed_pipe.air.return_pressure()
+	if(chamber_pressure <= feed_pressure + OVERMAP_FEED_MIN_DELTA_P)
+		return
+	var/to_transfer = min(OVERMAP_FEED_TRANSFER_RATE, air_contents.total_moles())
+	if(to_transfer <= 0)
+		return
+	var/datum/gas_mixture/removed = air_contents.remove(to_transfer)
+	if(!removed?.total_moles())
+		return
+	feed_pipe.air.merge(removed)
+	feed_connector.gas_connector.update_parents()
+
+/// Pull propellant from the L2 feed for thrust. Chemical bonus when the removed
+/// mix is hot/reacting; otherwise thermal path (gas ISP only). Empty feed → (0, 0)
+/// so HNT can fall through to hall-only.
+/obj/machinery/overmap/fuel_injector/proc/consume_from_feed(requested_moles, power_fraction)
+	if(requested_moles <= 0)
+		return list(0, 0)
+	var/datum/gas_mixture/feed_air = get_feed_air()
+	if(!feed_air?.total_moles())
 		return list(0, 0)
 	consuming = TRUE
-	var/list/before_moles = list()
-	for(var/gas_id in air_contents.gases)
-		before_moles[gas_id] = air_contents.gases[gas_id][MOLES]
+	var/to_remove = min(requested_moles, feed_air.total_moles())
+	var/datum/gas_mixture/removed = feed_air.remove(to_remove)
+	feed_connector.gas_connector.update_parents()
+	if(!removed?.total_moles())
+		consuming = FALSE
+		return list(0, 0)
 
-	// No hidden preheat here: a cold chamber simply reacts nothing and falls
-	// through to thermal expulsion. Players ignite or preheat deliberately.
-	var/chemical_bonus = 1
-	var/reacted = FALSE
-	for(var/i in 1 to OVERMAP_REACT_ITERATIONS)
-		if(!air_contents.react(src))
-			break
-		reacted = TRUE
-	if(reacted)
-		chemical_bonus = OVERMAP_CHEMICAL_ISP_BONUS
+	// Optional thermal assist on cold expulsion (grid pays to superheat remaining demand).
+	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(removed)
+	if(chemical_bonus <= 1 && power_fraction > 0)
+		var/target_temp = min(OVERMAP_THERMAL_EXHAUST_TEMP, removed.temperature + 200)
+		var/cp = removed.heat_capacity()
+		if(cp > 0 && target_temp > removed.temperature)
+			var/energy = cp * (target_temp - removed.temperature)
+			use_energy(energy * clamp(power_fraction, 0.1, 1))
+			removed.set_temperature(target_temp)
 
-	var/n_consumed = 0
-	for(var/gas_id in before_moles)
-		var/current = air_contents.has_gas(gas_id) ? air_contents.gases[gas_id][MOLES] : 0
-		var/lost = before_moles[gas_id] - current
-		if(lost > 0)
-			n_consumed += lost
-	n_consumed = min(n_consumed, requested_moles)
-
-	var/n_thermal = max(0, requested_moles - n_consumed)
-	if(n_thermal > 0)
-		n_consumed += remove_thermal_moles(n_thermal, power_fraction)
-
-	var/burn_fraction = min(n_consumed / requested_moles, 1)
-	var/datum/gas_mixture/expelled = new(CELL_VOLUME)
-	for(var/gas_id in before_moles)
-		var/current = air_contents.has_gas(gas_id) ? air_contents.gases[gas_id][MOLES] : 0
-		var/lost = before_moles[gas_id] - current
-		if(lost > 0)
-			expelled.adjust_gas(gas_id, lost)
-
-	var/effective_isp = base_isp * overmap_gas_isp_multiplier(expelled) * chemical_bonus
+	var/effective_isp = base_isp * overmap_gas_isp_multiplier(removed) * chemical_bonus
+	var/burn_fraction = min(removed.total_moles() / requested_moles, 1)
 	consuming = FALSE
-	burning = burn_fraction > 0
 	update_appearance()
 	return list(burn_fraction, effective_isp)
 
@@ -294,10 +321,10 @@
 		valid += engine
 		total_moles += m_i
 		total_pf += power_fraction
-	if(!length(valid) || total_moles <= 0 || !has_propellant())
+	if(!length(valid) || total_moles <= 0 || !has_feed_propellant())
 		return list()
 	var/weighted_pf = total_pf / length(valid)
-	var/list/burn_result = consume_for_burn(total_moles, weighted_pf)
+	var/list/burn_result = consume_from_feed(total_moles, weighted_pf)
 	var/burn_fraction = burn_result[1]
 	var/effective_isp = burn_result[2]
 	if(burn_fraction <= 0 || effective_isp <= 0)
@@ -368,20 +395,6 @@
 	use_energy(applied / get_preheat_efficiency())
 	air_contents.set_temperature(air_contents.temperature + applied / cp)
 
-/obj/machinery/overmap/fuel_injector/proc/remove_thermal_moles(amount, power_fraction)
-	if(amount <= 0 || !air_contents.total_moles())
-		return 0
-	var/total = air_contents.total_moles()
-	var/to_remove = min(amount, total)
-	var/target_temp = min(OVERMAP_THERMAL_EXHAUST_TEMP, air_contents.temperature + 200)
-	var/cp = air_contents.heat_capacity()
-	if(cp > 0)
-		var/energy = cp * max(target_temp - air_contents.temperature, 0) * (to_remove / total)
-		use_energy(energy * clamp(power_fraction, 0.1, 1))
-		air_contents.set_temperature(target_temp)
-	var/datum/gas_mixture/removed = air_contents.remove(to_remove)
-	return removed?.total_moles() || 0
-
 /obj/machinery/overmap/fuel_injector/proc/can_flameout()
 	if(consuming)
 		return FALSE
@@ -440,6 +453,7 @@
 
 /obj/machinery/overmap/fuel_injector/ui_data(mob/user)
 	var/list/input_data = fuel_injector_pipeline_ui_data(input_connector, max_moles)
+	var/list/feed_data = fuel_injector_pipeline_ui_data(feed_connector, max_moles)
 	var/list/exhaust_data = fuel_injector_pipeline_ui_data(exhaust_connector)
 	exhaust_data["max_pressure"] = MAX_OUTPUT_PRESSURE
 
@@ -450,13 +464,15 @@
 	var/ship_mass = ship_mass_data[1]
 	var/ship_mass_unknown = ship_mass_data[2]
 	var/estimated_isp = fuel_injector_estimate_isp(src)
-	var/gas_multiplier = overmap_gas_isp_multiplier(air_contents)
-	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(air_contents)
+	var/datum/gas_mixture/isp_mix = get_feed_air() || air_contents
+	var/gas_multiplier = overmap_gas_isp_multiplier(isp_mix)
+	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(isp_mix)
 	var/power_fraction = fuel_injector_estimate_power_fraction(src)
 	var/list/manifold = fuel_injector_manifold_share_stats(src)
 
 	. = list(
 		"input" = input_data,
+		"feed" = feed_data,
 		"chamber" = list(
 			"connected" = TRUE,
 			"pressure" = round(return_chamber_pressure(), 0.1),

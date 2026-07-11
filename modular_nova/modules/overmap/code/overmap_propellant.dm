@@ -217,19 +217,22 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 	return count ? total / count : 1
 
 /proc/fuel_injector_estimate_isp(obj/machinery/overmap/fuel_injector/injector)
-	if(!injector?.air_contents)
+	if(!injector)
 		return 0
-	var/gas_multiplier = overmap_gas_isp_multiplier(injector.air_contents)
-	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(injector.air_contents)
+	var/datum/gas_mixture/mix = injector.get_feed_air() || injector.air_contents
+	if(!mix?.total_moles())
+		return 0
+	var/gas_multiplier = overmap_gas_isp_multiplier(mix)
+	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(mix)
 	var/power_fraction = fuel_injector_estimate_power_fraction(injector)
 	return injector.base_isp * gas_multiplier * chemical_bonus * power_fraction
 
 /proc/fuel_injector_estimate_delta_v(obj/machinery/overmap/fuel_injector/injector, ship_mass)
-	if(!ship_mass || !injector?.air_contents?.total_moles())
+	if(!ship_mass || !injector?.has_propellant())
 		return 0
 	var/isp = fuel_injector_estimate_isp(injector)
 	var/list/share_stats = fuel_injector_manifold_share_stats(injector)
-	var/propellant = share_stats["total_tick_moles"] || (injector.air_contents.total_moles() * OVERMAP_PROP_MOLES_PER_THRUST)
+	var/propellant = share_stats["total_tick_moles"] || (injector.get_stored_propellant_moles() * OVERMAP_PROP_MOLES_PER_THRUST)
 	return isp * OVERMAP_G0 * log((ship_mass + propellant) / ship_mass)
 
 /proc/fuel_injector_derive_chamber_status(obj/machinery/overmap/fuel_injector/injector)

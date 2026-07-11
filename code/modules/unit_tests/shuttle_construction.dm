@@ -461,6 +461,23 @@
 
 /datum/unit_test/shuttle_construction/shuttle_reorient_direction
 
+/datum/unit_test/shuttle_construction/shuttle_reorient_direction/proc/restore_testroom_areas(list/turf/hull_turfs)
+	var/area/testroom = GLOB.areas_by_type[/area/misc/testroom]
+	if(!testroom)
+		return
+	var/list/orphan_shuttle_areas = list()
+	for(var/turf/hull as anything in hull_turfs)
+		if(!hull)
+			continue
+		var/area/current = get_area(hull)
+		if(istype(current, /area/shuttle) && current != testroom)
+			orphan_shuttle_areas[current] = TRUE
+		if(current != testroom)
+			set_turf_to_area(hull, testroom)
+	for(var/area/shuttle_area as anything in orphan_shuttle_areas)
+		if(!QDELETED(shuttle_area) && !shuttle_area.has_contained_turfs())
+			qdel(shuttle_area)
+
 /datum/unit_test/shuttle_construction/shuttle_reorient_direction/Run()
 	var/turf/origin = run_loc_floor_bottom_left
 	var/turf/neighbor = get_step(origin, EAST)
@@ -495,13 +512,28 @@
 		TEST_ASSERT_EQUAL(docked.height, shuttle.height, "Docked stationary port should sync height")
 
 	TEST_ASSERT(!reorient_custom_shuttle(shuttle, 5), "Non-cardinal dirs should be rejected")
-	qdel(shuttle)
+
+	// Soft qdel leaves docking_ports alive (parent returns QDEL_HINT_LETMELIVE),
+	// and create_shuttle reparents turfs into /area/shuttle/custom. Both poison
+	// later tests (unregister spam + maptest_area_contents).
+	restore_testroom_areas(turfs)
+	qdel(shuttle, force = TRUE)
+	if(!QDELETED(docked))
+		qdel(docked, force = TRUE)
 
 /datum/unit_test/shuttle_construction/shuttle_reorient_direction/Destroy()
-	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
-	var/turf/neighbor = get_step(run_loc_floor_bottom_left, EAST)
+	var/turf/origin = run_loc_floor_bottom_left
+	var/turf/neighbor = get_step(origin, EAST)
+	restore_testroom_areas(list(origin, neighbor))
+	reset_shuttle_frame_turf(origin)
 	if(neighbor)
 		reset_shuttle_frame_turf(neighbor)
+	// Force-clear any leftover ports soft-qdel left behind on these turfs.
+	for(var/turf/hull as anything in list(origin, neighbor))
+		if(!hull)
+			continue
+		for(var/obj/docking_port/port in hull)
+			qdel(port, force = TRUE)
 	return ..()
 
 #undef RESET_TO_EXPECTED

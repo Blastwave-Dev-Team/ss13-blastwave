@@ -331,7 +331,7 @@
 			if(!engine.enabled || !engine.thruster_active)
 				continue
 			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
-			if(injector?.has_propellant())
+			if(injector?.has_feed_propellant())
 				continue
 			engine.burn_engine(burn_pct, skip_engine_update = TRUE)
 			engine.burning = FALSE
@@ -346,7 +346,7 @@
 		if(!engine.enabled || !engine.thruster_active)
 			continue
 		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
-		if(!injector?.has_propellant())
+		if(!injector?.has_feed_propellant())
 			continue
 		LAZYADD(by_injector[injector], engine)
 	if(!length(by_injector))
@@ -456,7 +456,7 @@
 		if(!engine.enabled)
 			continue
 		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
-		if(injector?.has_propellant())
+		if(injector?.has_feed_propellant())
 			LAZYADD(by_injector[injector], engine)
 			continue
 		thrust_used += engine.burn_engine(percentage)

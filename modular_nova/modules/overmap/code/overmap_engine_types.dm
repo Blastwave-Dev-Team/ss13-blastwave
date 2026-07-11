@@ -53,10 +53,13 @@
 	/// Power draw multiplier while running in hall-only mode.
 	var/hall_only_power_mult = 2.0
 
-/// Hall-only ISP proxy: when the injector is dry we still return the hall efficiency
-/// so the engine reports a non-zero output and stays active on grid power alone.
+/// Hall-only ISP proxy: when the injector feed is dry we still return the hall
+/// efficiency so the engine reports a non-zero output and stays active on grid
+/// power alone. Chamber-only (feed not yet pressurized) uses chamber ISP estimate.
 /obj/machinery/power/shuttle_engine/overmap/standard/get_isp_efficiency()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
+	if(injector?.has_feed_propellant())
+		return fuel_injector_estimate_isp(injector) || injector.base_isp
 	if(injector?.has_propellant())
 		return injector.base_isp
 	return hall_only_efficiency
@@ -85,8 +88,11 @@
 	if(!skip_engine_update && !update_engine())
 		return 0
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector?.has_propellant())
+	if(injector?.has_feed_propellant())
 		return ..(percentage, skip_engine_update = TRUE)
+	// Chamber still has gas but L2 has not pressurized yet — wait, do not hall-only.
+	if(injector?.has_propellant())
+		return 0
 	// Hall-only fallback: reduced thrust, no propellant consumed, higher power cost.
 	var/power_fraction = get_power_fraction()
 	if(power_fraction <= 0)
