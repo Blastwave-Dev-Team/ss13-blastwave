@@ -194,10 +194,7 @@
 		engine.feed_connector.gas_connector,
 	))
 
-	TEST_ASSERT(
-		overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector),
-		"Injector and HNT engine should share the L2 feed pipeline."
-	)
+	TEST_ASSERT(overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector), "Injector and HNT engine should share the L2 feed pipeline.")
 
 	engine.scan_for_injector()
 	TEST_ASSERT(engine.get_linked_injector() == injector, "HNT engine failed to link to the fuel injector.")
@@ -318,10 +315,7 @@
 	TEST_ASSERT(injector.input_connector.gas_connector.parents?[1], "Injector L1 input failed to join a pipenet.")
 	TEST_ASSERT(injector.feed_connector.gas_connector.parents?[1], "Injector L2 feed failed to join a pipenet.")
 	TEST_ASSERT(injector.exhaust_connector.gas_connector.parents?[1], "Injector L3 exhaust failed to join a pipenet.")
-	TEST_ASSERT(
-		overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector),
-		"Injector and HNT engine should share the L2 feed pipeline."
-	)
+	TEST_ASSERT(overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector), "Injector and HNT engine should share the L2 feed pipeline.")
 
 	engine.scan_for_injector()
 	TEST_ASSERT(engine.get_linked_injector() == injector, "HNT engine failed to link to the fuel injector via L2 / area scan.")
