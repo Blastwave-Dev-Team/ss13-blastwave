@@ -20,7 +20,8 @@
 /datum/unit_test/overmap_fuel_injector/Destroy()
 	// Docking ports soft-qdel with QDEL_HINT_LETMELIVE. Force-delete any still
 	// alive in allocated before the parent turf sweep soft-qdels them again.
-	for(var/obj/docking_port/port as anything in allocated)
+	// Copy: deleting while iterating allocated can skip later ports.
+	for(var/obj/docking_port/port in allocated.Copy())
 		if(!QDELETED(port))
 			qdel(port, force = TRUE)
 	return ..()
@@ -59,7 +60,7 @@
 		parts += "[meta ? meta[META_GAS_ID] : gas_path]=[round(moles, 0.01)]"
 	return "P=[round(mix.return_pressure(), 0.1)]kPa T=[round(mix.temperature, 0.1)]K n=[round(mix.total_moles(), 0.01)] {[parts.Join(", ")]}"
 
-/datum/unit_test/overmap_fuel_injector/proc/pipeline_air(datum/gas_machine_connector/connector)
+/datum/unit_test/overmap_fuel_injector/proc/pipeline_air(datum/gas_machine_connector/connector) as /datum/gas_mixture
 	return connector?.gas_connector?.parents?[1]?.air
 
 /datum/unit_test/overmap_fuel_injector/proc/fill_canister_mix(obj/machinery/portable_atmospherics/canister/canister, plasma_frac, oxygen_frac, pressure_kpa, temperature = T20C)
@@ -195,7 +196,7 @@
 
 	TEST_ASSERT(
 		overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector),
-		"Injector and HNT engine should share the L2 feed pipeline.",
+		"Injector and HNT engine should share the L2 feed pipeline."
 	)
 
 	engine.scan_for_injector()
@@ -319,7 +320,7 @@
 	TEST_ASSERT(injector.exhaust_connector.gas_connector.parents?[1], "Injector L3 exhaust failed to join a pipenet.")
 	TEST_ASSERT(
 		overmap_hnt_feed_pipeline(injector.feed_connector) == overmap_hnt_feed_pipeline(engine.feed_connector),
-		"Injector and HNT engine should share the L2 feed pipeline.",
+		"Injector and HNT engine should share the L2 feed pipeline."
 	)
 
 	engine.scan_for_injector()
