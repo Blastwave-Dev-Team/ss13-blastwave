@@ -123,6 +123,8 @@
 #define OVERMAP_PREHEAT_SETPOINT_MAX(rating) (500 + 250 * ((rating) - 1))
 /// Energy (joules) billed per igniter spark attempt, successful or not.
 #define OVERMAP_IGNITE_SPARK_ENERGY 2000
+/// Throttle below this is treated as "no thrust" for propellant draw.
+#define OVERMAP_THRUST_EPSILON 0.01
 
 // --- Ship control flags (bitfield) ---
 

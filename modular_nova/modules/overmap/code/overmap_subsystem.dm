@@ -291,9 +291,34 @@ SUBSYSTEM_DEF(overmap)
 /// `Initialize` instead.
 /datum/controller/subsystem/overmap/proc/bind_existing_shuttles()
 	for(var/obj/docking_port/mobile/port in SSshuttle.mobile_docking_ports)
-		if(istype(port, /obj/docking_port/mobile/arrivals) || istype(port, /obj/docking_port/mobile/arrivals_nova))
-			continue
 		setup_shuttle_ship(port)
+
+/// Whether this mobile port should get an overmap ship icon. Transit shuttles
+/// (escape, supply, ferry, pods, arrivals, …) must not pollute the map/radar.
+/datum/controller/subsystem/overmap/proc/should_bind_shuttle(obj/docking_port/mobile/port)
+	if(!port)
+		return FALSE
+	if(istype(port, /obj/docking_port/mobile/overmap))
+		return TRUE
+	if(istype(port, /obj/docking_port/mobile/custom))
+		return TRUE
+	// Oddly typed ports that still use overmap fighter/frigate areas.
+	return ship_type_for_port(port) != /obj/structure/overmap/ship/simulated
+
+/// Pick the simulated ship subtype from the port's area_type / shuttle_areas.
+/// Frigate and fighter areas map to their control-flag presets; everything
+/// else (mining shuttles, etc.) stays on the base /simulated type.
+/datum/controller/subsystem/overmap/proc/ship_type_for_port(obj/docking_port/mobile/port)
+	if(ispath(port.area_type, /area/shuttle/overmap/fighter))
+		return /obj/structure/overmap/ship/simulated/fighter
+	if(ispath(port.area_type, /area/shuttle/overmap/frigate))
+		return /obj/structure/overmap/ship/simulated/frigate
+	for(var/area/shuttle_area as anything in port.shuttle_areas)
+		if(istype(shuttle_area, /area/shuttle/overmap/fighter))
+			return /obj/structure/overmap/ship/simulated/fighter
+		if(istype(shuttle_area, /area/shuttle/overmap/frigate))
+			return /obj/structure/overmap/ship/simulated/frigate
+	return /obj/structure/overmap/ship/simulated
 
 /// Create an overmap ship icon for a single mobile docking port. Resolves
 /// the port's Z to a known POI; if the port lives on a reserved/CentCom
@@ -302,12 +327,16 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/setup_shuttle_ship(obj/docking_port/mobile/port)
 	if(!port || port.current_ship)
 		return
+	if(!should_bind_shuttle(port))
+		return
 	var/obj/structure/overmap/level/parent_level = get_overmap_object_by_z(port.z)
+	var/ship_path = ship_type_for_port(port)
 	var/obj/structure/overmap/ship/simulated/ship
 	if(parent_level)
-		ship = new(parent_level, port.shuttle_id, port)
+		ship = new ship_path(parent_level, port.shuttle_id, port)
 		ship.docked = parent_level
 		ship.state = OVERMAP_SHIP_IDLE
+		ship.home_level_id = parent_level.id
 	else if(SSmapping.level_trait(port.z, ZTRAIT_RESERVED))
 		// In transit (e.g. Shuttle Manipulator load, or a shuttle that hasn't
 		// landed yet). Park the icon on the station's overmap tile and treat
@@ -316,13 +345,15 @@ SUBSYSTEM_DEF(overmap)
 		// a manual undock. Falls back to a random empty tile if main is unset.
 		var/turf/parked = main ? get_turf(main) : get_unused_overmap_square()
 		if(parked)
-			ship = new(parked, port.shuttle_id, port)
+			ship = new ship_path(parked, port.shuttle_id, port)
 			ship.state = OVERMAP_SHIP_FLYING
+			if(main)
+				ship.home_level_id = MAIN_OVERMAP_OBJECT_ID
 			ship.prepare_for_flight()
 	else if(is_centcom_level(port.z))
 		// CentCom is intentionally off-grid. Icon lives in nullspace until
 		// the shuttle returns to a known POI.
-		ship = new(null, port.shuttle_id, port)
+		ship = new ship_path(null, port.shuttle_id, port)
 	else
 		// Ruin, away, and other off-grid shuttles are expected here.
 		return
@@ -460,6 +491,32 @@ SUBSYSTEM_DEF(overmap)
 			return FALSE
 	return TRUE
 
+/// Whether a stationary dock's footprint is safe to land on — open space / plating
+/// / lava / openspace / misc only, matching the nav console whitelist. Rejects
+/// ruin floors, walls, indestructible turfs, and dense anchored obstacles.
+/datum/controller/subsystem/overmap/proc/dock_footprint_is_clear(obj/docking_port/stationary/port)
+	if(!port)
+		return FALSE
+	var/static/list/allowed_turfs = typecacheof(list(
+		/turf/open/space,
+		/turf/open/floor/plating,
+		/turf/open/lava,
+		/turf/open/openspace,
+		/turf/open/misc,
+	))
+	for(var/turf/T in port.return_turfs())
+		if(!is_type_in_typecache(T.type, allowed_turfs))
+			return FALSE
+		for(var/obj/obstacle in T)
+			if(!obstacle.density || !obstacle.anchored)
+				continue
+			if(istype(obstacle, /obj/machinery/door))
+				continue
+			if(istype(obstacle, /obj/docking_port))
+				continue
+			return FALSE
+	return TRUE
+
 /// Try to place a stationary encounter dock at `dir`, centered in a rectangle
 /// inside `reserve` (same placement math as helm landing-zone ports).
 /datum/controller/subsystem/overmap/proc/try_place_encounter_dock(
@@ -495,13 +552,13 @@ SUBSYSTEM_DEF(overmap)
 	port.height = shuttle.height
 	port.dwidth = shuttle.dwidth
 	port.dheight = shuttle.dheight
-	if(!dock_port_fits_reservation(reserve, port) || !shuttle.check_dock(port, TRUE))
+	if(!dock_port_fits_reservation(reserve, port) || !shuttle.check_dock(port, TRUE) || !dock_footprint_is_clear(port))
 		qdel(port)
 		return null
 	return port
 
 /// Prefer `shuttle.dir` for encounter docks; rotate only when that heading
-/// cannot fit inside the surveyed footprint.
+/// cannot fit inside the surveyed west dock band (ruins occupy the east half).
 /datum/controller/subsystem/overmap/proc/place_encounter_primary_dock(
 	datum/turf_reservation/reserve,
 	turf/bottom_left,
@@ -512,7 +569,7 @@ SUBSYSTEM_DEF(overmap)
 	list/dir_attempts,
 )
 	var/turf/zone_origin = locate(bottom_left.x + 1, bottom_left.y + 1, bottom_left.z)
-	var/zone_width = total_size - 2
+	var/zone_width = dock_size
 	var/zone_height = total_size - 2
 	var/shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
 	for(var/attempt_dir in dir_attempts)
@@ -899,8 +956,8 @@ SUBSYSTEM_DEF(overmap)
 	// Neutral viewers see everything
 	return TRUE
 
-/// Resolve the faction affiliation of an overmap object. Ships derive
-/// affiliation from their home Z; levels use their own ID.
+/// Resolve the faction affiliation of an overmap object. Ships use their
+/// pinned `home_level_id` (set at bind time); levels use their own ID.
 /datum/controller/subsystem/overmap/proc/get_affiliation(obj/structure/overmap/thing)
 	if(!thing)
 		return OVERMAP_AFFILIATION_NEUTRAL
@@ -912,12 +969,9 @@ SUBSYSTEM_DEF(overmap)
 			return OVERMAP_AFFILIATION_DS2
 	if(istype(thing, /obj/structure/overmap/ship/simulated))
 		var/obj/structure/overmap/ship/simulated/ship = thing
-		if(ship.shuttle)
-			var/home_z = ship.shuttle.z
-			var/obj/structure/overmap/level/home_level = get_overmap_object_by_z(home_z)
-			if(home_level)
-				if(home_level.id == DES_TWO_OVERMAP_OBJECT_ID)
-					return OVERMAP_AFFILIATION_DS2
-				if(home_level.id == MAIN_OVERMAP_OBJECT_ID)
-					return OVERMAP_AFFILIATION_NT
+		switch(ship.home_level_id)
+			if(DES_TWO_OVERMAP_OBJECT_ID)
+				return OVERMAP_AFFILIATION_DS2
+			if(MAIN_OVERMAP_OBJECT_ID)
+				return OVERMAP_AFFILIATION_NT
 	return OVERMAP_AFFILIATION_NEUTRAL

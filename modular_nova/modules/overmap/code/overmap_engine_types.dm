@@ -26,6 +26,8 @@
 		return 0
 	if(!skip_engine_update && !update_engine())
 		return 0
+	if(percentage <= 0 || !ship_wants_thrust())
+		return 0
 	return thrust * (percentage / 100)
 
 /obj/machinery/power/shuttle_engine/overmap/void/return_fuel()
@@ -86,6 +88,8 @@
 	if(!enabled)
 		return 0
 	if(!skip_engine_update && !update_engine())
+		return 0
+	if(percentage <= 0 || !ship_wants_thrust())
 		return 0
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_feed_propellant())

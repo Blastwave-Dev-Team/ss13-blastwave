@@ -1,0 +1,592 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aM" = (
+/obj/machinery/cell_charger_multi/wall_mounted/directional/east,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"ba" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1;
+	pipe_color = "#FFA62B"
+	},
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle/exploration/hazard,
+/area/shuttle/overmap/frigate)
+"ck" = (
+/obj/machinery/light/directional/south,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/exploration/hazard,
+/area/shuttle/overmap/frigate)
+"da" = (
+/turf/open/space/basic,
+/area/space)
+"dU" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"fD" = (
+/obj/structure/deployable_barricade/metal/plasteel{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"fJ" = (
+/obj/structure/chair/comfy/shuttle/tactical,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"fK" = (
+/obj/machinery/power/megacell_charger/wall{
+	pixel_y = 26
+	},
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 8
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"gw" = (
+/obj/machinery/overmap/fuel_injector,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"ij" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"jV" = (
+/obj/machinery/door/airlock/command/glass,
+/obj/effect/mapping_helpers/airlock/access/all/command,
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"kG" = (
+/obj/structure/deployable_barricade/metal/plasteel{
+	dir = 8
+	},
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"kI" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/exploration/blanktile,
+/area/shuttle/overmap/frigate)
+"lK" = (
+/obj/structure/cable,
+/obj/machinery/door/airlock/engineering/glass,
+/obj/effect/mapping_helpers/airlock/access/any/engineering/engine_equipment,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"lP" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"mF" = (
+/obj/structure/window/reinforced/spawner/directional/west,
+/obj/machinery/power/port_gen/pacman/super{
+	sheets = 20;
+	anchored = 1
+	},
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"mZ" = (
+/obj/machinery/atmospherics/components/unary/portables_connector{
+	dir = 1;
+	piping_layer = 4;
+	pipe_color = "#FFA62B"
+	},
+/obj/machinery/portable_atmospherics/canister/air,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"nt" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1;
+	pipe_color = "#FFA62B"
+	},
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"oQ" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 8
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"qc" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1;
+	pipe_color = "#FFA62B"
+	},
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"rW" = (
+/obj/structure/window/reinforced/shuttle/tinted,
+/turf/open/floor/iron/shuttle/exploration/hazard,
+/area/shuttle/overmap/frigate)
+"tT" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 4
+	},
+/obj/machinery/light/directional/south,
+/turf/open/floor/iron/shuttle/exploration/side{
+	dir = 1
+	},
+/area/shuttle/overmap/frigate)
+"wv" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"wD" = (
+/obj/structure/cable,
+/obj/machinery/power/smes/connector,
+/obj/machinery/smesbank/super/full,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"xa" = (
+/obj/machinery/computer/helm{
+	dir = 8
+	},
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle/exploration/corner{
+	dir = 8
+	},
+/area/shuttle/overmap/frigate)
+"xw" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"yn" = (
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"yR" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 8
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"zY" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"Cp" = (
+/obj/machinery/light/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"Er" = (
+/obj/structure/window/reinforced/spawner/directional/west,
+/obj/structure/closet/secure_closet/armory_kiboko,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"EY" = (
+/obj/machinery/door/airlock/external/glass,
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"Gb" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"Ir" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 4;
+	pipe_color = "#FF0000"
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Jd" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"Lx" = (
+/obj/structure/cable,
+/obj/machinery/telecomms/relay/preset/auto,
+/turf/open/floor/iron/shuttle/exploration/side{
+	dir = 8
+	},
+/area/shuttle/overmap/frigate)
+"LL" = (
+/obj/structure/lattice,
+/turf/open/space/basic,
+/area/shuttle/overmap/frigate)
+"LS" = (
+/obj/structure/chair/comfy/shuttle/tactical,
+/obj/machinery/light/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"OZ" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 4
+	},
+/obj/structure/cable,
+/obj/machinery/light/directional/north,
+/turf/open/floor/iron/shuttle/exploration/side,
+/area/shuttle/overmap/frigate)
+"QM" = (
+/obj/structure/closet/emcloset/wall,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"QP" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"Rb" = (
+/obj/structure/closet/emcloset/wall,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"SI" = (
+/obj/machinery/power/apc/auto_name/directional/north,
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle/exploration/side,
+/area/shuttle/overmap/frigate)
+"US" = (
+/obj/machinery/light/floor/transport,
+/turf/open/floor/iron/shuttle/exploration/hazard,
+/area/shuttle/overmap/frigate)
+"UV" = (
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle/exploration/corner,
+/area/shuttle/overmap/frigate)
+"Vd" = (
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/exploration/corner{
+	dir = 1
+	},
+/area/shuttle/overmap/frigate)
+"Vr" = (
+/obj/machinery/atmospherics/components/binary/volume_pump/on{
+	pipe_color = "#FF0000"
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"VA" = (
+/obj/machinery/atmospherics/components/unary/portables_connector/visible{
+	dir = 1;
+	piping_layer = 1;
+	pipe_color = "#0000FF"
+	},
+/obj/machinery/portable_atmospherics/canister{
+	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
+	name = "propellant gas mix"
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"VT" = (
+/turf/open/floor/iron/shuttle/exploration/blanktile,
+/area/shuttle/overmap/frigate)
+"Wu" = (
+/obj/machinery/door/airlock/external/glass,
+/obj/docking_port/mobile/overmap/frigate/solfed_cutter,
+/turf/open/floor/iron/shuttle/exploration/hazard,
+/area/shuttle/overmap/frigate)
+"WN" = (
+/obj/structure/window/reinforced/shuttle/tinted,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"XR" = (
+/obj/structure/cable,
+/obj/machinery/computer/monitor{
+	dir = 4
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"ZA" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 4;
+	pipe_color = "#FFA62B"
+	},
+/turf/open/floor/iron/shuttle/exploration/side{
+	dir = 1
+	},
+/area/shuttle/overmap/frigate)
+"ZU" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+
+(1,1,1) = {"
+LL
+da
+zY
+Wu
+zY
+rW
+zY
+da
+Ir
+da
+da
+da
+"}
+(2,1,1) = {"
+zY
+da
+dU
+ba
+US
+ck
+zY
+da
+zY
+da
+da
+da
+"}
+(3,1,1) = {"
+zY
+oQ
+dU
+EY
+QM
+lP
+zY
+oQ
+zY
+da
+da
+da
+"}
+(4,1,1) = {"
+zY
+Er
+ij
+yn
+xw
+lP
+XR
+mF
+zY
+da
+da
+da
+"}
+(5,1,1) = {"
+zY
+LS
+ij
+kG
+fD
+lP
+fK
+Vr
+zY
+da
+da
+da
+"}
+(6,1,1) = {"
+zY
+fJ
+ij
+yn
+qc
+dU
+Cp
+gw
+zY
+da
+da
+da
+"}
+(7,1,1) = {"
+zY
+fJ
+ij
+yn
+zY
+Rb
+Jd
+VA
+zY
+da
+da
+da
+"}
+(8,1,1) = {"
+zY
+LS
+aM
+QP
+lK
+Gb
+ZU
+wD
+zY
+da
+da
+da
+"}
+(9,1,1) = {"
+zY
+zY
+zY
+jV
+wv
+nt
+yR
+mZ
+zY
+da
+da
+da
+"}
+(10,1,1) = {"
+zY
+zY
+QM
+UV
+wv
+dU
+zY
+zY
+zY
+da
+da
+da
+"}
+(11,1,1) = {"
+da
+zY
+zY
+SI
+kI
+ZA
+zY
+zY
+da
+da
+da
+da
+"}
+(12,1,1) = {"
+da
+da
+zY
+OZ
+VT
+tT
+zY
+da
+da
+da
+da
+da
+"}
+(13,1,1) = {"
+da
+da
+WN
+xa
+Lx
+Vd
+WN
+da
+da
+da
+da
+da
+"}
+(14,1,1) = {"
+da
+da
+WN
+WN
+WN
+WN
+WN
+da
+da
+da
+da
+da
+"}
+(15,1,1) = {"
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+"}
+(16,1,1) = {"
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+"}
+(17,1,1) = {"
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+"}
+(18,1,1) = {"
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+da
+"}

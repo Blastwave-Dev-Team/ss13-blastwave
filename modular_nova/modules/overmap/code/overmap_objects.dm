@@ -124,6 +124,12 @@
 		cam_screen = new
 		cam_screen.generate_view(map_name)
 		update_screen(TRUE)
+	// new(turf) may skip Moved — seed same-tile peers here.
+	if(isturf(loc))
+		for(var/obj/structure/overmap/peer in loc)
+			if(peer == src)
+				continue
+			peer.on_overmap_crossed(src, null)
 
 /obj/structure/overmap/Destroy()
 	LAZYREMOVE(SSovermap.overmap_objects, src)
@@ -151,11 +157,14 @@
 
 /obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
 	. = ..()
-	if(old_loc && loc != old_loc)
+	if(loc == old_loc)
+		return
+	if(isturf(old_loc))
 		for(var/obj/structure/overmap/peer in old_loc)
 			if(peer == src)
 				continue
 			peer.on_overmap_uncrossed(src, loc)
+	if(isturf(loc))
 		for(var/obj/structure/overmap/peer in loc)
 			if(peer == src)
 				continue
@@ -372,6 +381,8 @@
 	if(!istype(loc, /turf) || !istype(other))
 		return
 	if(other == src)
+		return
+	if(other in close_overmap_objects)
 		return
 	LAZYADD(other.close_overmap_objects, src)
 	LAZYADD(close_overmap_objects, other)

@@ -131,6 +131,12 @@
 /obj/machinery/power/shuttle_engine/overmap/proc/get_linked_injector()
 	return linked_injector?.resolve()
 
+/// TRUE when the bound overmap ship is commanding thrust (desired_throttle above epsilon).
+/obj/machinery/power/shuttle_engine/overmap/proc/ship_wants_thrust()
+	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
+	return !isnull(ship) && ship.desired_throttle > OVERMAP_THRUST_EPSILON
+
 /obj/machinery/power/shuttle_engine/overmap/proc/get_power_fraction()
 	if(!powernet)
 		return 0
@@ -161,6 +167,8 @@
 	if(!enabled)
 		return 0
 	if(!skip_engine_update && !update_engine())
+		return 0
+	if(percentage <= 0 || !ship_wants_thrust())
 		return 0
 	var/power_fraction = get_power_fraction()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()

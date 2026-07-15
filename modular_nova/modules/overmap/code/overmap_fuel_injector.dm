@@ -37,6 +37,9 @@
 	var/list/intake_filter = list()
 	/// Assoc gas_path -> TRUE if scrubbed from chamber to L3.
 	var/list/scrub_filter = list()
+	/// When TRUE, every atmos tick logs L1/chamber/L2/L3 pipenet snapshots to INVESTIGATE_ATMOS.
+	/// Also auto-enabled while the preheater is on so preignition flux is captureable.
+	var/log_pipenet = FALSE
 
 /obj/machinery/overmap/fuel_injector/Initialize(mapload)
 	. = ..()
@@ -180,11 +183,33 @@
 	if(link_rescan_counter >= 20)
 		link_rescan_counter = 0
 		update_linked_engines()
+	var/should_log = log_pipenet || preheat_enabled || burning
+	if(should_log)
+		log_pipenet_state("pre")
 	process_intake()
 	process_preheat(seconds_per_tick || 0.5)
 	process_chamber_reaction()
 	process_exhaust_filter()
 	process_feed_output()
+	if(should_log)
+		log_pipenet_state("post")
+
+/// Snapshot chamber + L1 intake / L2 feed / L3 exhaust pipenets for investigate logs.
+/obj/machinery/overmap/fuel_injector/proc/log_pipenet_state(phase)
+	var/datum/pipeline/intake_pipe = input_connector?.gas_connector?.parents?[1]
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	var/datum/pipeline/exhaust_pipe = exhaust_connector?.gas_connector?.parents?[1]
+	var/list/parts = list(
+		"phase=[phase]",
+		"preheat=[preheat_enabled]/[round(preheat_setpoint)]K",
+		"burning=[burning]",
+		"consuming=[consuming]",
+		"chamber n=[round(air_contents?.total_moles() || 0, 0.001)] T=[round(air_contents?.temperature || 0, 0.1)] P=[round(air_contents?.return_pressure() || 0, 0.1)]",
+		"L1 n=[round(intake_pipe?.air?.total_moles() || 0, 0.001)] P=[round(intake_pipe?.air?.return_pressure() || 0, 0.1)] vol=[intake_pipe?.air?.volume || 0]",
+		"L2 n=[round(feed_pipe?.air?.total_moles() || 0, 0.001)] P=[round(feed_pipe?.air?.return_pressure() || 0, 0.1)] vol=[feed_pipe?.air?.volume || 0]",
+		"L3 n=[round(exhaust_pipe?.air?.total_moles() || 0, 0.001)] P=[round(exhaust_pipe?.air?.return_pressure() || 0, 0.1)] vol=[exhaust_pipe?.air?.volume || 0]",
+	)
+	investigate_log("pipenet [jointext(parts, " | ")]", INVESTIGATE_ATMOS)
 
 /// Keep a lit chamber burning: react the mix every tick (same pattern as
 /// portable atmospherics) so ignition self-sustains. Skipped while a burn
@@ -304,7 +329,7 @@
 	return list(burn_fraction, effective_isp)
 
 /obj/machinery/overmap/fuel_injector/proc/process_tick_burn(list/obj/machinery/power/shuttle_engine/overmap/engines, burn_pct)
-	if(!length(engines) || consuming)
+	if(!length(engines) || consuming || burn_pct <= 0)
 		return list()
 	var/list/valid = list()
 	var/total_moles = 0
@@ -313,6 +338,8 @@
 		if(!engine || engine.get_linked_injector() != src)
 			continue
 		if(!engine.enabled || !engine.thruster_active)
+			continue
+		if(!engine.ship_wants_thrust())
 			continue
 		var/power_fraction = engine.get_power_fraction()
 		var/m_i = overmap_engine_propellant_share_moles(engine.thrust, power_fraction, burn_pct)
@@ -329,6 +356,8 @@
 	var/effective_isp = burn_result[2]
 	if(burn_fraction <= 0 || effective_isp <= 0)
 		return list()
+	if(log_pipenet || preheat_enabled || burning)
+		investigate_log("feed burn request=[round(total_moles, 0.001)] fraction=[round(burn_fraction, 0.001)] isp=[round(effective_isp, 0.01)] engines=[length(valid)] pct=[round(burn_pct, 0.1)]", INVESTIGATE_ATMOS)
 	var/list/thrust_results = list()
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in valid)
 		var/power_fraction = engine.get_power_fraction()
@@ -562,6 +591,8 @@
 			. = TRUE
 		if("toggle_preheat")
 			preheat_enabled = !preheat_enabled
+			if(preheat_enabled)
+				investigate_log("preheater enabled (setpoint [round(preheat_setpoint)] K)", INVESTIGATE_ATMOS)
 			. = TRUE
 		if("set_preheat_target")
 			var/target = text2num(params["target"])

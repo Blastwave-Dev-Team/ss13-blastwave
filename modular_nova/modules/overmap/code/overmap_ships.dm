@@ -79,7 +79,7 @@
 /obj/structure/overmap/ship/proc/set_desired(angle, throttle)
 	desired_angle = angle
 	desired_throttle = clamp(throttle, 0, 1)
-	has_heading = desired_throttle > 0.01
+	has_heading = desired_throttle > OVERMAP_THRUST_EPSILON
 	if(has_heading && is_still())
 		activate_physics()
 
@@ -272,6 +272,9 @@
 	var/list/nav_dock_zs
 	/// Stationary dock IDs relevant to the pending target (for jump-to-location in the nav UI).
 	var/list/nav_dock_ids
+	/// Overmap level id this ship was bound under (MAIN / DES_TWO). Used for
+	/// stealth affiliation while the hull sits on a reserved transit Z.
+	var/home_level_id
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -284,6 +287,9 @@
 		name = shuttle.name
 	if(istype(loc, /obj/structure/overmap))
 		docked = loc
+	if(isnull(home_level_id) && istype(docked, /obj/structure/overmap/level))
+		var/obj/structure/overmap/level/home_level = docked
+		home_level_id = home_level.id
 	addtimer(CALLBACK(src, PROC_REF(scan)), 1 SECONDS)
 
 /// Idempotently apply the post-undock state machine: mass + engines + fuel
@@ -323,7 +329,7 @@
 	calculate_avg_fuel()
 	if(avg_fuel_amnt < 1)
 		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
-	if(desired_throttle > 0.01)
+	if(desired_throttle > OVERMAP_THRUST_EPSILON)
 		refresh_engines()
 		var/burn_pct = desired_throttle * 100 * dt * 10
 		process_engine_fuel_burns(burn_pct)
@@ -442,14 +448,22 @@
 	avg_fuel_amnt = count ? round(sum / count * 100) : 0
 
 /// Burn engines in `n_dir`. Converts thrust into a desired heading/throttle.
-/// With no `n_dir`, applies braking.
+/// With no `n_dir`, applies braking (no propellant draw).
 /obj/structure/overmap/ship/simulated/proc/burn_engines(n_dir = null, percentage = 100)
 	if(state != OVERMAP_SHIP_FLYING)
+		return
+	if(!n_dir)
+		all_stop()
 		return
 	refresh_engines()
 	if(!mass)
 		calculate_mass()
 	calculate_avg_fuel()
+	// Apply commanded thrust before consuming so ship_wants_thrust() gates pass.
+	burn_direction(n_dir, clamp(percentage / 100, 0, 1))
+	if(percentage <= 0 || desired_throttle <= OVERMAP_THRUST_EPSILON)
+		est_thrust = 0
+		return
 	var/thrust_used = 0
 	var/list/by_injector = list()
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
@@ -468,10 +482,6 @@
 				thrust_used += thrust_results[engine]
 		processing_fuel_batch = FALSE
 	est_thrust = thrust_used
-	if(n_dir)
-		burn_direction(n_dir, clamp(percentage / 100, 0, 1))
-	else
-		all_stop()
 
 /// Detach the ship from its current docked overmap object and start flight.
 /obj/structure/overmap/ship/simulated/proc/undock()
@@ -574,7 +584,11 @@
 			return error
 		var/dock_result = dock(encounter, lz_ref)
 		if(state != OVERMAP_SHIP_DOCKING)
-			encounter.unload_level()
+			var/still_inbound = shuttle && shuttle.destination && (
+				shuttle.mode == SHUTTLE_CALL || shuttle.mode == SHUTTLE_IGNITING || shuttle.mode == SHUTTLE_PREARRIVAL
+			)
+			if(!still_inbound)
+				encounter.unload_level()
 		return dock_result
 	if(istype(target, /obj/structure/overmap/level))
 		return dock(target, lz_ref)
@@ -637,7 +651,7 @@
 	port.register(TRUE)
 	port.setDir(shuttle.dir)
 	port.forceMove(dest)
-	if(!shuttle.check_dock(port, TRUE))
+	if(!shuttle.check_dock(port, TRUE) || !SSovermap.dock_footprint_is_clear(port))
 		qdel(port)
 		return null
 	return port
@@ -655,6 +669,8 @@
 /// shuttle to fly to it. If `lz_ref` is given, dock at that landing zone
 /// instead of searching pre-mapped ports.
 /obj/structure/overmap/ship/simulated/proc/dock(obj/structure/overmap/target, lz_ref)
+	if(state == OVERMAP_SHIP_DOCKING)
+		return "Docking already in progress."
 	if(state != OVERMAP_SHIP_FLYING)
 		return "Ship is not in flight."
 	if(!is_still())
@@ -663,6 +679,8 @@
 		return "Shuttle not found."
 	if(!SSovermap.can_view_installation(src, target))
 		return "Unable to establish docking link with target."
+	if(!shuttle.canMove())
+		return "Engines not responding! Ensure engines are installed and welded to the hull."
 
 	var/obj/docking_port/stationary/picked
 
@@ -680,7 +698,7 @@
 		// The pad has to actually be on the target body: a pad designated on
 		// another planet must not let you "dock" here.
 		var/obj/docking_port/stationary/designated = find_dock_quiet("[shuttle.shuttle_id]_custom")
-		if(designated && (designated.z in target_zs) && shuttle.check_dock(designated, TRUE))
+		if(designated && (designated.z in target_zs) && shuttle.check_dock(designated, TRUE) && SSovermap.dock_footprint_is_clear(designated))
 			picked = designated
 
 		var/list/candidates = list(
@@ -701,6 +719,8 @@
 					continue
 				if(!shuttle.check_dock(found, TRUE))
 					continue
+				if(!SSovermap.dock_footprint_is_clear(found))
+					continue
 				picked = found
 				break
 
@@ -717,13 +737,26 @@
 		state = OVERMAP_SHIP_FLYING
 		update_screen(TRUE)
 		return "Docking lock rejected — no confirmed approach corridor at [target.name]. Re-run survey or select a landing zone."
+	if(!SSovermap.dock_footprint_is_clear(picked))
+		docked = null
+		state = OVERMAP_SHIP_FLYING
+		update_screen(TRUE)
+		return "Docking lock rejected — landing corridor at [target.name] is obstructed. Select a clear landing zone."
 	shuttle.request(picked)
-	if(shuttle.mode != SHUTTLE_IGNITING || shuttle.destination != picked)
+	// SHUTTLE_CALL / PREARRIVAL with matching destination is a successful commit.
+	var/shuttle_committed = (shuttle.destination == picked) && (
+		shuttle.mode == SHUTTLE_IGNITING || shuttle.mode == SHUTTLE_CALL || shuttle.mode == SHUTTLE_PREARRIVAL
+	)
+	if(!shuttle_committed)
 		docked = null
 		state = OVERMAP_SHIP_FLYING
 		update_screen(TRUE)
 		return "Docking lock rejected — engines could not commit to the surveyed corridor at [target.name]."
-	var/transit_time = shuttle.ignitionTime + (shuttle.callTime * shuttle.engine_coeff) + (3 SECONDS)
+	var/transit_time
+	if(shuttle.mode == SHUTTLE_CALL || shuttle.mode == SHUTTLE_PREARRIVAL)
+		transit_time = shuttle.timeLeft(1) + (3 SECONDS)
+	else
+		transit_time = shuttle.ignitionTime + (shuttle.callTime * shuttle.engine_coeff) + (3 SECONDS)
 	addtimer(CALLBACK(src, PROC_REF(complete_dock)), transit_time)
 	return "Commencing docking at [target.name]..."
 
