@@ -363,6 +363,7 @@
 #include "~nova\overmap_dock_safety.dm"
 #include "~nova\overmap_fuel_injector.dm"
 #include "~nova\overmap_ruins.dm"
+#include "~nova\overmap_site_seeding.dm"
 #include "~nova\shuttle.dm"
 // NOVA EDIT END
 // END_INCLUDE

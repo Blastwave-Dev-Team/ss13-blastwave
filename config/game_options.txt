@@ -641,7 +641,13 @@ MAX_OVERMAP_EVENTS 12
 MAX_OVERMAP_EVENT_CLUSTERS 3
 ## Maximum dynamic encounter objects (dockable ruins/anomalies).
 MAX_OVERMAP_DYNAMIC_EVENTS 4
-## Maximum named ruin site POIs on the overmap (budget-fill cap after always_place).
+## Maximum named ruin templates placed as overmap sites (budget-fill cap after always_place).
+## Real Z count is solos + ceil(smalls / OVERMAP_CLUSTER_CAPACITY), not this number.
 MAX_OVERMAP_NAMED_SITES 10
+## Small ruins (≤30 on a side) packed per shared cluster Z-level.
+OVERMAP_CLUSTER_CAPACITY 4
+## Landing zones per named site Z (supports multi-ship docking; uncontrolled sites
+## expose one random LZ per approaching ship).
+OVERMAP_SITE_LZ_COUNT 3
 ## Maximum per-side dimension (tiles) for a player-constructed landing zone (sized to the largest evac shuttle).
 MAX_OVERMAP_LANDING_ZONE_DIMENSION 80

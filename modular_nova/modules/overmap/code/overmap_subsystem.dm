@@ -776,14 +776,16 @@ SUBSYSTEM_DEF(overmap)
 
 /// Seed named space ruin POIs onto the overmap grid. Priority pass for
 /// always_place ruins, then budget fill from the weighted space ruin pool.
+/// Small ruins pack onto shared cluster Zs; large ruins get a solo Z each.
 /// Only called when `overmap_space_ruins` is TRUE on the map config.
 /datum/controller/subsystem/overmap/proc/seed_space_sites()
 	var/list/space_ruins = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
 	if(!length(space_ruins))
 		return
 
-	var/list/placed_template_ids = list()
+	var/list/datum/map_template/ruin/placed = list()
 	var/max_sites = CONFIG_GET(number/max_overmap_named_sites)
+	var/cluster_capacity = CONFIG_GET(number/overmap_cluster_capacity)
 
 	// Priority pass: always_place ruins get guaranteed slots.
 	for(var/ruin_name in space_ruins)
@@ -792,13 +794,8 @@ SUBSYSTEM_DEF(overmap)
 			candidate = new candidate
 		if(!candidate.always_place)
 			continue
-		var/obj/structure/overmap/level/site/site = spawn_overmap_site(candidate)
-		if(site)
-			placed_template_ids += candidate.id
-			placed_site_template_ids += candidate.id
-			// DS2 gets installation stealth
-			if(candidate.id == "des_two")
-				site.installation_stealth = TRUE
+		placed += candidate
+		placed_site_template_ids += candidate.id
 
 	// Budget fill: pick from remaining weighted pool up to max_sites.
 	var/budget = CONFIG_GET(number/space_budget)
@@ -809,95 +806,95 @@ SUBSYSTEM_DEF(overmap)
 			candidate = new candidate
 		if(candidate.always_place || candidate.unpickable)
 			continue
-		if(candidate.id in placed_template_ids)
+		if(candidate.id in placed_site_template_ids)
 			continue
 		available[candidate] = candidate.placement_weight
 
-	while(budget > 0 && length(available) && length(placed_template_ids) < max_sites)
+	while(budget > 0 && length(available) && length(placed) < max_sites)
 		var/datum/map_template/ruin/picked = pick_weight(available)
 		if(!picked)
 			break
 		if(picked.cost > budget)
 			available -= picked
 			continue
-		var/obj/structure/overmap/level/site/site = spawn_overmap_site(picked)
-		if(!site)
-			break
-		placed_template_ids += picked.id
+		placed += picked
 		placed_site_template_ids += picked.id
 		budget -= picked.cost
 		if(!picked.allow_duplicates)
 			available -= picked
 
-/// Spawn a single named site POI: reserve a turf block, load the ruin
-/// template, create docking ports, and place the `/level/site` on the grid.
-/datum/controller/subsystem/overmap/proc/spawn_overmap_site(datum/map_template/ruin/template)
+	var/list/datum/map_template/ruin/small_pool = list()
+	var/list/datum/map_template/ruin/large_pool = list()
+	for(var/datum/map_template/ruin/template as anything in placed)
+		if(is_overmap_cluster_ruin(template))
+			small_pool += template
+		else
+			large_pool += template
+
+	for(var/datum/map_template/ruin/solo as anything in large_pool)
+		spawn_overmap_site(list(solo), controlled = solo.always_place)
+
+	var/list/datum/map_template/ruin/batch = list()
+	for(var/datum/map_template/ruin/small as anything in small_pool)
+		batch += small
+		if(length(batch) < cluster_capacity)
+			continue
+		spawn_overmap_site(batch.Copy(), controlled = FALSE)
+		batch.Cut()
+	if(length(batch))
+		spawn_overmap_site(batch, controlled = FALSE)
+
+/// TRUE when `template` packs onto a shared cluster Z (side ≤ threshold).
+/datum/controller/subsystem/overmap/proc/is_overmap_cluster_ruin(datum/map_template/ruin/template)
 	if(!template)
+		return FALSE
+	return max(template.width, template.height) <= OVERMAP_CLUSTER_RUIN_MAX_SIDE
+
+/// Spawn a named site POI on a dedicated full Z-level: load `templates`,
+/// seed landing zones (no premapped docks), and place one `/level/site` tile.
+/datum/controller/subsystem/overmap/proc/spawn_overmap_site(list/datum/map_template/ruin/templates, controlled = FALSE)
+	if(!length(templates))
 		return null
 
 	var/turf/grid_turf = get_unused_overmap_square()
 	if(!grid_turf)
-		WARNING("spawn_overmap_site: no free overmap tile for [template.name]")
+		WARNING("spawn_overmap_site: no free overmap tile")
 		return null
 
-	var/site_id = template.id || "site_[length(overmap_objects)]"
-	var/dock_size = calculate_overmap_dock_size(template)
-	var/size = calculate_overmap_site_size(template, dock_size)
+	var/datum/map_template/ruin/primary = templates[1]
+	var/site_id = primary.id || "site_[length(overmap_objects)]"
+	var/site_name = primary.name || "Unknown Signal"
+	if(length(templates) > 1)
+		site_id = "cluster_[length(overmap_objects)]"
+		site_name = "Debris Field"
 
-	var/datum/turf_reservation/reserve = SSmapping.request_turf_block_reservation(size, size)
-	if(!reserve)
-		WARNING("spawn_overmap_site: failed to reserve turf block for [template.name]")
+	var/datum/space_level/level = SSmapping.add_new_zlevel(
+		"Overmap Site ([site_name])",
+		ZTRAITS_OVERMAP_SITE,
+		contain_turfs = TRUE,
+	)
+	if(!level)
+		WARNING("spawn_overmap_site: failed to allocate Z for [site_name]")
 		return null
 
-	var/turf/bottom_left = reserve.bottom_left_turfs[1]
-	if(!bottom_left)
-		QDEL_NULL(reserve)
-		return null
+	var/site_z = level.z_value
+	var/list/placed_rects = list()
+	var/list/datum/map_template/ruin/loaded = list()
+	var/list/loaded_ids = list()
+	var/list/datum/map_template/ruin/chained = list()
 
-	// Load the ruin template
-	var/turf/ruin_turf = calculate_overmap_ruin_anchor(bottom_left, template, dock_size, size)
-	load_overmap_ruin_into_reservation(reserve, template, ruin_turf)
+	for(var/datum/map_template/ruin/template as anything in templates)
+		var/turf/anchor = find_site_ruin_anchor(site_z, template, placed_rects)
+		if(!anchor)
+			WARNING("spawn_overmap_site: could not place [template.name] on Z[site_z]")
+			continue
+		template.load(anchor, centered = FALSE)
+		placed_rects += list(ruin_rect_from_anchor(anchor, template))
+		loaded += template
+		loaded_ids += template.id
 
-	// Create primary dock
-	var/turf/dock_turf = locate( \
-		bottom_left.x + dock_size, \
-		bottom_left.y + round(dock_size / 2), \
-		bottom_left.z)
-	var/obj/docking_port/stationary/primary_dock = new(dock_turf)
-	primary_dock.dir = WEST
-	primary_dock.name = "\improper [template.name]"
-	primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[site_id]"
-	primary_dock.height = dock_size
-	primary_dock.width = dock_size
-	primary_dock.dwidth = round(dock_size / 2)
-
-	// Create secondary (ferry) dock
-	var/turf/secondary_turf = locate( \
-		bottom_left.x + dock_size, \
-		bottom_left.y + CEILING(dock_size * 1.5, 1), \
-		bottom_left.z)
-	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
-	secondary_dock.dir = WEST
-	secondary_dock.name = "\improper [template.name]"
-	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[site_id]"
-	secondary_dock.height = dock_size
-	secondary_dock.width = dock_size
-	secondary_dock.dwidth = round(dock_size / 2)
-
-	// Create a landing zone spanning the usable reservation area
-	var/obj/effect/landmark/overmap_landing_zone/zone = new(bottom_left)
-	zone.zone_name = template.name
-	zone.zone_width = size - 2
-	zone.zone_height = size - 2
-
-	// Place the site on the overmap grid
-	var/list/site_zs = list(bottom_left.z)
-	var/obj/structure/overmap/level/site/site = new(grid_turf, site_id, site_zs, template)
-	site.reserve = reserve
-	site.preloaded = TRUE
-
-	// Handle always_spawn_with chains
-	if(template.always_spawn_with)
+		if(!template.always_spawn_with)
+			continue
 		for(var/chain_type in template.always_spawn_with)
 			if(template.always_spawn_with[chain_type] != PLACE_SAME_Z)
 				continue
@@ -905,15 +902,119 @@ SUBSYSTEM_DEF(overmap)
 				var/datum/map_template/ruin/linked = SSmapping.ruins_templates[ruin_name]
 				if(!istype(linked, chain_type))
 					continue
-				var/turf/chain_turf = locate( \
-					bottom_left.x + dock_size + 2 + template.width + 2, \
-					bottom_left.y + dock_size, \
-					bottom_left.z)
-				if(chain_turf)
-					load_overmap_ruin_into_reservation(reserve, linked, chain_turf)
-				LAZYADD(site.chained_templates, linked)
+				var/turf/chain_anchor = find_site_ruin_anchor(site_z, linked, placed_rects, near_rect = placed_rects[length(placed_rects)])
+				if(!chain_anchor)
+					WARNING("spawn_overmap_site: could not place chained [linked.name] near [template.name]")
+					continue
+				linked.load(chain_anchor, centered = FALSE)
+				placed_rects += list(ruin_rect_from_anchor(chain_anchor, linked))
+				chained += linked
+				loaded_ids += linked.id
 
+	if(!length(loaded))
+		WARNING("spawn_overmap_site: no ruins loaded for [site_name] on Z[site_z]")
+		return null
+
+	seed_site_landing_zones(site_z, site_name, placed_rects)
+
+	var/obj/structure/overmap/level/site/site = new(grid_turf, site_id, list(site_z), length(loaded) == 1 ? loaded[1] : null)
+	site.name = site_name
+	site.member_templates = loaded
+	site.member_template_ids = loaded_ids
+	site.chained_templates = chained
+	site.preloaded = TRUE
+	site.controlled = controlled
+	if(primary.id == DES_TWO_OVERMAP_OBJECT_ID || ("des_two" in loaded_ids))
+		site.installation_stealth = TRUE
+		site.id = DES_TWO_OVERMAP_OBJECT_ID
 	return site
+
+/// Axis-aligned ruin footprint as list(x1, y1, x2, y2).
+/datum/controller/subsystem/overmap/proc/ruin_rect_from_anchor(turf/anchor, datum/map_template/ruin/template)
+	return list(anchor.x, anchor.y, anchor.x + template.width - 1, anchor.y + template.height - 1)
+
+/// Chebyshev gap between two rects (negative = overlap).
+/datum/controller/subsystem/overmap/proc/rect_chebyshev_gap(list/a, list/b)
+	var/dx = max(a[1] - b[3], b[1] - a[3], 0)
+	var/dy = max(a[2] - b[4], b[2] - a[4], 0)
+	return max(dx, dy)
+
+/// Rejection-sample a bottom-left turf for `template` on `site_z`.
+/// When `near_rect` is set, prefer anchors near that footprint (chain loads).
+/datum/controller/subsystem/overmap/proc/find_site_ruin_anchor(site_z, datum/map_template/ruin/template, list/placed_rects, list/near_rect)
+	var/margin = OVERMAP_SITE_EDGE_MARGIN + TRANSITIONEDGE
+	var/min_x = margin + 1
+	var/min_y = margin + 1
+	var/max_x = world.maxx - margin - template.width + 1
+	var/max_y = world.maxy - margin - template.height + 1
+	if(max_x < min_x || max_y < min_y)
+		return null
+
+	for(var/attempt in 1 to OVERMAP_SITE_PLACE_ATTEMPTS)
+		var/try_x
+		var/try_y
+		if(near_rect)
+			try_x = clamp(round((near_rect[1] + near_rect[3]) / 2) + rand(-40, 40) - round(template.width / 2), min_x, max_x)
+			try_y = clamp(round((near_rect[2] + near_rect[4]) / 2) + rand(-40, 40) - round(template.height / 2), min_y, max_y)
+		else
+			try_x = rand(min_x, max_x)
+			try_y = rand(min_y, max_y)
+		var/list/candidate = list(try_x, try_y, try_x + template.width - 1, try_y + template.height - 1)
+		var/ok = TRUE
+		for(var/list/other as anything in placed_rects)
+			if(rect_chebyshev_gap(candidate, other) < OVERMAP_CLUSTER_MIN_SEPARATION)
+				ok = FALSE
+				break
+		if(!ok)
+			continue
+		var/turf/anchor = locate(try_x, try_y, site_z)
+		if(anchor)
+			return anchor
+	return null
+
+/// Seed `overmap_site_lz_count` landing zones on `site_z` clear of ruin rects.
+/datum/controller/subsystem/overmap/proc/seed_site_landing_zones(site_z, site_name, list/placed_rects)
+	var/lz_count = CONFIG_GET(number/overmap_site_lz_count)
+	var/lz_side = OVERMAP_SITE_LZ_SIDE
+	var/margin = OVERMAP_SITE_EDGE_MARGIN + TRANSITIONEDGE
+	var/min_x = margin + 1
+	var/min_y = margin + 1
+	var/max_x = world.maxx - margin - lz_side + 1
+	var/max_y = world.maxy - margin - lz_side + 1
+	if(max_x < min_x || max_y < min_y)
+		return
+
+	var/list/lz_rects = list()
+	for(var/i in 1 to lz_count)
+		var/turf/lz_turf
+		for(var/attempt in 1 to OVERMAP_SITE_PLACE_ATTEMPTS)
+			var/try_x = rand(min_x, max_x)
+			var/try_y = rand(min_y, max_y)
+			var/list/candidate = list(try_x, try_y, try_x + lz_side - 1, try_y + lz_side - 1)
+			var/ok = TRUE
+			for(var/list/other as anything in placed_rects)
+				if(rect_chebyshev_gap(candidate, other) < OVERMAP_CLUSTER_MIN_SEPARATION)
+					ok = FALSE
+					break
+			if(!ok)
+				continue
+			for(var/list/other_lz as anything in lz_rects)
+				if(rect_chebyshev_gap(candidate, other_lz) < OVERMAP_SITE_LZ_SIDE)
+					ok = FALSE
+					break
+			if(!ok)
+				continue
+			lz_turf = locate(try_x, try_y, site_z)
+			if(lz_turf)
+				lz_rects += list(candidate)
+				break
+		if(!lz_turf)
+			WARNING("seed_site_landing_zones: failed to place LZ [i] for [site_name] on Z[site_z]")
+			continue
+		var/obj/effect/landmark/overmap_landing_zone/zone = new(lz_turf)
+		zone.zone_name = lz_count > 1 ? "[site_name] LZ [i]" : site_name
+		zone.zone_width = lz_side
+		zone.zone_height = lz_side
 
 // --- Cross-faction installation stealth (Phase 6) ---
 

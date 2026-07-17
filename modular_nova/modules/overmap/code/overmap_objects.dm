@@ -524,22 +524,31 @@
 
 /// A named space ruin POI placed on the overmap at roundstart. Unlike
 /// `/dynamic` encounters (lazy-loaded on player Act), sites are preloaded
-/// on isolated reserved Zs so they always exist and cannot be EVA'd to.
+/// onto dedicated full Z-levels (solo or multi-ruin cluster) so they always
+/// exist and cannot be EVA'd to from the station Z.
 /obj/structure/overmap/level/site
 	name = "Unknown Signal"
 	desc = "A point of interest in deep space."
 	icon_state = "object"
 	sensor_range = 4
-	/// The primary ruin template loaded onto this site's reserved Z.
+	/// Primary ruin template when this is a solo site; null for anonymous clusters.
 	var/datum/map_template/ruin/ruin_template
-	/// Additional templates chained to the same reservation (always_spawn_with).
+	/// All ruin templates loaded onto this site's Z (solo = one entry).
+	var/list/datum/map_template/ruin/member_templates
+	/// Template ids for every ruin on this Z (for exclusion / UI).
+	var/list/member_template_ids
+	/// Additional templates chained via always_spawn_with PLACE_SAME_Z.
 	var/list/datum/map_template/ruin/chained_templates
-	/// The turf reservation backing this site.
+	/// Legacy reservation backing (unused for full-Z sites; kept null).
 	var/datum/turf_reservation/reserve
-	/// If TRUE, the reservation persists for the round (not cleaned up).
+	/// If TRUE, the level persists for the round (not cleaned up).
 	var/preserve_level = TRUE
 	/// Whether the level has been loaded yet.
 	var/preloaded = FALSE
+	/// When TRUE, approaching ships may pick any free LZ. When FALSE
+	/// (uncontrolled space), each ship is assigned one random free LZ and
+	/// the astrogation camera only shows that zone.
+	var/controlled = FALSE
 
 /obj/structure/overmap/level/site/Initialize(mapload, _id, list/_zs, datum/map_template/ruin/_template)
 	. = ..()
@@ -552,6 +561,8 @@
 		QDEL_NULL(reserve)
 	reserve = null
 	ruin_template = null
+	member_templates = null
+	member_template_ids = null
 	chained_templates = null
 	return ..()
 

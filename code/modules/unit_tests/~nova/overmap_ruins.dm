@@ -23,7 +23,7 @@
 		TEST_ASSERT(site.preloaded, "Site [site.id] was not preloaded.")
 	TEST_ASSERT(found_sites > 0, "No overmap site POIs found despite overmap_space_ruins being enabled.")
 
-/// Verify named site loaded footprints do not overlap on shared reserved Z-levels.
+/// Verify each named site owns a unique full Z-level (no shared reservations).
 /datum/unit_test/overmap_site_footprints_disjoint
 
 /datum/unit_test/overmap_site_footprints_disjoint/Run()
@@ -32,34 +32,17 @@
 
 	var/list/sites = list()
 	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
-		if(!site?.reserve)
-			continue
 		sites += site
 
-	TEST_ASSERT(length(sites) > 0, "No overmap sites with reservations found.")
+	TEST_ASSERT(length(sites) > 0, "No overmap sites found.")
 
-	for(var/i in 1 to length(sites))
-		var/obj/structure/overmap/level/site/site_a = sites[i]
-		var/turf/bl_a = site_a.reserve.bottom_left_turfs[1]
-		var/turf/tr_a = site_a.reserve.top_right_turfs[1]
-		TEST_ASSERT(bl_a && tr_a, "Site [site_a.id] reservation missing bounds.")
-		for(var/j in (i + 1) to length(sites))
-			var/obj/structure/overmap/level/site/site_b = sites[j]
-			var/turf/bl_b = site_b.reserve.bottom_left_turfs[1]
-			var/turf/tr_b = site_b.reserve.top_right_turfs[1]
-			if(bl_a.z != bl_b.z)
-				continue
-			var/overlap = bl_a.x <= tr_b.x && tr_a.x >= bl_b.x && bl_a.y <= tr_b.y && tr_a.y >= bl_b.y
-			TEST_ASSERT(!overlap, "Sites [site_a.id] and [site_b.id] have overlapping reservations on Z[bl_a.z].")
-
+	var/list/seen_zs = list()
 	for(var/obj/structure/overmap/level/site/site as anything in sites)
-		for(var/turf/T in SSmapping.used_turfs)
-			if(SSmapping.used_turfs[T] != site.reserve)
-				continue
-			// Cordon ring turfs are linked in used_turfs but lie outside the inner block.
-			if(T in site.reserve.cordon_turfs)
-				continue
-			TEST_ASSERT(site.reserve.calculate_turf_bounds_information(T), "Site [site.id] claims turf [T.x],[T.y],[T.z] outside its reservation.")
+		TEST_ASSERT(length(site.linked_levels), "Site [site.id] has no linked_levels.")
+		var/site_z = site.linked_levels[1]
+		TEST_ASSERT(!(site_z in seen_zs), "Site [site.id] shares Z[site_z] with another site POI.")
+		seen_zs += site_z
+		TEST_ASSERT(length(site.member_templates), "Site [site.id] has no member_templates.")
 
 /// Verify that installation_stealth is correctly set on main and des_two.
 /datum/unit_test/overmap_stealth_flags

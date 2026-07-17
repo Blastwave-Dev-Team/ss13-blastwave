@@ -3,6 +3,9 @@
 // bound ship's pending docking state. The helm writes that state via
 // `ship.set_nav_target()` when no automatic dock is found; the nav
 // picks it up lazily when the player opens the console.
+//
+// On LZ-backed site Zs the remote eye is confined to landing-zone bboxes
+// so designating a pad cannot free-cam the whole ruin layout.
 
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
 	name = "astrogation landing console"
@@ -55,11 +58,26 @@
 	var/obj/structure/overmap/ship/simulated/ship = linked_port?.current_ship
 	if(ship)
 		sync_from_ship(ship)
-	return ..()
+	. = ..()
+	if(eyeobj && length(target_zones))
+		var/turf/center = target_zones[1].get_center_turf()
+		if(center)
+			eyeobj.setLoc(center, TRUE)
 
 /// Read the ship's pending docking state and configure this console's
 /// z_lock, jump_to_ports, and landing zone cache accordingly.
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/sync_from_ship(obj/structure/overmap/ship/simulated/ship)
+	if(!length(ship.nav_dock_zs))
+		// Adjacent LZ-backed body: allow surveying / designating a pad without
+		// a prior failed automatic-dock attempt.
+		for(var/obj/structure/overmap/other as anything in ship.close_overmap_objects)
+			if(!istype(other, /obj/structure/overmap/level) && !istype(other, /obj/structure/overmap/dynamic))
+				continue
+			var/list/zs = ship.resolve_nav_target_zs(other)
+			if(!length(zs) || !length(ship.get_landing_zones_for(other)))
+				continue
+			ship.set_nav_target(other, zs, list())
+			break
 	if(!length(ship.nav_dock_zs))
 		z_lock = list()
 		target_zones = null
@@ -69,14 +87,19 @@
 		remove_jumpable_port(port_id)
 	for(var/dock_id in ship.nav_dock_ids)
 		add_jumpable_port(dock_id)
-	discover_landing_zones()
+	discover_landing_zones(ship)
 
 /// Find landing zones on the target Zs that the bound shuttle can fit within.
-/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/discover_landing_zones()
+/// Prefers the ship's `get_landing_zones_for` so uncontrolled sites expose a
+/// single pinned LZ to both the helm and this camera.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/discover_landing_zones(obj/structure/overmap/ship/simulated/ship)
 	target_zones = list()
 	if(!shuttle_port && shuttleId)
 		shuttle_port = SSshuttle.getShuttle(shuttleId)
 	if(!shuttle_port)
+		return
+	if(ship?.nav_dock_target)
+		target_zones = ship.get_landing_zones_for(ship.nav_dock_target)
 		return
 	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
 		if(!(zone.z in z_lock))
@@ -106,6 +129,82 @@
 		if(zone.contains_bbox(bounds[1], bounds[2], bounds[3], bounds[4], eyeturf.z))
 			return SHUTTLE_DOCKER_LANDING_CLEAR
 	return SHUTTLE_DOCKER_BLOCKED
+
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/CreateEye()
+	shuttle_port = SSshuttle.getShuttle(shuttleId)
+	if(QDELETED(shuttle_port))
+		shuttle_port = null
+		return
+
+	eyeobj = new /mob/eye/camera/remote/shuttle_docker/overmap_nav(null, src)
+	var/mob/eye/camera/remote/shuttle_docker/the_eye = eyeobj
+	the_eye.setDir(shuttle_port.dir)
+	var/turf/origin = locate(shuttle_port.x + x_offset, shuttle_port.y + y_offset, shuttle_port.z)
+	for(var/area/shuttle_area as anything in shuttle_port.shuttle_areas)
+		for(var/list/zlevel_turfs as anything in shuttle_area.get_zlevel_turf_lists())
+			for(var/turf/shuttle_turf as anything in zlevel_turfs)
+				if(shuttle_turf.z != origin.z)
+					continue
+				var/image/I = image('icons/effects/alphacolors.dmi', origin, "red")
+				var/x_off = shuttle_turf.x - origin.x
+				var/y_off = shuttle_turf.y - origin.y
+				I.loc = locate(origin.x + x_off, origin.y + y_off, origin.z)
+				I.layer = ABOVE_NORMAL_TURF_LAYER
+				SET_PLANE(I, ABOVE_GAME_PLANE, shuttle_turf)
+				I.mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+				the_eye.placement_images[I] = list(x_off, y_off)
+	gatherNavComputerIcons()
+	return TRUE
+
+/// Returns TRUE if `checked` lies inside any target zone (with camera margin).
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/turf_in_camera_bounds(turf/checked)
+	if(!checked || !length(target_zones))
+		return TRUE
+	var/margin = OVERMAP_SITE_CAMERA_MARGIN
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in target_zones)
+		if(checked.z != zone.z)
+			continue
+		if(checked.x < zone.x - margin || checked.y < zone.y - margin)
+			continue
+		if(checked.x > zone.x + zone.zone_width - 1 + margin)
+			continue
+		if(checked.y > zone.y + zone.zone_height - 1 + margin)
+			continue
+		return TRUE
+	return FALSE
+
+/// Nearest turf inside the allowed LZ union for a rejected eye move.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/clamp_eye_turf(turf/destination)
+	if(!destination || !length(target_zones))
+		return destination
+	if(turf_in_camera_bounds(destination))
+		return destination
+	var/best
+	var/best_dist = INFINITY
+	var/margin = OVERMAP_SITE_CAMERA_MARGIN
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in target_zones)
+		if(destination.z != zone.z)
+			continue
+		var/cx = clamp(destination.x, zone.x - margin, zone.x + zone.zone_width - 1 + margin)
+		var/cy = clamp(destination.y, zone.y - margin, zone.y + zone.zone_height - 1 + margin)
+		var/turf/candidate = locate(cx, cy, zone.z)
+		if(!candidate)
+			continue
+		var/dist = get_dist(destination, candidate)
+		if(dist < best_dist)
+			best_dist = dist
+			best = candidate
+	return best || target_zones[1].get_center_turf() || destination
+
+// --- LZ-clamped shuttle docker eye ---
+
+/mob/eye/camera/remote/shuttle_docker/overmap_nav
+
+/mob/eye/camera/remote/shuttle_docker/overmap_nav/setLoc(turf/destination, force_update = FALSE)
+	var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/console = origin_ref?.resolve()
+	if(istype(console) && length(console.target_zones))
+		destination = console.clamp_eye_turf(destination)
+	return ..()
 
 // --- Landing Zone Jump Action ---
 

@@ -275,6 +275,8 @@
 	/// Overmap level id this ship was bound under (MAIN / DES_TWO). Used for
 	/// stealth affiliation while the hull sits on a reserved transit Z.
 	var/home_level_id
+	/// Uncontrolled site LZ pins: site REF → landing zone REF. Cleared on undock.
+	var/list/assigned_landing_zones
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -311,6 +313,7 @@
 	nav_dock_target = null
 	nav_dock_zs = null
 	nav_dock_ids = null
+	assigned_landing_zones = null
 	return ..()
 
 /// Write the pending docking target so the nav console can read it lazily.
@@ -543,6 +546,8 @@
 		docked = null
 	state = OVERMAP_SHIP_FLYING
 	update_screen(TRUE)
+	if(istype(prev_docked, /obj/structure/overmap/level/site))
+		LAZYREMOVE(assigned_landing_zones, REF(prev_docked))
 	if(istype(prev_docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/encounter = prev_docked
 		encounter.unload_level()
@@ -596,6 +601,8 @@
 
 /// Landing zones on `target`'s Z-levels that this ship's shuttle fits in its
 /// current orientation and that are unoccupied. Returns a list of landmarks.
+/// Uncontrolled sites (`site.controlled == FALSE`) pin one random free LZ per
+/// ship so the helm and astrogation camera only expose a single choice.
 /obj/structure/overmap/ship/simulated/proc/get_landing_zones_for(obj/structure/overmap/target)
 	. = list()
 	if(!shuttle)
@@ -606,6 +613,7 @@
 	var/list/bounds = shuttle.return_coords()
 	var/ship_w = abs(bounds[3] - bounds[1]) + 1
 	var/ship_h = abs(bounds[4] - bounds[2]) + 1
+	var/list/candidates = list()
 	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
 		if(!(zone.z in target_zs))
 			continue
@@ -613,7 +621,28 @@
 			continue
 		if(zone.get_occupant(shuttle))
 			continue
-		. += zone
+		candidates += zone
+
+	if(!length(candidates))
+		return
+
+	if(!istype(target, /obj/structure/overmap/level/site))
+		return candidates
+	var/obj/structure/overmap/level/site/site = target
+	if(site.controlled)
+		return candidates
+
+	var/site_ref = REF(site)
+	var/pinned_ref = LAZYACCESS(assigned_landing_zones, site_ref)
+	if(pinned_ref)
+		var/obj/effect/landmark/overmap_landing_zone/pinned = locate(pinned_ref)
+		if(pinned && (pinned in candidates))
+			return list(pinned)
+		LAZYREMOVE(assigned_landing_zones, site_ref)
+
+	var/obj/effect/landmark/overmap_landing_zone/picked = pick(candidates)
+	LAZYSET(assigned_landing_zones, site_ref, REF(picked))
+	return list(picked)
 
 /// Build a one-shot stationary docking port centered in `zone`, preserving the
 /// shuttle's current orientation. Returns the port, or null if the shuttle no
@@ -723,6 +752,13 @@
 					continue
 				picked = found
 				break
+
+		// Named sites (and other LZ-backed bodies) auto-assign a free LZ when
+		// no premapped / designated pad is available.
+		if(!picked)
+			var/list/zones = get_landing_zones_for(target)
+			if(length(zones))
+				picked = create_landing_zone_port(pick(zones))
 
 		if(!picked)
 			set_nav_target(target, target_zs, candidates)

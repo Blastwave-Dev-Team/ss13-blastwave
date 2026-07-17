@@ -28,6 +28,23 @@
 #define OVERMAP_DOCK_PREFIX "overmap_ship"
 #define OVERMAP_FERRY_PREFIX "overmap_ferry"
 
+// --- Named site Z-level seeding ---
+
+/// Ruins with max(width, height) at or below this side length pack onto shared cluster Zs.
+#define OVERMAP_CLUSTER_RUIN_MAX_SIDE 30
+/// Minimum chebyshev gap (tiles) between ruin footprints on a cluster Z.
+#define OVERMAP_CLUSTER_MIN_SEPARATION 60
+/// Edge margin (tiles) from TRANSITIONEDGE when placing ruins / LZs on a site Z.
+#define OVERMAP_SITE_EDGE_MARGIN 8
+/// Side length of each seeded landing zone on a site Z.
+#define OVERMAP_SITE_LZ_SIDE 40
+/// Extra tiles the astrogation camera may roam past an LZ bbox.
+#define OVERMAP_SITE_CAMERA_MARGIN 3
+/// Placement attempts before giving up on a ruin / LZ anchor.
+#define OVERMAP_SITE_PLACE_ATTEMPTS 80
+/// Traits for dedicated overmap site Z-levels (self-loop so pods stay on-Z).
+#define ZTRAITS_OVERMAP_SITE list(ZTRAIT_LINKAGE = SELFLOOPING)
+
 // Overmap object IDs.
 #define MAIN_OVERMAP_OBJECT_ID "home"
 #define AWAY_OVERMAP_OBJECT_ID_MINING "mining"

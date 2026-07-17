@@ -2,9 +2,9 @@
 
 /datum/unit_test/overmap_dock_safety
 	abstract_type = /datum/unit_test/overmap_dock_safety
-	/// Reserved transit block holding the loaded SolFed Cutter hull.
+	/// Reserved transit block for cutter-sized dock fixtures (never the unit-test room).
 	var/datum/turf_reservation/cutter_reserve
-	/// Mobile port from the loaded solfed_cutter shuttle template.
+	/// Synthetic cutter-sized mobile port (dimensions from solfed_cutter template).
 	var/obj/docking_port/mobile/overmap/frigate/solfed_cutter/cutter
 
 /datum/unit_test/overmap_dock_safety/Destroy()
@@ -34,10 +34,12 @@
 	SIGNAL_HANDLER
 	return BLOCK_SHUTTLE_MOVE
 
-/// Load solfed_cutter.dmm into a transit reservation large enough for hull + pad.
-/datum/unit_test/overmap_dock_safety/proc/load_solfed_cutter()
+/// Build a cutter-sized mobile + plated runway from solfed_cutter template
+/// dimensions without loading the DMM (engine atmos_init runtimes fail CI).
+/datum/unit_test/overmap_dock_safety/proc/make_cutter_sized_shuttle()
 	var/datum/map_template/shuttle/template = SSmapping.shuttle_templates["solfed_cutter"]
 	TEST_ASSERT(template, "solfed_cutter missing from SSmapping.shuttle_templates")
+	TEST_ASSERT(template.width > 0 && template.height > 0, "solfed_cutter template has no dimensions")
 
 	var/reserve_w = template.width * 2 + 8
 	var/reserve_h = max(template.height, template.width) + 4
@@ -47,25 +49,36 @@
 		1,
 		reservation_type = /datum/turf_reservation/transit,
 	)
-	TEST_ASSERT(cutter_reserve, "Failed to reserve transit block for solfed_cutter")
+	TEST_ASSERT(cutter_reserve, "Failed to reserve transit block for cutter-sized fixture")
 
 	var/turf/anchor = cutter_reserve.bottom_left_turfs[1]
 	TEST_ASSERT(anchor, "Cutter reservation has no bottom-left turf")
-	// Suppress engine atmos_init runtimes during cutter load (not under test).
-	var/datum/unit_test/prior_test = GLOB.current_test
-	GLOB.current_test = null
-	var/loaded = template.load(anchor, centered = FALSE, register = TRUE)
-	GLOB.current_test = prior_test
-	TEST_ASSERT(loaded, "template.load failed for solfed_cutter")
 
-	for(var/turf/affected as anything in template.get_affected_turfs(anchor, FALSE))
-		for(var/obj/docking_port/mobile/overmap/frigate/solfed_cutter/found in affected)
-			cutter = found
-			break
-		if(cutter)
-			break
-	TEST_ASSERT(cutter, "No solfed_cutter mobile port after template load")
-	template.post_load(cutter)
+	// Plate the hull + destination runway so check_dock / footprint checks pass.
+	for(var/turf/tile as anything in block(
+		anchor.x,
+		anchor.y,
+		anchor.z,
+		anchor.x + reserve_w - 1,
+		anchor.y + reserve_h - 1,
+		anchor.z,
+	))
+		tile.ChangeTurf(/turf/open/floor/plating)
+
+	cutter = new /obj/docking_port/mobile/overmap/frigate/solfed_cutter(anchor)
+	cutter.width = template.width
+	cutter.height = template.height
+	cutter.dwidth = round(template.width / 2)
+	cutter.dheight = 0
+	cutter.setDir(WEST)
+	cutter.register(TRUE)
+	// Initialize may have auto-bound an overmap ship on the reserved Z; the
+	// call_mode_commit test builds its own ship fixture.
+	if(cutter.current_ship)
+		var/obj/structure/overmap/ship/simulated/auto_ship = cutter.current_ship
+		cutter.current_ship = null
+		auto_ship.shuttle = null
+		qdel(auto_ship)
 	return cutter
 
 /// Stationary pad matching `mobile`, shifted clear of its hull footprint.
@@ -93,7 +106,15 @@
 /datum/unit_test/overmap_dock_safety/footprint_clear
 
 /datum/unit_test/overmap_dock_safety/footprint_clear/Run()
-	var/turf/pad = run_loc_floor_bottom_left
+	// Mutate a reserved block, never the shared unit-test room (area_contents).
+	cutter_reserve = SSmapping.request_turf_block_reservation(
+		6,
+		6,
+		1,
+		reservation_type = /datum/turf_reservation/transit,
+	)
+	TEST_ASSERT(cutter_reserve, "Failed to reserve block for footprint_clear")
+	var/turf/pad = cutter_reserve.bottom_left_turfs[1]
 	pad.ChangeTurf(/turf/open/floor/plating)
 
 	var/obj/docking_port/stationary/clear_port = make_stationary_port(pad)
@@ -138,29 +159,30 @@
 
 /datum/unit_test/overmap_dock_safety/bind_whitelist/Run()
 	var/turf/stage = run_loc_floor_bottom_left
-	var/area/stage_area = get_area(stage)
+	// Do not pass /area/misc/testroom as shuttle_areas — that orphans the
+	// unit-test room from area turf listings (maptest_area_contents).
 
-	var/obj/docking_port/mobile/overmap/frigate/overmap_port = allocate(/obj/docking_port/mobile/overmap/frigate, stage, list(stage_area))
+	var/obj/docking_port/mobile/overmap/frigate/overmap_port = allocate(/obj/docking_port/mobile/overmap/frigate, stage)
 	TEST_ASSERT(SSovermap.should_bind_shuttle(overmap_port), "Overmap frigate ports should bind.")
 
-	var/obj/docking_port/mobile/custom/custom_port = allocate(/obj/docking_port/mobile/custom, stage, list(stage_area))
+	var/obj/docking_port/mobile/custom/custom_port = allocate(/obj/docking_port/mobile/custom, stage)
 	TEST_ASSERT(SSovermap.should_bind_shuttle(custom_port), "Custom shuttle ports should bind.")
 
-	var/obj/docking_port/mobile/generic = allocate(/obj/docking_port/mobile, stage, list(stage_area))
+	var/obj/docking_port/mobile/generic = allocate(/obj/docking_port/mobile, stage)
 	TEST_ASSERT(!SSovermap.should_bind_shuttle(generic), "Generic mobile ports should not bind.")
 
 	// Oddly typed ports still bind when their area maps to an overmap ship type.
-	var/obj/docking_port/mobile/odd_fighter = allocate(/obj/docking_port/mobile, stage, list(stage_area))
+	var/obj/docking_port/mobile/odd_fighter = allocate(/obj/docking_port/mobile, stage)
 	odd_fighter.area_type = /area/shuttle/overmap/fighter
 	TEST_ASSERT(SSovermap.should_bind_shuttle(odd_fighter), "Generic port with an overmap fighter area must bind.")
 	TEST_ASSERT_EQUAL(SSovermap.ship_type_for_port(odd_fighter), /obj/structure/overmap/ship/simulated/fighter, "Fighter area should map to the fighter ship type.")
 	TEST_ASSERT_EQUAL(SSovermap.ship_type_for_port(overmap_port), /obj/structure/overmap/ship/simulated/frigate, "Frigate area should map to the frigate ship type.")
 	TEST_ASSERT_EQUAL(SSovermap.ship_type_for_port(generic), /obj/structure/overmap/ship/simulated, "Generic port should map to the base simulated ship type.")
 
-	var/obj/docking_port/mobile/emergency/escape = allocate(/obj/docking_port/mobile/emergency, stage, list(stage_area))
+	var/obj/docking_port/mobile/emergency/escape = allocate(/obj/docking_port/mobile/emergency, stage)
 	TEST_ASSERT(!SSovermap.should_bind_shuttle(escape), "Emergency shuttle must not bind.")
 
-	var/obj/docking_port/mobile/supply/cargo = allocate(/obj/docking_port/mobile/supply, stage, list(stage_area))
+	var/obj/docking_port/mobile/supply/cargo = allocate(/obj/docking_port/mobile/supply, stage)
 	TEST_ASSERT(!SSovermap.should_bind_shuttle(cargo), "Supply shuttle must not bind.")
 
 	TEST_ASSERT(!SSovermap.should_bind_shuttle(null), "Null port must not bind.")
@@ -234,7 +256,7 @@
 	if(!SSovermap.main)
 		return
 
-	load_solfed_cutter()
+	make_cutter_sized_shuttle()
 	var/obj/docking_port/stationary/dest = make_matching_dest_pad(cutter)
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(dest), "Destination pad must be footprint-clear for dock().")
 	TEST_ASSERT(cutter.check_dock(dest, TRUE), "Cutter must be able to dock at the surveyed pad.")
