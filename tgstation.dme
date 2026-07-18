@@ -9261,6 +9261,7 @@
 #include "modular_nova\modules\overmap\code\overmap_shuttles.dm"
 #include "modular_nova\modules\overmap\code\overmap_subsystem.dm"
 #include "modular_nova\modules\overmap\code\overmap_syndicate_beacon.dm"
+#include "modular_nova\modules\overmap\code\portables_connector.dm"
 #include "modular_nova\modules\oversized\code\oversized_quirk.dm"
 #include "modular_nova\modules\panicbunker\code\panicbunker.dm"
 #include "modular_nova\modules\paycheck_rations\code\quirk.dm"

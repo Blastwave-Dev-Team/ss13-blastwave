@@ -101,9 +101,8 @@
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "mZ" = (
-/obj/machinery/atmospherics/components/unary/portables_connector{
+/obj/machinery/atmospherics/components/unary/portables_connector/layer4{
 	dir = 1;
-	piping_layer = 4;
 	pipe_color = "#FFA62B"
 	},
 /obj/machinery/portable_atmospherics/canister/air,
@@ -291,9 +290,8 @@
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "VA" = (
-/obj/machinery/atmospherics/components/unary/portables_connector/visible{
+/obj/machinery/atmospherics/components/unary/portables_connector/visible/layer1{
 	dir = 1;
-	piping_layer = 1;
 	pipe_color = "#0000FF"
 	},
 /obj/machinery/portable_atmospherics/canister{
