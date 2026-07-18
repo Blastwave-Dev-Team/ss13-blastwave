@@ -36,13 +36,19 @@
 
 /// Build a cutter-sized mobile + plated runway from solfed_cutter template
 /// dimensions without loading the DMM (engine atmos_init runtimes fail CI).
+/// Port faces WEST: world bbox is height×width, so place it inset from the
+/// reservation corner or the pad footprint hits cordon walls.
 /datum/unit_test/overmap_dock_safety/proc/make_cutter_sized_shuttle()
 	var/datum/map_template/shuttle/template = SSmapping.shuttle_templates["solfed_cutter"]
 	TEST_ASSERT(template, "solfed_cutter missing from SSmapping.shuttle_templates")
 	TEST_ASSERT(template.width > 0 && template.height > 0, "solfed_cutter template has no dimensions")
 
-	var/reserve_w = template.width * 2 + 8
-	var/reserve_h = max(template.height, template.width) + 4
+	var/ship_w = template.width
+	var/ship_h = template.height
+	var/dwidth = round(ship_w / 2)
+	// WEST: X span = height, Y span = width. Hull + gap + matching pad + padding.
+	var/reserve_w = ship_h * 2 + 8
+	var/reserve_h = ship_w + 4
 	cutter_reserve = SSmapping.request_turf_block_reservation(
 		reserve_w,
 		reserve_h,
@@ -65,10 +71,15 @@
 	))
 		tile.ChangeTurf(/turf/open/floor/plating)
 
-	cutter = new /obj/docking_port/mobile/overmap/frigate/solfed_cutter(anchor)
-	cutter.width = template.width
-	cutter.height = template.height
-	cutter.dwidth = round(template.width / 2)
+	// Inset so WEST-facing hull min corner sits on the reservation origin.
+	var/turf/port_turf = locate(anchor.x + ship_h - 1, anchor.y + dwidth, anchor.z)
+	TEST_ASSERT(port_turf, "Failed to locate inset cutter port turf")
+	TEST_ASSERT(cutter_reserve.calculate_turf_bounds_information(port_turf), "Cutter port turf outside reservation")
+
+	cutter = new /obj/docking_port/mobile/overmap/frigate/solfed_cutter(port_turf)
+	cutter.width = ship_w
+	cutter.height = ship_h
+	cutter.dwidth = dwidth
 	cutter.dheight = 0
 	cutter.setDir(WEST)
 	cutter.register(TRUE)
@@ -99,8 +110,18 @@
 	dest.setDir(mobile.dir)
 
 	var/list/pad_coords = dest.return_coords()
-	var/turf/far_corner = locate(max(pad_coords[1], pad_coords[3]), max(pad_coords[2], pad_coords[4]), dest_turf.z)
-	TEST_ASSERT(far_corner && cutter_reserve.calculate_turf_bounds_information(far_corner), "Destination pad footprint leaves cutter reservation")
+	var/min_x = min(pad_coords[1], pad_coords[3])
+	var/min_y = min(pad_coords[2], pad_coords[4])
+	var/max_x = max(pad_coords[1], pad_coords[3])
+	var/max_y = max(pad_coords[2], pad_coords[4])
+	for(var/check_x in list(min_x, max_x))
+		for(var/check_y in list(min_y, max_y))
+			var/turf/corner = locate(check_x, check_y, dest_turf.z)
+			TEST_ASSERT(corner && cutter_reserve.calculate_turf_bounds_information(corner), "Destination pad footprint leaves cutter reservation")
+	// Re-plate after port placement in case any tile was missed by the runway sweep.
+	for(var/turf/pad_tile as anything in dest.return_turfs())
+		if(!istype(pad_tile, /turf/open/floor/plating))
+			pad_tile.ChangeTurf(/turf/open/floor/plating)
 	return dest
 
 /datum/unit_test/overmap_dock_safety/footprint_clear
@@ -161,11 +182,13 @@
 	var/turf/stage = run_loc_floor_bottom_left
 	// Do not pass /area/misc/testroom as shuttle_areas — that orphans the
 	// unit-test room from area turf listings (maptest_area_contents).
+	// custom/Initialize still requires a disposable areas list for default_area.
 
 	var/obj/docking_port/mobile/overmap/frigate/overmap_port = allocate(/obj/docking_port/mobile/overmap/frigate, stage)
 	TEST_ASSERT(SSovermap.should_bind_shuttle(overmap_port), "Overmap frigate ports should bind.")
 
-	var/obj/docking_port/mobile/custom/custom_port = allocate(/obj/docking_port/mobile/custom, stage)
+	var/area/shuttle/custom_bind_area = new /area/shuttle
+	var/obj/docking_port/mobile/custom/custom_port = allocate(/obj/docking_port/mobile/custom, stage, list(custom_bind_area))
 	TEST_ASSERT(SSovermap.should_bind_shuttle(custom_port), "Custom shuttle ports should bind.")
 
 	var/obj/docking_port/mobile/generic = allocate(/obj/docking_port/mobile, stage)
