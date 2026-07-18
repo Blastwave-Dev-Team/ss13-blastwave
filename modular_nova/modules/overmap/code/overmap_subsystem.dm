@@ -972,6 +972,16 @@ SUBSYSTEM_DEF(overmap)
 			return anchor
 	return null
 
+/// TRUE when `candidate` clears ruin / LZ spacing rules for site seeding.
+/datum/controller/subsystem/overmap/proc/site_lz_candidate_ok(list/candidate, list/placed_rects, list/lz_rects)
+	for(var/list/other as anything in placed_rects)
+		if(rect_chebyshev_gap(candidate, other) < OVERMAP_SITE_LZ_RUIN_SEPARATION)
+			return FALSE
+	for(var/list/other_lz as anything in lz_rects)
+		if(rect_chebyshev_gap(candidate, other_lz) < OVERMAP_SITE_LZ_SIDE)
+			return FALSE
+	return TRUE
+
 /// Seed `overmap_site_lz_count` landing zones on `site_z` clear of ruin rects.
 /datum/controller/subsystem/overmap/proc/seed_site_landing_zones(site_z, site_name, list/placed_rects)
 	var/lz_count = CONFIG_GET(number/overmap_site_lz_count)
@@ -987,27 +997,30 @@ SUBSYSTEM_DEF(overmap)
 	var/list/lz_rects = list()
 	for(var/i in 1 to lz_count)
 		var/turf/lz_turf
+		// Random rejection sample first.
 		for(var/attempt in 1 to OVERMAP_SITE_PLACE_ATTEMPTS)
 			var/try_x = rand(min_x, max_x)
 			var/try_y = rand(min_y, max_y)
 			var/list/candidate = list(try_x, try_y, try_x + lz_side - 1, try_y + lz_side - 1)
-			var/ok = TRUE
-			for(var/list/other as anything in placed_rects)
-				if(rect_chebyshev_gap(candidate, other) < OVERMAP_CLUSTER_MIN_SEPARATION)
-					ok = FALSE
-					break
-			if(!ok)
-				continue
-			for(var/list/other_lz as anything in lz_rects)
-				if(rect_chebyshev_gap(candidate, other_lz) < OVERMAP_SITE_LZ_SIDE)
-					ok = FALSE
-					break
-			if(!ok)
+			if(!site_lz_candidate_ok(candidate, placed_rects, lz_rects))
 				continue
 			lz_turf = locate(try_x, try_y, site_z)
 			if(lz_turf)
 				lz_rects += list(candidate)
 				break
+		// Deterministic grid sweep if random sampling failed (dense clusters).
+		// Step ≥ 2× side so adjacent cells satisfy OVERMAP_SITE_LZ_SIDE gap.
+		if(!lz_turf)
+			var/step = max(lz_side * 2, 1)
+			for(var/try_x = min_x; try_x <= max_x && !lz_turf; try_x += step)
+				for(var/try_y = min_y; try_y <= max_y; try_y += step)
+					var/list/candidate = list(try_x, try_y, try_x + lz_side - 1, try_y + lz_side - 1)
+					if(!site_lz_candidate_ok(candidate, placed_rects, lz_rects))
+						continue
+					lz_turf = locate(try_x, try_y, site_z)
+					if(lz_turf)
+						lz_rects += list(candidate)
+						break
 		if(!lz_turf)
 			WARNING("seed_site_landing_zones: failed to place LZ [i] for [site_name] on Z[site_z]")
 			continue

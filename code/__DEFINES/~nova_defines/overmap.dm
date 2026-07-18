@@ -34,6 +34,9 @@
 #define OVERMAP_CLUSTER_RUIN_MAX_SIDE 30
 /// Minimum chebyshev gap (tiles) between ruin footprints on a cluster Z.
 #define OVERMAP_CLUSTER_MIN_SEPARATION 60
+/// Min chebyshev gap between a landing zone and a ruin (LZs only need clearance,
+/// not the wide ruin-ruin debris spacing — that gap leaves dense clusters with 0 LZs).
+#define OVERMAP_SITE_LZ_RUIN_SEPARATION 8
 /// Edge margin (tiles) from TRANSITIONEDGE when placing ruins / LZs on a site Z.
 #define OVERMAP_SITE_EDGE_MARGIN 8
 /// Side length of each seeded landing zone on a site Z.
