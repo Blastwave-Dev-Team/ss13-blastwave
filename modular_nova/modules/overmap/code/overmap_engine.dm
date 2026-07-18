@@ -132,8 +132,10 @@
 	return linked_injector?.resolve()
 
 /// TRUE when the bound overmap ship is commanding thrust (desired_throttle above epsilon).
+/// Prefer `connected_ship` over turf bounds — engines sit at the hull edge and can
+/// fall outside the docking port rectangle used by get_containing_shuttle().
 /obj/machinery/power/shuttle_engine/overmap/proc/ship_wants_thrust()
-	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	var/obj/docking_port/mobile/port = connected_ship || SSshuttle.get_containing_shuttle(src)
 	var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
 	return !isnull(ship) && ship.desired_throttle > OVERMAP_THRUST_EPSILON
 

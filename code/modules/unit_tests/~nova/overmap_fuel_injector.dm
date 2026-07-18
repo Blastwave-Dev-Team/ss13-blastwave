@@ -199,22 +199,9 @@
 	engine.scan_for_injector()
 	TEST_ASSERT(engine.get_linked_injector() == injector, "HNT engine failed to link to the fuel injector.")
 
-	var/area/hull_area = get_area(injector_turf)
-	var/obj/docking_port/mobile/port = allocate(/obj/docking_port/mobile, injector_turf, list(hull_area))
-	port.name = "Fuel Mix Test Shuttle"
-	port.shuttle_id = "overmap_fuel_mix_test"
-	port.width = 3
-	port.height = 3
-	port.dwidth = 1
-	port.dheight = 1
-	engine.connect_to_shuttle(FALSE, port)
-	TEST_ASSERT(engine in port.engine_list, "HNT should be registered on the mobile port engine_list.")
-
-	// Test Z is not an overmap/reserved level, so setup_shuttle_ship() no-ops.
-	var/obj/structure/overmap/ship/simulated/ship = allocate(/obj/structure/overmap/ship/simulated, injector_turf, port.shuttle_id, port)
-	port.current_ship = ship
-	ship.state = OVERMAP_SHIP_FLYING
-	ship.calculate_mass()
+	var/list/ship_bits = attach_simulated_ship(injector_turf, engine, "overmap_fuel_mix_test", "Fuel Mix Test Shuttle")
+	var/obj/docking_port/mobile/port = ship_bits["port"]
+	var/obj/structure/overmap/ship/simulated/ship = ship_bits["ship"]
 	refresh_grid_power(grid_apc)
 	TEST_ASSERT(engine.update_engine(), "HNT should activate on the simulated ship fixture.")
 	ship.refresh_engines()
@@ -226,6 +213,27 @@
 		"port" = port,
 		"ship" = ship,
 	)
+
+/// Bind a mobile port + simulated ship so ship_wants_thrust() can see commanded throttle.
+/datum/unit_test/overmap_fuel_injector/proc/attach_simulated_ship(turf/anchor_turf, obj/machinery/power/shuttle_engine/overmap/engine, shuttle_id, port_name)
+	var/area/hull_area = get_area(anchor_turf)
+	var/obj/docking_port/mobile/port = allocate(/obj/docking_port/mobile, anchor_turf, list(hull_area))
+	port.name = port_name
+	port.shuttle_id = shuttle_id
+	port.width = 5
+	port.height = 5
+	port.dwidth = 2
+	port.dheight = 2
+	engine.connect_to_shuttle(FALSE, port)
+	TEST_ASSERT(engine in port.engine_list, "HNT should be registered on the mobile port engine_list.")
+	TEST_ASSERT(engine.connected_ship == port, "HNT connected_ship should match the test port.")
+
+	// Test Z is not an overmap/reserved level, so setup_shuttle_ship() no-ops.
+	var/obj/structure/overmap/ship/simulated/ship = allocate(/obj/structure/overmap/ship/simulated, anchor_turf, port.shuttle_id, port)
+	port.current_ship = ship
+	ship.state = OVERMAP_SHIP_FLYING
+	ship.calculate_mass()
+	return list("port" = port, "ship" = ship)
 
 /// Docking ports soft-qdel with QDEL_HINT_LETMELIVE; force-delete so later
 /// unit-test turf sweeps don't keep hitting a zombie port.
@@ -320,6 +328,11 @@
 	engine.scan_for_injector()
 	TEST_ASSERT(engine.get_linked_injector() == injector, "HNT engine failed to link to the fuel injector via L2 / area scan.")
 	TEST_ASSERT(engine.link_via_pipe, "HNT engine should report a piped injector link.")
+
+	var/list/ship_bits = attach_simulated_ship(injector_turf, engine, "overmap_fuel_burn_cycle", "Fuel Burn Cycle Shuttle")
+	var/obj/structure/overmap/ship/simulated/ship = ship_bits["ship"]
+	// process_tick_burn gates on ship_wants_thrust(); command full throttle for the hot path.
+	ship.desired_throttle = 1
 
 	var/obj/machinery/portable_atmospherics/canister/fuel_can = allocate(/obj/machinery/portable_atmospherics/canister, west_turf)
 	fill_canister_mix(fuel_can, 0.9, 0.1, OVERMAP_FUEL_TEST_PRESSURE, T20C)
@@ -430,10 +443,13 @@
 	TEST_ASSERT(!injector.has_propellant(), "Chamber+feed should be empty for hall-only check.")
 
 	refresh_grid_power(grid_apc)
+	ship.desired_throttle = 1
 	var/hall_thrust = engine.burn_engine(100, skip_engine_update = TRUE)
 	log_test("HALL-ONLY thrust=[round(hall_thrust, 0.01)] expected_cap=[round(engine.thrust * engine.hall_only_efficiency, 0.01)]")
 	TEST_ASSERT(hall_thrust > 0, "Dry HNT should produce hall-only thrust.")
 	TEST_ASSERT(hall_thrust <= engine.thrust * engine.hall_only_efficiency + 0.01, "Hall-only thrust should be capped at 15% of rated.")
+
+	teardown_ship_thrust_fixture(list("ship" = ship, "port" = ship_bits["port"]))
 
 // ---------------------------------------------------------------------------
 // Simulated ship: mix matrix → expected thrust via process_engine_fuel_burns
@@ -455,6 +471,9 @@
 	var/datum/gas_mixture/feed_air
 	var/cold_n2_thrust = 0
 	var/cold_plasma_o2_thrust = 0
+
+	// process_tick_burn / burn_engine gate on commanded throttle.
+	ship.desired_throttle = 1
 
 	// Cases: list(name, temperature, gas_fractions assoc, expect_chem_bonus, expect_zero_isp)
 	var/list/mix_cases = list(
@@ -536,13 +555,13 @@
 	var/wait_thrust = engine.burn_engine(100, skip_engine_update = TRUE)
 	TEST_ASSERT(wait_thrust <= 0, "Chamber-only HNT must wait (0 thrust), not fall through to hall-only.")
 
-	// Hall-only via ship.burn_engines with dry injector.
+	// Hall-only via ship.burn_engines with dry injector (null dir is all-stop, not burn).
 	injector.air_contents.remove(injector.air_contents.total_moles())
 	TEST_ASSERT(!injector.has_propellant(), "Injector must be fully dry for hall-only.")
 	refresh_grid_power(grid_apc)
 	TEST_ASSERT(engine.update_engine(), "Grid power should keep dry HNT active for hall-only.")
 	var/expected_hall = engine.thrust * engine.hall_only_efficiency
-	ship.burn_engines(null, 100)
+	ship.burn_engines(NORTH, 100)
 	log_test("SHIP HALL-ONLY est_thrust=[round(ship.est_thrust, 0.001)] expected=[round(expected_hall, 0.001)]")
 	assert_thrust_near(ship.est_thrust, expected_hall, "ship_hall_only")
 
