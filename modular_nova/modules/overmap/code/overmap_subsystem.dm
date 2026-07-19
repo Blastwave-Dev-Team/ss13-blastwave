@@ -49,8 +49,10 @@ SUBSYSTEM_DEF(overmap)
 	var/station_revealed_to_ds2 = FALSE
 	/// All registered landing zone landmarks (for nav console zone discovery).
 	var/list/landing_zones
-	/// Helm-facing reason when spawn_dynamic_encounter() last returned null.
+	/// Helm-facing reason when dynamic encounter generation last failed.
 	var/last_encounter_spawn_error
+	/// Soft-cleared content Zs available for reuse by lazy dynamic encounters.
+	var/list/reusable_content_zs = list()
 
 /datum/controller/subsystem/overmap/Initialize()
 	generator_type = CONFIG_GET(string/overmap_generator_type)
@@ -200,12 +202,16 @@ SUBSYSTEM_DEF(overmap)
 			best_dist = dist
 	return best
 
-/// Returns the level overmap object whose `linked_levels` contains `zlevel`,
+/// Returns the overmap object whose `linked_levels` contains `zlevel`,
 /// or null. Used by ship binding (M3) and dock resolution (M6).
+/// Checks named sites/levels first, then lazy `/dynamic` encounters.
 /datum/controller/subsystem/overmap/proc/get_overmap_object_by_z(zlevel)
 	for(var/obj/structure/overmap/level/object in overmap_objects)
 		if(zlevel in object.linked_levels)
 			return object
+	for(var/obj/structure/overmap/dynamic/encounter in overmap_objects)
+		if(zlevel in encounter.linked_levels)
+			return encounter
 	return null
 
 /// Lookup helper used by helm consoles binding via `override_id`.
@@ -605,172 +611,92 @@ SUBSYSTEM_DEF(overmap)
 		WARNING("Overmap ruin [template.name] footprint exceeds reservation at [ruin_turf.x],[ruin_turf.y],[ruin_turf.z]")
 	SSmapping.claim_turfs_for_reservation(reserve, affected)
 
-/// Reserves a turf block, optionally generates terrain and loads a ruin,
-/// then creates stationary docking ports for the visiting shuttle.
-/datum/controller/subsystem/overmap/proc/spawn_dynamic_encounter(planet_type, ruin = TRUE, dock_id, size, obj/docking_port/mobile/visiting_shuttle)
+/// Pick a space-ruin batch for a lazy `/dynamic` encounter (site-style packing).
+/datum/controller/subsystem/overmap/proc/pick_dynamic_encounter_templates()
+	var/list/space_ruins = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
+	if(!length(space_ruins))
+		return list()
+
+	var/cluster_capacity = CONFIG_GET(number/overmap_cluster_capacity)
+	var/list/datum/map_template/ruin/available = list()
+	for(var/ruin_name in space_ruins)
+		var/datum/map_template/ruin/candidate = space_ruins[ruin_name]
+		if(ispath(candidate))
+			candidate = new candidate
+		if(candidate.unpickable || candidate.always_place)
+			continue
+		if(candidate.id in placed_site_template_ids)
+			continue
+		available[candidate] = candidate.placement_weight || 1
+
+	if(!length(available))
+		return list()
+
+	var/list/datum/map_template/ruin/batch = list()
+	var/list/datum/map_template/ruin/small_pool = list()
+	var/list/datum/map_template/ruin/large_pool = list()
+	for(var/datum/map_template/ruin/candidate as anything in available)
+		if(is_overmap_cluster_ruin(candidate))
+			small_pool += candidate
+		else
+			large_pool += candidate
+
+	if(length(small_pool))
+		var/list/small_weights = list()
+		for(var/datum/map_template/ruin/small as anything in small_pool)
+			small_weights[small] = available[small] || 1
+		while(length(batch) < cluster_capacity && length(small_weights))
+			var/datum/map_template/ruin/picked = pick_weight(small_weights)
+			batch += picked
+			small_weights -= picked
+	else if(length(large_pool))
+		batch += pick(large_pool)
+
+	return batch
+
+/// Generate a full content Z for `encounter` using the shared site generator.
+/// Returns TRUE on success; sets last_encounter_spawn_error on failure.
+/datum/controller/subsystem/overmap/proc/load_dynamic_encounter(obj/structure/overmap/dynamic/encounter)
+	if(!encounter)
+		return FALSE
 	if(!COOLDOWN_FINISHED(src, encounter_cooldown))
-		return null
+		last_encounter_spawn_error = "WARNING! Stellar interference is restricting local translation fields. Hold position and re-attempt docking in [round(COOLDOWN_TIMELEFT(src, encounter_cooldown) / 10)] seconds."
+		return FALSE
 
 	last_encounter_spawn_error = null
+	var/list/datum/map_template/ruin/templates = pick_dynamic_encounter_templates()
+	if(!length(templates))
+		last_encounter_spawn_error = "SURVEY TELEMETRY LOST. No chartable space ruins remain in local catalogs — withdraw and re-approach."
+		return FALSE
 
-	if(!dock_id)
-		CRASH("spawn_dynamic_encounter called without a dock_id!")
+	var/label = length(templates) > 1 ? "Debris Field" : (templates[1].name || encounter.name)
+	var/list/result = generate_overmap_content_z(templates, "Overmap Encounter ([label])")
+	if(!result)
+		last_encounter_spawn_error = "NAVIGATION BUFFER SATURATED. Local translation fields cannot chart a stable survey footprint — withdraw and re-approach."
+		return FALSE
 
-	if(!size)
-		size = round(world.maxx / 4)
-
-	var/dock_size = calculate_overmap_dock_size(null, visiting_shuttle, size)
-	var/total_size = minimum_encounter_reservation_side(dock_size, null, size)
-
-	var/list/ruin_list
-	var/datum/map_generator/mapgen
-	var/area/target_area
-
-	if(planet_type)
-		switch(planet_type)
-			if(DYNAMIC_WORLD_LAVA)
-				ruin_list = SSmapping.themed_ruins[ZTRAIT_LAVA_RUINS]
-				mapgen = new /datum/map_generator/cave_generator/lavaland
-				target_area = /area/lavaland/surface/outdoors/unexplored
-			if(DYNAMIC_WORLD_ICE)
-				ruin_list = SSmapping.themed_ruins[ZTRAIT_ICE_RUINS]
-				mapgen = new /datum/map_generator/cave_generator/icemoon/surface
-				target_area = /area/icemoon/surface/outdoors/unexplored
-			if(DYNAMIC_WORLD_JUNGLE)
-				ruin_list = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
-				target_area = /area/space
-			if(DYNAMIC_WORLD_SAND)
-				ruin_list = SSmapping.themed_ruins[ZTRAIT_LAVA_RUINS]
-				mapgen = new /datum/map_generator/cave_generator/lavaland
-				target_area = /area/lavaland/surface/outdoors/unexplored
-	else
-		ruin_list = SSmapping.themed_ruins[ZTRAIT_SPACE_RUINS]
-
-	var/datum/map_template/ruin/ruin_type
-	if(ruin && length(ruin_list))
-		var/max_ruin_dimension = total_size - dock_size - 4
-		var/list/viable_ruins = list()
-		for(var/ruin_name in ruin_list)
-			var/datum/map_template/ruin/candidate = ruin_list[ruin_name]
-			if(ispath(candidate))
-				candidate = new candidate
-			if(max(candidate.width, candidate.height) <= max_ruin_dimension)
-				// Skip ruins already placed as named overmap sites
-				if(candidate.id in placed_site_template_ids)
-					continue
-				viable_ruins[ruin_name] = candidate
-		if(length(viable_ruins))
-			ruin_type = viable_ruins[pick(viable_ruins)]
-			total_size = max(
-				calculate_overmap_site_size(ruin_type, dock_size),
-				minimum_encounter_reservation_side(dock_size, ruin_type, size),
-			)
-
-	var/datum/turf_reservation/encounter_reservation = SSmapping.request_turf_block_reservation(total_size, total_size)
-	if(!encounter_reservation)
-		return abort_dynamic_encounter(
-			null,
-			list(),
-			"NAVIGATION BUFFER SATURATED. Local translation fields cannot chart a stable survey footprint — withdraw and re-approach.",
-		)
-
-	if(mapgen && ispath(target_area))
-		var/list/gen_turfs = encounter_reservation.reserved_turfs.Copy()
-		if(length(gen_turfs))
-			var/area/gen_area = new target_area
-			gen_area.setup("Uncharted [planet_type]")
-			set_turfs_to_area(gen_turfs, gen_area)
-			gen_area.reg_in_areas_in_z()
-			mapgen.generate_terrain(gen_turfs, gen_area)
-			var/list/populated_turfs = list()
-			for(var/turf/pop_turf in gen_area)
-				populated_turfs += pop_turf
-			mapgen.populate_terrain(populated_turfs, gen_area)
-
-	var/turf/bottom_left = encounter_reservation.bottom_left_turfs[1]
-	if(!bottom_left)
-		return abort_dynamic_encounter(
-			encounter_reservation,
-			list(),
-			"SURVEY TELEMETRY LOST. Astrogation could not resolve the generated footprint — abort approach.",
-		)
-
-	if(ruin_type)
-		var/turf/ruin_turf = calculate_overmap_ruin_anchor(bottom_left, ruin_type, dock_size, total_size)
-		if(ruin_turf)
-			ruin_type.load(ruin_turf)
-
-	var/list/spawned_atoms = list()
-
-	var/list/dir_attempts = list()
-	if(visiting_shuttle)
-		dir_attempts += visiting_shuttle.dir
-	for(var/cardinal in GLOB.cardinals)
-		if(cardinal in dir_attempts)
-			continue
-		dir_attempts += cardinal
-
-	var/obj/docking_port/stationary/primary_dock
-	if(visiting_shuttle)
-		primary_dock = place_encounter_primary_dock(
-			encounter_reservation,
-			bottom_left,
-			total_size,
-			dock_size,
-			visiting_shuttle,
-			dock_id,
-			dir_attempts,
-		)
-	else
-		// No visiting hull to match — fall back to the legacy west pad.
-		var/turf/dock_turf = locate(
-			bottom_left.x + dock_size,
-			bottom_left.y + round(dock_size / 2),
-			bottom_left.z,
-		)
-		primary_dock = new(dock_turf)
-		primary_dock.dir = WEST
-		primary_dock.name = "\improper Uncharted Space"
-		primary_dock.shuttle_id = "[OVERMAP_DOCK_PREFIX]_[dock_id]"
-		primary_dock.height = dock_size
-		primary_dock.width = dock_size
-		primary_dock.dwidth = round(dock_size / 2)
-
-	if(!primary_dock || !dock_port_fits_reservation(encounter_reservation, primary_dock))
-		return abort_dynamic_encounter(
-			encounter_reservation,
-			spawned_atoms,
-			"NO CONFIRMED LANDING CORRIDOR. Generated survey footprint cannot contain this vessel — select a smaller landing zone or withdraw.",
-		)
-	spawned_atoms += primary_dock
-
-	// Secondary ferry pad shares the primary heading when possible.
-	var/turf/secondary_turf = locate(
-		bottom_left.x + dock_size,
-		bottom_left.y + CEILING(dock_size * 1.5, 1),
-		bottom_left.z,
-	)
-	var/obj/docking_port/stationary/secondary_dock = new(secondary_turf)
-	secondary_dock.dir = primary_dock.dir
-	secondary_dock.name = "\improper Uncharted Space"
-	secondary_dock.shuttle_id = "[OVERMAP_FERRY_PREFIX]_[dock_id]"
-	secondary_dock.height = dock_size
-	secondary_dock.width = dock_size
-	secondary_dock.dwidth = round(dock_size / 2)
-	if(!dock_port_fits_reservation(encounter_reservation, secondary_dock))
-		qdel(secondary_dock)
-	else
-		spawned_atoms += secondary_dock
-
-	// Create a landing zone spanning the usable reservation area
-	var/obj/effect/landmark/overmap_landing_zone/zone = new(bottom_left)
-	zone.zone_name = "Uncharted Space"
-	zone.zone_width = total_size - 2
-	zone.zone_height = total_size - 2
-	spawned_atoms += zone
-
+	encounter.linked_levels = list(result["z"])
+	encounter.member_templates = result["loaded"]
+	encounter.member_template_ids = result["loaded_ids"]
+	encounter.ruin_template = length(result["loaded"]) == 1 ? result["loaded"][1] : null
+	encounter.name = label
 	COOLDOWN_START(src, encounter_cooldown, OVERMAP_ENCOUNTER_COOLDOWN)
-	return encounter_reservation
+	return TRUE
+
+/// Soft-clear a content Z and return it to the reusable pool (never shared while linked).
+/datum/controller/subsystem/overmap/proc/recycle_overmap_content_z(z_value)
+	if(!z_value)
+		return
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in landing_zones?.Copy())
+		if(zone.z == z_value)
+			qdel(zone)
+	for(var/obj/docking_port/stationary/port as anything in SSshuttle.stationary_docking_ports.Copy())
+		if(port.z == z_value)
+			qdel(port)
+	for(var/turf/turf as anything in Z_TURFS(z_value))
+		turf.empty(turf_type = /turf/open/space)
+	if(!(z_value in reusable_content_zs))
+		reusable_content_zs += z_value
 
 // --- Space site seeding (Phase 3) ---
 
@@ -850,34 +776,29 @@ SUBSYSTEM_DEF(overmap)
 		return FALSE
 	return max(template.width, template.height) <= OVERMAP_CLUSTER_RUIN_MAX_SIDE
 
-/// Spawn a named site POI on a dedicated full Z-level: load `templates`,
-/// seed landing zones (no premapped docks), and place one `/level/site` tile.
-/datum/controller/subsystem/overmap/proc/spawn_overmap_site(list/datum/map_template/ruin/templates, controlled = FALSE)
+/// Shared content-Z generator used by roundstart sites and lazy dynamics.
+/// Allocates (or reuses) a full SELFLOOPING Z, places `templates` with separation,
+/// seeds landing zones, and returns an assoc list:
+/// `z`, `loaded`, `loaded_ids`, `chained`, `placed_rects` — or null on failure.
+/datum/controller/subsystem/overmap/proc/generate_overmap_content_z(list/datum/map_template/ruin/templates, level_name = "Overmap Content", allow_reuse = TRUE)
 	if(!length(templates))
 		return null
 
-	var/turf/grid_turf = get_unused_overmap_square()
-	if(!grid_turf)
-		WARNING("spawn_overmap_site: no free overmap tile")
-		return null
+	var/site_z
+	if(allow_reuse && length(reusable_content_zs))
+		site_z = reusable_content_zs[1]
+		reusable_content_zs.Cut(1, 2)
+	else
+		var/datum/space_level/level = SSmapping.add_new_zlevel(
+			level_name,
+			ZTRAITS_OVERMAP_SITE,
+			contain_turfs = TRUE,
+		)
+		if(!level)
+			WARNING("generate_overmap_content_z: failed to allocate Z for [level_name]")
+			return null
+		site_z = level.z_value
 
-	var/datum/map_template/ruin/primary = templates[1]
-	var/site_id = primary.id || "site_[length(overmap_objects)]"
-	var/site_name = primary.name || "Unknown Signal"
-	if(length(templates) > 1)
-		site_id = "cluster_[length(overmap_objects)]"
-		site_name = "Debris Field"
-
-	var/datum/space_level/level = SSmapping.add_new_zlevel(
-		"Overmap Site ([site_name])",
-		ZTRAITS_OVERMAP_SITE,
-		contain_turfs = TRUE,
-	)
-	if(!level)
-		WARNING("spawn_overmap_site: failed to allocate Z for [site_name]")
-		return null
-
-	var/site_z = level.z_value
 	var/list/placed_rects = list()
 	var/list/datum/map_template/ruin/loaded = list()
 	var/list/loaded_ids = list()
@@ -886,7 +807,7 @@ SUBSYSTEM_DEF(overmap)
 	for(var/datum/map_template/ruin/template as anything in templates)
 		var/turf/anchor = find_site_ruin_anchor(site_z, template, placed_rects)
 		if(!anchor)
-			WARNING("spawn_overmap_site: could not place [template.name] on Z[site_z]")
+			WARNING("generate_overmap_content_z: could not place [template.name] on Z[site_z]")
 			continue
 		template.load(anchor, centered = FALSE)
 		placed_rects += list(ruin_rect_from_anchor(anchor, template))
@@ -904,7 +825,7 @@ SUBSYSTEM_DEF(overmap)
 					continue
 				var/turf/chain_anchor = find_site_ruin_anchor(site_z, linked, placed_rects, near_rect = placed_rects[length(placed_rects)])
 				if(!chain_anchor)
-					WARNING("spawn_overmap_site: could not place chained [linked.name] near [template.name]")
+					WARNING("generate_overmap_content_z: could not place chained [linked.name] near [template.name]")
 					continue
 				linked.load(chain_anchor, centered = FALSE)
 				placed_rects += list(ruin_rect_from_anchor(chain_anchor, linked))
@@ -912,10 +833,48 @@ SUBSYSTEM_DEF(overmap)
 				loaded_ids += linked.id
 
 	if(!length(loaded))
-		WARNING("spawn_overmap_site: no ruins loaded for [site_name] on Z[site_z]")
+		WARNING("generate_overmap_content_z: no ruins loaded for [level_name] on Z[site_z]")
+		recycle_overmap_content_z(site_z)
 		return null
 
-	seed_site_landing_zones(site_z, site_name, placed_rects)
+	var/display_name = length(templates) > 1 ? "Debris Field" : (templates[1].name || "Unknown Signal")
+	seed_site_landing_zones(site_z, display_name, placed_rects)
+
+	return list(
+		"z" = site_z,
+		"loaded" = loaded,
+		"loaded_ids" = loaded_ids,
+		"chained" = chained,
+		"placed_rects" = placed_rects,
+	)
+
+/// Spawn a named site POI on a dedicated full Z-level via the shared generator,
+/// then place one `/level/site` tile on the overmap.
+/datum/controller/subsystem/overmap/proc/spawn_overmap_site(list/datum/map_template/ruin/templates, controlled = FALSE)
+	if(!length(templates))
+		return null
+
+	var/turf/grid_turf = get_unused_overmap_square()
+	if(!grid_turf)
+		WARNING("spawn_overmap_site: no free overmap tile")
+		return null
+
+	var/datum/map_template/ruin/primary = templates[1]
+	var/site_id = primary.id || "site_[length(overmap_objects)]"
+	var/site_name = primary.name || "Unknown Signal"
+	if(length(templates) > 1)
+		site_id = "cluster_[length(overmap_objects)]"
+		site_name = "Debris Field"
+
+	var/list/result = generate_overmap_content_z(templates, "Overmap Site ([site_name])", allow_reuse = FALSE)
+	if(!result)
+		WARNING("spawn_overmap_site: generation failed for [site_name]")
+		return null
+
+	var/site_z = result["z"]
+	var/list/loaded = result["loaded"]
+	var/list/loaded_ids = result["loaded_ids"]
+	var/list/chained = result["chained"]
 
 	var/obj/structure/overmap/level/site/site = new(grid_turf, site_id, list(site_z), length(loaded) == 1 ? loaded[1] : null)
 	site.name = site_name

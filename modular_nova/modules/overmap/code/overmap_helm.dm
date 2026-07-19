@@ -23,10 +23,14 @@
 	var/viewer = FALSE
 	/// Optional override - set via VV or area_spawn to bind this helm to a specific overmap object.
 	var/override_id
+	/// User preference: emit GPS while landed. Forced off in transit regardless.
+	var/gps_beacon_pref = TRUE
 
 /obj/machinery/computer/helm/Initialize(mapload)
 	. = ..()
 	LAZYADD(SSovermap.helms, src)
+	if(!viewer)
+		AddComponent(/datum/component/gps, "SHIP", FALSE)
 	// Round-start helms are bound by SSovermap.bind_existing_consoles(). Anything spawning
 	// after the subsystem is up - shuttle templates included, since they Initialize with
 	// mapload=TRUE - needs to bind itself here.
@@ -60,15 +64,31 @@
 		override_id = _id
 	if(override_id)
 		current_ship = SSovermap.get_overmap_object_by_id(override_id)
+		sync_gps_beacon()
 		return
 	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
 	if(port?.current_ship)
 		current_ship = port.current_ship
+		sync_gps_beacon()
 		return
 	if(is_station_level(z))
 		current_ship = SSovermap.main
+		sync_gps_beacon()
 		return
 	current_ship = null
+	sync_gps_beacon()
+
+/// Landed-only GPS beacon: tracking follows gps_beacon_pref while IDLE+docked.
+/obj/machinery/computer/helm/proc/sync_gps_beacon()
+	if(viewer)
+		return
+	var/datum/component/gps/gps = GetComponent(/datum/component/gps)
+	if(!gps)
+		return
+	var/obj/structure/overmap/ship/simulated/ship = current_ship
+	var/landed = istype(ship) && ship.state == OVERMAP_SHIP_IDLE && !!ship.docked
+	gps.gpstag = istype(ship) ? ship.name : name
+	gps.tracking = landed && gps_beacon_pref
 
 /obj/machinery/computer/helm/ui_interact(mob/user, datum/tgui/ui)
 	if(!current_ship)
@@ -183,6 +203,10 @@
 	.["scanReady"] = COOLDOWN_FINISHED(ship, scan_cooldown)
 	.["shipInfo"]["mass"] = ship.mass
 	.["shipInfo"]["est_thrust"] = ship.est_thrust
+	var/datum/component/gps/gps = GetComponent(/datum/component/gps)
+	.["gpsBeacon"] = !!gps?.tracking
+	.["gpsBeaconPref"] = gps_beacon_pref
+	.["gpsBeaconLanded"] = ship.state == OVERMAP_SHIP_IDLE && !!ship.docked
 
 	var/speed = ship.get_speed()
 	var/heading_deg = ship.get_heading_degrees()
@@ -295,6 +319,14 @@
 				say("Scan complete: [count] contact\s detected.")
 			else
 				say("Scan on cooldown or no contacts in range.")
+			return TRUE
+		if("toggle_gps")
+			if(ship.state != OVERMAP_SHIP_IDLE || !ship.docked)
+				say("No valid coordinate fix. Surface GPS broadcast unavailable while in transit.")
+				return TRUE
+			gps_beacon_pref = !gps_beacon_pref
+			sync_gps_beacon()
+			say(gps_beacon_pref ? "Surface GPS beacon active." : "Surface GPS beacon silenced.")
 			return TRUE
 	return FALSE
 

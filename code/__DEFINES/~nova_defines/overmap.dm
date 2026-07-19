@@ -64,7 +64,8 @@
 #define OVERMAP_SHIP_DOCKING "docking"
 #define OVERMAP_SHIP_UNDOCKING "undocking"
 
-// Dynamic-encounter planet flavors.
+// Dynamic-encounter planet flavors (reserved for future multi-Z planetary
+// bodies: several content clusters under one overmap tile / docking ports).
 #define DYNAMIC_WORLD_LAVA "lava"
 #define DYNAMIC_WORLD_ICE "ice"
 #define DYNAMIC_WORLD_JUNGLE "jungle"
@@ -126,9 +127,14 @@
 #define OVERMAP_HNT_FEED_LAYER 2
 
 /// Max moles transferred chamber → L2 feed per atmos tick (pressure-regulated).
-#define OVERMAP_FEED_TRANSFER_RATE (MAX_TRANSFER_RATE * 0.15)
+/// Kept well below typical chamber capacity (~9 mol at 3 atm) so idle ticks cannot empty the chamber.
+#define OVERMAP_FEED_TRANSFER_RATE 1.5
 /// Minimum chamber-vs-feed pressure delta (kPa) before feed push runs.
 #define OVERMAP_FEED_MIN_DELTA_P 1
+/// Target L2 feed pressure (kPa) to keep primed while idle; stop pushing once reached.
+#define OVERMAP_FEED_BUFFER_PRESSURE (0.5 * ONE_ATMOSPHERE)
+/// Never transfer more than this fraction of current chamber moles in one tick.
+#define OVERMAP_FEED_MAX_CHAMBER_FRACTION 0.1
 
 #define OVERMAP_THERMAL_EXHAUST_TEMP 2000
 #define OVERMAP_CHEMICAL_ISP_BONUS 1.15

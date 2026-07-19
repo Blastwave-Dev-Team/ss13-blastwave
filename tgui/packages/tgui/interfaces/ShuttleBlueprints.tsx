@@ -29,6 +29,7 @@ type ShuttleConfigurationUniqueData = {
   linkedShuttle: string;
   onShuttle: BooleanLike;
   inDefaultArea: BooleanLike;
+  shuttleName?: string;
   currentArea: AreaData;
   defaultApc: BooleanLike;
   apcInMergeRegion: BooleanLike;
@@ -302,6 +303,7 @@ const ShuttleConfiguration = () => {
     maxShuttleSize,
     problems,
     shuttleDir = Direction.NORTH,
+    shuttleName,
   } = data;
   const [shuttleDirection, setShuttleDirection] =
     useState<Direction>(shuttleDir);
@@ -316,6 +318,10 @@ const ShuttleConfiguration = () => {
   const canSetDirection = !!(idle && isMaster && onShuttle);
   return (
     <Stack fill vertical align="center" justify="space-around">
+      <Stack.Item textAlign="center">
+        <h2>Shuttle:</h2>
+        <h3>{shuttleName || 'Unnamed Shuttle'}</h3>
+      </Stack.Item>
       <Stack.Item textAlign="center">
         <h2>Current Area:</h2>
         <h3>
@@ -361,8 +367,21 @@ const ShuttleConfiguration = () => {
         </Stack>
       </Stack.Item>
       <Stack.Item>
-        <Input fluid placeholder="New Area Name" onChange={setName} />
+        <Input fluid placeholder="New Name" onChange={setName} />
         <Stack>
+          <Stack.Item>
+            <Button.Confirm
+              disabled={!isMaster || !name}
+              tooltip={
+                isMaster
+                  ? 'Rename the shuttle (docking port, default area, overmap marker, GPS).'
+                  : 'Only the master blueprint can rename this shuttle.'
+              }
+              onClick={() => act('renameShuttle', { name: name })}
+            >
+              Rename Shuttle
+            </Button.Confirm>
+          </Stack.Item>
           <Stack.Item>
             <Button.Confirm
               disabled={!(onShuttle && inDefaultArea)}

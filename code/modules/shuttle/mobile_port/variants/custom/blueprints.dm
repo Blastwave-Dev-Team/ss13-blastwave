@@ -283,8 +283,13 @@
 		)
 		user.do_attack_animation(attacked, used_item = bottle)
 		bottle.smash(attacked, user)
+		/* // BLASTWAVE EDIT REMOVAL START - OVERMAP - sync overmap/GPS on christen
 		shuttle.name = new_name
 		rename_area(shuttle.default_area, new_name)
+		*/ // BLASTWAVE EDIT REMOVAL END
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - sync overmap/GPS on christen
+		sync_shuttle_display_name(shuttle, new_name)
+		// BLASTWAVE EDIT ADDITION END
 
 /obj/item/shuttle_blueprints/proc/start_visualizing(mob/user)
 	visualize_frame_turfs = TRUE
@@ -361,6 +366,7 @@
 		var/area/default_area = linked_shuttle.default_area
 		data["onShuttle"] = linked_shuttle.shuttle_areas[current_area]
 		data["inDefaultArea"] = default_area == current_area
+		data["shuttleName"] = linked_shuttle.name // BLASTWAVE EDIT ADDITION - OVERMAP - blueprints TGUI rename
 		data["currentArea"] = list(name = current_area.name, ref = REF(current_area))
 		data["defaultApc"] = !!default_area.apc
 		var/list/apcs = list()
@@ -656,6 +662,25 @@
 				return TRUE
 			rename_area(current_area, new_name)
 			return TRUE
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - blueprints TGUI shuttle rename
+		if("renameShuttle")
+			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
+			if(!shuttle)
+				balloon_alert(usr, "not linked!")
+				return TRUE
+			var/obj/item/shuttle_blueprints/master = shuttle.master_blueprint?.resolve()
+			if(master != src)
+				balloon_alert(usr, "not master blueprints!")
+				return TRUE
+			var/new_name = reject_bad_name(params["name"], allow_numbers = TRUE, strict = TRUE, cap_after_symbols = FALSE)
+			if(!new_name)
+				balloon_alert(usr, "invalid name!")
+				return TRUE
+			new_name = apply_text_macros(new_name)
+			sync_shuttle_display_name(shuttle, new_name)
+			balloon_alert(usr, "shuttle renamed")
+			return TRUE
+		// BLASTWAVE EDIT ADDITION END
 		if("expandWithFrame")
 			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
 			if(!shuttle)

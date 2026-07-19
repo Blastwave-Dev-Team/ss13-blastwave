@@ -69,6 +69,9 @@ type Data = {
   docked?: BooleanLike;
   scanReady?: BooleanLike;
   consoleControl?: BooleanLike;
+  gpsBeacon?: BooleanLike;
+  gpsBeaconPref?: BooleanLike;
+  gpsBeaconLanded?: BooleanLike;
 };
 
 export const HelmConsole = () => {
@@ -155,7 +158,16 @@ export const HelmConsole = () => {
 
 const StatusTab = () => {
   const { act, data } = useBackend<Data>();
-  const { shipInfo, state, docked, x, y } = data;
+  const {
+    shipInfo,
+    state,
+    docked,
+    x,
+    y,
+    isViewer,
+    gpsBeacon,
+    gpsBeaconLanded,
+  } = data;
   if (!shipInfo) return null;
 
   const stateColor: Record<string, string> = {
@@ -239,6 +251,31 @@ const StatusTab = () => {
           </button>
         </div>
       )}
+      {!isViewer && (
+        <div className="HelmPanel__section">
+          <div className="HelmPanel__section-title">Surface GPS</div>
+          <button
+            className={
+              'HelmPanel__btn' +
+              (gpsBeacon ? ' HelmPanel__btn--active' : '')
+            }
+            style={{ width: '100%' }}
+            disabled={!gpsBeaconLanded}
+            title={
+              gpsBeaconLanded
+                ? 'Toggle surface GPS beacon'
+                : 'No valid coordinate fix while in transit'
+            }
+            onClick={() => act('toggle_gps')}
+          >
+            {gpsBeaconLanded
+              ? gpsBeacon
+                ? 'GPS Beacon: On'
+                : 'GPS Beacon: Off'
+              : 'GPS: No coordinate fix (in transit)'}
+          </button>
+        </div>
+      )}
     </>
   );
 };
@@ -302,11 +339,15 @@ const EnginesTab = () => {
                             : 'HelmPanel__bar-fill--bad')
                       }
                       style={{
-                        width: `${(engine.fuel / engine.maxFuel) * 100}%`,
+                        width: `${Math.min(100, (engine.fuel / engine.maxFuel) * 100)}%`,
                       }}
                     />
                     <div className="HelmPanel__bar-text">
-                      {Math.round((engine.fuel / engine.maxFuel) * 100)}%
+                      {Math.min(
+                        100,
+                        Math.round((engine.fuel / engine.maxFuel) * 100),
+                      )}
+                      %
                     </div>
                   </div>
                 )}

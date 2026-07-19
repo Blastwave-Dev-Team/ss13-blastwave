@@ -76,6 +76,8 @@ type Data = {
     burning: BooleanLike;
     consuming: BooleanLike;
     max_pressure: number;
+    feed_moles?: number;
+    stored_moles?: number;
   };
   preheat: Preheat;
   exhaust: SidePanel;
@@ -652,6 +654,17 @@ export const FuelInjector = () => {
                   side={chamber}
                   maxPressure={chamber.max_pressure}
                 />
+                {(chamber.feed_moles !== undefined ||
+                  chamber.stored_moles !== undefined) && (
+                  <LabeledList>
+                    <LabeledList.Item label="L2 feed">
+                      {(chamber.feed_moles ?? 0).toFixed(1)} mol
+                    </LabeledList.Item>
+                    <LabeledList.Item label="Stored total">
+                      {(chamber.stored_moles ?? 0).toFixed(1)} mol
+                    </LabeledList.Item>
+                  </LabeledList>
+                )}
               </Section>
               {preheat && (
                 <ChamberConditioning

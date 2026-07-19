@@ -106,6 +106,7 @@
 	pipe_color = "#FFA62B"
 	},
 /obj/machinery/portable_atmospherics/canister/air,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "nt" = (
@@ -115,6 +116,7 @@
 	},
 /obj/machinery/airalarm/directional/north,
 /obj/effect/mapping_helpers/airalarm/all_access,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "oQ" = (
@@ -149,9 +151,10 @@
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
 "wD" = (
-/obj/structure/cable,
 /obj/machinery/power/smes/connector,
+/obj/structure/cable,
 /obj/machinery/smesbank/super/full,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "xa" = (
@@ -176,6 +179,7 @@
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "zY" = (
@@ -298,6 +302,7 @@
 	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
 	name = "propellant gas mix"
 	},
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "VT" = (
@@ -306,6 +311,7 @@
 "Wu" = (
 /obj/machinery/door/airlock/external/glass,
 /obj/docking_port/mobile/overmap/frigate/solfed_cutter,
+/obj/structure/fans/tiny,
 /turf/open/floor/iron/shuttle/exploration/hazard,
 /area/shuttle/overmap/frigate)
 "WN" = (
@@ -332,7 +338,7 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
-/obj/structure/cable,
+/obj/machinery/power/terminal,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 

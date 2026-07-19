@@ -32,6 +32,16 @@
 			return TRUE
 	return FALSE
 
+/// TRUE if the tile is a valid clear launch path (open space, open floor, or open poddoor).
+/proc/overmap_bay_tile_is_clear(turf/checked_turf)
+	if(isnull(checked_turf))
+		return FALSE
+	if(overmap_bay_tile_is_wall(checked_turf))
+		return FALSE
+	if(isspaceturf(checked_turf) || isopenturf(checked_turf))
+		return TRUE
+	return overmap_bay_tile_has_open_poddoor(checked_turf)
+
 // Note: enforcement is intentionally scoped to the overmap `undock()` launch gate
 // rather than a global COMSIG_SHUTTLE_SHOULD_MOVE handler. A global block risks
 // interfering with the overmap ship's own dock()/undock() movement and with
@@ -107,8 +117,8 @@
 	return FALSE
 
 /// Per-column raycast for a designated exit direction. Every column (or row) of
-/// the exit edge must reach a space turf within `max_depth` tiles without first
-/// hitting a hard wall.
+/// the exit edge must reach an open turf (space, open floor, or open poddoor)
+/// within `max_depth` tiles without first hitting a hard wall.
 /obj/docking_port/mobile/proc/bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir, max_depth = OVERMAP_BAY_EXIT_DEPTH)
 	var/dx = 0
 	var/dy = 0
@@ -136,24 +146,22 @@
 			var/turf/probe = locate(base_x + dx * depth, base_y + dy * depth, check_z)
 			if(isnull(probe))
 				break
-			if(isspaceturf(probe))
-				column_clear = TRUE
-				break
 			if(overmap_bay_tile_is_wall(probe))
+				break
+			if(overmap_bay_tile_is_clear(probe))
+				column_clear = TRUE
 				break
 		if(!column_clear)
 			return FALSE
 	return TRUE
 
 /// Simple face check used when no exit direction is designated. The adjacent
-/// strip (one tile outside the bounds) passes if it is entirely space or
-/// entirely open poddoors.
+/// strip (one tile outside the bounds) passes if every tile is open (space,
+/// open floor, or open poddoor).
 /obj/docking_port/mobile/proc/bay_exit_face_clear(x1, y1, x2, y2, check_z, face_dir)
 	var/vertical = (face_dir == NORTH || face_dir == SOUTH)
 	var/edge_start = vertical ? x1 : y1
 	var/edge_end = vertical ? x2 : y2
-	var/all_space = TRUE
-	var/all_open_door = TRUE
 	for(var/along in edge_start to edge_end)
 		var/probe_x
 		var/probe_y
@@ -164,14 +172,8 @@
 			probe_x = (face_dir == EAST ? x2 + 1 : x1 - 1)
 			probe_y = along
 		var/turf/probe = locate(probe_x, probe_y, check_z)
-		if(isnull(probe))
+		if(!overmap_bay_tile_is_clear(probe))
 			return FALSE
-		if(!isspaceturf(probe))
-			all_space = FALSE
-		if(!overmap_bay_tile_has_open_poddoor(probe))
-			all_open_door = FALSE
-		if(!all_space && !all_open_door)
-			return FALSE
-	return all_space || all_open_door
+	return TRUE
 
 #undef OVERMAP_BAY_EXIT_DEPTH

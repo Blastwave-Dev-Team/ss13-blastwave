@@ -383,15 +383,15 @@
 		if(state == OVERMAP_SHIP_DOCKING && shuttle.mode == SHUTTLE_IDLE)
 			complete_dock()
 		return
-	var/obj/structure/overmap/level/docked_object = SSovermap.get_overmap_object_by_z(shuttle.z)
+	var/obj/structure/overmap/docked_object = SSovermap.get_overmap_object_by_z(shuttle.z)
 	if(docked_object == loc)
 		return TRUE
 	if(!docked_object && !docked)
 		return TRUE
-	// If currently docked at a dynamic encounter whose reservation holds this Z, stay put.
+	// Docked at a dynamic whose content Z still holds this shuttle — stay put.
 	if(docked && istype(docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/enc = docked
-		if(shuttle_turfs_within_dynamic_reserve(enc))
+		if(shuttle.z in enc.linked_levels)
 			return TRUE
 	if(docked && !docked_object)
 		var/turf/free_tile = SSovermap.get_unused_overmap_square()
@@ -400,6 +400,7 @@
 		docked = null
 		state = OVERMAP_SHIP_FLYING
 		update_screen(TRUE)
+		sync_helm_gps_beacons()
 		return FALSE
 	if(!docked && docked_object)
 		overmap_reset_visual_offset()
@@ -408,6 +409,7 @@
 		state = OVERMAP_SHIP_IDLE
 		all_stop()
 		update_screen(TRUE)
+		sync_helm_gps_beacons()
 		return FALSE
 
 /// Approximate ship mass from the bound shuttle's area turf count.
@@ -512,6 +514,7 @@
 	shuttle.setTimer(shuttle.ignitionTime)
 	addtimer(CALLBACK(src, PROC_REF(complete_undock)), shuttle.ignitionTime + (1 SECONDS))
 	state = OVERMAP_SHIP_UNDOCKING
+	sync_helm_gps_beacons()
 	return "Beginning undocking procedures..."
 
 /// How many 2-second rechecks complete_undock() will wait for SSshuttle to
@@ -538,6 +541,7 @@
 		// enterTransit() aborted or transit allocation gave up. Stay docked.
 		state = OVERMAP_SHIP_IDLE
 		update_screen(TRUE)
+		sync_helm_gps_beacons()
 		announce_to_helms("Launch aborted: engines failed to reach hyperspace. Check engine installation and try again.")
 		return
 	var/obj/structure/overmap/prev_docked = docked
@@ -546,6 +550,7 @@
 		docked = null
 	state = OVERMAP_SHIP_FLYING
 	update_screen(TRUE)
+	sync_helm_gps_beacons()
 	if(istype(prev_docked, /obj/structure/overmap/level/site))
 		LAZYREMOVE(assigned_landing_zones, REF(prev_docked))
 	if(istype(prev_docked, /obj/structure/overmap/dynamic))
@@ -561,15 +566,11 @@
 		if(helm.current_ship == src && !helm.viewer)
 			helm.say(message)
 
-/// TRUE when every turf in the bound shuttle's footprint lies inside
-/// `encounter`'s active reservation (not merely on the same Z).
-/obj/structure/overmap/ship/simulated/proc/shuttle_turfs_within_dynamic_reserve(obj/structure/overmap/dynamic/encounter)
-	if(!shuttle || !encounter?.reserve)
-		return FALSE
-	for(var/turf/T in shuttle.return_turfs())
-		if(!encounter.reserve.calculate_turf_bounds_information(T))
-			return FALSE
-	return TRUE
+/// Refresh landed-only GPS beacons on every helm bound to this ship.
+/obj/structure/overmap/ship/simulated/proc/sync_helm_gps_beacons()
+	for(var/obj/machinery/computer/helm/helm as anything in SSovermap.helms)
+		if(helm.current_ship == src)
+			helm.sync_gps_beacon()
 
 /// Helm "Act" entry point. `lz_ref` optionally names a specific landing zone
 /// landmark to dock at instead of the automatic stationary-port search.
@@ -803,12 +804,7 @@
 		return level_target.linked_levels?.Copy()
 	if(istype(target, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/encounter = target
-		if(encounter.reserve)
-			var/turf/bl = encounter.reserve.bottom_left_turfs?[1]
-			if(bl)
-				return list(bl.z)
-		if(encounter.reserve_dock)
-			return list(encounter.reserve_dock.z)
+		return encounter.linked_levels?.Copy() || list()
 	return list()
 
 /// Snap icon onto docked overmap object and return to idle.
@@ -817,7 +813,7 @@
 		return
 	if(istype(docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/encounter = docked
-		if(encounter.reserve && !shuttle_turfs_within_dynamic_reserve(encounter))
+		if(length(encounter.linked_levels) && !(shuttle.z in encounter.linked_levels))
 			encounter.unload_level()
 			docked = null
 			state = OVERMAP_SHIP_FLYING
@@ -832,6 +828,7 @@
 	scanned_objects = null
 	set_nav_target(null, null, null)
 	update_screen(TRUE)
+	sync_helm_gps_beacons()
 
 /// Active radar sweep. Finds all overmap objects within sensor_range using
 /// pixel-distance (accounts for sub-tile positions from pixel movement).

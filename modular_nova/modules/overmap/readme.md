@@ -113,6 +113,11 @@ versa in v1) until a deployable syndicate beacon is activated.
   OVERMAP).
 - `code/modules/unit_tests/_unit_tests.dm` - include for
   `~nova/overmap_ruins.dm` (BLASTWAVE EDIT ADDITION - OVERMAP).
+- `code/modules/shuttle/mobile_port/variants/custom/blueprints.dm` -
+  christen routes through `sync_shuttle_display_name` (overmap + GPS);
+  master-blueprint TGUI `renameShuttle` + `shuttleName` ui_data
+  (BLASTWAVE EDIT - OVERMAP). Helper lives in
+  `modular_nova/modules/overmap/code/overmap_shuttles.dm`.
 
 ### Config (map JSON, not .dmm)
 

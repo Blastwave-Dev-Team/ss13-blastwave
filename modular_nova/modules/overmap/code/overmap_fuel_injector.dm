@@ -148,8 +148,9 @@
 /obj/machinery/overmap/fuel_injector/proc/return_fuel()
 	return get_stored_propellant_moles()
 
+/// Capacity for helm/fuel gauges: chamber max, never below current inventory (avoids >100%).
 /obj/machinery/overmap/fuel_injector/proc/return_fuel_cap()
-	return max_moles
+	return max(max_moles, get_stored_propellant_moles())
 
 /// Chamber and/or L2 feed have usable propellant (gauges / status pills).
 /obj/machinery/overmap/fuel_injector/proc/has_propellant()
@@ -275,7 +276,19 @@
 	exhaust_pipe.air.merge(scrubbed)
 	exhaust_connector.gas_connector.update_parents()
 
-/// Continuous pressure-regulated push of post-scrub chamber mix onto the L2 feed manifold.
+/// TRUE when any linked engine's ship is commanding thrust (opens the feed valve fully).
+/obj/machinery/overmap/fuel_injector/proc/linked_engines_want_thrust()
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
+		if(!engine || engine.get_linked_injector() != src)
+			continue
+		if(engine.enabled && engine.thruster_active && engine.ship_wants_thrust())
+			return TRUE
+	return FALSE
+
+/// Pressure-regulated push of chamber mix onto L2. Idle ships only top up a
+/// modest feed buffer; thrusting opens the valve. Per-tick transfer is capped
+/// so a single atmos tick cannot empty the chamber into a large manifold.
 /obj/machinery/overmap/fuel_injector/proc/process_feed_output()
 	if(consuming || !air_contents?.total_moles())
 		return
@@ -286,7 +299,15 @@
 	var/feed_pressure = feed_pipe.air.return_pressure()
 	if(chamber_pressure <= feed_pressure + OVERMAP_FEED_MIN_DELTA_P)
 		return
-	var/to_transfer = min(OVERMAP_FEED_TRANSFER_RATE, air_contents.total_moles())
+	var/want_thrust = linked_engines_want_thrust()
+	if(!want_thrust && feed_pressure >= OVERMAP_FEED_BUFFER_PRESSURE)
+		return
+	var/chamber_moles = air_contents.total_moles()
+	var/to_transfer = min(
+		OVERMAP_FEED_TRANSFER_RATE,
+		chamber_moles * OVERMAP_FEED_MAX_CHAMBER_FRACTION,
+		chamber_moles,
+	)
 	if(to_transfer <= 0)
 		return
 	var/datum/gas_mixture/removed = air_contents.remove(to_transfer)
@@ -294,6 +315,8 @@
 		return
 	feed_pipe.air.merge(removed)
 	feed_connector.gas_connector.update_parents()
+	if(log_pipenet || preheat_enabled || burning)
+		investigate_log("feed push moles=[round(to_transfer, 0.001)] want_thrust=[want_thrust] chamber_P=[round(chamber_pressure, 0.1)] feed_P=[round(feed_pressure, 0.1)]", INVESTIGATE_ATMOS)
 
 /// Pull propellant from the L2 feed for thrust. Chemical bonus when the removed
 /// mix is hot/reacting; otherwise thermal path (gas ISP only). Empty feed → (0, 0)
@@ -481,10 +504,13 @@
 	.["gas_metadata"] = overmap_propellant_gas_data()
 
 /obj/machinery/overmap/fuel_injector/ui_data(mob/user)
-	var/list/input_data = fuel_injector_pipeline_ui_data(input_connector, max_moles)
-	var/list/feed_data = fuel_injector_pipeline_ui_data(feed_connector, max_moles)
+	var/list/input_data = fuel_injector_pipeline_ui_data(input_connector)
+	var/list/feed_data = fuel_injector_pipeline_ui_data(feed_connector)
 	var/list/exhaust_data = fuel_injector_pipeline_ui_data(exhaust_connector)
 	exhaust_data["max_pressure"] = MAX_OUTPUT_PRESSURE
+	// Side panels: mole bar max tracks current inventory (pipenets have no chamber-style cap).
+	input_data["max_moles"] = max(input_data["total_moles"], 1)
+	feed_data["max_moles"] = max(feed_data["total_moles"], 1)
 
 	var/datum/pipeline/input_pipe = input_connector?.gas_connector?.parents?[1]
 	var/intake_rejection = input_pipe?.air ? fuel_injector_intake_rejection_ratio(input_pipe.air, intake_filter) : 0
@@ -498,6 +524,8 @@
 	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(isp_mix)
 	var/power_fraction = fuel_injector_estimate_power_fraction(src)
 	var/list/manifold = fuel_injector_manifold_share_stats(src)
+	var/chamber_moles = air_contents?.total_moles() || 0
+	var/feed_moles = get_feed_air()?.total_moles() || 0
 
 	. = list(
 		"input" = input_data,
@@ -506,8 +534,10 @@
 			"connected" = TRUE,
 			"pressure" = round(return_chamber_pressure(), 0.1),
 			"temperature" = round(return_chamber_temperature(), 0.1),
-			"total_moles" = round(return_fuel(), 0.1),
+			"total_moles" = round(chamber_moles, 0.1),
 			"max_moles" = max_moles,
+			"feed_moles" = round(feed_moles, 0.1),
+			"stored_moles" = round(chamber_moles + feed_moles, 0.1),
 			"max_pressure" = max_operating_pressure,
 			"burning" = burning,
 			"consuming" = consuming,
