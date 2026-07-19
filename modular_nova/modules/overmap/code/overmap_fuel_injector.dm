@@ -172,7 +172,7 @@
 	var/datum/gas_mixture/feed_air = get_feed_air()
 	return (feed_air?.total_moles() || 0) > 0.01
 
-/obj/machinery/overmap/fuel_injector/proc/get_feed_air()
+/obj/machinery/overmap/fuel_injector/proc/get_feed_air() as /datum/gas_mixture
 	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
 	if(!feed_pipe?.air || feed_pipe.air.volume <= 0)
 		return null
