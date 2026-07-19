@@ -585,7 +585,7 @@ SUBSYSTEM_DEF(air)
 		CHECK_TICK
 
 	if(islist(currentrun) && length(currentrun))
-		for(var/entry as anything in currentrun.Copy())
+		for(var/entry in currentrun.Copy())
 			if(istype(entry, /turf))
 				var/turf/entry_turf = entry
 				if(entry_turf.z == z)

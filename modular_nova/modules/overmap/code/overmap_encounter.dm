@@ -26,7 +26,7 @@
 /obj/structure/overmap/dynamic/Destroy()
 	if(length(linked_levels) && !preserve_level)
 		for(var/z_value in linked_levels)
-			SSovermap.recycle_overmap_content_z(z_value)
+			INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value)
 	linked_levels = null
 	ruin_template = null
 	member_templates = null

@@ -35,6 +35,14 @@
 	description = "Sol Federation patrol frigate."
 	admin_notes = "SolFed patrol frigate, seats 4 + 3 crew."
 
+/datum/map_template/shuttle/overmap/frigate/solfed_patrol
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "solfed"
+	suffix = "patrol"
+	name = "SolFed Patrol"
+	description = "Sol Federation patrol frigate."
+	admin_notes = "SolFed patrol frigate, seats 3 crew, 2 spacepods."
+
 /obj/docking_port/mobile/overmap
 	name = "overmap vessel"
 
@@ -45,6 +53,13 @@
 /obj/docking_port/mobile/overmap/frigate/solfed_cutter
 	name = "SolFed Cutter"
 	shuttle_id = "solfed_cutter"
+	preferred_direction = WEST
+	port_direction = EAST // match map airlock facing when mapped
+	area_type = /area/shuttle/overmap/frigate
+
+/obj/docking_port/mobile/overmap/frigate/solfed_patrol
+	name = "SolFed Patrol"
+	shuttle_id = "solfed_patrol"
 	preferred_direction = WEST
 	port_direction = EAST // match map airlock facing when mapped
 	area_type = /area/shuttle/overmap/frigate
