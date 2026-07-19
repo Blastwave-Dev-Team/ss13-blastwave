@@ -125,6 +125,9 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `code/modules/atmospherics/environmental/LINDA_turf_tile.dm` - null-air
   neighbor guard before `LINDA_CYCLE_ARCHIVE` during Z soft-clear races
   (BLASTWAVE EDIT - OVERMAP).
+- `code/controllers/subsystem/atoms.dm` - re-check `INITIALIZED_1` after
+  `CreateAtoms` yield so async modular map loads (Port Tarkon) cannot
+  double-init unique ruin areas (BLASTWAVE EDIT - OVERMAP).
 
 ### Config (map JSON, not .dmm)
 

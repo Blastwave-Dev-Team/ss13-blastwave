@@ -106,6 +106,12 @@ SUBSYSTEM_DEF(atoms)
 					stoplag()
 					if(mapload_source)
 						set_tracked_initalized(INITIALIZATION_INNEW_MAPLOAD, mapload_source)
+					// BLASTWAVE EDIT ADDITION START - OVERMAP
+					// Async modular map loads (e.g. Port Tarkon) can InitAtom unique
+					// areas during the yield; re-check so we don't double-initialize.
+					if(QDELETED(A) || (A.flags_1 & INITIALIZED_1))
+						continue
+					// BLASTWAVE EDIT ADDITION END
 				PROFILE_INIT_ATOM_BEGIN()
 				InitAtom(A, TRUE, mapload_arg)
 				PROFILE_INIT_ATOM_END(A)
