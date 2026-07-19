@@ -687,6 +687,8 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/recycle_overmap_content_z(z_value)
 	if(!z_value)
 		return
+	// Eject from SSair before empty() so Destroy/KILL_EXCITED cannot re-queue LINDA work.
+	SSair.begin_z_eject(z_value)
 	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in landing_zones?.Copy())
 		if(zone.z == z_value)
 			qdel(zone)
@@ -695,6 +697,8 @@ SUBSYSTEM_DEF(overmap)
 			qdel(port)
 	for(var/turf/turf as anything in Z_TURFS(z_value))
 		turf.empty(turf_type = /turf/open/space)
+		CHECK_TICK
+	SSair.end_z_eject(z_value)
 	if(!(z_value in reusable_content_zs))
 		reusable_content_zs += z_value
 

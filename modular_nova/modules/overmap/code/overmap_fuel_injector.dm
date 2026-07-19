@@ -113,6 +113,17 @@
 /obj/machinery/overmap/fuel_injector/proc/recalculate_max_moles()
 	max_moles = (max_operating_pressure * chamber_volume) / (R_IDEAL_GAS_EQUATION * T20C)
 
+/// Moles the chamber can hold at `max_operating_pressure` for the current temperature.
+/obj/machinery/overmap/fuel_injector/proc/chamber_mole_capacity()
+	var/temperature = air_contents?.temperature || T20C
+	if(temperature <= 0)
+		temperature = T20C
+	return (max_operating_pressure * chamber_volume) / (R_IDEAL_GAS_EQUATION * temperature)
+
+/// How many more moles can be merged without exceeding operating pressure.
+/obj/machinery/overmap/fuel_injector/proc/chamber_moles_until_full()
+	return max(0, chamber_mole_capacity() - (air_contents?.total_moles() || 0))
+
 /obj/machinery/overmap/fuel_injector/proc/fill_default_mix()
 	if(!air_contents)
 		return
@@ -230,7 +241,8 @@
 	// mixtures and stack-traces every tick, so bail until real pipe is attached.
 	if(!pipe?.air || pipe.air.volume <= 0)
 		return
-	if(air_contents.return_pressure() >= max_operating_pressure)
+	var/headroom = chamber_moles_until_full()
+	if(headroom <= 0 || air_contents.return_pressure() >= max_operating_pressure)
 		return
 	var/transfer_ratio = min(MAX_TRANSFER_RATE / max(air_contents.volume, 1), 0.25)
 	var/datum/gas_mixture/removed = pipe.air.remove_ratio(transfer_ratio)
@@ -245,6 +257,12 @@
 			continue
 		rejected.adjust_gas(gas_id, moles)
 		removed.adjust_gas(gas_id, -moles)
+	// Cap accepted moles so a single tick cannot overshoot operating pressure.
+	var/accepted = removed.total_moles()
+	if(accepted > headroom)
+		var/datum/gas_mixture/overflow = removed.remove(accepted - headroom)
+		if(overflow?.total_moles())
+			rejected.merge(overflow)
 	if(rejected.total_moles())
 		pipe.air.merge(rejected)
 	if(removed.total_moles())
@@ -535,7 +553,7 @@
 			"pressure" = round(return_chamber_pressure(), 0.1),
 			"temperature" = round(return_chamber_temperature(), 0.1),
 			"total_moles" = round(chamber_moles, 0.1),
-			"max_moles" = max_moles,
+			"max_moles" = round(max_moles, 0.1),
 			"feed_moles" = round(feed_moles, 0.1),
 			"stored_moles" = round(chamber_moles + feed_moles, 0.1),
 			"max_pressure" = max_operating_pressure,
@@ -675,9 +693,10 @@
 		if(!user.transferItemToLoc(attacking_item, src))
 			return
 		fuel_tank = attacking_item
-		if(fuel_tank.air_contents?.total_moles())
-			air_contents.merge(fuel_tank.air_contents.copy())
-			fuel_tank.air_contents.remove(fuel_tank.air_contents.total_moles())
+		var/headroom = chamber_moles_until_full()
+		var/available = fuel_tank.air_contents?.total_moles() || 0
+		if(headroom > 0 && available > 0)
+			air_contents.merge(fuel_tank.air_contents.remove(min(headroom, available)))
 		balloon_alert(user, "tank connected")
 		update_appearance()
 		return

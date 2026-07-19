@@ -132,7 +132,7 @@ const SideMetrics = (props: SideMetricsProps) => {
     <LabeledList>
       <LabeledList.Item label="Pressure">
         <ProgressBar
-          value={side.pressure}
+          value={Math.min(side.pressure, maxP)}
           minValue={0}
           maxValue={maxP}
           ranges={{
@@ -142,6 +142,7 @@ const SideMetrics = (props: SideMetricsProps) => {
           }}
         >
           {`${side.pressure.toFixed(1)} kPa`}
+          {side.pressure > maxP ? ' (OVER)' : ''}
         </ProgressBar>
       </LabeledList.Item>
       <LabeledList.Item label="Temperature">
@@ -160,7 +161,7 @@ const SideMetrics = (props: SideMetricsProps) => {
       </LabeledList.Item>
       <LabeledList.Item label="Moles">
         <ProgressBar
-          value={side.total_moles}
+          value={Math.min(side.total_moles, maxM)}
           minValue={0}
           maxValue={maxM}
           ranges={{
@@ -169,7 +170,8 @@ const SideMetrics = (props: SideMetricsProps) => {
             bad: [maxM * 0.85, maxM],
           }}
         >
-          {`${side.total_moles.toFixed(1)} / ${maxM}`}
+          {`${side.total_moles.toFixed(1)} / ${Number(maxM).toFixed(1)}`}
+          {side.total_moles > maxM ? ' (OVER)' : ''}
         </ProgressBar>
       </LabeledList.Item>
     </LabeledList>

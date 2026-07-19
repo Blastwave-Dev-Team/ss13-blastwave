@@ -118,6 +118,13 @@ versa in v1) until a deployable syndicate beacon is activated.
   master-blueprint TGUI `renameShuttle` + `shuttleName` ui_data
   (BLASTWAVE EDIT - OVERMAP). Helper lives in
   `modular_nova/modules/overmap/code/overmap_shuttles.dm`.
+- `code/controllers/subsystem/air.dm` - `begin_z_eject` / `end_z_eject` /
+  `eject_z_from_lists` and `ejected_zs` gate on `add_to_active` so overmap
+  content-Z soft-clear purges LINDA without walking `Z_TURFS`
+  (BLASTWAVE EDIT - OVERMAP).
+- `code/modules/atmospherics/environmental/LINDA_turf_tile.dm` - null-air
+  neighbor guard before `LINDA_CYCLE_ARCHIVE` during Z soft-clear races
+  (BLASTWAVE EDIT - OVERMAP).
 
 ### Config (map JSON, not .dmm)
 

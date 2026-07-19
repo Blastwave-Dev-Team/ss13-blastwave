@@ -286,6 +286,10 @@
 
 		if(fire_count <= enemy_tile.current_cycle)
 			continue
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - neighbors can briefly lack air during Z soft-clear
+		if(!enemy_tile?.air)
+			continue
+		// BLASTWAVE EDIT ADDITION END
 		LINDA_CYCLE_ARCHIVE(enemy_tile)
 
 	/******************* GROUP HANDLING START *****************************************************************/
