@@ -154,7 +154,6 @@
 /obj/machinery/power/smes/connector,
 /obj/structure/cable,
 /obj/machinery/smesbank/super/full,
-/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "xa" = (
