@@ -99,8 +99,7 @@
 	scan_for_injector()
 
 /obj/machinery/power/shuttle_engine/overmap/proc/scan_for_injector()
-	linked_injector = null
-	link_via_pipe = FALSE
+	var/obj/machinery/overmap/fuel_injector/previous = linked_injector?.resolve()
 	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
 	if(feed_pipe)
 		var/area/shuttle_area = get_area(src)
@@ -115,18 +114,25 @@
 				continue
 			set_linked_injector(found, FALSE)
 			return
+	if(previous)
+		previous.unregister_linked_engine(src)
+	linked_injector = null
+	link_via_pipe = FALSE
 
 /obj/machinery/power/shuttle_engine/overmap/proc/set_linked_injector(obj/machinery/overmap/fuel_injector/injector, via_pipe = FALSE)
 	if(!injector)
 		return
+	var/obj/machinery/overmap/fuel_injector/previous = linked_injector?.resolve()
+	if(previous && previous != injector)
+		previous.unregister_linked_engine(src)
 	linked_injector = WEAKREF(injector)
 	link_via_pipe = via_pipe
-	if(!(WEAKREF(src) in injector.linked_engines))
-		injector.linked_engines += WEAKREF(src)
+	injector.register_linked_engine(src)
 
 /obj/machinery/power/shuttle_engine/overmap/proc/clear_injector_link(obj/machinery/overmap/fuel_injector/injector)
 	if(linked_injector?.resolve() == injector)
 		linked_injector = null
+		link_via_pipe = FALSE
 
 /obj/machinery/power/shuttle_engine/overmap/proc/get_linked_injector()
 	return linked_injector?.resolve()

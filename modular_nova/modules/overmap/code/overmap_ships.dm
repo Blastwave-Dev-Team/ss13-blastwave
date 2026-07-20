@@ -91,17 +91,35 @@
 	has_heading = FALSE
 	station_keeping = FALSE
 
-/// Apply braking deceleration toward zero velocity. Called each physics_tick
-/// when has_heading is FALSE and ship is not yet still.
-/// Deceleration is derived purely from thrust/mass — no static constant.
-/obj/structure/overmap/ship/proc/apply_braking(dt)
-	var/effective_thrust = 20
-	var/effective_mass = 1
+/// Effective thrust for accel/brake. Simulated ships use live burn `est_thrust`
+/// when thrusting; otherwise rated engine thrust (so hall-only is not masked by
+/// a large fake floor). Non-simulated ships use a fixed fallback.
+/obj/structure/overmap/ship/proc/get_effective_thrust()
 	if(istype(src, /obj/structure/overmap/ship/simulated))
 		var/obj/structure/overmap/ship/simulated/sim = src
-		effective_thrust = max(sim.est_thrust, 10)
-		effective_mass = max(sim.mass, 1)
-	var/brake_rate = (effective_thrust / effective_mass) * dt
+		if(sim.est_thrust > OVERMAP_THRUST_EPSILON)
+			return sim.est_thrust
+		if(!sim.shuttle)
+			return OVERMAP_THRUST_EPSILON
+		var/rated = 0
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine in sim.shuttle.engine_list)
+			if(engine.enabled && engine.thruster_active)
+				rated += engine.get_rated_thrust()
+		return max(rated, OVERMAP_THRUST_EPSILON)
+	return 20
+
+/// Effective mass for accel/brake. Simulated ships use turf-count mass.
+/obj/structure/overmap/ship/proc/get_effective_mass()
+	if(istype(src, /obj/structure/overmap/ship/simulated))
+		var/obj/structure/overmap/ship/simulated/sim = src
+		return max(sim.mass, 1)
+	return 1
+
+/// Apply braking deceleration toward zero velocity. Called each physics_tick
+/// when has_heading is FALSE and ship is not yet still.
+/// Deceleration is derived from thrust/mass (same scale as forward accel).
+/obj/structure/overmap/ship/proc/apply_braking(dt)
+	var/brake_rate = (get_effective_thrust() / get_effective_mass()) * OVERMAP_THRUST_ACCEL_SCALE * dt
 	var/speed = get_speed()
 	if(speed <= brake_rate)
 		vel_x = 0
@@ -135,9 +153,17 @@
 	if(has_heading)
 		var/target_vx = cos(desired_angle) * desired_throttle * max_speed
 		var/target_vy = sin(desired_angle) * desired_throttle * max_speed
-		var/maneuver = OVERMAP_MANEUVERABILITY * dt
-		vel_x += (target_vx - vel_x) * min(maneuver, 1)
-		vel_y += (target_vy - vel_y) * min(maneuver, 1)
+		var/thrust_accel = (get_effective_thrust() / get_effective_mass()) * OVERMAP_THRUST_ACCEL_SCALE
+		var/step = thrust_accel * dt
+		var/dvx = target_vx - vel_x
+		var/dvy = target_vy - vel_y
+		var/delta = sqrt(dvx * dvx + dvy * dvy)
+		if(delta <= step || delta <= OVERMAP_VELOCITY_EPSILON)
+			vel_x = target_vx
+			vel_y = target_vy
+		else
+			vel_x += dvx * (step / delta)
+			vel_y += dvy * (step / delta)
 	else
 		apply_braking(dt)
 
@@ -151,10 +177,10 @@
 		if(dist_sq > body.soi_sq || dist_sq < 1)
 			continue
 		var/dist = sqrt(dist_sq)
-		var/accel = body.gravity_mass / dist_sq
+		var/gravity_accel = body.gravity_mass / dist_sq
 		// Convert pixel-space accel to tiles/second velocity change
-		vel_x += (dx / dist) * accel * dt / ICON_SIZE_ALL
-		vel_y += (dy / dist) * accel * dt / ICON_SIZE_ALL
+		vel_x += (dx / dist) * gravity_accel * dt / ICON_SIZE_ALL
+		vel_y += (dy / dist) * gravity_accel * dt / ICON_SIZE_ALL
 
 	// Station-keeping autopilot
 	if(station_keeping)
@@ -324,6 +350,7 @@
 	nav_dock_ids = dock_ids?.Copy()
 
 /// Override physics_tick: if docked, do nothing. If out of fuel, decay.
+/// While thrusting, aggregate live burn thrust into `est_thrust` for accel.
 /obj/structure/overmap/ship/simulated/physics_tick(dt)
 	if(docked || state != OVERMAP_SHIP_FLYING)
 		all_stop()
@@ -335,15 +362,21 @@
 	if(desired_throttle > OVERMAP_THRUST_EPSILON)
 		refresh_engines()
 		var/burn_pct = desired_throttle * 100 * dt * 10
-		process_engine_fuel_burns(burn_pct)
+		var/thrust_sum = 0
+		var/list/injector_thrust = process_engine_fuel_burns(burn_pct)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in injector_thrust)
+			thrust_sum += injector_thrust[engine]
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
 			if(!engine.enabled || !engine.thruster_active)
 				continue
 			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
 			if(injector?.has_feed_propellant())
 				continue
-			engine.burn_engine(burn_pct, skip_engine_update = TRUE)
+			thrust_sum += engine.burn_engine(burn_pct, skip_engine_update = TRUE)
 			engine.burning = FALSE
+		est_thrust = thrust_sum
+	else
+		est_thrust = 0
 	..()
 
 /// Batch chamber burns for injector-fed engines grouped by fuel injector.
@@ -615,12 +648,16 @@
 	var/ship_w = abs(bounds[3] - bounds[1]) + 1
 	var/ship_h = abs(bounds[4] - bounds[2]) + 1
 	var/list/candidates = list()
+	var/ship_affiliation = SSovermap.get_affiliation(src)
 	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
 		if(!(zone.z in target_zs))
 			continue
 		if(ship_w > zone.zone_width || ship_h > zone.zone_height)
 			continue
 		if(zone.get_occupant(shuttle))
+			continue
+		// Null/empty dock_affiliation = open pad (seeded/mapped defaults).
+		if(zone.dock_affiliation && zone.dock_affiliation != ship_affiliation)
 			continue
 		candidates += zone
 

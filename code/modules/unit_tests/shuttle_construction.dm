@@ -459,6 +459,89 @@
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 
+/datum/unit_test/shuttle_construction/shuttle_frame_plating_pad_reexposes_rods
+
+/datum/unit_test/shuttle_construction/shuttle_frame_plating_pad_reexposes_rods/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	prepare_plating(target)
+	apply_shuttle_rods(target, rods, user)
+
+	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
+	TEST_ASSERT(frame, "Frame should exist on plating pad before hull plating")
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over plating-pad rods")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Hull layer should be plating")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be hidden under hull plating")
+
+	target.ScrapeAway()
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Scraping hull should restore landing-pad plating")
+	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Hull scrape onto pad plating should re-expose frame rods")
+	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should return after hull scrape onto pad plating")
+	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Re-exposed plating pad should remain in the same shuttle frame")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_plating_pad_reexposes_rods/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_scrape_keeps_rods_hidden
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_scrape_keeps_rods_hidden/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	prepare_plating(target)
+	apply_shuttle_rods(target, rods, user)
+
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over rods")
+	target = get_turf(target)
+	target = tiles.place_tile(target, user)
+	TEST_ASSERT(target, "place_tile should return the tiled hull floor")
+	TEST_ASSERT(istype(target, EXPECTED_FLOOR_TYPE), "Hull should be tiled iron")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rods stay hidden under tiled hull")
+
+	target.ScrapeAway()
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Scraping the tile should leave hull plating")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Tile scrape onto hull plating must not re-expose rods")
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay must stay cleared under hull plating")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_tile_scrape_keeps_rods_hidden/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/shuttle_frame_cut_rods_with_wirecutter
+
+/datum/unit_test/shuttle_construction/shuttle_frame_cut_rods_with_wirecutter/Run()
+	var/turf/open/floor/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/wirecutters/cutters = allocate(/obj/item/wirecutters)
+	prepare_plating(target)
+	target = get_turf(target)
+	apply_shuttle_rods(target, rods, user)
+
+	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rods should be exposed before cutting")
+	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should exist before cutting")
+
+	user.put_in_hands(cutters, forced = TRUE)
+	TEST_ASSERT(istype(target, /turf/open/floor), "Cut target should remain a floor turf")
+	TEST_ASSERT(target.cut_shuttle_frame_rods(user, cutters), "cut_shuttle_frame_rods should handle exposed rods")
+
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Wirecutters should remove the rod trait source")
+	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should be cleared after cutting")
+	var/obj/item/stack/rods/shuttle/dropped = locate(/obj/item/stack/rods/shuttle) in target
+	TEST_ASSERT(dropped, "Cutting rods should drop a shuttle frame rod")
+	TEST_ASSERT_EQUAL(dropped.get_amount(), 1, "Cutting should yield exactly one shuttle frame rod")
+
+/datum/unit_test/shuttle_construction/shuttle_frame_cut_rods_with_wirecutter/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
 /datum/unit_test/shuttle_construction/shuttle_reorient_direction
 
 /datum/unit_test/shuttle_construction/shuttle_reorient_direction/proc/restore_testroom_areas(list/turf/hull_turfs)

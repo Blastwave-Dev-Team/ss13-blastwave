@@ -567,6 +567,176 @@
 
 	teardown_ship_thrust_fixture(fixture)
 
+// ---------------------------------------------------------------------------
+// Performance metrics: ISP / Δv / UI payload / engine-link dedupe
+// ---------------------------------------------------------------------------
+
+/datum/unit_test/overmap_fuel_injector/performance_metrics
+
+/datum/unit_test/overmap_fuel_injector/performance_metrics/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+	var/obj/machinery/power/shuttle_engine/overmap/standard/engine = fixture["engine"]
+	var/obj/machinery/power/apc/grid_apc = fixture["apc"]
+	var/obj/structure/overmap/ship/simulated/ship = fixture["ship"]
+
+	// Cold N2 on L2: known gas_mult = 1.0, no chemical bonus.
+	set_feed_mix(injector, list(/datum/gas/nitrogen = 1), T20C, OVERMAP_FUEL_TEST_FEED_MOLES)
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	injector.burning = FALSE
+
+	var/expected_isp = injector.base_isp * overmap_gas_isp_mult(/datum/gas/nitrogen)
+	var/isp = fuel_injector_estimate_isp(injector)
+	TEST_ASSERT(abs(isp - expected_isp) < 0.001, "N2 ISP should be base×gas_mult ([expected_isp]), got [isp].")
+	TEST_ASSERT(isp > 0, "N2 ISP estimate must be non-zero.")
+
+	// ISP is propellant-only — must not collapse when grid surplus is zero.
+	refresh_grid_power(grid_apc)
+	TEST_ASSERT(engine.get_power_fraction() > 0, "Grid surplus required before zeroing avail.")
+	var/isp_with_power = fuel_injector_estimate_isp(injector)
+	engine.powernet.avail = 0
+	engine.powernet.load = 999 KILO JOULES
+	TEST_ASSERT(engine.get_power_fraction() <= 0, "Power fraction should be 0 with no surplus.")
+	var/isp_without_power = fuel_injector_estimate_isp(injector)
+	TEST_ASSERT(abs(isp_with_power - isp_without_power) < 0.001, "ISP estimate must ignore engine power fraction ([isp_with_power] vs [isp_without_power]).")
+	refresh_grid_power(grid_apc)
+
+	// Empty L2, chamber-only fallback.
+	var/datum/gas_mixture/feed_air = pipeline_air(injector.feed_connector)
+	feed_air.remove(feed_air.total_moles())
+	injector.feed_connector.gas_connector.update_parents()
+	injector.air_contents.set_temperature(T20C)
+	injector.air_contents.adjust_gas(/datum/gas/hydrogen, 10)
+	var/chamber_isp = fuel_injector_estimate_isp(injector)
+	var/expected_h2 = injector.base_isp * overmap_gas_isp_mult(/datum/gas/hydrogen)
+	TEST_ASSERT(abs(chamber_isp - expected_h2) < 0.001, "Chamber-only ISP fallback should use H2 mult ([expected_h2]), got [chamber_isp].")
+
+	// Δv uses moles / OVERMAP_PROP_MOLES_PER_THRUST (not ×).
+	if(!ship.mass)
+		ship.calculate_mass()
+	var/ship_mass = ship.mass
+	TEST_ASSERT(ship_mass > 0, "Ship mass required for Δv checks.")
+	var/stored = injector.get_stored_propellant_moles()
+	var/propellant_mass = stored / OVERMAP_PROP_MOLES_PER_THRUST
+	var/expected_dv = chamber_isp * OVERMAP_G0 * log((ship_mass + propellant_mass) / ship_mass)
+	var/actual_dv = fuel_injector_estimate_delta_v(injector, ship_mass)
+	TEST_ASSERT(abs(actual_dv - expected_dv) < 0.01, "Δv mismatch: got [actual_dv] expected [expected_dv] (stored=[stored] mass=[ship_mass]).")
+	TEST_ASSERT(actual_dv > 0, "Δv for chamber H2 should be positive.")
+
+	// Wrong conversion (multiply) underflows vs divide — guards the regression.
+	var/wrong_propellant = stored * OVERMAP_PROP_MOLES_PER_THRUST
+	var/wrong_dv = chamber_isp * OVERMAP_G0 * log((ship_mass + wrong_propellant) / ship_mass)
+	TEST_ASSERT(actual_dv > wrong_dv * 2, "Δv (moles/PROP) should greatly exceed the old moles×PROP underflow ([actual_dv] vs [wrong_dv]).")
+	// Zero-ISP mix → zero Δv.
+	set_feed_mix(injector, list(/datum/gas/hypernoblium = 1), T20C, 20)
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	TEST_ASSERT(fuel_injector_estimate_isp(injector) <= 0, "Hypernoblium ISP should be 0.")
+	TEST_ASSERT(fuel_injector_estimate_delta_v(injector, ship_mass) <= 0, "Zero ISP should yield zero Δv.")
+
+	// Restore a fractional-ISP mix and assert UI payload survives BYOND round(A, B).
+	set_feed_mix(injector, list(/datum/gas/plasma = 0.6, /datum/gas/oxygen = 0.4), T20C, OVERMAP_FUEL_TEST_FEED_MOLES)
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	var/list/ui = injector.ui_data(null)
+	var/list/perf = ui["performance"]
+	TEST_ASSERT(islist(perf), "ui_data should include performance.")
+	var/ui_isp = perf["estimated_isp"]
+	var/ui_gas = perf["gas_multiplier"]
+	var/ui_eff = perf["thrust_efficiency"]
+	var/ui_dv = perf["delta_v"]
+	TEST_ASSERT(ui_isp > 0 && ui_isp < 2, "UI estimated_isp should keep fractional ISP (got [ui_isp]); nearest-multiple round would collapse this to 0.")
+	TEST_ASSERT(ui_gas > 0 && ui_gas < 2, "UI gas_multiplier should keep fractional value (got [ui_gas]).")
+	TEST_ASSERT(ui_eff > 0 && ui_eff <= 1, "UI thrust_efficiency should be > 0 and <= 1 (got [ui_eff]).")
+	TEST_ASSERT(!perf["ship_mass_unknown"], "Fixture ship should report known mass.")
+	TEST_ASSERT(ui_dv > 0, "UI delta_v should be positive with propellant (got [ui_dv]).")
+	TEST_ASSERT(abs(ui_isp - fuel_injector_estimate_isp(injector)) < 0.002, "UI ISP should match estimate_isp.")
+	TEST_ASSERT(abs(ui_eff - min(ui_isp / FUEL_INJECTOR_ISP_NOMINAL_MAX, 1)) < 0.002, "UI thrust_efficiency should be isp over nominal.")
+
+	teardown_ship_thrust_fixture(fixture)
+
+/datum/unit_test/overmap_fuel_injector/engine_link_dedupe
+
+/datum/unit_test/overmap_fuel_injector/engine_link_dedupe/Run()
+	var/turf/injector_turf = locate(
+		run_loc_floor_bottom_left.x + 2,
+		run_loc_floor_bottom_left.y + 3,
+		run_loc_floor_bottom_left.z,
+	)
+	TEST_ASSERT(injector_turf, "Failed to locate injector turf for link dedupe.")
+	var/turf/pipe_w = locate(injector_turf.x - 1, injector_turf.y - 1, injector_turf.z)
+	var/turf/pipe_c = locate(injector_turf.x, injector_turf.y - 1, injector_turf.z)
+	var/turf/pipe_e = locate(injector_turf.x + 1, injector_turf.y - 1, injector_turf.z)
+	var/turf/eng_w = locate(injector_turf.x - 1, injector_turf.y - 2, injector_turf.z)
+	var/turf/eng_c = locate(injector_turf.x, injector_turf.y - 2, injector_turf.z)
+	var/turf/eng_e = locate(injector_turf.x + 1, injector_turf.y - 2, injector_turf.z)
+	for(var/turf/needed as anything in list(pipe_w, pipe_c, pipe_e, eng_w, eng_c, eng_e))
+		TEST_ASSERT(isfloorturf(needed), "Expected floor at [needed?.x],[needed?.y] for 3-engine manifold.")
+
+	var/list/l2_pipes = list(
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_w),
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_c),
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_e),
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_w),
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_c),
+		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_e),
+	)
+
+	var/obj/machinery/overmap/fuel_injector/injector = allocate(/obj/machinery/overmap/fuel_injector, injector_turf)
+	injector.setDir(SOUTH)
+	injector.use_power = NO_POWER_USE
+
+	var/list/engines = list()
+	for(var/turf/engine_turf as anything in list(eng_w, eng_c, eng_e))
+		var/obj/machinery/power/shuttle_engine/overmap/standard/engine = allocate(/obj/machinery/power/shuttle_engine/overmap/standard, engine_turf)
+		engine.setDir(SOUTH)
+		engine.use_power = NO_POWER_USE
+		engines += engine
+
+	var/list/atmos_devices = l2_pipes.Copy()
+	atmos_devices += injector.feed_connector.gas_connector
+	for(var/obj/machinery/power/shuttle_engine/overmap/standard/engine as anything in engines)
+		atmos_devices += engine.feed_connector.gas_connector
+	init_atmos_devices(atmos_devices)
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(injector.feed_connector)
+	TEST_ASSERT(feed_pipe, "Injector L2 feed pipenet missing.")
+	for(var/obj/machinery/power/shuttle_engine/overmap/standard/engine as anything in engines)
+		TEST_ASSERT(overmap_hnt_feed_pipeline(engine.feed_connector) == feed_pipe, "Engine at [engine.x],[engine.y] should share injector L2 pipenet.")
+
+	var/list/ship_bits = attach_simulated_ship(injector_turf, engines[1], "overmap_fuel_link_dedupe", "Link Dedupe Shuttle")
+	var/obj/docking_port/mobile/port = ship_bits["port"]
+	for(var/obj/machinery/power/shuttle_engine/overmap/standard/engine as anything in engines)
+		if(engine == engines[1])
+			continue
+		engine.connect_to_shuttle(FALSE, port)
+	TEST_ASSERT_EQUAL(length(port.engine_list), 3, "Port engine_list should hold all three HNTs.")
+
+	injector.update_linked_engines()
+	TEST_ASSERT_EQUAL(length(injector.linked_engines), 3, "Injector should link exactly 3 piped engines after update.")
+
+	// Rescans used to append duplicate WEAKREFs (WEAKREF(x) in list never matches).
+	for(var/obj/machinery/power/shuttle_engine/overmap/standard/engine as anything in engines)
+		engine.scan_for_injector()
+		engine.scan_for_injector()
+	injector.update_linked_engines()
+	for(var/obj/machinery/power/shuttle_engine/overmap/standard/engine as anything in engines)
+		engine.scan_for_injector()
+
+	TEST_ASSERT_EQUAL(length(injector.linked_engines), 3, "Linked engine count must stay 3 after repeated scans (got [length(injector.linked_engines)]).")
+
+	var/list/resolved = list()
+	for(var/datum/weakref/engine_ref as anything in injector.linked_engines)
+		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
+		TEST_ASSERT(engine, "Linked engine weakref failed to resolve.")
+		TEST_ASSERT(!(engine in resolved), "Duplicate engine in linked_engines: [engine].")
+		resolved += engine
+		TEST_ASSERT(engine.get_linked_injector() == injector, "Engine should point back at the injector.")
+		TEST_ASSERT(engine.link_via_pipe, "Engines on the shared L2 manifold should be piped links.")
+
+	var/list/manifold = fuel_injector_manifold_share_stats(injector)
+	TEST_ASSERT_EQUAL(manifold["piped_engines"], 3, "Manifold stats should report 3 piped engines.")
+	TEST_ASSERT_EQUAL(manifold["adjacent_engines"], 0, "Manifold stats should report 0 adjacent engines.")
+
+	teardown_ship_thrust_fixture(ship_bits)
+
 #undef OVERMAP_FUEL_TEST_TICKS
 #undef OVERMAP_FUEL_TEST_PRESSURE
 #undef OVERMAP_FUEL_TEST_FEED_MOLES

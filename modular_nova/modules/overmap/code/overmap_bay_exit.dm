@@ -11,8 +11,21 @@
 /// How many tiles outward the per-column raycast probes for open space.
 #define OVERMAP_BAY_EXIT_DEPTH 10
 
+/// Dense decor typepaths ignored by takeoff corridor / bay-exit checks.
+/// Subtypes match. Append at runtime or in a module init to extend:
+/// `GLOB.overmap_bay_exit_ignore += /obj/structure/foo`
+GLOBAL_LIST_INIT(overmap_bay_exit_ignore, list(
+	/obj/structure/fence,
+	/obj/structure/railing,
+))
+
+/// TRUE if `thing` is planetary/decorative clutter that should not block launch paths.
+/proc/overmap_bay_exit_ignores(atom/thing)
+	return is_type_in_list(thing, GLOB.overmap_bay_exit_ignore)
+
 /// TRUE if `checked_turf` is a hard wall that blocks a launch path. Closed turfs
-/// and anchored dense structures block; doors (openable) and open floors do not.
+/// and anchored dense structures block; doors (openable), open floors, and
+/// whitelisted decor (`GLOB.overmap_bay_exit_ignore`) do not.
 /proc/overmap_bay_tile_is_wall(turf/checked_turf)
 	if(isclosedturf(checked_turf))
 		return TRUE
@@ -20,6 +33,8 @@
 		if(!blocker.density)
 			continue
 		if(istype(blocker, /obj/machinery/door))
+			continue
+		if(overmap_bay_exit_ignores(blocker))
 			continue
 		if(blocker.anchored)
 			return TRUE

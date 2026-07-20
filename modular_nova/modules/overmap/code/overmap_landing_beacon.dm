@@ -40,6 +40,31 @@
 	console?.recompute_zone()
 	return ..()
 
+/obj/machinery/landing_corner/vv_get_dropdown()
+	. = ..()
+	VV_DROPDOWN_OPTION(VV_HK_LINK_MARKED_LANDING_CONTROLLER, "Link to Marked Landing Controller")
+
+/obj/machinery/landing_corner/vv_do_topic(list/href_list)
+	. = ..()
+	if(href_list[VV_HK_LINK_MARKED_LANDING_CONTROLLER])
+		vv_link_marked_landing_controller()
+
+/// Admin VV helper: toggle-link this corner to the admin's marked landing controller.
+/obj/machinery/landing_corner/proc/vv_link_marked_landing_controller()
+	if(!check_rights(R_VAREDIT))
+		return
+	var/datum/admins/holder = usr.client?.holder
+	if(!holder)
+		return
+	var/obj/machinery/computer/landing_controller/console = holder.marked_datum
+	if(!istype(console))
+		to_chat(usr, span_warning("Mark a landing zone controller first (VV → Mark Object)."))
+		return
+	var/result = console.toggle_corner(src)
+	to_chat(usr, span_notice("[src] → [console]: [result]"))
+	log_admin("[key_name(usr)] VV-linked [src] to [console]: [result]")
+	message_admins(span_notice("[key_name_admin(usr)] VV-linked [ADMIN_VERBOSEJMP(src)] to [ADMIN_VERBOSEJMP(console)]: [result]"))
+
 /obj/machinery/landing_corner/multitool_act(mob/living/user, obj/item/multitool/tool)
 	if(!istype(tool.buffer, /obj/machinery/computer/landing_controller))
 		balloon_alert(user, "buffer empty; use console first")
@@ -89,11 +114,15 @@
 
 /obj/machinery/computer/landing_controller
 	name = "landing zone controller"
-	desc = "Designates a player-built landing zone from four linked corner beacons. Restricted to command and engineering personnel."
+	desc = "Designates a field landing zone from four linked corner beacons. Lacks any security features, like login requirements or landing restrictions."
 	icon_screen = "shuttle"
 	icon_keyboard = "tech_key"
 	circuit = /obj/item/circuitboard/computer/landing_controller
-	req_one_access = list(ACCESS_COMMAND, ACCESS_ENGINEERING)
+	req_access = list()
+	req_one_access = list()
+	/// Overmap affiliation stamped onto the managed landmark (`OVERMAP_AFFILIATION_*`).
+	/// Null = open docking (any affiliation).
+	var/dock_affiliation
 	/// Weakrefs to the linked `/obj/machinery/landing_corner` beacons (max 4).
 	var/list/corners = list()
 	/// The landmark we manage while the linked corners form a valid zone.
@@ -110,6 +139,26 @@
 	var/zone_height_cache = 0
 	/// TRUE when the last computed rectangle exceeded the size cap.
 	var/oversized = FALSE
+	/// Admin manipulator: treat the console as powered for zone validation.
+	var/admin_force_operational = FALSE
+
+/obj/machinery/computer/landing_controller/nanotrasen
+	name = "landing zone controller"
+	desc = "Designates a Nanotrasen-authorized landing zone from four linked corner beacons. Restricted to command and engineering personnel. May be restricted to Nanotrasen vessels only."
+	circuit = /obj/item/circuitboard/computer/landing_controller/nanotrasen
+	req_one_access = list(ACCESS_COMMAND, ACCESS_ENGINEERING)
+	dock_affiliation = OVERMAP_AFFILIATION_NT
+
+/obj/machinery/computer/landing_controller/programmable
+	name = "landing zone controller"
+	desc = "Designates a landing zone from four linked corner beacons. Program the circuit board with an ID before construction (faction or user lock)."
+	circuit = /obj/item/circuitboard/computer/landing_controller/programmable
+	/// Copied from the board: LANDING_CONTROLLER_LOCK_* or null when unprogrammed/open.
+	var/lock_mode
+	/// User-mode bound bank account id.
+	var/owner_account_id
+	/// User-mode display name.
+	var/owner_name
 
 /obj/machinery/computer/landing_controller/Initialize(mapload)
 	. = ..()
@@ -128,6 +177,122 @@
 	corners.Cut()
 	QDEL_NULL(active_zone)
 	return ..()
+
+/// Pushes dock affiliation onto the managed landmark when present.
+/obj/machinery/computer/landing_controller/proc/set_dock_affiliation(new_affiliation)
+	dock_affiliation = new_affiliation
+	if(!QDELETED(active_zone))
+		active_zone.dock_affiliation = new_affiliation
+
+/obj/machinery/computer/landing_controller/programmable/set_dock_affiliation(new_affiliation)
+	. = ..()
+	refresh_faction_appearance()
+
+/// Monitor overlay from the locked faction datum (e.g. DS2 red screen).
+/obj/machinery/computer/landing_controller/programmable/proc/refresh_faction_appearance()
+	var/datum/overmap_faction/faction = get_overmap_faction(dock_affiliation)
+	if(faction?.console_icon_screen)
+		icon_screen = faction.console_icon_screen
+	else
+		icon_screen = initial(icon_screen)
+	update_appearance(UPDATE_OVERLAYS)
+
+/obj/machinery/computer/landing_controller/programmable/on_construction(mob/user)
+	. = ..()
+	apply_board_program()
+
+/obj/machinery/computer/landing_controller/programmable/proc/apply_board_program()
+	var/obj/item/circuitboard/computer/landing_controller/programmable/board = circuit
+	req_access = list()
+	req_one_access = list()
+	if(!istype(board) || !board.is_programmed())
+		lock_mode = null
+		owner_account_id = null
+		owner_name = null
+		set_dock_affiliation(null)
+		return
+	lock_mode = board.program_mode
+	if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
+		owner_account_id = board.stored_owner_account_id
+		owner_name = board.stored_owner_name
+		set_dock_affiliation(null)
+		return
+	owner_account_id = null
+	owner_name = null
+	set_dock_affiliation(board.stored_dock_affiliation)
+
+/obj/machinery/computer/landing_controller/programmable/on_deconstruction(disassembled)
+	var/obj/item/circuitboard/computer/landing_controller/programmable/board = circuit
+	if(istype(board))
+		if(obj_flags & EMAGGED)
+			board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
+			board.stored_dock_affiliation = OVERMAP_AFFILIATION_DS2
+			board.stored_owner_account_id = null
+			board.stored_owner_name = null
+		else if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
+			board.program_mode = LANDING_CONTROLLER_LOCK_USER
+			board.stored_owner_account_id = owner_account_id
+			board.stored_owner_name = owner_name
+			board.stored_dock_affiliation = null
+		else if(lock_mode == LANDING_CONTROLLER_LOCK_FACTION)
+			board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
+			board.stored_dock_affiliation = dock_affiliation
+			board.stored_owner_account_id = null
+			board.stored_owner_name = null
+		else
+			board.clear_program()
+	return ..()
+
+/// Faction/user locks live on the circuit board — not the built console.
+/obj/machinery/computer/landing_controller/programmable/allowed(mob/accessor)
+	if((obj_flags & EMAGGED) || isAdminGhostAI(accessor))
+		return TRUE
+	if(isnull(accessor))
+		return FALSE
+	if(HAS_SILICON_ACCESS(accessor))
+		return TRUE
+	if(isnull(lock_mode))
+		return TRUE
+	if(!isliving(accessor))
+		return FALSE
+	var/mob/living/living_accessor = accessor
+	var/obj/item/card/id/id_card = living_accessor.get_idcard(TRUE)
+	if(isnull(id_card))
+		return FALSE
+	if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
+		if(!isnull(owner_account_id) && id_card.registered_account?.account_id == owner_account_id)
+			return TRUE
+		if(length(owner_name) && id_card.registered_name == owner_name)
+			return TRUE
+		return FALSE
+	if(lock_mode == LANDING_CONTROLLER_LOCK_FACTION)
+		return get_id_overmap_faction(id_card) == dock_affiliation
+	return TRUE
+
+/// Emag opens console login and locks the pad to syndicate-aligned vessels.
+/obj/machinery/computer/landing_controller/programmable/emag_act(mob/user, obj/item/card/emag/emag_card)
+	if(obj_flags & EMAGGED)
+		return FALSE
+	obj_flags |= EMAGGED
+	lock_mode = null
+	owner_account_id = null
+	owner_name = null
+	authenticated = FALSE
+	set_dock_affiliation(OVERMAP_AFFILIATION_DS2)
+	balloon_alert(user, "pad syndie-locked")
+	return TRUE
+
+/// Emag clears console access and opens the pad so syndicate (and any) vessels may land.
+/obj/machinery/computer/landing_controller/nanotrasen/emag_act(mob/user, obj/item/card/emag/emag_card)
+	if(obj_flags & EMAGGED)
+		return FALSE
+	obj_flags |= EMAGGED
+	req_access = list()
+	req_one_access = list()
+	authenticated = FALSE
+	set_dock_affiliation(null)
+	balloon_alert(user, "landing restrictions burned out")
+	return TRUE
 
 /obj/machinery/computer/landing_controller/power_change()
 	. = ..()
@@ -178,7 +343,7 @@
 	oversized = FALSE
 	invalid_reason = null
 
-	if(!is_operational)
+	if(!is_operational && !admin_force_operational)
 		invalid_reason = "no power"
 	else if(length(corners) != 4)
 		invalid_reason = "need 4 corners (have [length(corners)])"
@@ -240,6 +405,7 @@
 	active_zone.zone_height = height
 	active_zone.zone_name = zone_label
 	active_zone.exit_direction = exit_direction
+	active_zone.dock_affiliation = dock_affiliation
 
 /// Returns the name of the shuttle currently occupying the active zone, if any.
 /obj/machinery/computer/landing_controller/proc/get_zone_occupant()
@@ -248,15 +414,54 @@
 	var/obj/docking_port/mobile/occupant = active_zone.get_occupant()
 	return occupant?.name
 
+/// Human-readable dock policy for UI/examine.
+/obj/machinery/computer/landing_controller/proc/get_dock_policy_label()
+	var/datum/overmap_faction/faction = get_overmap_faction(dock_affiliation)
+	if(faction)
+		return "[faction.name] vessels"
+	return "Open (any vessel)"
+
+/// Console access summary for examine when locked/restricted/compromised.
+/obj/machinery/computer/landing_controller/proc/get_access_status_label()
+	if(obj_flags & EMAGGED)
+		return "Compromised"
+	if(length(req_access))
+		return "ID locked"
+	if(length(req_one_access))
+		return "Restricted (command / engineering)"
+	return null
+
+/obj/machinery/computer/landing_controller/programmable/get_access_status_label()
+	if(obj_flags & EMAGGED)
+		return "Compromised"
+	if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
+		return "User locked ([owner_name || "bound account"])"
+	if(lock_mode == LANDING_CONTROLLER_LOCK_FACTION)
+		var/datum/overmap_faction/faction = get_overmap_faction(dock_affiliation)
+		if(faction)
+			return "Faction locked ([faction.name])"
+	return null
+
 /obj/machinery/computer/landing_controller/examine(mob/user)
 	. = ..()
 	. += span_notice("Linked corners: [length(corners)]/4.")
 	. += span_notice("Designated launch exit: [dir2text(exit_direction)].")
+	. += span_notice("Docking policy: [get_dock_policy_label()].")
+	var/access_status = get_access_status_label()
+	if(access_status)
+		. += span_notice("Console access: [access_status].")
 	if(!QDELETED(active_zone))
 		. += span_notice("Active landing zone: [zone_width_cache] x [zone_height_cache] tiles.")
 	else if(invalid_reason)
 		. += span_notice("Zone inactive: [invalid_reason].")
 	. += span_notice("<i>Multitool</i> this console, then multitool corner beacons to link them.")
+
+/obj/machinery/computer/landing_controller/programmable/examine(mob/user)
+	. = ..()
+	if(obj_flags & EMAGGED)
+		. += span_warning("The ID reader is fried; the pad is locked to syndicate-aligned vessels.")
+	else
+		. += span_notice("Program locks on the circuit board (remove with screwdriver), not by swiping this console.")
 
 /obj/machinery/computer/landing_controller/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
 	. = ..()
@@ -303,6 +508,7 @@
 	data["height"] = zone_height_cache
 	data["has_dimensions"] = (zone_width_cache > 0 && zone_height_cache > 0)
 	data["oversized"] = oversized
+	data["dock_policy"] = get_dock_policy_label()
 
 	var/occupant_name = get_zone_occupant()
 	data["occupied"] = !isnull(occupant_name)
@@ -330,9 +536,13 @@
 	if(.)
 		return
 	var/mob/user = ui.user
+	var/admin_ghost = isAdminGhostAI(user)
 
 	switch(action)
 		if("login")
+			if(admin_ghost)
+				authenticated = TRUE
+				return TRUE
 			authenticated = secure_login(user)
 			return TRUE
 		if("logout")
@@ -341,7 +551,8 @@
 			playsound(src, 'sound/machines/terminal/terminal_off.ogg', 70, TRUE)
 			return TRUE
 
-	if(!authenticated)
+	// Mirror ui_data: admin ghosts can act without a living login session.
+	if(!((authenticated && isliving(user)) || admin_ghost))
 		return FALSE
 
 	switch(action)

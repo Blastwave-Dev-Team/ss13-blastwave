@@ -2,6 +2,7 @@ import { map } from 'es-toolkit/compat';
 import { useState } from 'react';
 import {
   Button,
+  Dropdown,
   Flex,
   LabeledList,
   Section,
@@ -11,6 +12,17 @@ import {
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+
+const buildFactionOptions = (factions) =>
+  (factions || []).map((faction) => ({
+    displayText: faction.name,
+    value: faction.id,
+  }));
+
+const factionLabel = (factionId, options) => {
+  const match = options.find((option) => option.value === factionId);
+  return match ? match.displayText : 'Neutral';
+};
 
 export const ShuttleManipulator = (props) => {
   const [tab, setTab] = useState(1);
@@ -40,6 +52,7 @@ export const ShuttleManipulator = (props) => {
 export const ShuttleManipulatorStatus = (props) => {
   const { act, data } = useBackend();
   const shuttles = data.shuttles || [];
+  const factionOptions = buildFactionOptions(data.overmap_factions);
   return (
     <Section>
       <Table>
@@ -88,6 +101,20 @@ export const ShuttleManipulatorStatus = (props) => {
                     }
                   />
                 </>
+              )}
+            </Table.Cell>
+            <Table.Cell>
+              {!!shuttle.is_overmap && (
+                <Dropdown
+                  selected={factionLabel(shuttle.faction, factionOptions)}
+                  options={factionOptions}
+                  onSelected={(value) =>
+                    act('set_overmap_faction', {
+                      id: shuttle.id,
+                      faction: value,
+                    })
+                  }
+                />
               )}
             </Table.Cell>
           </Table.Row>

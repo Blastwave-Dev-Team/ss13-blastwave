@@ -46,15 +46,40 @@
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
 /datum/design/board/overmap_landing_controller
-	name = "Landing Zone Controller Board"
-	desc = "The circuit board for a landing zone controller console."
+	name = "Landing Zone Controller Board (Nanotrasen)"
+	desc = "The circuit board for a Nanotrasen-locked landing zone controller."
 	id = "overmap_landing_controller"
-	build_path = /obj/item/circuitboard/computer/landing_controller
+	build_path = /obj/item/circuitboard/computer/landing_controller/nanotrasen
 	build_type = IMPRINTER
 	category = list(
 		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/board/overmap_landing_controller_programmable
+	name = "Landing Zone Controller Board (Programmable)"
+	desc = "The circuit board for an ID-programmable landing zone controller (syndicate-aligned docking)."
+	id = "overmap_landing_controller_programmable"
+	build_path = /obj/item/circuitboard/computer/landing_controller/programmable
+	build_type = AWAY_IMPRINTER
+	category = list(
+		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/obj/item/disk/design_disk/techweb_unlock/overmap_landing_programmable
+	name = "Programmable Landing Authority Research Disk"
+	desc = "Contains research data for ID-programmable landing zone controllers. Upload to an R&D Console to unlock Programmable Landing Authority."
+	node_id = TECHWEB_NODE_OVERMAP_LANDING_PROGRAMMABLE
+
+/datum/supply_pack/engineering/overmap_landing_programmable_disk
+	name = "Programmable Landing Authority Research Disk"
+	desc = "A research disk that unlocks away-imprinter designs for ID-programmable landing zone controllers (syndicate-aligned docking)."
+	cost = CARGO_CRATE_VALUE * 3
+	contains = list(/obj/item/disk/design_disk/techweb_unlock/overmap_landing_programmable = 1)
+	crate_name = "programmable landing authority disk crate"
+	crate_type = /obj/structure/closet/crate/engineering
+	order_flags = ORDER_CONTRABAND
 
 /datum/design/board/overmap_landing_corner
 	name = "Landing Zone Corner Beacon Board"
@@ -76,7 +101,7 @@
 		/obj/item/circuitboard/computer/shuttle/overmap_nav,
 		/obj/item/circuitboard/machine/overmap/fuel_injector = 2,
 		/obj/item/circuitboard/machine/engine/overmap/standard = 2,
-		/obj/item/circuitboard/computer/landing_controller,
+		/obj/item/circuitboard/computer/landing_controller, // unlocked / open dock
 		/obj/item/circuitboard/machine/landing_corner = 4,
 	)
 	crate_name = "shuttle construction kit crate"

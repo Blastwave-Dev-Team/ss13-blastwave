@@ -5,17 +5,19 @@ GLOBAL_LIST_INIT(shuttle_frame_overlays_by_turf, list())
 /// the underlying landing-pad turf, restoring the rod source + overlay so it is buildable again.
 /// Only fires when a top turf layer was removed and the result is a floor still in the frame;
 /// space lattices scrape down to space (non-floor) and are therefore unaffected.
-/proc/shuttle_construction_turf_reexpose_rods(turf/new_turf, list/trait_sources, is_uncovering)
+///
+/// `previous_type` is the turf type that was scraped away. Scraping a tiled floor onto hull
+/// plating must keep rods hidden; scraping hull plating onto a landing-pad (including pad
+/// plating) must restore SHUTTLE_ROD_TRAIT_SOURCE.
+/proc/shuttle_construction_turf_reexpose_rods(turf/new_turf, list/trait_sources, is_uncovering, previous_type)
 	if(!is_uncovering)
 		return
 	if(!isfloorturf(new_turf))
 		return
 	if(SHUTTLE_ROD_TRAIT_SOURCE in trait_sources)
 		return
-	// Plating still covers the rods, so keep them hidden. Removing a tile scrapes back to
-	// the built plating (not the original landing pad), and rods should only re-appear when
-	// the plating itself is scraped away.
-	if(isplatingturf(new_turf))
+	// Tile → hull plating: rods stay hidden under the remaining hull layer.
+	if(isplatingturf(new_turf) && previous_type && !ispath(previous_type, /turf/open/floor/plating))
 		return
 	new_turf.AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE, /datum/element/shuttle_construction_turf)
 	update_shuttle_frame_overlay(new_turf)

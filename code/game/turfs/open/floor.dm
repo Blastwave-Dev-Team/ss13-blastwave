@@ -151,6 +151,13 @@
 	if(overfloor_placed && pry_tile(I, user))
 		return TRUE
 
+// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+/turf/open/floor/wirecutter_act(mob/living/user, obj/item/tool)
+	if(cut_shuttle_frame_rods(user, tool))
+		return ITEM_INTERACT_SUCCESS
+	return ..()
+// BLASTWAVE EDIT ADDITION END
+
 /turf/open/floor/proc/try_replace_tile(obj/item/stack/tile/T, mob/user, list/modifiers)
 	if(T.turf_type == type && T.turf_dir == dir)
 		return
@@ -217,7 +224,7 @@
 /turf/open/floor/examine(mob/user)
 	. = ..()
 	if(HAS_TRAIT_FROM(src, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
-		. += span_notice("Shuttle frame rods are anchored here. Use a floor <i>tile</i> or <i>RCD</i> to lay plating.")
+		. += span_notice("Shuttle frame rods are anchored here. Use a floor <i>tile</i> or <i>RCD</i> to lay plating, or <i>wirecutters</i> / jaws (cutter mode) to remove the rods.")
 // BLASTWAVE EDIT ADDITION END
 
 /turf/open/floor/rcd_vals(mob/user, obj/item/construction/rcd/the_rcd)

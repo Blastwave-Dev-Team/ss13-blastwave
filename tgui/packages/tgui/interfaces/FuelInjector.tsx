@@ -142,7 +142,6 @@ const SideMetrics = (props: SideMetricsProps) => {
           }}
         >
           {`${side.pressure.toFixed(1)} kPa`}
-          {side.pressure > maxP ? ' (OVER)' : ''}
         </ProgressBar>
       </LabeledList.Item>
       <LabeledList.Item label="Temperature">
@@ -347,7 +346,9 @@ const PerformanceSection = (props: PerformanceSectionProps) => {
       {statusPills.length ? (
         statusPills.map((pill) => {
           const isDanger =
-            pill.includes('BLOCKED') || pill.includes('STALLED');
+            pill.includes('BLOCKED') ||
+            pill.includes('STALLED') ||
+            pill.includes('Relief');
           const isSuccess = pill.includes('Reaction Active');
           if (isDanger) {
             return (

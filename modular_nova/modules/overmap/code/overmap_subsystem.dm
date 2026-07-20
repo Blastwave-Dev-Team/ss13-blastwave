@@ -55,6 +55,7 @@ SUBSYSTEM_DEF(overmap)
 	var/list/reusable_content_zs = list()
 
 /datum/controller/subsystem/overmap/Initialize()
+	init_overmap_faction_globals()
 	generator_type = CONFIG_GET(string/overmap_generator_type)
 	if(!generator_type || generator_type == "")
 		generator_type = OVERMAP_GENERATOR_RANDOM
@@ -1016,15 +1017,14 @@ SUBSYSTEM_DEF(overmap)
 		return TRUE
 
 	var/viewer_affiliation = get_affiliation(viewer)
+	var/datum/overmap_faction/viewer_faction = get_overmap_faction(viewer_affiliation)
 	var/target_id = level_target.id
 
 	// Same-faction always sees home
-	if(viewer_affiliation == OVERMAP_AFFILIATION_NT && target_id == MAIN_OVERMAP_OBJECT_ID)
-		return TRUE
-	if(viewer_affiliation == OVERMAP_AFFILIATION_DS2 && target_id == DES_TWO_OVERMAP_OBJECT_ID)
+	if(viewer_faction?.stealth_level_id == target_id)
 		return TRUE
 
-	// Cross-faction blocks
+	// Cross-faction blocks (NT ↔ DS2 special cases)
 	if(viewer_affiliation == OVERMAP_AFFILIATION_DS2 && target_id == MAIN_OVERMAP_OBJECT_ID)
 		return station_revealed_to_ds2
 	if(viewer_affiliation == OVERMAP_AFFILIATION_NT && target_id == DES_TWO_OVERMAP_OBJECT_ID)
@@ -1038,17 +1038,31 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/get_affiliation(obj/structure/overmap/thing)
 	if(!thing)
 		return OVERMAP_AFFILIATION_NEUTRAL
+	if(!length(GLOB.overmap_factions_by_id))
+		init_overmap_faction_globals()
 	if(istype(thing, /obj/structure/overmap/level/main))
 		return OVERMAP_AFFILIATION_NT
-	if(istype(thing, /obj/structure/overmap/level/site))
-		var/obj/structure/overmap/level/site/site = thing
-		if(site.id == DES_TWO_OVERMAP_OBJECT_ID)
-			return OVERMAP_AFFILIATION_DS2
+	if(istype(thing, /obj/structure/overmap/level))
+		var/obj/structure/overmap/level/level = thing
+		var/datum/overmap_faction/by_level = GLOB.overmap_factions_by_home_level[level.id]
+		if(by_level)
+			return by_level.id
 	if(istype(thing, /obj/structure/overmap/ship/simulated))
 		var/obj/structure/overmap/ship/simulated/ship = thing
-		switch(ship.home_level_id)
-			if(DES_TWO_OVERMAP_OBJECT_ID)
-				return OVERMAP_AFFILIATION_DS2
-			if(MAIN_OVERMAP_OBJECT_ID)
-				return OVERMAP_AFFILIATION_NT
+		if(isnull(ship.home_level_id))
+			return OVERMAP_AFFILIATION_NEUTRAL
+		var/datum/overmap_faction/by_home = GLOB.overmap_factions_by_home_level[ship.home_level_id]
+		if(by_home)
+			return by_home.id
 	return OVERMAP_AFFILIATION_NEUTRAL
+
+/// Admin / tooling helper: set a simulated ship's home affiliation.
+/// `faction` is an `OVERMAP_AFFILIATION_*` string. Returns TRUE if applied.
+/datum/controller/subsystem/overmap/proc/apply_ship_affiliation(obj/structure/overmap/ship/simulated/ship, faction)
+	if(!istype(ship))
+		return FALSE
+	var/datum/overmap_faction/faction_datum = get_overmap_faction(faction)
+	if(isnull(faction_datum))
+		return FALSE
+	ship.home_level_id = faction_datum.home_level_id
+	return TRUE

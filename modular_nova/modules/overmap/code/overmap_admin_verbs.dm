@@ -96,3 +96,6 @@ ADMIN_VERB(overmap_all_stop, R_DEBUG, "Overmap All Stop", "All-stop the shuttle 
 	to_chat(user, span_notice("All-stop on [ship.name] ([shuttle_id])."))
 	message_admins("[key_name_admin(user)] overmap all stop on [ship.name] ([shuttle_id]).")
 	log_admin("[key_name(user)] overmap all stop on [ship.name] ([shuttle_id]).")
+
+ADMIN_VERB(landing_zone_panel, R_ADMIN, "Landing Zone Manipulator", "Opens the landing zone manipulator UI.", ADMIN_CATEGORY_SHUTTLE)
+	SSovermap.ui_interact(user.mob)

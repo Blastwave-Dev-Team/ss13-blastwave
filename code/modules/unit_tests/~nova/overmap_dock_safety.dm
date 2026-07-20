@@ -244,6 +244,21 @@
 	ship.home_level_id = "no_such_level"
 	TEST_ASSERT_EQUAL(SSovermap.get_affiliation(ship), OVERMAP_AFFILIATION_NEUTRAL, "Unknown home_level_id should be neutral.")
 
+	TEST_ASSERT(SSovermap.apply_ship_affiliation(ship, OVERMAP_AFFILIATION_NT), "apply_ship_affiliation should accept NT.")
+	TEST_ASSERT_EQUAL(ship.home_level_id, MAIN_OVERMAP_OBJECT_ID, "NT affiliation should pin MAIN home_level_id.")
+	TEST_ASSERT_EQUAL(SSovermap.get_affiliation(ship), OVERMAP_AFFILIATION_NT, "Applied NT should resolve NT.")
+
+	TEST_ASSERT(SSovermap.apply_ship_affiliation(ship, OVERMAP_AFFILIATION_DS2), "apply_ship_affiliation should accept DS2.")
+	TEST_ASSERT_EQUAL(ship.home_level_id, DES_TWO_OVERMAP_OBJECT_ID, "DS2 affiliation should pin DES_TWO home_level_id.")
+	TEST_ASSERT_EQUAL(SSovermap.get_affiliation(ship), OVERMAP_AFFILIATION_DS2, "Applied DS2 should resolve DS2.")
+
+	TEST_ASSERT(SSovermap.apply_ship_affiliation(ship, OVERMAP_AFFILIATION_NEUTRAL), "apply_ship_affiliation should accept neutral.")
+	TEST_ASSERT_EQUAL(ship.home_level_id, null, "Neutral affiliation should clear home_level_id.")
+	TEST_ASSERT_EQUAL(SSovermap.get_affiliation(ship), OVERMAP_AFFILIATION_NEUTRAL, "Applied neutral should resolve neutral.")
+
+	TEST_ASSERT(!SSovermap.apply_ship_affiliation(ship, "not_a_faction"), "Unknown faction string should be rejected.")
+	TEST_ASSERT(!SSovermap.apply_ship_affiliation(null, OVERMAP_AFFILIATION_NT), "Null ship should be rejected.")
+
 /datum/unit_test/overmap_dock_safety/adjacency_seed
 
 /datum/unit_test/overmap_dock_safety/adjacency_seed/Run()

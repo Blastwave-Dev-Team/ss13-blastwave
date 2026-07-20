@@ -1,115 +1,75 @@
 //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
-"a" = (
-/turf/open/space/basic,
-/area/space)
-"b" = (
-/obj/machinery/power/shuttle_engine/overmap/standard{
-	dir = 8
-	},
-/turf/open/floor/plating,
-/area/shuttle/overmap/frigate)
-"c" = (
-/obj/machinery/overmap/fuel_injector,
-/turf/open/floor/engine,
-/area/shuttle/overmap/frigate)
-"d" = (
-/obj/effect/turf_decal/stripes{
-	dir = 4
-	},
-/obj/effect/turf_decal/stripes{
-	dir = 1
-	},
-/turf/open/floor/iron/dark/pattern_11,
-/area/shuttle/overmap/frigate)
-"e" = (
-/obj/effect/turf_decal/stripes{
-	dir = 1
-	},
-/turf/open/floor/iron/dark/pattern_11,
-/area/shuttle/overmap/frigate)
-"f" = (
-/obj/effect/turf_decal/stripes{
-	dir = 10
-	},
-/turf/open/floor/iron/dark/pattern_11,
-/area/shuttle/overmap/frigate)
-"g" = (
+"co" = (
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
-"h" = (
-/turf/open/floor/iron/smooth_corner{
-	dir = 4
-	},
-/area/shuttle/overmap/frigate)
-"i" = (
-/obj/effect/turf_decal/stripes{
-	dir = 4
-	},
-/turf/open/floor/iron/dark/pattern_11,
-/area/shuttle/overmap/frigate)
-"j" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/closed/wall/mineral/titanium/interior,
-/area/shuttle/overmap/frigate)
-"l" = (
-/obj/effect/spawner/structure/window/reinforced/shuttle,
-/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
-	dir = 8
-	},
-/turf/open/floor/plating,
-/area/shuttle/overmap/frigate)
-"n" = (
+"dZ" = (
 /obj/effect/turf_decal/stripes{
 	dir = 4
 	},
 /obj/effect/turf_decal/stripes,
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"o" = (
-/turf/open/floor/catwalk_floor/airless,
-/area/space)
-"p" = (
-/obj/machinery/power/smes/connector,
-/obj/machinery/smesbank/super/full,
-/obj/structure/cable,
-/turf/open/floor/engine,
-/area/shuttle/overmap/frigate)
-"q" = (
-/obj/structure/cable,
-/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/open/floor/engine,
-/area/shuttle/overmap/frigate)
-"r" = (
-/turf/open/floor/iron/smooth_edge{
-	dir = 1
-	},
-/area/shuttle/overmap/frigate)
-"s" = (
+"eL" = (
+/obj/structure/rack,
+/obj/item/spacepod_equipment/cargo/large,
+/obj/item/spacepod_equipment/weaponry/basic_pod_ka,
+/obj/item/spacepod_equipment/weaponry/plasma_cutter,
+/obj/item/spacepod_equipment/weaponry/laser,
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"t" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+"eY" = (
+/obj/machinery/door/airlock/external/glass,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"hA" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/obj/machinery/light/directional/south,
+/turf/open/floor/iron/smooth_edge,
+/area/shuttle/overmap/frigate)
+"jL" = (
+/obj/effect/turf_decal/stripes{
+	dir = 4
+	},
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"kn" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
+	dir = 8
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"kw" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 1
+	},
+/turf/open/floor/iron/smooth_edge{
+	dir = 8
+	},
+/area/shuttle/overmap/frigate)
+"mb" = (
+/turf/open/floor/catwalk_floor/airless,
+/area/shuttle/overmap/frigate)
+"mc" = (
+/obj/structure/window/reinforced/spawner/directional/west,
+/obj/machinery/power/port_gen/pacman/pre_loaded,
+/obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
-"u" = (
-/obj/machinery/atmospherics/components/unary/passive_vent{
-	dir = 1;
-	pipe_color = "#FF0000"
+"mn" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 8
 	},
-/turf/open/floor/catwalk_floor/airless,
-/area/space)
-"w" = (
-/obj/effect/spawner/structure/window/reinforced/shuttle,
-/turf/open/floor/plating,
+/turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"x" = (
+"mv" = (
 /obj/structure/window/reinforced/spawner/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/smooth,
 /area/shuttle/overmap/frigate)
-"y" = (
+"od" = (
 /obj/structure/window/reinforced/spawner/directional/west,
 /obj/machinery/power/terminal{
 	dir = 4
@@ -118,64 +78,68 @@
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
-"z" = (
-/obj/effect/turf_decal/stripes{
-	dir = 9
+"ok" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 8
 	},
-/turf/open/floor/iron/dark/pattern_11,
+/turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
-"A" = (
-/turf/closed/wall/mineral/titanium/interior,
+"ph" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
-"B" = (
-/obj/machinery/telecomms/relay/preset/auto,
+"pR" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/light/directional/north,
 /turf/open/floor/iron/smooth_edge{
-	dir = 4
+	dir = 1
 	},
 /area/shuttle/overmap/frigate)
-"D" = (
-/obj/structure/window/reinforced/spawner/directional/west,
-/obj/machinery/power/port_gen/pacman/pre_loaded,
-/obj/structure/cable,
-/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
-/turf/open/floor/engine,
-/area/shuttle/overmap/frigate)
-"E" = (
-/obj/structure/window/reinforced/spawner/directional/west,
-/obj/structure/cable,
-/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
-/turf/open/floor/engine,
-/area/shuttle/overmap/frigate)
-"F" = (
+"sD" = (
 /obj/docking_port/mobile/overmap/frigate/solfed_patrol,
 /obj/machinery/door/airlock/external/glass,
 /obj/structure/fans/tiny,
 /turf/open/floor/iron/smooth,
 /area/shuttle/overmap/frigate)
-"G" = (
-/obj/machinery/power/apc/auto_name/directional/south,
-/obj/structure/cable,
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+"ug" = (
+/obj/machinery/overmap/fuel_injector,
+/obj/machinery/light/directional/south,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
-"H" = (
-/turf/open/floor/iron/smooth_edge,
-/area/shuttle/overmap/frigate)
-"I" = (
-/obj/structure/window/reinforced/spawner/directional/north,
-/turf/open/floor/iron/smooth,
-/area/shuttle/overmap/frigate)
-"J" = (
-/obj/structure/chair/comfy/shuttle/tactical{
-	dir = 4
-	},
-/turf/open/floor/iron/smooth,
-/area/shuttle/overmap/frigate)
-"K" = (
-/obj/effect/turf_decal/stripes,
+"wF" = (
+/turf/open/space/basic,
+/area/space)
+"xa" = (
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"L" = (
+"xH" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
+	pipe_color = "#0000FF"
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"yP" = (
+/obj/machinery/light/directional/north,
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"AG" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"Cs" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"CC" = (
+/obj/machinery/telecomms/relay/preset/auto,
+/turf/open/floor/iron/smooth_edge{
+	dir = 4
+	},
+/area/shuttle/overmap/frigate)
+"Dc" = (
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
 	dir = 8
 	},
@@ -183,47 +147,79 @@
 	dir = 4
 	},
 /area/shuttle/overmap/frigate)
-"M" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/closed/wall/mineral/titanium,
+"Fw" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 8
+	},
+/obj/machinery/light/directional/south,
+/turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"N" = (
+"Fy" = (
+/obj/structure/window/reinforced/spawner/directional/west,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"FD" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/smooth_edge{
 	dir = 8
 	},
 /area/shuttle/overmap/frigate)
-"O" = (
-/turf/open/floor/iron/smooth_corner,
-/area/shuttle/overmap/frigate)
-"P" = (
-/turf/open/floor/iron/smooth,
-/area/shuttle/overmap/frigate)
-"Q" = (
-/obj/structure/fans/tiny,
+"FH" = (
+/obj/effect/turf_decal/stripes{
+	dir = 4
+	},
+/obj/effect/turf_decal/stripes{
+	dir = 1
+	},
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"R" = (
+"Gm" = (
+/obj/effect/turf_decal/stripes{
+	dir = 9
+	},
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"GC" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/smooth_corner{
+	dir = 4
+	},
+/area/shuttle/overmap/frigate)
+"IR" = (
+/obj/machinery/power/smes/connector,
+/obj/machinery/smesbank/super/full,
+/obj/structure/cable,
+/obj/machinery/light/directional/north,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"Ke" = (
 /obj/structure/rack,
+/obj/item/spacepod_equipment/cargo/chair,
+/obj/item/spacepod_equipment/cargo/chair,
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"S" = (
-/obj/machinery/door/airlock/external/glass,
+"KX" = (
 /obj/structure/fans/tiny,
-/turf/open/floor/iron/smooth,
-/area/shuttle/overmap/frigate)
-"T" = (
-/obj/machinery/door/airlock/engineering/glass,
-/turf/open/floor/plating,
-/area/shuttle/overmap/frigate)
-"U" = (
-/obj/machinery/door/airlock/external/glass,
-/turf/open/floor/iron/smooth,
-/area/shuttle/overmap/frigate)
-"W" = (
-/obj/effect/turf_decal/vg_decals/numbers/one,
 /turf/open/floor/iron/dark/pattern_11,
 /area/shuttle/overmap/frigate)
-"X" = (
+"Ll" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
+/turf/open/floor/iron/smooth_edge{
+	dir = 8
+	},
+/area/shuttle/overmap/frigate)
+"Lz" = (
+/obj/effect/turf_decal/stripes{
+	dir = 1
+	},
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"LS" = (
 /obj/machinery/computer/helm{
 	dir = 8
 	},
@@ -231,263 +227,349 @@
 	dir = 4
 	},
 /area/shuttle/overmap/frigate)
-"Y" = (
-/obj/structure/cable,
-/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
-	pipe_color = "#0000FF"
+"Mi" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/mineral/titanium/interior,
+/area/shuttle/overmap/frigate)
+"MX" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 1;
+	pipe_color = "#FF0000"
 	},
+/turf/open/floor/catwalk_floor/airless,
+/area/shuttle/overmap/frigate)
+"NI" = (
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"NS" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"OA" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/smooth_corner,
+/area/shuttle/overmap/frigate)
+"OZ" = (
+/obj/effect/turf_decal/stripes,
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"Rb" = (
+/obj/machinery/portable_atmospherics/canister/air,
+/obj/machinery/atmospherics/components/unary/portables_connector/layer4{
+	dir = 8
+	},
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"Rw" = (
+/obj/machinery/power/apc/auto_name/directional/south,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"RG" = (
+/obj/effect/turf_decal/vg_decals/numbers/one,
+/obj/spacepod/prebuilt,
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"RZ" = (
+/obj/machinery/door/airlock/external/glass,
+/obj/structure/fans/tiny,
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"Sy" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 4
+	},
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"UO" = (
+/obj/machinery/door/airlock/engineering/glass,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"UT" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/closed/wall/mineral/titanium/interior,
+/area/shuttle/overmap/frigate)
+"UU" = (
+/obj/structure/window/reinforced/spawner/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"VH" = (
+/obj/effect/turf_decal/stripes{
+	dir = 10
+	},
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"Wr" = (
+/obj/machinery/door/airlock/external/glass,
+/turf/open/floor/iron/smooth,
+/area/shuttle/overmap/frigate)
+"WB" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/dark/pattern_11,
+/area/shuttle/overmap/frigate)
+"YF" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 
 (1,1,1) = {"
-a
-a
-g
-b
-b
-b
-g
-a
-a
-a
-a
-a
+wF
+wF
+co
+ok
+ok
+ok
+co
+wF
+wF
+wF
+wF
+wF
 "}
 (2,1,1) = {"
-a
-a
-g
-y
-E
-D
-g
-a
-a
-a
-a
-a
+wF
+wF
+co
+od
+Fy
+mc
+co
+wF
+wF
+wF
+wF
+wF
 "}
 (3,1,1) = {"
-a
-a
-g
-p
-t
-c
-g
-a
-a
-a
-a
-a
+wF
+wF
+co
+IR
+AG
+ug
+co
+wF
+wF
+wF
+wF
+wF
 "}
 (4,1,1) = {"
-a
-a
-g
-Y
-q
-G
-g
-a
-a
-a
-a
-a
+wF
+wF
+co
+xH
+YF
+Rw
+co
+wF
+wF
+wF
+wF
+wF
 "}
 (5,1,1) = {"
-o
-g
-g
-A
-T
-j
-M
-M
-u
-a
-a
-a
+mb
+co
+ph
+Mi
+UO
+UT
+ph
+ph
+MX
+wF
+wF
+wF
 "}
 (6,1,1) = {"
-o
-S
-O
-N
-N
-N
-h
-F
-o
-a
-a
-a
+mb
+RZ
+OA
+kw
+Ll
+FD
+GC
+sD
+mb
+wF
+wF
+wF
 "}
 (7,1,1) = {"
-g
-g
-r
-J
-P
-J
-H
-g
-g
-a
-a
-a
+co
+co
+pR
+Sy
+NI
+Sy
+hA
+co
+co
+wF
+wF
+wF
 "}
 (8,1,1) = {"
-g
-P
-x
-X
-B
-L
-I
-P
-g
-a
-a
-a
+co
+NI
+mv
+LS
+CC
+Dc
+UU
+NI
+co
+wF
+wF
+wF
 "}
 (9,1,1) = {"
-g
-U
-g
-w
-w
-l
-g
-U
-g
-a
-a
-a
+co
+Wr
+ph
+Cs
+Cs
+kn
+NS
+eY
+co
+wF
+wF
+wF
 "}
 (10,1,1) = {"
-g
-s
-s
-z
-s
-f
-s
-s
-g
-a
-a
-a
+co
+xa
+mn
+Gm
+xa
+VH
+Rb
+WB
+co
+wF
+wF
+wF
 "}
 (11,1,1) = {"
-g
-s
-s
-e
-W
-K
-s
-s
-g
-a
-a
-a
+co
+yP
+xa
+Lz
+RG
+OZ
+xa
+Fw
+co
+wF
+wF
+wF
 "}
 (12,1,1) = {"
-g
-R
-s
-e
-s
-K
-s
-R
-g
-a
-a
-a
+co
+Ke
+xa
+Lz
+xa
+OZ
+xa
+eL
+co
+wF
+wF
+wF
 "}
 (13,1,1) = {"
-g
-g
-i
-d
-i
-n
-i
-g
-g
-a
-a
-a
+co
+co
+jL
+FH
+jL
+dZ
+jL
+co
+co
+wF
+wF
+wF
 "}
 (14,1,1) = {"
-a
-g
-Q
-Q
-Q
-Q
-Q
-g
-a
-a
-a
-a
+wF
+co
+KX
+KX
+KX
+KX
+KX
+co
+wF
+wF
+wF
+wF
 "}
 (15,1,1) = {"
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
 "}
 (16,1,1) = {"
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
 "}
 (17,1,1) = {"
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
 "}
 (18,1,1) = {"
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
-a
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
+wF
 "}

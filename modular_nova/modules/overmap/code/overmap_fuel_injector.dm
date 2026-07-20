@@ -85,13 +85,28 @@
 			engines += engine
 	return engines
 
+/obj/machinery/overmap/fuel_injector/proc/register_linked_engine(obj/machinery/power/shuttle_engine/overmap/engine)
+	if(!engine)
+		return
+	// WEAKREF() creates a new datum each call — never use `WEAKREF(x) in list`.
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		if(engine_ref?.resolve() == engine)
+			return
+	linked_engines += WEAKREF(engine)
+
+/obj/machinery/overmap/fuel_injector/proc/unregister_linked_engine(obj/machinery/power/shuttle_engine/overmap/engine)
+	if(!engine)
+		return
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		if(engine_ref?.resolve() == engine)
+			linked_engines -= engine_ref
+
 /obj/machinery/overmap/fuel_injector/proc/link_adjacent_engines()
 	for(var/direction in GLOB.cardinals)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in get_step(get_turf(src), direction))
 			if(engine.dir != dir)
 				continue
 			engine.set_linked_injector(src, FALSE)
-			linked_engines += WEAKREF(engine)
 
 /obj/machinery/overmap/fuel_injector/proc/update_linked_engines()
 	for(var/datum/weakref/engine_ref as anything in linked_engines)
@@ -103,7 +118,6 @@
 	if(length(piped))
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in piped)
 			engine.set_linked_injector(src, TRUE)
-			linked_engines += WEAKREF(engine)
 	else
 		link_adjacent_engines()
 
@@ -142,6 +156,8 @@
 	for(var/datum/stock_part/micro_laser/micro_laser in component_parts)
 		micro_laser_rating = max(micro_laser_rating, micro_laser.tier)
 	chamber_volume = TANK_STANDARD_VOLUME + (matter_bin_rating - 1) * 20
+	// Matter bin = servo setpoint: higher tiers allow a denser inlet fill.
+	max_operating_pressure = OVERMAP_FUEL_DEFAULT_PRESSURE + OVERMAP_FUEL_PRESSURE_PER_BIN_TIER * (matter_bin_rating - 1)
 	if(air_contents)
 		air_contents.volume = chamber_volume
 	recalculate_max_moles()
@@ -225,14 +241,50 @@
 
 /// Keep a lit chamber burning: react the mix every tick (same pattern as
 /// portable atmospherics) so ignition self-sustains. Skipped while a burn
-/// tick owns the mix via consuming.
+/// tick owns the mix via consuming. Over-pressure chokes further react and
+/// vents through the relief path so heat cannot run away with no outflow.
 /obj/machinery/overmap/fuel_injector/proc/process_chamber_reaction()
 	if(consuming)
 		return
+	if(air_contents.return_pressure() >= max_operating_pressure)
+		process_pressure_relief()
+		if(air_contents.return_pressure() >= max_operating_pressure)
+			if(burning)
+				burning = FALSE
+				update_appearance()
+			return
 	var/reacted = air_contents.react(src)
 	if(burning != !!reacted)
 		burning = !!reacted
 		update_appearance()
+	if(air_contents.return_pressure() > max_operating_pressure)
+		process_pressure_relief()
+
+/// Vent moles until chamber pressure is at/under the servo setpoint.
+/// Prefers L3 exhaust, then L2 feed; otherwise discards (hard relief).
+/obj/machinery/overmap/fuel_injector/proc/process_pressure_relief()
+	if(!air_contents?.total_moles())
+		return
+	var/target_moles = chamber_mole_capacity()
+	var/excess = air_contents.total_moles() - target_moles
+	if(excess <= 0)
+		return
+	var/to_vent = min(excess, OVERMAP_FUEL_RELIEF_RATE)
+	var/datum/gas_mixture/vented = air_contents.remove(to_vent)
+	if(!vented?.total_moles())
+		return
+	var/datum/pipeline/exhaust_pipe = exhaust_connector?.gas_connector?.parents?[1]
+	if(exhaust_pipe?.air && exhaust_pipe.air.volume > 0 && exhaust_pipe.air.return_pressure() < MAX_OUTPUT_PRESSURE)
+		exhaust_pipe.air.merge(vented)
+		exhaust_connector.gas_connector.update_parents()
+		return
+	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
+	if(feed_pipe?.air && feed_pipe.air.volume > 0)
+		feed_pipe.air.merge(vented)
+		feed_connector.gas_connector.update_parents()
+		return
+	// No valid outflow — dump (choke) so the chamber cannot keep climbing.
+	qdel(vented)
 
 /obj/machinery/overmap/fuel_injector/proc/process_intake()
 	var/datum/pipeline/pipe = input_connector?.gas_connector?.parents?[1]
@@ -537,7 +589,9 @@
 	var/ship_mass = ship_mass_data[1]
 	var/ship_mass_unknown = ship_mass_data[2]
 	var/estimated_isp = fuel_injector_estimate_isp(src)
-	var/datum/gas_mixture/isp_mix = get_feed_air() || air_contents
+	var/datum/gas_mixture/isp_mix = get_feed_air()
+	if(!isp_mix?.total_moles())
+		isp_mix = air_contents
 	var/gas_multiplier = overmap_gas_isp_multiplier(isp_mix)
 	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(isp_mix)
 	var/power_fraction = fuel_injector_estimate_power_fraction(src)
@@ -577,20 +631,21 @@
 			"scrub_eligible_ratio" = fuel_injector_scrub_eligible_ratio(air_contents, scrub_filter),
 		),
 		"performance" = list(
-			"estimated_isp" = round(estimated_isp, 3),
-			"thrust_efficiency" = round(min(estimated_isp / FUEL_INJECTOR_ISP_NOMINAL_MAX, 1), 3),
-			"delta_v" = ship_mass_unknown ? 0 : round(fuel_injector_estimate_delta_v(src, ship_mass), 2),
+			// BYOND round(A, B) = nearest multiple of B (not decimal places).
+			"estimated_isp" = round(estimated_isp, 0.001),
+			"thrust_efficiency" = round(min(estimated_isp / FUEL_INJECTOR_ISP_NOMINAL_MAX, 1), 0.001),
+			"delta_v" = ship_mass_unknown ? 0 : round(fuel_injector_estimate_delta_v(src, ship_mass), 0.01),
 			"base_isp" = base_isp,
-			"gas_multiplier" = round(gas_multiplier, 3),
+			"gas_multiplier" = round(gas_multiplier, 0.001),
 			"chemical_bonus" = chemical_bonus,
-			"power_fraction" = round(power_fraction, 3),
+			"power_fraction" = round(power_fraction, 0.001),
 			"linked_engines" = length(linked_engines),
 			"piped_engines" = manifold["piped_engines"],
 			"adjacent_engines" = manifold["adjacent_engines"],
 			"link_mode" = manifold["piped_engines"] ? "piped" : (manifold["adjacent_engines"] ? "adjacent" : "none"),
 			"active_share_count" = manifold["active_share_count"],
-			"per_engine_moles" = round(manifold["per_engine_moles"], 3),
-			"total_tick_moles" = round(manifold["total_tick_moles"], 3),
+			"per_engine_moles" = round(manifold["per_engine_moles"], 0.001),
+			"total_tick_moles" = round(manifold["total_tick_moles"], 0.001),
 			"feed_connected" = manifold["feed_connected"],
 			"ship_mass" = ship_mass,
 			"ship_mass_unknown" = ship_mass_unknown,

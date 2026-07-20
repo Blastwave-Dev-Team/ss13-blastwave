@@ -58,6 +58,11 @@
 #define OVERMAP_AFFILIATION_DS2 "ds2"
 #define OVERMAP_AFFILIATION_NEUTRAL "neutral"
 
+/// Programmable landing controller board: lock pad+console to an overmap faction.
+#define LANDING_CONTROLLER_LOCK_FACTION "faction"
+/// Programmable landing controller board: lock console to one ID owner; pad stays open.
+#define LANDING_CONTROLLER_LOCK_USER "user"
+
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"
 #define OVERMAP_SHIP_FLYING "flying"
@@ -106,7 +111,14 @@
 #define OVERMAP_MAX_SPEED 2
 
 /// Maneuverability: how quickly actual velocity converges on desired (0..1 per second).
+/// Retained for station-keeping / legacy autopilot; forward flight accel uses thrust/mass.
 #define OVERMAP_MANEUVERABILITY 0.8
+
+/// Converts thrust/mass into tiles/s² toward the throttle target.
+/// Tuned so a typical frigate (~3× HNT ≈ 90 thrust, ~100 turf mass) reaches cruise
+/// in a similar ballpark to the old OVERMAP_MANEUVERABILITY=0.8 blend from rest
+/// (initial accel ≈ max_speed * 0.8). Hall-only (~0.15× thrust) is then ~6–7× slower.
+#define OVERMAP_THRUST_ACCEL_SCALE 1.8
 
 // --- Propellant / fuel injector ---
 
@@ -114,8 +126,12 @@
 #define OVERMAP_FUEL_PLASMA_RATIO 0.6
 #define OVERMAP_FUEL_OXYGEN_RATIO 0.4
 
-/// Mapped shuttle chamber pressure target (~3 atm).
+/// Mapped shuttle chamber pressure target (~3 atm) at matter-bin T1 (servo setpoint).
 #define OVERMAP_FUEL_DEFAULT_PRESSURE (3 * ONE_ATMOSPHERE)
+/// Extra operating pressure per matter-bin tier above T1.
+#define OVERMAP_FUEL_PRESSURE_PER_BIN_TIER (1 * ONE_ATMOSPHERE)
+/// Max moles vented per tick when the chamber is over the servo setpoint.
+#define OVERMAP_FUEL_RELIEF_RATE 5
 
 /// Thrust-to-moles knob; tune for ~10 min full-tank burn at full throttle.
 #define OVERMAP_PROP_MOLES_PER_THRUST 0.05

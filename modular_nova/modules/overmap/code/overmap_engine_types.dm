@@ -5,7 +5,7 @@
 /// "void core" that never depletes and doesn't require power.
 /obj/machinery/power/shuttle_engine/overmap/void
 	name = "void thruster"
-	desc = "An exotic thruster that punches into voidspace for unlimited propulsion. Adminspawn-grade."
+	desc = "An exotic thruster that punches into voidspace for unlimited propulsion."
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap/void
 	thrust = 50

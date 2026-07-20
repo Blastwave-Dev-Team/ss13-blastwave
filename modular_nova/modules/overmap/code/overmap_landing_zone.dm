@@ -20,6 +20,9 @@
 	/// Read by the bay-exit check at undock time. NONE means "no designated exit"
 	/// (bay-exit falls back to checking all four faces).
 	var/exit_direction = NONE
+	/// Overmap affiliation allowed to land here (`OVERMAP_AFFILIATION_*`).
+	/// Null/empty = open to any affiliation (seeded/mapped zones default open).
+	var/dock_affiliation
 
 /obj/effect/landmark/overmap_landing_zone/Initialize(mapload)
 	. = ..()

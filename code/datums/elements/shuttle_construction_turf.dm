@@ -31,7 +31,7 @@
 	SIGNAL_HANDLER
 	var/list/old_trait_sources = GET_TRAIT_SOURCES(source, TRAIT_SHUTTLE_CONSTRUCTION_TURF)
 	old_trait_sources = old_trait_sources.Copy()
-	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - track whether the top turf layer is being removed so deconstructing built plating can re-expose frame rods
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - track layer removal + previous type so hull→pad reexposes rods while tile→hull keeps them hidden
 	var/old_depth = source.count_baseturfs()
 	var/new_depth = old_depth
 	if(islist(new_baseturfs))
@@ -39,7 +39,8 @@
 	else if(!isnull(new_baseturfs))
 		new_depth = 1
 	var/is_uncovering = new_depth < old_depth
-	post_change_callbacks += CALLBACK(src, PROC_REF(post_turf_changed), old_trait_sources, is_uncovering)
+	var/previous_type = source.type
+	post_change_callbacks += CALLBACK(src, PROC_REF(post_turf_changed), old_trait_sources, is_uncovering, previous_type)
 	// BLASTWAVE EDIT ADDITION END
 	/* BLASTWAVE EDIT - ORIGINAL
 	post_change_callbacks += CALLBACK(src, PROC_REF(post_turf_changed), old_trait_sources)
@@ -51,7 +52,7 @@
 	SIGNAL_HANDLER
 	post_successful_replacement_callbacks += CALLBACK(src, PROC_REF(register_lattice))
 
-/datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, is_uncovering, turf/new_turf) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, turf/new_turf)
+/datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, is_uncovering, previous_type, turf/new_turf) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/element/shuttle_construction_turf/proc/post_turf_changed(list/trait_sources, turf/new_turf)
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[new_turf]
 	frame.possibly_valid_changing_turfs -= new_turf
 	if(isfloorturf(new_turf) || iswallturf(new_turf))
@@ -62,7 +63,7 @@
 		for(var/source in trait_sources)
 			new_turf.AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, source, type)
 		// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - re-expose frame rods when built plating is deconstructed back to the landing pad
-		shuttle_construction_turf_reexpose_rods(new_turf, trait_sources, is_uncovering)
+		shuttle_construction_turf_reexpose_rods(new_turf, trait_sources, is_uncovering, previous_type)
 		// BLASTWAVE EDIT ADDITION END
 	else
 		frame.remove_turf(new_turf)

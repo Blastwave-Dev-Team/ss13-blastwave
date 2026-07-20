@@ -37,6 +37,7 @@ type Data = {
   oversized: BooleanLike;
   occupied: BooleanLike;
   occupant_name: string | null;
+  dock_policy: string;
   corners: CornerEntry[];
 };
 
@@ -101,8 +102,15 @@ const LoginView = () => {
 
 const StatusSection = () => {
   const { data } = useBackend<Data>();
-  const { active, invalid_reason, width, height, occupied, occupant_name } =
-    data;
+  const {
+    active,
+    invalid_reason,
+    width,
+    height,
+    occupied,
+    occupant_name,
+    dock_policy,
+  } = data;
 
   return (
     <Section title="Status">
@@ -119,6 +127,11 @@ const StatusSection = () => {
         ) : (
           <NoticeBox success>Clear &mdash; ready for landing</NoticeBox>
         ))}
+      <LabeledList>
+        <LabeledList.Item label="Docking policy">
+          {dock_policy || 'Open (any vessel)'}
+        </LabeledList.Item>
+      </LabeledList>
     </Section>
   );
 };

@@ -1106,6 +1106,9 @@ SUBSYSTEM_DEF(shuttle)
 	data["templates_tabs"] = sort_list(data["templates_tabs"])
 
 	data["existing_shuttle"] = null
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - data-driven faction options
+	data["overmap_factions"] = get_overmap_faction_ui_options()
+	// BLASTWAVE EDIT ADDITION END
 
 	// Status panel
 	data["shuttles"] = list()
@@ -1128,6 +1131,13 @@ SUBSYSTEM_DEF(shuttle)
 		if (M.mode != SHUTTLE_IDLE)
 			L["mode"] = capitalize(M.mode)
 		L["status"] = M.getDbgStatusText()
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - faction dropdown for bound ships
+		if(istype(M.current_ship, /obj/structure/overmap/ship/simulated))
+			L["is_overmap"] = TRUE
+			L["faction"] = SSovermap.get_affiliation(M.current_ship)
+		else
+			L["is_overmap"] = FALSE
+		// BLASTWAVE EDIT ADDITION END
 		if(M == existing_shuttle)
 			data["existing_shuttle"] = L
 
@@ -1179,6 +1189,25 @@ SUBSYSTEM_DEF(shuttle)
 					log_admin("[key_name(usr)] fast travelled [M]")
 					SSblackbox.record_feedback("text", "shuttle_manipulator", 1, "[M.name]")
 					break
+
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - admin set ship home affiliation
+		if("set_overmap_faction")
+			for(var/i in mobile_docking_ports)
+				var/obj/docking_port/mobile/M = i
+				if(M.shuttle_id != params["id"])
+					continue
+				var/obj/structure/overmap/ship/simulated/ship = M.current_ship
+				if(!istype(ship))
+					return FALSE
+				var/faction = params["faction"]
+				if(!SSovermap.apply_ship_affiliation(ship, faction))
+					return FALSE
+				. = TRUE
+				message_admins("[key_name_admin(usr)] set overmap faction of [M] ([M.shuttle_id]) to [faction].")
+				log_admin("[key_name(usr)] set overmap faction of [M] ([M.shuttle_id]) to [faction].")
+				SSblackbox.record_feedback("text", "shuttle_manipulator", 1, "[M.name] faction=[faction]")
+				break
+		// BLASTWAVE EDIT ADDITION END
 
 		if("load")
 			if(S && !shuttle_loading)

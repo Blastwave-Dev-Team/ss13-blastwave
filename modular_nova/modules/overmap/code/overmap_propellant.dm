@@ -219,20 +219,25 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 /proc/fuel_injector_estimate_isp(obj/machinery/overmap/fuel_injector/injector)
 	if(!injector)
 		return 0
-	var/datum/gas_mixture/mix = injector.get_feed_air() || injector.air_contents
+	// Prefer L2 feed; fall back to chamber. Empty feed mix is non-null — check moles.
+	var/datum/gas_mixture/mix = injector.get_feed_air()
+	if(!mix?.total_moles())
+		mix = injector.air_contents
 	if(!mix?.total_moles())
 		return 0
 	var/gas_multiplier = overmap_gas_isp_multiplier(mix)
 	var/chemical_bonus = fuel_injector_estimate_chemical_bonus(mix)
-	var/power_fraction = fuel_injector_estimate_power_fraction(injector)
-	return injector.base_isp * gas_multiplier * chemical_bonus * power_fraction
+	return injector.base_isp * gas_multiplier * chemical_bonus
 
 /proc/fuel_injector_estimate_delta_v(obj/machinery/overmap/fuel_injector/injector, ship_mass)
 	if(!ship_mass || !injector?.has_propellant())
 		return 0
 	var/isp = fuel_injector_estimate_isp(injector)
-	var/list/share_stats = fuel_injector_manifold_share_stats(injector)
-	var/propellant = share_stats["total_tick_moles"] || (injector.get_stored_propellant_moles() * OVERMAP_PROP_MOLES_PER_THRUST)
+	if(isp <= 0)
+		return 0
+	var/propellant = injector.get_stored_propellant_moles() / OVERMAP_PROP_MOLES_PER_THRUST
+	if(propellant <= 0)
+		return 0
 	return isp * OVERMAP_G0 * log((ship_mass + propellant) / ship_mass)
 
 /proc/fuel_injector_derive_chamber_status(obj/machinery/overmap/fuel_injector/injector)
@@ -253,7 +258,9 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 	else if(injector.has_propellant())
 		pills += "Thermal Only"
 
-	if(injector.return_chamber_pressure() >= injector.max_operating_pressure * 0.95)
+	if(injector.return_chamber_pressure() > injector.max_operating_pressure)
+		pills += "Pressure Relief"
+	else if(injector.return_chamber_pressure() >= injector.max_operating_pressure * 0.95)
 		var/scrub_ratio = fuel_injector_scrub_eligible_ratio(injector.air_contents, injector.scrub_filter)
 		if(scrub_ratio < 0.05)
 			pills += "Scrub Stalled"

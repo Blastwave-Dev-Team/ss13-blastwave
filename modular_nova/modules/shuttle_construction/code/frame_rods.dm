@@ -22,3 +22,22 @@
 	AddElementTrait(TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE, /datum/element/shuttle_construction_turf)
 	to_chat(user, span_notice("You anchor shuttle frame rods into the [name]."))
 	return TRUE
+
+/// Cuts exposed shuttle frame rods with wirecutters / jaws cutter mode.
+/// Returns TRUE if handled (including cancelled do_after), FALSE to fall through.
+/turf/open/floor/proc/cut_shuttle_frame_rods(mob/living/user, obj/item/tool)
+	if(!HAS_TRAIT_FROM(src, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+		return FALSE
+	balloon_alert(user, "cutting frame rods...")
+	if(!tool.use_tool(src, user, 1 SECONDS, volume = 50))
+		return TRUE
+	if(!HAS_TRAIT_FROM(src, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+		return TRUE
+	REMOVE_TRAIT(src, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
+	remove_shuttle_frame_overlay(src)
+	update_shuttle_frame_neighbor_overlays(src)
+	if(depth_to_find_baseturf(/turf/baseturf_skipover/shuttle))
+		remove_baseturfs_from_typecache(typecacheof(/turf/baseturf_skipover/shuttle))
+	new /obj/item/stack/rods/shuttle(src, 1)
+	balloon_alert(user, "frame rods removed")
+	return TRUE

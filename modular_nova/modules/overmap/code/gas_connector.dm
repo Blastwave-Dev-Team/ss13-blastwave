@@ -2,7 +2,7 @@
 /// Hidden unary port used by `/datum/gas_machine_connector` for machine-side pipe hookups.
 /obj/machinery/atmospherics/components/unary/gas_connector
 	name = "gas connector"
-	desc = "An internal gas hookup. You should not be seeing this."
+	desc = "An internal manifold tap that joins machine plumbing to the local pipenet."
 	icon_state = "inje_map-3"
 	density = FALSE
 	anchored = TRUE
