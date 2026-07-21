@@ -24,7 +24,7 @@
 	id = OVERMAP_AFFILIATION_DS2
 	name = "Syndicate"
 	home_level_id = DES_TWO_OVERMAP_OBJECT_ID
-	console_icon_screen = "emagged_general"
+	console_icon_screen = "syndie"
 	stealth_level_id = DES_TWO_OVERMAP_OBJECT_ID
 
 /datum/overmap_faction/neutral

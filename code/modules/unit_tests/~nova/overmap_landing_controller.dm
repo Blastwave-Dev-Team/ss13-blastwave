@@ -65,14 +65,14 @@
 	TEST_ASSERT_EQUAL(board.item_interaction(subject, keycard), ITEM_INTERACT_SUCCESS, "Syndicate swipe should program the board.")
 	prog.apply_board_program()
 	TEST_ASSERT_EQUAL(prog.dock_affiliation, OVERMAP_AFFILIATION_DS2, "Syndicate board program should lock the pad to DS2.")
-	TEST_ASSERT_EQUAL(prog.icon_screen, "emagged_general", "Syndicate-configured console should use the emagged red monitor.")
+	TEST_ASSERT_EQUAL(prog.icon_screen, "syndie", "Syndicate-configured console should use the syndie monitor.")
 
 	board.clear_program()
 	prog.apply_board_program()
 	TEST_ASSERT(prog.emag_act(null, null), "Emagging a programmable landing controller should succeed.")
 	TEST_ASSERT(prog.obj_flags & EMAGGED, "Programmable controller should be marked emagged.")
 	TEST_ASSERT_EQUAL(prog.dock_affiliation, OVERMAP_AFFILIATION_DS2, "Emag should lock the pad to DS2.")
-	TEST_ASSERT_EQUAL(prog.icon_screen, "emagged_general", "Emagged programmable console should use the red monitor.")
+	TEST_ASSERT_EQUAL(prog.icon_screen, "syndie", "Emagged programmable console should use the syndie monitor.")
 	TEST_ASSERT(prog.allowed(subject), "Emagged console should allow login.")
 
 /datum/unit_test/overmap_landing_controller/board_modes
@@ -161,13 +161,13 @@
 	console.on_construction(null)
 	TEST_ASSERT_EQUAL(console.lock_mode, LANDING_CONTROLLER_LOCK_FACTION, "Construction should restore faction lock mode.")
 	TEST_ASSERT_EQUAL(console.dock_affiliation, OVERMAP_AFFILIATION_DS2, "Construction should restore DS2 dock lock.")
-	TEST_ASSERT_EQUAL(console.icon_screen, "emagged_general", "Restored syndicate lock should use the red monitor.")
+	TEST_ASSERT_EQUAL(console.icon_screen, "syndie", "Restored syndicate lock should use the syndie monitor.")
 
 	console.lock_mode = LANDING_CONTROLLER_LOCK_USER
 	console.owner_account_id = 12345
 	console.owner_name = "Persist Pilot"
 	console.set_dock_affiliation(null)
-	console.on_deconstruction(TRUE)
+	console.persist_program_to_board()
 	TEST_ASSERT_EQUAL(board.program_mode, LANDING_CONTROLLER_LOCK_USER, "Deconstruction should persist user mode.")
 	TEST_ASSERT_EQUAL(board.stored_owner_account_id, 12345, "Deconstruction should persist owner account id.")
 	TEST_ASSERT_EQUAL(board.stored_owner_name, "Persist Pilot", "Deconstruction should persist owner name.")
@@ -235,6 +235,13 @@
 
 /obj/structure/overmap/ship/unit_test_thrust/get_effective_mass()
 	return max(test_mass, 1)
+
+/// Velocity-only fixture: testroom walls must not zero thrust via on_axis_blocked.
+/obj/structure/overmap/ship/unit_test_thrust/Move(atom/newloc, direction, glide_size_override = 0, update_dir = TRUE)
+	return FALSE
+
+/obj/structure/overmap/ship/unit_test_thrust/on_axis_blocked(direction)
+	return
 
 /datum/unit_test/overmap_thrust_accel
 

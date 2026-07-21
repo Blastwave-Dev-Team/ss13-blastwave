@@ -524,6 +524,8 @@
 	prepare_plating(target)
 	target = get_turf(target)
 	apply_shuttle_rods(target, rods, user)
+	// Leftover stack would merge with the cut drop and inflate the count.
+	rods.moveToNullspace()
 
 	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rods should be exposed before cutting")
 	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should exist before cutting")

@@ -671,13 +671,12 @@
 	for(var/turf/needed as anything in list(pipe_w, pipe_c, pipe_e, eng_w, eng_c, eng_e))
 		TEST_ASSERT(isfloorturf(needed), "Expected floor at [needed?.x],[needed?.y] for 3-engine manifold.")
 
+	// Manifold only on the row north of the engines. Pipes on the engine turfs
+	// fight the reversed L2 feed connectors (intake faces north into the manifold).
 	var/list/l2_pipes = list(
 		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_w),
 		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_c),
 		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, pipe_e),
-		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_w),
-		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_c),
-		allocate(/obj/machinery/atmospherics/pipe/smart/simple/general/visible/layer2, eng_e),
 	)
 
 	var/obj/machinery/overmap/fuel_injector/injector = allocate(/obj/machinery/overmap/fuel_injector, injector_turf)

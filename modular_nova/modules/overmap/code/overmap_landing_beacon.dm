@@ -221,26 +221,33 @@
 	owner_name = null
 	set_dock_affiliation(board.stored_dock_affiliation)
 
-/obj/machinery/computer/landing_controller/programmable/on_deconstruction(disassembled)
+/// Writes current console lock state onto the circuit board (also used by unit tests).
+/obj/machinery/computer/landing_controller/programmable/proc/persist_program_to_board()
 	var/obj/item/circuitboard/computer/landing_controller/programmable/board = circuit
-	if(istype(board))
-		if(obj_flags & EMAGGED)
-			board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
-			board.stored_dock_affiliation = OVERMAP_AFFILIATION_DS2
-			board.stored_owner_account_id = null
-			board.stored_owner_name = null
-		else if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
-			board.program_mode = LANDING_CONTROLLER_LOCK_USER
-			board.stored_owner_account_id = owner_account_id
-			board.stored_owner_name = owner_name
-			board.stored_dock_affiliation = null
-		else if(lock_mode == LANDING_CONTROLLER_LOCK_FACTION)
-			board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
-			board.stored_dock_affiliation = dock_affiliation
-			board.stored_owner_account_id = null
-			board.stored_owner_name = null
-		else
-			board.clear_program()
+	if(!istype(board))
+		return
+	if(obj_flags & EMAGGED)
+		board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
+		board.stored_dock_affiliation = OVERMAP_AFFILIATION_DS2
+		board.stored_owner_account_id = null
+		board.stored_owner_name = null
+		return
+	if(lock_mode == LANDING_CONTROLLER_LOCK_USER)
+		board.program_mode = LANDING_CONTROLLER_LOCK_USER
+		board.stored_owner_account_id = owner_account_id
+		board.stored_owner_name = owner_name
+		board.stored_dock_affiliation = null
+		return
+	if(lock_mode == LANDING_CONTROLLER_LOCK_FACTION)
+		board.program_mode = LANDING_CONTROLLER_LOCK_FACTION
+		board.stored_dock_affiliation = dock_affiliation
+		board.stored_owner_account_id = null
+		board.stored_owner_name = null
+		return
+	board.clear_program()
+
+/obj/machinery/computer/landing_controller/programmable/on_deconstruction(disassembled)
+	persist_program_to_board()
 	return ..()
 
 /// Faction/user locks live on the circuit board — not the built console.

@@ -77,10 +77,19 @@
 	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
 	if(!feed_pipe)
 		return engines
+	// Union shuttle engine_list with an area walk. get_containing_shuttle() can
+	// miss hull-edge injectors or return a stale port in unit tests; shared
+	// L2 pipeline identity is the source of truth.
+	var/list/candidates = list()
 	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
-	if(!port)
-		return engines
-	for(var/obj/machinery/power/shuttle_engine/overmap/engine in port.engine_list)
+	if(port)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in port.engine_list)
+			candidates |= engine
+	var/area/shuttle_area = get_area(src)
+	if(shuttle_area)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle_area)
+			candidates |= engine
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in candidates)
 		if(overmap_hnt_feed_pipeline(engine.feed_connector) == feed_pipe)
 			engines += engine
 	return engines
@@ -555,7 +564,16 @@
 	balloon_alert(user, "flameout complete")
 
 /obj/machinery/overmap/fuel_injector/proc/get_linked_ship_mass()
-	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	// Prefer a linked engine's connected_ship — more reliable than turf bounds
+	// when the injector sits on the edge of the docking-port rectangle.
+	var/obj/docking_port/mobile/port
+	for(var/datum/weakref/engine_ref as anything in linked_engines)
+		var/obj/machinery/power/shuttle_engine/overmap/engine = engine_ref?.resolve()
+		if(engine?.connected_ship)
+			port = engine.connected_ship
+			break
+	if(!port)
+		port = SSshuttle.get_containing_shuttle(src)
 	var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
 	if(!istype(ship))
 		return list(0, TRUE)
