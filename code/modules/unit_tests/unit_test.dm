@@ -82,11 +82,21 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	TEST_ASSERT(isfloorturf(run_loc_floor_top_right), "run_loc_floor_top_right was not a floor ([run_loc_floor_top_right])")
 
 /datum/unit_test/Destroy()
+	// Docking ports soft-qdel with QDEL_HINT_LETMELIVE; force-delete allocated
+	// ones so they don't linger and spam unregister warnings on the next sweep.
+	for(var/obj/docking_port/port in allocated.Copy())
+		allocated -= port
+		if(!QDELETED(port))
+			qdel(port, force = TRUE)
 	QDEL_LIST(allocated)
 	// clear the test area
 	for (var/turf/turf in Z_TURFS(run_loc_floor_bottom_left.z))
 		for (var/content in turf.contents)
 			if (istype(content, /obj/effect/landmark))
+				continue
+			// Never soft-qdel map/roundstart docking ports — LETMELIVE leaves them
+			// unregistered and the next test's sweep warns on a second unregister.
+			if (istype(content, /obj/docking_port))
 				continue
 			qdel(content)
 	return ..()
