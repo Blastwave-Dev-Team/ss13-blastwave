@@ -1,0 +1,4 @@
+author: "Untrius"
+delete-after: True
+changes:
+  - bugfix: "Crew monitor shows scrambled values for broken sensors"
