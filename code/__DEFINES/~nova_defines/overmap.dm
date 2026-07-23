@@ -130,7 +130,7 @@
 #define OVERMAP_FUEL_DEFAULT_PRESSURE (3 * ONE_ATMOSPHERE)
 /// Extra operating pressure per matter-bin tier above T1.
 #define OVERMAP_FUEL_PRESSURE_PER_BIN_TIER (1 * ONE_ATMOSPHERE)
-/// Max moles vented per tick when the chamber is over the servo setpoint.
+/// Max moles pushed chamber→L2 per tick when over servo pressure (intake stays gated).
 #define OVERMAP_FUEL_RELIEF_RATE 5
 
 /// Thrust-to-moles knob; tune for ~10 min full-tank burn at full throttle.
@@ -142,15 +142,35 @@
 /// Layer-2 propellant manifold between fuel injectors and HNT engines.
 #define OVERMAP_HNT_FEED_LAYER 2
 
-/// Max moles transferred chamber → L2 feed per atmos tick (pressure-regulated).
+/// Max moles transferred chamber → L2 feed per atmos tick while idle (pressure-regulated).
 /// Kept well below typical chamber capacity (~9 mol at 3 atm) so idle ticks cannot empty the chamber.
 #define OVERMAP_FEED_TRANSFER_RATE 1.5
+/// Max moles chamber → L2 per atmos tick while engines want thrust (hot inventory turnover).
+/// Kept below ~half a T1 chamber so cold L1 refill cannot quench the fire in one tick.
+#define OVERMAP_FEED_THRUST_TRANSFER_RATE 3.5
 /// Minimum chamber-vs-feed pressure delta (kPa) before feed push runs.
 #define OVERMAP_FEED_MIN_DELTA_P 1
 /// Target L2 feed pressure (kPa) to keep primed while idle; stop pushing once reached.
 #define OVERMAP_FEED_BUFFER_PRESSURE (0.5 * ONE_ATMOSPHERE)
-/// Never transfer more than this fraction of current chamber moles in one tick.
+/// Never transfer more than this fraction of current chamber moles in one tick (idle).
 #define OVERMAP_FEED_MAX_CHAMBER_FRACTION 0.1
+/// Chamber fraction cap while thrusting — residence time for chemistry before refill.
+#define OVERMAP_FEED_THRUST_CHAMBER_FRACTION 0.25
+/// Inlet charge is heated at least this far above ignition while the chamber is lit.
+#define OVERMAP_INLET_HEAT_MARGIN 25
+/// Multiplier on glow-plug wattage for heating L1 charge while ignited.
+/// Thrust refill (~3 mol/tick × ~130 J/mol/K × ~100 K) needs ~40 kJ/tick; base
+/// preheat alone (~10 kJ at 0.5 spt) was quenching the chamber.
+#define OVERMAP_INLET_HEAT_POWER_MULT 20
+
+/// L2 pressure (kPa) at which mass-flow spool-up is effectively instant.
+#define OVERMAP_SPOOL_FULL_RAIL_PRESSURE OVERMAP_FUEL_DEFAULT_PRESSURE
+/// Minimum spool-up rate (mol/s²) even on a near-empty rail ("revving").
+#define OVERMAP_SPOOL_MIN_ACCEL 2
+/// Spool-down rate (mol/s²); faster than spool-up so throttle cuts feel responsive.
+#define OVERMAP_SPOOL_DECEL 80
+/// Atmos ticks below ignition temperature before forced flameout (clears chamber_ignited).
+#define OVERMAP_COLD_FLAMEOUT_TICKS 5
 
 #define OVERMAP_THERMAL_EXHAUST_TEMP 2000
 #define OVERMAP_CHEMICAL_ISP_BONUS 1.15
@@ -167,6 +187,8 @@
 #define OVERMAP_IGNITE_SPARK_ENERGY 2000
 /// Throttle below this is treated as "no thrust" for propellant draw.
 #define OVERMAP_THRUST_EPSILON 0.01
+/// Mass-flow / spool rates below this are treated as zero.
+#define OVERMAP_MOL_S_EPSILON 0.001
 
 // --- Ship control flags (bitfield) ---
 

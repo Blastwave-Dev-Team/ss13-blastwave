@@ -91,6 +91,11 @@
 	has_heading = FALSE
 	station_keeping = FALSE
 
+/obj/structure/overmap/ship/simulated/all_stop()
+	..()
+	target_mol_s = 0
+	delivered_mol_s = 0
+
 /// Effective thrust for accel/brake. Simulated ships use live burn `est_thrust`
 /// when thrusting; otherwise rated engine thrust (so hall-only is not masked by
 /// a large fake floor). Non-simulated ships use a fixed fallback.
@@ -292,6 +297,10 @@
 	COOLDOWN_DECLARE(scan_cooldown)
 	/// TRUE while batched injector fuel burns are being processed this tick.
 	var/processing_fuel_batch = FALSE
+	/// Commanded propellant mass flow (mol/s) from throttle × engine demand.
+	var/target_mol_s = 0
+	/// Spool-limited delivered mass flow (mol/s); thrust tracks this, not raw throttle.
+	var/delivered_mol_s = 0
 	/// Pending nav-camera docking target (written by helm `dock()`, read by nav console on open).
 	var/obj/structure/overmap/nav_dock_target
 	/// Z-levels the nav camera should display for the pending target.
@@ -349,39 +358,96 @@
 	nav_dock_zs = zs?.Copy()
 	nav_dock_ids = dock_ids?.Copy()
 
+/// Full-throttle propellant demand across enabled feed-capable engines (mol/s).
+/obj/structure/overmap/ship/simulated/proc/get_propellant_demand_mol_s()
+	if(!shuttle)
+		return 0
+	var/total = 0
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+		if(!engine.enabled || !engine.thruster_active)
+			continue
+		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+		if(!injector?.has_feed_propellant())
+			continue
+		total += overmap_engine_propellant_mol_s(engine.thrust, engine.get_power_fraction())
+	return total
+
+/// Highest L2 feed pressure among injectors currently feeding engines (kPa).
+/obj/structure/overmap/ship/simulated/proc/get_feed_rail_pressure()
+	if(!shuttle)
+		return 0
+	var/best = 0
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+		if(!engine.enabled || !engine.thruster_active)
+			continue
+		var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
+		if(!injector?.has_feed_propellant())
+			continue
+		best = max(best, injector.return_feed_pressure())
+	return best
+
+/// Slews delivered_mol_s toward throttle×demand; L2 pressure sets spool-up rate.
+/obj/structure/overmap/ship/simulated/proc/update_propellant_spool(dt)
+	if(dt <= 0)
+		return
+	var/demand = get_propellant_demand_mol_s()
+	target_mol_s = desired_throttle * demand
+	if(target_mol_s <= OVERMAP_MOL_S_EPSILON && delivered_mol_s <= OVERMAP_MOL_S_EPSILON)
+		target_mol_s = 0
+		delivered_mol_s = 0
+		return
+	var/rail_p = get_feed_rail_pressure()
+	var/rail_frac = OVERMAP_SPOOL_FULL_RAIL_PRESSURE > 0 \
+		? clamp(rail_p / OVERMAP_SPOOL_FULL_RAIL_PRESSURE, 0, 1) \
+		: 0
+	// At full rail, spool-up can jump to any demand in one tick; empty rail crawls.
+	var/max_up = max(OVERMAP_SPOOL_MIN_ACCEL, demand * rail_frac / max(dt, 0.01))
+	if(rail_frac >= 1)
+		max_up = max(max_up, demand / max(dt, 0.01))
+	var/delta = target_mol_s - delivered_mol_s
+	if(delta > 0)
+		delivered_mol_s += min(delta, max_up * dt)
+	else
+		delivered_mol_s += max(delta, -OVERMAP_SPOOL_DECEL * dt)
+	delivered_mol_s = max(delivered_mol_s, 0)
+
 /// Override physics_tick: if docked, do nothing. If out of fuel, decay.
 /// While thrusting, aggregate live burn thrust into `est_thrust` for accel.
 /obj/structure/overmap/ship/simulated/physics_tick(dt)
 	if(docked || state != OVERMAP_SHIP_FLYING)
 		all_stop()
+		delivered_mol_s = 0
+		target_mol_s = 0
 		deactivate_physics()
 		return
 	calculate_avg_fuel()
 	if(avg_fuel_amnt < 1)
 		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
+	update_propellant_spool(dt)
 	if(desired_throttle > OVERMAP_THRUST_EPSILON)
 		refresh_engines()
-		var/burn_pct = desired_throttle * 100 * dt * 10
 		var/thrust_sum = 0
-		var/list/injector_thrust = process_engine_fuel_burns(burn_pct)
+		var/moles_tick = delivered_mol_s * dt
+		var/list/injector_thrust = process_engine_fuel_burns(moles_tick, dt)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in injector_thrust)
 			thrust_sum += injector_thrust[engine]
+		var/hall_pct = desired_throttle * 100
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
 			if(!engine.enabled || !engine.thruster_active)
 				continue
 			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
 			if(injector?.has_feed_propellant())
 				continue
-			thrust_sum += engine.burn_engine(burn_pct, skip_engine_update = TRUE)
+			thrust_sum += engine.burn_engine(hall_pct, skip_engine_update = TRUE)
 			engine.burning = FALSE
 		est_thrust = thrust_sum
 	else
 		est_thrust = 0
 	..()
 
-/// Batch chamber burns for injector-fed engines grouped by fuel injector.
-/obj/structure/overmap/ship/simulated/proc/process_engine_fuel_burns(burn_pct)
-	if(!shuttle)
+/// Batch L2 feed burns for injector-fed engines. `moles_requested` is total moles this tick.
+/obj/structure/overmap/ship/simulated/proc/process_engine_fuel_burns(moles_requested, dt = 1)
+	if(!shuttle || moles_requested <= OVERMAP_MOL_S_EPSILON)
 		return list()
 	var/list/by_injector = list()
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
@@ -393,10 +459,22 @@
 		LAZYADD(by_injector[injector], engine)
 	if(!length(by_injector))
 		return list()
+	// Split total moles across injectors proportional to their engines' mol/s demand.
+	var/list/injector_demand = list()
+	var/total_demand = 0
+	for(var/obj/machinery/overmap/fuel_injector/injector as anything in by_injector)
+		var/d = 0
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in by_injector[injector])
+			d += overmap_engine_propellant_mol_s(engine.thrust, engine.get_power_fraction())
+		injector_demand[injector] = d
+		total_demand += d
+	if(total_demand <= 0)
+		return list()
 	processing_fuel_batch = TRUE
 	var/list/all_thrust = list()
 	for(var/obj/machinery/overmap/fuel_injector/injector as anything in by_injector)
-		var/list/thrust_results = injector.process_tick_burn(by_injector[injector], burn_pct)
+		var/share = moles_requested * (injector_demand[injector] / total_demand)
+		var/list/thrust_results = injector.process_tick_burn(by_injector[injector], share, dt)
 		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in thrust_results)
 			all_thrust[engine] = thrust_results[engine]
 			engine.burning = FALSE
@@ -501,7 +579,13 @@
 	burn_direction(n_dir, clamp(percentage / 100, 0, 1))
 	if(percentage <= 0 || desired_throttle <= OVERMAP_THRUST_EPSILON)
 		est_thrust = 0
+		delivered_mol_s = 0
+		target_mol_s = 0
 		return
+	// One-shot burns (tests / legacy): skip spool lag — deliver the commanded mol/s immediately.
+	var/demand = get_propellant_demand_mol_s()
+	target_mol_s = desired_throttle * demand
+	delivered_mol_s = target_mol_s
 	var/thrust_used = 0
 	var/list/by_injector = list()
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
@@ -513,12 +597,9 @@
 			continue
 		thrust_used += engine.burn_engine(percentage)
 	if(length(by_injector))
-		processing_fuel_batch = TRUE
-		for(var/obj/machinery/overmap/fuel_injector/injector as anything in by_injector)
-			var/list/thrust_results = injector.process_tick_burn(by_injector[injector], percentage)
-			for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in thrust_results)
-				thrust_used += thrust_results[engine]
-		processing_fuel_batch = FALSE
+		var/list/thrust_map = process_engine_fuel_burns(delivered_mol_s, 1)
+		for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in thrust_map)
+			thrust_used += thrust_map[engine]
 	est_thrust = thrust_used
 
 /// Detach the ship from its current docked overmap object and start flight.

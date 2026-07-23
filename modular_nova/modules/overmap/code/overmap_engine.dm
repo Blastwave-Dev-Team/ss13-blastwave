@@ -186,13 +186,14 @@
 		if(ship?.processing_fuel_batch)
 			var/isp = get_isp_efficiency()
 			return thrust * power_fraction * isp * (percentage / 100)
-		var/requested_moles = overmap_engine_propellant_share_moles(thrust, power_fraction, percentage)
+		// One-shot (dt=1): percentage is throttle fraction of full mol/s demand.
+		var/requested_moles = overmap_engine_propellant_mol_s(thrust, power_fraction) * (percentage / 100)
 		var/list/burn_result = injector.consume_from_feed(requested_moles, power_fraction)
 		var/burn_fraction = burn_result[1]
 		var/effective_isp = burn_result[2]
-		if(burn_fraction <= 0)
+		if(burn_fraction <= 0 || effective_isp <= 0)
 			return 0
-		var/effective_thrust = thrust * power_fraction * effective_isp * (percentage / 100) * burn_fraction
+		var/effective_thrust = thrust * power_fraction * effective_isp * burn_fraction * (percentage / 100)
 		use_energy(max_power_draw * power_fraction * (percentage / 100))
 		burning = TRUE
 		return effective_thrust

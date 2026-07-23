@@ -132,18 +132,22 @@
 	apc.terminal.powernet.avail = max(apc.terminal.powernet.avail, 500 KILO JOULES)
 	apc.terminal.powernet.load = 0
 
-/// Expected single-engine thrust for a known L2 mix at full power (mirrors process_tick_burn).
-/datum/unit_test/overmap_fuel_injector/proc/expected_feed_thrust(obj/machinery/overmap/fuel_injector/injector, obj/machinery/power/shuttle_engine/overmap/engine, datum/gas_mixture/feed_sample, feed_moles, burn_pct = 100, power_fraction = 1)
+/// Expected single-engine thrust for a known L2 mix at full power (mirrors process_tick_burn at dt=1).
+/datum/unit_test/overmap_fuel_injector/proc/expected_feed_thrust(obj/machinery/overmap/fuel_injector/injector, obj/machinery/power/shuttle_engine/overmap/engine, datum/gas_mixture/feed_sample, feed_moles, throttle = 1, power_fraction = 1)
 	var/gas_mult = overmap_gas_isp_multiplier(feed_sample)
 	var/chem_bonus = fuel_injector_estimate_chemical_bonus(feed_sample)
 	var/effective_isp = injector.base_isp * gas_mult * chem_bonus
 	if(effective_isp <= 0)
 		return 0
-	var/requested = overmap_engine_propellant_share_moles(engine.thrust, power_fraction, burn_pct)
+	var/mol_s = overmap_engine_propellant_mol_s(engine.thrust, power_fraction)
+	var/requested = mol_s * throttle
 	if(requested <= 0)
 		return 0
 	var/burn_fraction = min(feed_moles / requested, 1)
-	return engine.thrust * power_fraction * effective_isp * burn_fraction * (burn_pct / 100)
+	return engine.thrust * power_fraction * effective_isp * burn_fraction * throttle
+
+/datum/unit_test/overmap_fuel_injector/proc/full_demand_moles(obj/machinery/power/shuttle_engine/overmap/engine, power_fraction = 1)
+	return overmap_engine_propellant_mol_s(engine.thrust, power_fraction)
 
 /datum/unit_test/overmap_fuel_injector/proc/assert_thrust_near(actual, expected, label)
 	var/delta = abs(actual - expected)
@@ -388,7 +392,7 @@
 		exhaust_port.process_atmos()
 		refresh_grid_power(grid_apc)
 
-		var/list/thrust_map = injector.process_tick_burn(list(engine), 100)
+		var/list/thrust_map = injector.process_tick_burn(list(engine), full_demand_moles(engine), 1)
 		var/tick_thrust = thrust_map[engine] || 0
 		total_thrust += tick_thrust
 
@@ -509,13 +513,14 @@
 		else
 			TEST_ASSERT(chem_bonus <= 1, "[case_name]: should not get chemical ISP bonus (got [chem_bonus]).")
 
-		var/expected = expected_feed_thrust(injector, engine, sample, feed_moles, 100, 1)
+		var/expected = expected_feed_thrust(injector, engine, sample, feed_moles, 1, 1)
 		if(expect_zero_isp)
 			TEST_ASSERT(expected <= 0, "[case_name]: zero-ISP mix should predict no feed thrust.")
 
 		refresh_grid_power(grid_apc)
 		TEST_ASSERT(engine.update_engine(), "[case_name]: engine should stay active with feed propellant or power.")
-		var/list/thrust_map = ship.process_engine_fuel_burns(100)
+		var/demand = full_demand_moles(engine)
+		var/list/thrust_map = ship.process_engine_fuel_burns(demand, 1)
 		var/actual = thrust_map[engine] || 0
 		var/feed_after = pipeline_air(injector.feed_connector)?.total_moles() || 0
 
@@ -550,7 +555,7 @@
 	TEST_ASSERT(!injector.has_feed_propellant(), "L2 must be empty for chamber-wait.")
 	refresh_grid_power(grid_apc)
 	TEST_ASSERT(engine.update_engine(), "Chamber propellant should keep HNT active.")
-	var/list/wait_map = ship.process_engine_fuel_burns(100)
+	var/list/wait_map = ship.process_engine_fuel_burns(full_demand_moles(engine), 1)
 	TEST_ASSERT(!length(wait_map), "Chamber-only should not batch through process_engine_fuel_burns.")
 	var/wait_thrust = engine.burn_engine(100, skip_engine_update = TRUE)
 	TEST_ASSERT(wait_thrust <= 0, "Chamber-only HNT must wait (0 thrust), not fall through to hall-only.")
@@ -735,6 +740,214 @@
 	TEST_ASSERT_EQUAL(manifold["adjacent_engines"], 0, "Manifold stats should report 0 adjacent engines.")
 
 	teardown_ship_thrust_fixture(ship_bits)
+
+// ---------------------------------------------------------------------------
+// Spool: high L2 pressure → instant mass flow; low pressure → ramp.
+// ---------------------------------------------------------------------------
+
+/datum/unit_test/overmap_fuel_injector/spool_response
+
+/datum/unit_test/overmap_fuel_injector/spool_response/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+	var/obj/machinery/power/shuttle_engine/overmap/standard/engine = fixture["engine"]
+	var/obj/machinery/power/apc/grid_apc = fixture["apc"]
+	var/obj/structure/overmap/ship/simulated/ship = fixture["ship"]
+
+	refresh_grid_power(grid_apc)
+	TEST_ASSERT(engine.update_engine(), "Engine should activate for spool tests.")
+	ship.desired_throttle = 1
+
+	// High rail: fill L2 to well above full-rail pressure so spool-up is instant.
+	set_feed_mix(injector, list(/datum/gas/nitrogen = 1), T20C, OVERMAP_FUEL_TEST_FEED_MOLES)
+	var/high_p = injector.return_feed_pressure()
+	TEST_ASSERT(high_p >= OVERMAP_SPOOL_FULL_RAIL_PRESSURE, "High-rail fixture pressure [high_p] should meet full-rail setpoint.")
+	ship.delivered_mol_s = 0
+	ship.update_propellant_spool(0.2)
+	TEST_ASSERT(ship.target_mol_s > OVERMAP_MOL_S_EPSILON, "Full throttle should set a non-zero target mol/s.")
+	TEST_ASSERT(abs(ship.delivered_mol_s - ship.target_mol_s) <= OVERMAP_MOL_S_EPSILON, "High rail should spool to target in one 0.2s tick (delivered=[ship.delivered_mol_s] target=[ship.target_mol_s]).")
+
+	// Low rail: nearly empty L2 — spool-up must lag.
+	set_feed_mix(injector, list(/datum/gas/nitrogen = 1), T20C, 0.05)
+	ship.delivered_mol_s = 0
+	ship.update_propellant_spool(0.2)
+	TEST_ASSERT(ship.delivered_mol_s < ship.target_mol_s * 0.5, "Low rail should not reach half target in one tick (delivered=[ship.delivered_mol_s] target=[ship.target_mol_s]).")
+	var/partial = ship.delivered_mol_s
+	ship.update_propellant_spool(0.2)
+	TEST_ASSERT(ship.delivered_mol_s > partial, "Low rail should continue ramping on subsequent ticks.")
+
+	teardown_ship_thrust_fixture(fixture)
+
+// ---------------------------------------------------------------------------
+// Under thrust, cold L1 refill must not quench a lit 60/40 chamber.
+// ---------------------------------------------------------------------------
+
+/datum/unit_test/overmap_fuel_injector/thrust_inlet_no_quench
+
+/datum/unit_test/overmap_fuel_injector/thrust_inlet_no_quench/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+	var/obj/machinery/power/shuttle_engine/overmap/standard/engine = fixture["engine"]
+	var/obj/machinery/power/apc/grid_apc = fixture["apc"]
+	var/obj/structure/overmap/ship/simulated/ship = fixture["ship"]
+
+	ship.desired_throttle = 1
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	injector.air_contents.set_temperature(T20C)
+	injector.air_contents.adjust_gas(/datum/gas/plasma, 5)
+	injector.air_contents.adjust_gas(/datum/gas/oxygen, 3.5)
+	injector.air_contents.set_temperature(PLASMA_MINIMUM_BURN_TEMPERATURE + 80)
+	TEST_ASSERT(injector.ignite_chamber(), "60/40 chamber should ignite for quench test.")
+
+	// Cold high-pressure L1 supply (canister-like).
+	var/datum/gas_mixture/intake_air = pipeline_air(injector.input_connector)
+	TEST_ASSERT(intake_air, "L1 intake pipeline missing.")
+	intake_air.remove(intake_air.total_moles())
+	intake_air.set_temperature(T20C)
+	intake_air.adjust_gas(/datum/gas/plasma, 40)
+	intake_air.adjust_gas(/datum/gas/oxygen, 30)
+	injector.input_connector.gas_connector.update_parents()
+
+	refresh_grid_power(grid_apc)
+	TEST_ASSERT(engine.update_engine(), "Engine should stay active.")
+	var/demand = full_demand_moles(engine)
+	ship.target_mol_s = demand
+	ship.delivered_mol_s = demand
+
+	var/min_temp = injector.air_contents.temperature
+	for(var/tick in 1 to 12)
+		injector.process_atmos(0.5)
+		refresh_grid_power(grid_apc)
+		if(injector.has_feed_propellant())
+			injector.process_tick_burn(list(engine), demand * 0.2, 0.2)
+		min_temp = min(min_temp, injector.air_contents.temperature)
+		if(tick == 1 || tick % 4 == 0)
+			log_test("QUENCH TICK [tick]: T=[round(injector.air_contents.temperature, 0.1)] P=[round(injector.air_contents.return_pressure(), 0.1)] ignited=[injector.chamber_ignited] burning=[injector.burning]")
+
+	TEST_ASSERT(injector.chamber_ignited, "Chamber should stay ignited under thrust with cold L1.")
+	TEST_ASSERT(min_temp >= PLASMA_MINIMUM_BURN_TEMPERATURE, "Chamber T must not fall below ignition under thrust (min T=[round(min_temp, 0.1)]).")
+	// Inlet heater must fully bring admitted charge to target — partial warm was the quench bug.
+	var/datum/gas_mixture/probe = new(CELL_VOLUME)
+	probe.set_temperature(T20C)
+	probe.adjust_gas(/datum/gas/plasma, 2)
+	probe.adjust_gas(/datum/gas/oxygen, 1.5)
+	injector.chamber_ignited = TRUE
+	injector.air_contents.set_temperature(PLASMA_MINIMUM_BURN_TEMPERATURE + 100)
+	var/datum/gas_mixture/leftover = injector.heat_intake_charge(probe, 0.5)
+	TEST_ASSERT(probe.temperature >= PLASMA_MINIMUM_BURN_TEMPERATURE + OVERMAP_INLET_HEAT_MARGIN - 1, "Heated charge must reach inlet target (got [probe.temperature]).")
+	TEST_ASSERT(!leftover?.total_moles() || leftover.temperature <= T20C + 1, "Deferred moles should remain cold on L1, not partially warmed into the chamber.")
+	teardown_ship_thrust_fixture(fixture)
+
+// ---------------------------------------------------------------------------
+// Packed chamber at max P still reacts (must not require preheater to "burn").
+// ---------------------------------------------------------------------------
+
+/datum/unit_test/overmap_fuel_injector/packed_chamber_sustains
+
+/datum/unit_test/overmap_fuel_injector/packed_chamber_sustains/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+	var/obj/structure/overmap/ship/simulated/ship = fixture["ship"]
+
+	ship.desired_throttle = 0
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	injector.air_contents.set_temperature(T20C)
+	// Fill to capacity with 60/40 at just above ignition — mirrors playtest mix.
+	var/fill_moles = injector.chamber_mole_capacity()
+	injector.air_contents.adjust_gas(/datum/gas/plasma, fill_moles * 0.6)
+	injector.air_contents.adjust_gas(/datum/gas/oxygen, fill_moles * 0.4)
+	injector.air_contents.set_temperature(PLASMA_MINIMUM_BURN_TEMPERATURE + 20)
+	TEST_ASSERT(injector.ignite_chamber(), "Packed 60/40 mix should ignite.")
+	TEST_ASSERT(injector.chamber_ignited, "Ignite should set chamber_ignited.")
+	var/temp_after_ignite = injector.air_contents.temperature
+
+	// At/over servo pressure, chemistry must still run (old bug: skip react when full).
+	TEST_ASSERT(injector.air_contents.return_pressure() >= injector.max_operating_pressure * 0.9, "Fixture should be near max operating pressure.")
+	for(var/i in 1 to 5)
+		injector.process_chamber_reaction()
+	TEST_ASSERT(injector.chamber_ignited, "Packed chamber must stay ignited across pressure-relief ticks.")
+	TEST_ASSERT(injector.air_contents.temperature > temp_after_ignite, "Packed chamber should self-heat without preheater (T [temp_after_ignite]→[injector.air_contents.temperature]).")
+
+	teardown_ship_thrust_fixture(fixture)
+
+// ---------------------------------------------------------------------------
+// Cold flameout: mix below ignition for N ticks clears chamber_ignited.
+// ---------------------------------------------------------------------------
+
+/datum/unit_test/overmap_fuel_injector/cold_flameout
+
+/datum/unit_test/overmap_fuel_injector/cold_flameout/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	injector.air_contents.set_temperature(T20C)
+	injector.air_contents.adjust_gas(/datum/gas/nitrogen, 5)
+	injector.chamber_ignited = TRUE
+	injector.burning = TRUE
+	injector.air_contents.set_temperature(T20C)
+
+	for(var/i in 1 to OVERMAP_COLD_FLAMEOUT_TICKS + 1)
+		injector.process_chamber_reaction()
+		if(!injector.chamber_ignited)
+			break
+	TEST_ASSERT(!injector.chamber_ignited, "Cold soak should flameout chamber_ignited.")
+	TEST_ASSERT(!injector.burning, "Flameout should clear burning.")
+
+	var/temp_before = injector.air_contents.temperature
+	injector.process_chamber_reaction()
+	TEST_ASSERT(!injector.chamber_ignited, "process_chamber_reaction must not re-ignite after flameout.")
+	TEST_ASSERT(injector.air_contents.temperature <= temp_before + 1, "Unignited chamber should not keep climbing (T [temp_before]→[injector.air_contents.temperature]).")
+
+	teardown_ship_thrust_fixture(fixture)
+
+// ---------------------------------------------------------------------------
+// Thrusting equilibrium: lit + thrust keeps chamber below runaway ceiling.
+// ---------------------------------------------------------------------------
+
+#define OVERMAP_FUEL_TEST_T_CEILING 20000
+
+/datum/unit_test/overmap_fuel_injector/thrust_thermal_equilibrium
+
+/datum/unit_test/overmap_fuel_injector/thrust_thermal_equilibrium/Run()
+	var/list/fixture = build_ship_thrust_fixture()
+	var/obj/machinery/overmap/fuel_injector/injector = fixture["injector"]
+	var/obj/machinery/power/shuttle_engine/overmap/standard/engine = fixture["engine"]
+	var/obj/machinery/power/apc/grid_apc = fixture["apc"]
+	var/obj/structure/overmap/ship/simulated/ship = fixture["ship"]
+
+	ship.desired_throttle = 1
+	injector.air_contents.remove(injector.air_contents.total_moles())
+	injector.air_contents.set_temperature(T20C)
+	injector.air_contents.adjust_gas(/datum/gas/plasma, 6)
+	injector.air_contents.adjust_gas(/datum/gas/oxygen, 4)
+	injector.air_contents.set_temperature(PLASMA_MINIMUM_BURN_TEMPERATURE + 50)
+	TEST_ASSERT(injector.ignite_chamber(), "Equilibrium fixture should ignite.")
+
+	// Prime L2 so nozzle draw can carry heat out immediately.
+	for(var/i in 1 to 5)
+		injector.process_atmos(0.5)
+	refresh_grid_power(grid_apc)
+	TEST_ASSERT(engine.update_engine(), "Engine should stay active.")
+	TEST_ASSERT(injector.has_feed_propellant(), "Thrust equilibrium needs L2 primed.")
+	var/demand = full_demand_moles(engine)
+	ship.target_mol_s = demand
+	ship.delivered_mol_s = demand
+
+	var/peak_temp = injector.air_contents.temperature
+	for(var/tick in 1 to 30)
+		injector.process_atmos(0.5)
+		refresh_grid_power(grid_apc)
+		if(injector.has_feed_propellant())
+			injector.process_tick_burn(list(engine), demand * 0.2, 0.2)
+		peak_temp = max(peak_temp, injector.air_contents.temperature)
+		if(tick == 1 || tick % 10 == 0)
+			log_test("EQ TICK [tick]: T=[round(injector.air_contents.temperature, 0.1)] P=[round(injector.air_contents.return_pressure(), 0.1)] ignited=[injector.chamber_ignited] feed_n=[round(injector.get_feed_air()?.total_moles() || 0, 0.01)]")
+
+	TEST_ASSERT(peak_temp < OVERMAP_FUEL_TEST_T_CEILING, "Thrusting burn peak T=[round(peak_temp, 0.1)] should stay under [OVERMAP_FUEL_TEST_T_CEILING]K.")
+	teardown_ship_thrust_fixture(fixture)
+
+#undef OVERMAP_FUEL_TEST_T_CEILING
 
 #undef OVERMAP_FUEL_TEST_TICKS
 #undef OVERMAP_FUEL_TEST_PRESSURE

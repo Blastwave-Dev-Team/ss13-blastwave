@@ -153,11 +153,16 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 /proc/overmap_hnt_feed_pipeline(datum/gas_machine_connector/feed_connector)
 	return feed_connector?.gas_connector?.parents?[1]
 
-/proc/overmap_engine_propellant_share_moles(thrust, power_fraction, burn_pct)
+/// Full-throttle propellant demand for one engine (mol/s).
+/proc/overmap_engine_propellant_mol_s(thrust, power_fraction)
 	var/denom = OVERMAP_G0 * OVERMAP_PROP_MOLES_PER_THRUST
 	if(denom <= 0)
 		return 0
-	return (thrust * clamp(power_fraction, 0, 1) * (burn_pct / 100)) / denom
+	return (thrust * clamp(power_fraction, 0, 1)) / denom
+
+/// Propellant moles for a burn slice. `burn_pct` 100 = one second of full demand.
+/proc/overmap_engine_propellant_share_moles(thrust, power_fraction, burn_pct)
+	return overmap_engine_propellant_mol_s(thrust, power_fraction) * (burn_pct / 100)
 
 /proc/fuel_injector_count_active_share_engines(obj/machinery/overmap/fuel_injector/injector)
 	if(!injector)
@@ -195,7 +200,10 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 		if(!engine.enabled || !engine.thruster_active)
 			continue
 		stats["active_share_count"]++
-		var/m_i = overmap_engine_propellant_share_moles(engine.thrust, engine.get_power_fraction(), burn_pct)
+		// Rated demand at full grid power — live power_fraction is shown separately.
+		// Using get_power_fraction() here made the breakdown read 0 mol/s whenever
+		// the powernet had no spare watts (common while docked / not thrusting).
+		var/m_i = overmap_engine_propellant_mol_s(engine.thrust, 1)
 		stats["total_tick_moles"] += m_i
 		if(!stats["per_engine_moles"] && m_i > 0)
 			stats["per_engine_moles"] = m_i
@@ -245,21 +253,16 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 	if(!injector?.air_contents)
 		return pills
 
-	var/reaction_active = injector.burning || injector.consuming
-	if(!reaction_active && injector.air_contents.total_moles() > 0 && injector.air_contents.temperature >= PLASMA_MINIMUM_BURN_TEMPERATURE)
-		var/total = injector.air_contents.total_moles()
-		var/plasma_frac = gas_mixture_mole_count(injector.air_contents, /datum/gas/plasma) / total
-		var/oxygen_frac = gas_mixture_mole_count(injector.air_contents, /datum/gas/oxygen) / total
-		if(plasma_frac > 0.05 && oxygen_frac > 0.05)
-			reaction_active = TRUE
-
-	if(reaction_active)
+	// Prefer live burn / ignited state — hot plasma/O2 alone is not a reaction.
+	if(injector.burning || injector.consuming)
 		pills += "Reaction Active"
+	else if(injector.chamber_ignited)
+		pills += "Ignited"
 	else if(injector.has_propellant())
 		pills += "Thermal Only"
 
-	if(injector.return_chamber_pressure() > injector.max_operating_pressure)
-		pills += "Pressure Relief"
+	if(injector.return_chamber_pressure() >= injector.max_operating_pressure)
+		pills += "Intake Gated"
 	else if(injector.return_chamber_pressure() >= injector.max_operating_pressure * 0.95)
 		var/scrub_ratio = fuel_injector_scrub_eligible_ratio(injector.air_contents, injector.scrub_filter)
 		if(scrub_ratio < 0.05)
@@ -295,8 +298,26 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 	if(!pipe?.air)
 		return data
 	data["connected"] = TRUE
+	var/moles = pipe.air.total_moles()
+	// Empty mixes keep their last temperature in LINDA — don't show ghost heat.
+	if(moles < 0.01)
+		normalize_empty_pipeline_temperature(pipe)
+		data["pressure"] = 0
+		data["temperature"] = T20C
+		data["total_moles"] = 0
+		data["gas_composition"] = list()
+		return data
 	data["pressure"] = round(pipe.air.return_pressure(), 0.1)
 	data["temperature"] = round(pipe.air.temperature, 0.1)
-	data["total_moles"] = round(pipe.air.total_moles(), 0.1)
+	data["total_moles"] = round(moles, 0.1)
 	data["gas_composition"] = fuel_injector_gas_composition(pipe.air)
 	return data
+
+/// Reset stale temperature on a drained pipenet so UI/sensors don't stick at fire temps.
+/proc/normalize_empty_pipeline_temperature(datum/pipeline/pipe)
+	if(!pipe?.air)
+		return
+	if(pipe.air.total_moles() >= 0.01)
+		return
+	if(pipe.air.temperature != T20C)
+		pipe.air.set_temperature(T20C)

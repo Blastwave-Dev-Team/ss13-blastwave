@@ -45,6 +45,7 @@ type EngineInfo = {
   fuelSource?: 'injector' | 'hall-only' | 'none';
   pressure?: number;
   temperature?: number;
+  feedPressure?: number;
 };
 
 type Data = {
@@ -62,6 +63,9 @@ type Data = {
   desired_angle?: number;
   desired_throttle?: number;
   station_keeping?: BooleanLike;
+  target_mol_s?: number;
+  delivered_mol_s?: number;
+  spool_pct?: number;
   x: number;
   y: number;
   state?: 'idle' | 'flying' | 'docking' | 'undocking';
@@ -167,6 +171,9 @@ const StatusTab = () => {
     isViewer,
     gpsBeacon,
     gpsBeaconLanded,
+    target_mol_s = 0,
+    delivered_mol_s = 0,
+    spool_pct = 0,
   } = data;
   if (!shipInfo) return null;
 
@@ -239,6 +246,32 @@ const StatusTab = () => {
             X{x} / Y{y}
           </span>
         </div>
+        {(target_mol_s > 0 || delivered_mol_s > 0) && (
+          <>
+            <div className="HelmPanel__row">
+              <span className="HelmPanel__label">Mass flow</span>
+              <span className="HelmPanel__value">
+                {delivered_mol_s.toFixed(2)} / {target_mol_s.toFixed(2)} mol/s
+              </span>
+            </div>
+            <div className="HelmPanel__row">
+              <span className="HelmPanel__label">Spool</span>
+              <span className="HelmPanel__value">
+                <ProgressBar
+                  ranges={{
+                    good: [0.85, 1],
+                    average: [0.4, 0.85],
+                    bad: [0, 0.4],
+                  }}
+                  maxValue={1}
+                  value={spool_pct}
+                >
+                  {Math.round(spool_pct * 100)}%
+                </ProgressBar>
+              </span>
+            </div>
+          </>
+        )}
       </div>
       {!!docked && state === 'idle' && (
         <div className="HelmPanel__section">
@@ -364,6 +397,14 @@ const EnginesTab = () => {
                   <span style={{ color: pressureColor(engine.pressure) }}>
                     {Math.round(engine.pressure)} kPa
                   </span>
+                  {engine.feedPressure !== undefined && (
+                    <>
+                      <span className="HelmPanel__engine-telemetry-sep">·</span>
+                      <span style={{ color: pressureColor(engine.feedPressure) }}>
+                        rail {Math.round(engine.feedPressure)} kPa
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
             {engine.fuelSource !== 'injector' && (

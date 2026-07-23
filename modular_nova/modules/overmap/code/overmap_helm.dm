@@ -218,6 +218,11 @@
 	.["desired_angle"] = -(TORADIANS(ship.desired_angle))
 	.["desired_throttle"] = ship.desired_throttle
 	.["station_keeping"] = ship.station_keeping
+	.["target_mol_s"] = round(ship.target_mol_s, 0.001)
+	.["delivered_mol_s"] = round(ship.delivered_mol_s, 0.001)
+	.["spool_pct"] = ship.target_mol_s > OVERMAP_MOL_S_EPSILON \
+		? round(clamp(ship.delivered_mol_s / ship.target_mol_s, 0, 1), 0.001) \
+		: 0
 
 	.["engineInfo"] = list()
 	if(ship.shuttle)
@@ -234,6 +239,7 @@
 			if(injector)
 				engine_entry["pressure"] = round(injector.return_chamber_pressure(), 0.1)
 				engine_entry["temperature"] = round(injector.return_chamber_temperature(), 0.1)
+				engine_entry["feedPressure"] = round(injector.return_feed_pressure(), 0.1)
 				engine_entry["linkType"] = engine.link_via_pipe ? "piped" : "adjacent"
 				engine_entry["shareCount"] = fuel_injector_count_active_share_engines(injector)
 			.["engineInfo"] += list(engine_entry)

@@ -28,6 +28,13 @@
 	var/matter_bin_rating = 1
 	var/burning = FALSE
 	var/consuming = FALSE
+	/// TRUE after a successful ignite until flameout / dump; gates continuous chamber react().
+	var/chamber_ignited = FALSE
+	/// Consecutive atmos ticks the chamber sat below ignition temperature while ignited.
+	var/cold_flameout_ticks = 0
+	/// Last commanded / delivered mass flow mirrored from the linked ship for UI.
+	var/ui_target_mol_s = 0
+	var/ui_delivered_mol_s = 0
 	var/max_operating_pressure = OVERMAP_FUEL_DEFAULT_PRESSURE
 	/// Glow-plug chamber preheater toggle. Draws power each tick to walk the chamber toward the setpoint.
 	var/preheat_enabled = FALSE
@@ -203,6 +210,20 @@
 		return null
 	return feed_pipe.air
 
+/obj/machinery/overmap/fuel_injector/proc/return_feed_pressure()
+	return get_feed_air()?.return_pressure() || 0
+
+/// Sync spool readouts from the bound overmap ship (if any).
+/obj/machinery/overmap/fuel_injector/proc/sync_spool_ui_from_ship()
+	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	var/obj/structure/overmap/ship/simulated/ship = port?.current_ship
+	if(!ship)
+		ui_target_mol_s = 0
+		ui_delivered_mol_s = 0
+		return
+	ui_target_mol_s = ship.target_mol_s
+	ui_delivered_mol_s = ship.delivered_mol_s
+
 /obj/machinery/overmap/fuel_injector/proc/get_stored_propellant_moles()
 	var/total = air_contents?.total_moles() || 0
 	var/datum/gas_mixture/feed_air = get_feed_air()
@@ -220,14 +241,18 @@
 	if(link_rescan_counter >= 20)
 		link_rescan_counter = 0
 		update_linked_engines()
-	var/should_log = log_pipenet || preheat_enabled || burning
+	var/should_log = log_pipenet || preheat_enabled || burning || chamber_ignited
+	var/spt = seconds_per_tick || 0.5
 	if(should_log)
 		log_pipenet_state("pre")
-	process_intake()
-	process_preheat(seconds_per_tick || 0.5)
+	// Combustor order: burn hot inventory → scrub products → push hot propellant
+	// → admit (inlet-heated) refill → optional glow-plug. Intake-before-react was
+	// quenching lit chambers under thrust with cold L1 gas.
 	process_chamber_reaction()
 	process_exhaust_filter()
 	process_feed_output()
+	process_intake(spt)
+	process_preheat(spt)
 	if(should_log)
 		log_pipenet_state("post")
 
@@ -248,60 +273,41 @@
 	)
 	investigate_log("pipenet [jointext(parts, " | ")]", INVESTIGATE_ATMOS)
 
-/// Keep a lit chamber burning: react the mix every tick (same pattern as
-/// portable atmospherics) so ignition self-sustains. Skipped while a burn
-/// tick owns the mix via consuming. Over-pressure chokes further react and
-/// vents through the relief path so heat cannot run away with no outflow.
+/// Keep a lit chamber burning: react every tick while `chamber_ignited`.
+/// Overpressure is an intake gate + L2 backpressure path (see process_feed_output),
+/// not a dump valve. Flameout when the mix stays cold below ignition.
 /obj/machinery/overmap/fuel_injector/proc/process_chamber_reaction()
-	if(consuming)
+	if(consuming || !chamber_ignited)
 		return
-	if(air_contents.return_pressure() >= max_operating_pressure)
-		process_pressure_relief()
-		if(air_contents.return_pressure() >= max_operating_pressure)
-			if(burning)
-				burning = FALSE
-				update_appearance()
-			return
+	// React even at max operating pressure — intake is already gated when full.
 	var/reacted = air_contents.react(src)
 	if(burning != !!reacted)
 		burning = !!reacted
 		update_appearance()
-	if(air_contents.return_pressure() > max_operating_pressure)
-		process_pressure_relief()
+	// Natural flameout: mix dropped below ignition and is not producing heat.
+	if(air_contents.temperature < PLASMA_MINIMUM_BURN_TEMPERATURE)
+		cold_flameout_ticks++
+		if(cold_flameout_ticks >= OVERMAP_COLD_FLAMEOUT_TICKS)
+			flameout_chamber()
+	else
+		cold_flameout_ticks = 0
 
-/// Vent moles until chamber pressure is at/under the servo setpoint.
-/// Prefers L3 exhaust, then L2 feed; otherwise discards (hard relief).
-/obj/machinery/overmap/fuel_injector/proc/process_pressure_relief()
-	if(!air_contents?.total_moles())
-		return
-	var/target_moles = chamber_mole_capacity()
-	var/excess = air_contents.total_moles() - target_moles
-	if(excess <= 0)
-		return
-	var/to_vent = min(excess, OVERMAP_FUEL_RELIEF_RATE)
-	var/datum/gas_mixture/vented = air_contents.remove(to_vent)
-	if(!vented?.total_moles())
-		return
-	var/datum/pipeline/exhaust_pipe = exhaust_connector?.gas_connector?.parents?[1]
-	if(exhaust_pipe?.air && exhaust_pipe.air.volume > 0 && exhaust_pipe.air.return_pressure() < MAX_OUTPUT_PRESSURE)
-		exhaust_pipe.air.merge(vented)
-		exhaust_connector.gas_connector.update_parents()
-		return
-	var/datum/pipeline/feed_pipe = overmap_hnt_feed_pipeline(feed_connector)
-	if(feed_pipe?.air && feed_pipe.air.volume > 0)
-		feed_pipe.air.merge(vented)
-		feed_connector.gas_connector.update_parents()
-		return
-	// No valid outflow — dump (choke) so the chamber cannot keep climbing.
-	qdel(vented)
+/// Clear ignited/burning state. Does not dump moles — use dump_chamber for that.
+/obj/machinery/overmap/fuel_injector/proc/flameout_chamber()
+	cold_flameout_ticks = 0
+	chamber_ignited = FALSE
+	if(burning)
+		burning = FALSE
+		update_appearance()
 
-/obj/machinery/overmap/fuel_injector/proc/process_intake()
+/obj/machinery/overmap/fuel_injector/proc/process_intake(seconds_per_tick = 0.5)
 	var/datum/pipeline/pipe = input_connector?.gas_connector?.parents?[1]
 	// A connector with no pipes attached still gets a pipenet, but with air.volume = 0
 	// (machine airs live in other_airs). remove_ratio() on it creates zero-volume
 	// mixtures and stack-traces every tick, so bail until real pipe is attached.
 	if(!pipe?.air || pipe.air.volume <= 0)
 		return
+	// Overpressure = intake gate. New gas waits until L2/engines take mass.
 	var/headroom = chamber_moles_until_full()
 	if(headroom <= 0 || air_contents.return_pressure() >= max_operating_pressure)
 		return
@@ -327,8 +333,46 @@
 	if(rejected.total_moles())
 		pipe.air.merge(rejected)
 	if(removed.total_moles())
-		air_contents.merge(removed)
+		var/datum/gas_mixture/unheated = heat_intake_charge(removed, seconds_per_tick)
+		if(unheated?.total_moles())
+			pipe.air.merge(unheated)
+		if(removed.total_moles())
+			air_contents.merge(removed)
 	input_connector.gas_connector.update_parents()
+
+/// While lit, warm L1 charge to ignition (or chamber T up to laser max) before merge.
+/// Returns any moles that could not be heated to target (caller should return them to L1).
+/// Never merges partially-warmed cold gas — that was quenching under thrust.
+/obj/machinery/overmap/fuel_injector/proc/heat_intake_charge(datum/gas_mixture/charge, seconds_per_tick)
+	if(!chamber_ignited || !charge?.total_moles())
+		return null
+	var/target = PLASMA_MINIMUM_BURN_TEMPERATURE + OVERMAP_INLET_HEAT_MARGIN
+	if(air_contents?.temperature > target)
+		target = min(air_contents.temperature, get_preheat_setpoint_max())
+	else
+		target = min(target, get_preheat_setpoint_max())
+	if(charge.temperature >= target)
+		return null
+	var/cp = charge.heat_capacity()
+	if(cp <= 0)
+		return null
+	var/dT = target - charge.temperature
+	var/needed = cp * dT
+	var/max_energy = OVERMAP_PREHEAT_POWER_BASE * micro_laser_rating * seconds_per_tick * OVERMAP_INLET_HEAT_POWER_MULT
+	if(needed <= max_energy)
+		use_energy(needed / get_preheat_efficiency())
+		charge.set_temperature(target)
+		return null
+	// Only admit the fraction we can bring fully to target this tick.
+	var/heatable_ratio = max_energy / needed
+	var/datum/gas_mixture/deferred = charge.remove_ratio(1 - heatable_ratio)
+	cp = charge.heat_capacity()
+	if(cp <= 0)
+		return deferred
+	needed = cp * (target - charge.temperature)
+	use_energy(needed / get_preheat_efficiency())
+	charge.set_temperature(target)
+	return deferred
 
 /obj/machinery/overmap/fuel_injector/proc/process_exhaust_filter()
 	var/datum/pipeline/exhaust_pipe = exhaust_connector?.gas_connector?.parents?[1]
@@ -352,8 +396,10 @@
 		remaining_transfer -= transfer
 	if(!scrubbed.total_moles())
 		return
+	scrubbed.set_temperature(air_contents.temperature)
 	exhaust_pipe.air.merge(scrubbed)
 	exhaust_connector.gas_connector.update_parents()
+	normalize_empty_pipeline_temperature(exhaust_pipe)
 
 /// TRUE when any linked engine's ship is commanding thrust (opens the feed valve fully).
 /obj/machinery/overmap/fuel_injector/proc/linked_engines_want_thrust()
@@ -365,9 +411,9 @@
 			return TRUE
 	return FALSE
 
-/// Pressure-regulated push of chamber mix onto L2. Idle ships only top up a
-/// modest feed buffer; thrusting opens the valve. Per-tick transfer is capped
-/// so a single atmos tick cannot empty the chamber into a large manifold.
+/// Pressure-regulated push of chamber mix onto L2 (whole mix, unfiltered).
+/// Overpressure opens the rail even when idle — intake stays gated until the
+/// engines (or feed buffer) take enough mass that chamber P falls. No dump valve.
 /obj/machinery/overmap/fuel_injector/proc/process_feed_output()
 	if(consuming || !air_contents?.total_moles())
 		return
@@ -379,14 +425,27 @@
 	if(chamber_pressure <= feed_pressure + OVERMAP_FEED_MIN_DELTA_P)
 		return
 	var/want_thrust = linked_engines_want_thrust()
-	if(!want_thrust && feed_pressure >= OVERMAP_FEED_BUFFER_PRESSURE)
+	var/overpressure = chamber_pressure > max_operating_pressure
+	// Idle: only top up a modest buffer unless the chamber is over servo pressure.
+	if(!want_thrust && !overpressure && feed_pressure >= OVERMAP_FEED_BUFFER_PRESSURE)
 		return
 	var/chamber_moles = air_contents.total_moles()
-	var/to_transfer = min(
-		OVERMAP_FEED_TRANSFER_RATE,
-		chamber_moles * OVERMAP_FEED_MAX_CHAMBER_FRACTION,
-		chamber_moles,
-	)
+	var/rate_cap
+	var/frac_cap
+	if(want_thrust)
+		rate_cap = OVERMAP_FEED_THRUST_TRANSFER_RATE
+		frac_cap = OVERMAP_FEED_THRUST_CHAMBER_FRACTION
+	else if(overpressure)
+		rate_cap = OVERMAP_FUEL_RELIEF_RATE
+		frac_cap = OVERMAP_FEED_THRUST_CHAMBER_FRACTION
+	else
+		rate_cap = OVERMAP_FEED_TRANSFER_RATE
+		frac_cap = OVERMAP_FEED_MAX_CHAMBER_FRACTION
+	var/to_transfer = min(rate_cap, chamber_moles * frac_cap, chamber_moles)
+	if(overpressure)
+		var/excess = chamber_moles - chamber_mole_capacity()
+		if(excess > 0)
+			to_transfer = min(to_transfer, max(excess, OVERMAP_FEED_TRANSFER_RATE))
 	if(to_transfer <= 0)
 		return
 	var/datum/gas_mixture/removed = air_contents.remove(to_transfer)
@@ -394,8 +453,8 @@
 		return
 	feed_pipe.air.merge(removed)
 	feed_connector.gas_connector.update_parents()
-	if(log_pipenet || preheat_enabled || burning)
-		investigate_log("feed push moles=[round(to_transfer, 0.001)] want_thrust=[want_thrust] chamber_P=[round(chamber_pressure, 0.1)] feed_P=[round(feed_pressure, 0.1)]", INVESTIGATE_ATMOS)
+	if(log_pipenet || preheat_enabled || burning || overpressure)
+		investigate_log("feed push moles=[round(to_transfer, 0.001)] want_thrust=[want_thrust] overpressure=[overpressure] chamber_P=[round(chamber_pressure, 0.1)] feed_P=[round(feed_pressure, 0.1)]", INVESTIGATE_ATMOS)
 
 /// Pull propellant from the L2 feed for thrust. Chemical bonus when the removed
 /// mix is hot/reacting; otherwise thermal path (gas ISP only). Empty feed → (0, 0)
@@ -430,11 +489,13 @@
 	update_appearance()
 	return list(burn_fraction, effective_isp)
 
-/obj/machinery/overmap/fuel_injector/proc/process_tick_burn(list/obj/machinery/power/shuttle_engine/overmap/engines, burn_pct)
-	if(!length(engines) || consuming || burn_pct <= 0)
+/// Pull `moles_requested` from L2 and convert to thrust via ISP.
+/// `dt` scales rated thrust so moles_requested = mol_s * dt yields full thrust at full demand.
+/obj/machinery/overmap/fuel_injector/proc/process_tick_burn(list/obj/machinery/power/shuttle_engine/overmap/engines, moles_requested, dt = 1)
+	if(!length(engines) || consuming || moles_requested <= OVERMAP_MOL_S_EPSILON || dt <= 0)
 		return list()
 	var/list/valid = list()
-	var/total_moles = 0
+	var/total_mol_s = 0
 	var/total_pf = 0
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in engines)
 		if(!engine || engine.get_linked_injector() != src)
@@ -444,27 +505,29 @@
 		if(!engine.ship_wants_thrust())
 			continue
 		var/power_fraction = engine.get_power_fraction()
-		var/m_i = overmap_engine_propellant_share_moles(engine.thrust, power_fraction, burn_pct)
-		if(m_i <= 0)
+		var/m_s = overmap_engine_propellant_mol_s(engine.thrust, power_fraction)
+		if(m_s <= 0)
 			continue
 		valid += engine
-		total_moles += m_i
+		total_mol_s += m_s
 		total_pf += power_fraction
-	if(!length(valid) || total_moles <= 0 || !has_feed_propellant())
+	if(!length(valid) || total_mol_s <= 0 || !has_feed_propellant())
 		return list()
 	var/weighted_pf = total_pf / length(valid)
-	var/list/burn_result = consume_from_feed(total_moles, weighted_pf)
+	var/list/burn_result = consume_from_feed(moles_requested, weighted_pf)
 	var/burn_fraction = burn_result[1]
 	var/effective_isp = burn_result[2]
 	if(burn_fraction <= 0 || effective_isp <= 0)
 		return list()
-	if(log_pipenet || preheat_enabled || burning)
-		investigate_log("feed burn request=[round(total_moles, 0.001)] fraction=[round(burn_fraction, 0.001)] isp=[round(effective_isp, 0.01)] engines=[length(valid)] pct=[round(burn_pct, 0.1)]", INVESTIGATE_ATMOS)
+	if(log_pipenet || preheat_enabled || burning || chamber_ignited)
+		investigate_log("feed burn request=[round(moles_requested, 0.001)] fraction=[round(burn_fraction, 0.001)] isp=[round(effective_isp, 0.01)] engines=[length(valid)] dt=[round(dt, 0.01)]", INVESTIGATE_ATMOS)
 	var/list/thrust_results = list()
+	var/throttle_equiv = clamp(moles_requested / (total_mol_s * dt), 0, 1)
 	for(var/obj/machinery/power/shuttle_engine/overmap/engine as anything in valid)
 		var/power_fraction = engine.get_power_fraction()
-		var/thrust = engine.thrust * power_fraction * effective_isp * burn_fraction * (burn_pct / 100)
-		engine.use_energy(engine.max_power_draw * power_fraction * (burn_pct / 100))
+		// Full demand for dt at burn_fraction=1 → rated × pf × ISP.
+		var/thrust = engine.thrust * power_fraction * effective_isp * burn_fraction * throttle_equiv
+		engine.use_energy(engine.max_power_draw * power_fraction * throttle_equiv)
 		engine.burning = TRUE
 		thrust_results[engine] = thrust
 	return thrust_results
@@ -496,6 +559,9 @@
 		if(user)
 			balloon_alert(user, "mixture won't ignite!")
 		return FALSE
+	chamber_ignited = TRUE
+	burning = TRUE
+	cold_flameout_ticks = 0
 	playsound(src, 'sound/items/tools/welder.ogg', 40, TRUE)
 	if(user)
 		balloon_alert(user, "chamber ignited")
@@ -559,8 +625,7 @@
 	release_turf.assume_air(air_contents)
 	air_contents.remove(air_contents.total_moles())
 	air_contents.set_temperature(T20C)
-	burning = FALSE
-	update_appearance()
+	flameout_chamber()
 	balloon_alert(user, "flameout complete")
 
 /obj/machinery/overmap/fuel_injector/proc/get_linked_ship_mass()
@@ -616,6 +681,10 @@
 	var/list/manifold = fuel_injector_manifold_share_stats(src)
 	var/chamber_moles = air_contents?.total_moles() || 0
 	var/feed_moles = get_feed_air()?.total_moles() || 0
+	sync_spool_ui_from_ship()
+	var/spool_pct = ui_target_mol_s > OVERMAP_MOL_S_EPSILON \
+		? clamp(ui_delivered_mol_s / ui_target_mol_s, 0, 1) \
+		: (ui_delivered_mol_s > OVERMAP_MOL_S_EPSILON ? 1 : 0)
 
 	. = list(
 		"input" = input_data,
@@ -631,6 +700,7 @@
 			"max_pressure" = max_operating_pressure,
 			"burning" = burning,
 			"consuming" = consuming,
+			"ignited" = chamber_ignited,
 			"gas_composition" = fuel_injector_gas_composition(air_contents),
 		),
 		"preheat" = list(
@@ -667,6 +737,10 @@
 			"feed_connected" = manifold["feed_connected"],
 			"ship_mass" = ship_mass,
 			"ship_mass_unknown" = ship_mass_unknown,
+			"target_mol_s" = round(ui_target_mol_s, 0.001),
+			"delivered_mol_s" = round(ui_delivered_mol_s, 0.001),
+			"spool_pct" = round(spool_pct, 0.001),
+			"feed_pressure" = round(return_feed_pressure(), 0.1),
 		),
 		"status_pills" = fuel_injector_derive_chamber_status(src),
 		"tank" = fuel_tank ? list(
@@ -736,7 +810,7 @@
 		. += span_notice("Alt-click to dump the chamber (flameout) when engines are off.")
 	if(air_contents?.total_moles())
 		. += span_notice("Chamber: [round(air_contents.total_moles(), 0.1)] mol, [round(air_contents.return_pressure(), 0.1)] kPa, [round(air_contents.temperature, 0.1)] K.")
-	. += span_notice("The chamber preheater is [preheat_enabled ? "holding [round(preheat_setpoint)] K" : "off"]. Combustible mixes can be lit with the igniter from the interface.")
+	. += span_notice("The chamber preheater is [preheat_enabled ? "holding [round(preheat_setpoint)] K" : "off"].")
 
 /obj/machinery/overmap/fuel_injector/update_icon_state()
 	if(machine_stat & BROKEN)

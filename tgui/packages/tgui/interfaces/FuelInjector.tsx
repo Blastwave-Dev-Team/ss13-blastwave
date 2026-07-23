@@ -54,6 +54,10 @@ type Performance = {
   feed_connected: BooleanLike;
   ship_mass: number;
   ship_mass_unknown: BooleanLike;
+  target_mol_s?: number;
+  delivered_mol_s?: number;
+  spool_pct?: number;
+  feed_pressure?: number;
 };
 
 type GasMetadata = {
@@ -75,6 +79,7 @@ type Data = {
   chamber: SidePanel & {
     burning: BooleanLike;
     consuming: BooleanLike;
+    ignited?: BooleanLike;
     max_pressure: number;
     feed_moles?: number;
     stored_moles?: number;
@@ -423,11 +428,23 @@ const PerformanceSection = (props: PerformanceSectionProps) => {
           <LabeledList.Item label="Active shares (N)">
             {p.active_share_count}
           </LabeledList.Item>
-          <LabeledList.Item label="Per-engine moles (M)">
-            {p.per_engine_moles.toFixed(3)} mol/tick
+          <LabeledList.Item label="Per-engine demand (rated)">
+            {p.per_engine_moles.toFixed(3)} mol/s
           </LabeledList.Item>
-          <LabeledList.Item label="Total tick moles (M×N)">
-            {p.total_tick_moles.toFixed(3)} mol/tick
+          <LabeledList.Item label="Total demand (rated)">
+            {p.total_tick_moles.toFixed(3)} mol/s
+          </LabeledList.Item>
+          <LabeledList.Item label="Target mass flow">
+            {(p.target_mol_s ?? 0).toFixed(3)} mol/s
+            {(p.target_mol_s ?? 0) <= 0 ? ' (no throttle)' : ''}
+          </LabeledList.Item>
+          <LabeledList.Item label="Delivered mass flow">
+            {(p.delivered_mol_s ?? 0).toFixed(3)} mol/s
+          </LabeledList.Item>
+          <LabeledList.Item label="Spool">
+            {((p.spool_pct ?? 0) * 100).toFixed(0)}%
+            {p.feed_pressure !== undefined &&
+              ` @ ${p.feed_pressure.toFixed(0)} kPa rail`}
           </LabeledList.Item>
           {!p.ship_mass_unknown && (
             <LabeledList.Item label="Ship mass">
