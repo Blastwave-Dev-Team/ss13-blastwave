@@ -32,6 +32,12 @@
 	gas_connector.atmos_init()
 	var/obj/machinery/atmospherics/node = gas_connector.nodes[1]
 	if(node)
+		// During template loading the engine may initialize before the adjacent
+		// mapped pipe. Its nodes list does not exist until Initialize(), so
+		// calling atmos_init() here would attempt an indexed write into null.
+		if(!(node.flags_1 & INITIALIZED_1))
+			SSair.add_to_rebuild_queue(gas_connector)
+			return
 		node.atmos_init()
 		// Immediately joining the neighbor's pipenet is only safe when the
 		// neighbor is a pipe that has one. Against another bare connector, or
@@ -148,8 +154,19 @@
 /obj/machinery/power/shuttle_engine/overmap/proc/get_power_fraction()
 	if(!powernet)
 		return 0
-	var/available = clamp(powernet.avail - powernet.load, 0, max_power_draw)
+	// Powernet load accumulates during a machinery cycle. Subtracting it here
+	// includes this engine's earlier fastprocess draws and creates a bang-bang
+	// loop until the network resets.
+	var/available = clamp(powernet.avail, 0, max_power_draw)
 	return available / max(max_power_draw, 1)
+
+/obj/machinery/power/shuttle_engine/overmap/proc/consume_grid_power(power_fraction, throttle_fraction, dt = 1)
+	if(!powernet || power_fraction <= 0 || throttle_fraction <= 0 || dt <= 0)
+		return
+	// Physics samples faster than the machinery power cycle. Scale each sample
+	// so their accumulated load equals the requested continuous wattage.
+	var/power_cycle_seconds = max(SSmachines.wait * 0.1, 0.1)
+	add_load(max_power_draw * power_fraction * throttle_fraction * (dt / power_cycle_seconds))
 
 /obj/machinery/power/shuttle_engine/overmap/proc/get_isp_efficiency()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
@@ -171,7 +188,7 @@
 /obj/machinery/power/shuttle_engine/overmap/proc/get_rated_thrust()
 	return thrust
 
-/obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100, skip_engine_update = FALSE)
+/obj/machinery/power/shuttle_engine/overmap/proc/burn_engine(percentage = 100, skip_engine_update = FALSE, dt = 1)
 	if(!enabled)
 		return 0
 	if(!skip_engine_update && !update_engine())
@@ -194,7 +211,7 @@
 		if(burn_fraction <= 0 || effective_isp <= 0)
 			return 0
 		var/effective_thrust = thrust * power_fraction * effective_isp * burn_fraction * (percentage / 100)
-		use_energy(max_power_draw * power_fraction * (percentage / 100))
+		consume_grid_power(power_fraction, percentage / 100, dt)
 		burning = TRUE
 		return effective_thrust
 	return 0
@@ -221,6 +238,9 @@
 
 /obj/machinery/power/shuttle_engine/overmap/proc/update_engine()
 	thruster_active = TRUE
+	if(machine_stat & BROKEN)
+		thruster_active = FALSE
+		return FALSE
 	if(panel_open)
 		thruster_active = FALSE
 		return FALSE

@@ -518,7 +518,7 @@ export function NavBall(props: NavBallProps) {
               e.stopPropagation();
               onAllStop();
             }}
-            title="All Stop (Q)"
+            title="Full Stop (Q)"
           >
             <span className="HelmConsole__navball-btn-icon">&#x25A0;</span>
             <span className="HelmConsole__navball-btn-key">Q</span>
@@ -553,9 +553,11 @@ export function NavBall(props: NavBallProps) {
         <div className="HelmConsole__readout-item">
           <span className="HelmConsole__readout-label">SPD</span>
           <span className="HelmConsole__readout-value">
-            {actualSpeed > 0.01
+            {actualSpeed >= 0.01
               ? `${(actualSpeed * 100).toFixed(0)}%`
-              : '0.0'}
+              : actualSpeed > 0
+                ? '<1%'
+                : '0.0'}
           </span>
         </div>
         <div className="HelmConsole__readout-item">

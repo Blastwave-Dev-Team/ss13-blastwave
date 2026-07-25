@@ -123,6 +123,7 @@
 /obj/machinery/power/shuttle_engine/overmap/standard{
 	dir = 8
 	},
+/obj/structure/cable,
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
 "qc" = (
@@ -167,6 +168,7 @@
 /area/shuttle/overmap/frigate)
 "xw" = (
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/obj/structure/cable,
 /turf/open/floor/iron/shuttle,
 /area/shuttle/overmap/frigate)
 "yn" = (
@@ -184,6 +186,11 @@
 "zY" = (
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
+"BP" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
 "Cp" = (
 /obj/machinery/light/directional/north,
 /obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
@@ -196,6 +203,7 @@
 /obj/structure/window/reinforced/spawner/directional/west,
 /obj/structure/closet/secure_closet/armory_kiboko,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
 /turf/open/floor/iron/shuttle,
 /area/shuttle/overmap/frigate)
 "EY" = (
@@ -240,6 +248,11 @@
 /obj/machinery/light/directional/north,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /turf/open/floor/iron/shuttle,
+/area/shuttle/overmap/frigate)
+"Ou" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
+/obj/structure/cable,
+/turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
 "OZ" = (
 /obj/structure/chair/comfy/shuttle/tactical{
@@ -386,10 +399,10 @@ da
 (4,1,1) = {"
 zY
 Er
-ij
+BP
 yn
 xw
-lP
+Ou
 XR
 mF
 zY

@@ -59,6 +59,18 @@
 		/obj/item/stack/sheet/glass = 1,
 	)
 
+/obj/item/circuitboard/machine/shipyard_fabricator
+	name = "Shipyard Fabricator Assembly"
+	desc = "A machine board for one half of a paired shipyard fabricator. Two adjacent completed frames are required."
+	greyscale_colors = CIRCUIT_COLOR_ENGINEERING
+	build_path = /obj/machinery/shipyard_fabricator_frame_half
+	req_components = list(
+		/datum/stock_part/matter_bin = 2,
+		/datum/stock_part/micro_laser = 2,
+		/datum/stock_part/scanning_module = 1,
+		/datum/stock_part/servo = 1,
+	)
+
 /obj/item/circuitboard/computer/landing_controller
 	name = "Landing Zone Controller"
 	desc = "A computer board. Manages a field astrogation landing zone from four corner beacons. Open access; any vessel may land."

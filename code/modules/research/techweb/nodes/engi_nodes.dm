@@ -199,6 +199,8 @@
 		"overmap_landing_corner",
 		"overmap_nav_computer",
 		"propulsion_engine",
+		"ship_blueprint_disk",
+		"shipyard_fabricator",
 		"shuttle_blueprints",
 		"shuttle_control",
 		"shuttle_docker",

@@ -1,9 +1,8 @@
 // MODULE ID: OVERMAP
 // SSovermap allocates a dedicated Z-level for the overmap grid and is the
 // owner of the overmap object registry and helper procs. Per the
-// implementation plan, M1 only delivers Z allocation, a programmatic
-// 20x20 grid, and a star at the center; static POIs (M2), ship binding
-// (M3) and onward extend this subsystem.
+// implementation plan, M1 delivered Z allocation, a programmatic grid, and
+// a star at the center; later milestones extended it with POIs and ships.
 
 SUBSYSTEM_DEF(overmap)
 	name = "Overmap"
@@ -213,6 +212,25 @@ SUBSYSTEM_DEF(overmap)
 	for(var/obj/structure/overmap/dynamic/encounter in overmap_objects)
 		if(zlevel in encounter.linked_levels)
 			return encounter
+	return null
+
+/// Resolve an atom in physical space to its owning overmap object.
+/// Shuttle ownership wins over the surrounding Z so a landed ship's
+/// transponders identify the ship rather than the body beneath it.
+/datum/controller/subsystem/overmap/proc/resolve_overmap_object_from_atom(atom/source)
+	if(!source)
+		return null
+	var/turf/source_turf = get_turf(source)
+	if(!source_turf)
+		return null
+	var/obj/docking_port/mobile/containing_shuttle = SSshuttle.get_containing_shuttle(source)
+	if(containing_shuttle?.current_ship)
+		return containing_shuttle.current_ship
+	var/obj/structure/overmap/resolved = get_overmap_object_by_z(source_turf.z)
+	if(resolved)
+		return resolved
+	if(is_station_level(source_turf.z))
+		return main
 	return null
 
 /// Lookup helper used by helm consoles binding via `override_id`.
@@ -852,6 +870,50 @@ SUBSYSTEM_DEF(overmap)
 		"chained" = chained,
 		"placed_rects" = placed_rects,
 	)
+
+/// Allocate a blank, self-looping content Z and seed clear shuttle landing
+/// zones. Used by shared open-space landing sites.
+/datum/controller/subsystem/overmap/proc/generate_blank_overmap_content_z(level_name = "Open Space")
+	var/site_z
+	if(length(reusable_content_zs))
+		site_z = reusable_content_zs[1]
+		reusable_content_zs.Cut(1, 2)
+	else
+		var/datum/space_level/level = SSmapping.add_new_zlevel(
+			level_name,
+			ZTRAITS_OVERMAP_SITE,
+			contain_turfs = TRUE,
+		)
+		if(!level)
+			WARNING("generate_blank_overmap_content_z: failed to allocate Z for [level_name]")
+			return null
+		site_z = level.z_value
+	seed_site_landing_zones(site_z, level_name, list())
+	return site_z
+
+/// Return the existing level on an overmap tile, or create one shared blank
+/// open-space site when the tile contains no competing POI.
+/datum/controller/subsystem/overmap/proc/get_or_create_open_space_site(turf/overmap_tile)
+	if(!istype(overmap_tile, /turf/open/overmap))
+		return null
+	for(var/obj/structure/overmap/level/existing in overmap_tile)
+		if(QDELING(existing))
+			continue
+		if(istype(existing, /obj/structure/overmap/level/site/open_space))
+			return existing
+		return null
+	for(var/obj/structure/overmap/other in overmap_tile)
+		if(QDELING(other))
+			continue
+		if(!istype(other, /obj/structure/overmap/ship))
+			return null
+	var/site_z = generate_blank_overmap_content_z("Open Space ([overmap_tile.x], [overmap_tile.y])")
+	if(!site_z)
+		return null
+	var/site_id = "open_space_[overmap_tile.x]_[overmap_tile.y]"
+	var/obj/structure/overmap/level/site/open_space/site = new /obj/structure/overmap/level/site/open_space(overmap_tile, site_id, list(site_z))
+	site.name = "Open Space [overmap_tile.x], [overmap_tile.y]"
+	return site
 
 /// Spawn a named site POI on a dedicated full Z-level via the shared generator,
 /// then place one `/level/site` tile on the overmap.

@@ -364,9 +364,13 @@
 #include "~nova\overmap_dock_safety.dm"
 #include "~nova\overmap_factions.dm"
 #include "~nova\overmap_fuel_injector.dm"
+#include "~nova\overmap_gps_recovery.dm"
 #include "~nova\overmap_landing_controller.dm"
+#include "~nova\overmap_assisted_flight.dm"
 #include "~nova\overmap_ruins.dm"
+#include "~nova\overmap_shipyard_fabricator.dm"
 #include "~nova\overmap_site_seeding.dm"
+#include "~nova\overmap_stop_settle.dm"
 #include "~nova\shuttle.dm"
 // NOVA EDIT END
 // END_INCLUDE

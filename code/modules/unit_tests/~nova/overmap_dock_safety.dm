@@ -276,12 +276,29 @@
 			count++
 	TEST_ASSERT_EQUAL(count, 1, "on_overmap_crossed should be idempotent.")
 
-	// Moving off the tile must uncross both sides.
-	var/turf/away = get_step(stage, WEST)
-	TEST_ASSERT(away, "Missing adjacent turf for uncross fixture.")
+	// Refresh must not append duplicate contacts, and should repair any
+	// duplicates retained by an already-running server.
+	LAZYADD(first.close_overmap_objects, second)
+	LAZYADD(second.close_overmap_objects, first)
+	first.refresh_close_overmap_objects()
+	first.refresh_close_overmap_objects()
+	count = 0
+	for(var/obj/structure/overmap/peer as anything in first.close_overmap_objects)
+		if(peer == second)
+			count++
+	TEST_ASSERT_EQUAL(count, 1, "Proximity refresh should normalize duplicate contacts.")
+	count = 0
+	for(var/obj/structure/overmap/peer as anything in second.close_overmap_objects)
+		if(peer == first)
+			count++
+	TEST_ASSERT_EQUAL(count, 1, "Proximity refresh should normalize reciprocal duplicate contacts.")
+
+	// Moving beyond interaction range must uncross both sides.
+	var/turf/away = get_step(get_step(stage, WEST), WEST)
+	TEST_ASSERT(away, "Missing out-of-range turf for uncross fixture.")
 	second.forceMove(away)
-	TEST_ASSERT(!(first in second.close_overmap_objects), "Moving away should uncross the mover's list.")
-	TEST_ASSERT(!(second in first.close_overmap_objects), "Moving away should uncross the stayer's list.")
+	TEST_ASSERT(!(first in second.close_overmap_objects), "Moving out of range should uncross the mover's list.")
+	TEST_ASSERT(!(second in first.close_overmap_objects), "Moving out of range should uncross the stayer's list.")
 
 	// Moving back onto the tile must re-cross.
 	second.forceMove(stage)

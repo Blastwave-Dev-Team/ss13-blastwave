@@ -92,6 +92,42 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
+/datum/design/board/shipyard_fabricator
+	name = "Shipyard Fabricator Assembly Board"
+	desc = "The circuit board for one half of a paired shipyard fabricator."
+	id = "shipyard_fabricator"
+	build_path = /obj/item/circuitboard/machine/shipyard_fabricator
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/ship_blueprint_disk
+	name = "Personal Travel Shuttle Blueprint Disk"
+	desc = "A production manifest for fabricating a personal travel shuttle."
+	id = "ship_blueprint_disk"
+	build_path = /obj/item/ship_blueprint_disk/personal_shuttle
+	build_type = PROTOLATHE
+	materials = list(
+		/datum/material/iron = HALF_SHEET_MATERIAL_AMOUNT,
+		/datum/material/glass = HALF_SHEET_MATERIAL_AMOUNT,
+	)
+	category = list(RND_CATEGORY_TOOLS + RND_SUBCATEGORY_TOOLS_ENGINEERING)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/supply_pack/engineering/shipyard_fabricator
+	name = "Shipyard Fabricator Starter Kit"
+	desc = "Two fabricator assembly boards, a basic ship blueprint disk, and a rapid part exchange device."
+	cost = CARGO_CRATE_VALUE * 8
+	contains = list(
+		/obj/item/circuitboard/machine/shipyard_fabricator = 2,
+		/obj/item/ship_blueprint_disk/personal_shuttle,
+		/obj/item/storage/part_replacer,
+	)
+	crate_name = "shipyard fabricator kit crate"
+	crate_type = /obj/structure/closet/crate/engineering
+
 /datum/supply_pack/engineering/overmap_fuel_injector
 	name = "Shuttle Construction Kit"
 	desc = "Contains circuit boards for building a basic shuttle: helm and landing consoles, fuel injectors, Hall-Nuclear-Thermal engines, and a landing zone controller with corner beacons."

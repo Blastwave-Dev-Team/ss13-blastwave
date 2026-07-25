@@ -225,13 +225,17 @@
 	TEST_ASSERT(ds2_lz in zones, "DS2-affiliated LZs should be available to DS2 ships.")
 	TEST_ASSERT(!(nt_lz in zones), "NT-affiliated LZs should be hidden from DS2 ships.")
 
-/// Thrust/mass forward accel: hall-scale thrust is much slower; max_speed still caps.
+/// Velocity-only fixture for thrust/mass and assisted-envelope tests.
 /obj/structure/overmap/ship/unit_test_thrust
 	var/test_thrust = 90
+	var/test_available_thrust = 90
 	var/test_mass = 100
 
 /obj/structure/overmap/ship/unit_test_thrust/get_effective_thrust()
 	return test_thrust
+
+/obj/structure/overmap/ship/unit_test_thrust/get_available_thrust()
+	return test_available_thrust
 
 /obj/structure/overmap/ship/unit_test_thrust/get_effective_mass()
 	return max(test_mass, 1)
@@ -248,7 +252,6 @@
 /datum/unit_test/overmap_thrust_accel/Run()
 	var/turf/stage = run_loc_floor_bottom_left
 	var/obj/structure/overmap/ship/unit_test_thrust/ship = allocate(/obj/structure/overmap/ship/unit_test_thrust, stage)
-	ship.max_speed = OVERMAP_MAX_SPEED
 	ship.desired_angle = 0
 	ship.desired_throttle = 1
 	ship.has_heading = TRUE
@@ -256,12 +259,14 @@
 
 	var/dt = 0.2
 	ship.test_thrust = 90
+	ship.test_available_thrust = 90
 	ship.vel_x = 0
 	ship.vel_y = 0
 	ship.physics_tick(dt)
 	var/full_speed = ship.get_speed()
 
 	ship.test_thrust = 90 * 0.15
+	ship.test_available_thrust = 90 * 0.15
 	ship.vel_x = 0
 	ship.vel_y = 0
 	ship.physics_tick(dt)
@@ -273,6 +278,7 @@
 	TEST_ASSERT(hall_speed < full_speed / 5, "Hall-only accel should be roughly 0.15× full (at least 5× slower).")
 
 	ship.test_thrust = 9000
+	ship.test_available_thrust = 9000
 	ship.vel_x = 0
 	ship.vel_y = 0
 	for(var/i in 1 to 40)

@@ -57,6 +57,6 @@
 	if(!parent_link?.active || !parent_link.linked_ship)
 		return
 	var/obj/structure/overmap/ship/ship = parent_link.linked_ship
-	var/speed_pct = round(ship.get_speed() / max(ship.max_speed, 0.01) * 100)
+	var/speed_pct = round(clamp(ship.get_speed() / max(ship.max_speed, 0.01), 0, 1) * 100)
 	var/hdg = ship.get_heading_degrees()
 	maptext = {"<span style='font-family: monospace; font-size: 10px; color: #88ccff; text-align: center;'>SPD [speed_pct]% | HDG [hdg]&deg;</span>"}

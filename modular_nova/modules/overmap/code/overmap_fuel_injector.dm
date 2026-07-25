@@ -527,7 +527,7 @@
 		var/power_fraction = engine.get_power_fraction()
 		// Full demand for dt at burn_fraction=1 → rated × pf × ISP.
 		var/thrust = engine.thrust * power_fraction * effective_isp * burn_fraction * throttle_equiv
-		engine.use_energy(engine.max_power_draw * power_fraction * throttle_equiv)
+		engine.consume_grid_power(power_fraction, throttle_equiv, dt)
 		engine.burning = TRUE
 		thrust_results[engine] = thrust
 	return thrust_results

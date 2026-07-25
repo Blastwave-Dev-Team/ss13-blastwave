@@ -12,8 +12,12 @@
 	icon_state = "ship"
 	base_icon_state = "ship"
 
-	/// Max speed in tiles/second.
-	var/max_speed = OVERMAP_MAX_SPEED
+	/// Current flight-assisted speed envelope in tiles/second.
+	/// Refreshed from available full-output thrust and ship mass.
+	var/max_speed = 0
+	/// Full-output thrust currently available for the assisted envelope/braking.
+	/// Unlike est_thrust, this is independent of commanded throttle and spool.
+	var/available_thrust = 0
 	/// Desired heading angle in degrees (0=east, 90=north, math convention).
 	var/desired_angle = 0
 	/// Desired throttle 0..1 (fraction of max_speed).
@@ -96,9 +100,23 @@
 	target_mol_s = 0
 	delivered_mol_s = 0
 
-/// Effective thrust for accel/brake. Simulated ships use live burn `est_thrust`
-/// when thrusting; otherwise rated engine thrust (so hall-only is not masked by
-/// a large fake floor). Non-simulated ships use a fixed fallback.
+/// Helm full-stop command. Meaningful velocity still brakes physically, while
+/// drift at or below one percent of the current envelope settles immediately.
+/obj/structure/overmap/ship/proc/can_full_stop()
+	var/reference_speed = max_speed > 0 ? max_speed : OVERMAP_MAX_SPEED
+	return get_speed() / reference_speed <= 0.01
+
+/obj/structure/overmap/ship/proc/full_stop()
+	all_stop()
+	if(can_full_stop())
+		deactivate_physics()
+		update_icon_state()
+	else
+		activate_physics()
+
+/// Live thrust for velocity convergence. Simulated ships use burn `est_thrust`
+/// while thrusting; otherwise rated thrust remains the legacy fallback.
+/// Braking and the assisted envelope use get_available_thrust() instead.
 /obj/structure/overmap/ship/proc/get_effective_thrust()
 	if(istype(src, /obj/structure/overmap/ship/simulated))
 		var/obj/structure/overmap/ship/simulated/sim = src
@@ -120,11 +138,33 @@
 		return max(sim.mass, 1)
 	return 1
 
+/// Full-output thrust presently available for the flight envelope and braking.
+/// Simulated ships override this with an engine/power/ISP-aware sum.
+/obj/structure/overmap/ship/proc/get_available_thrust()
+	return get_effective_thrust()
+
+/// Acceleration available at full output in tiles/s².
+/obj/structure/overmap/ship/proc/get_available_acceleration()
+	return (available_thrust / get_effective_mass()) * OVERMAP_THRUST_ACCEL_SCALE
+
+/// Refresh the assisted target-speed envelope from stopping distance.
+/obj/structure/overmap/ship/proc/refresh_flight_envelope()
+	available_thrust = max(get_available_thrust(), 0)
+	var/available_acceleration = get_available_acceleration()
+	if(available_acceleration <= 0)
+		max_speed = 0
+		return
+	max_speed = min(
+		sqrt(2 * available_acceleration * OVERMAP_ASSIST_BRAKING_DISTANCE),
+		OVERMAP_MAX_SPEED,
+	)
+
 /// Apply braking deceleration toward zero velocity. Called each physics_tick
 /// when has_heading is FALSE and ship is not yet still.
-/// Deceleration is derived from thrust/mass (same scale as forward accel).
+/// Uses the same full-output authority that defines the assisted speed envelope,
+/// guaranteeing a stop within OVERMAP_ASSIST_BRAKING_DISTANCE while available.
 /obj/structure/overmap/ship/proc/apply_braking(dt)
-	var/brake_rate = (get_effective_thrust() / get_effective_mass()) * OVERMAP_THRUST_ACCEL_SCALE * dt
+	var/brake_rate = get_available_acceleration() * dt
 	var/speed = get_speed()
 	if(speed <= brake_rate)
 		vel_x = 0
@@ -149,11 +189,14 @@
 
 /// Physics integration. Applies thrust toward desired velocity, integrates
 /// position. Called by SSfastprocess via `process()` each tick.
-/obj/structure/overmap/ship/physics_tick(dt)
+/obj/structure/overmap/ship/physics_tick(dt, refresh_envelope = TRUE)
 	if(!has_heading && is_still() && !has_gravity_influence())
 		deactivate_physics()
 		update_icon_state()
 		return
+
+	if(refresh_envelope)
+		refresh_flight_envelope()
 
 	if(has_heading)
 		var/target_vx = cos(desired_angle) * desired_throttle * max_speed
@@ -192,8 +235,10 @@
 		apply_station_keeping(dt)
 
 	var/speed = get_speed()
-	if(speed > max_speed)
-		var/scale = max_speed / speed
+	// The assisted envelope is a target, not an instantaneous velocity clamp.
+	// Keep only the hard integration ceiling so engine loss decelerates physically.
+	if(speed > OVERMAP_MAX_SPEED)
+		var/scale = OVERMAP_MAX_SPEED / speed
 		vel_x *= scale
 		vel_y *= scale
 
@@ -268,6 +313,16 @@
 		icon_state = "[icon_state]_damaged"
 	return ..()
 
+/obj/structure/overmap/ship/update_overlays()
+	. = ..()
+	var/obj/structure/overmap/ship/simulated/sim = istype(src, /obj/structure/overmap/ship/simulated) ? src : null
+	if(!sim?.cached_hull_icon || integrity >= initial(integrity) / 4)
+		return
+	var/mutable_appearance/damage_tint = mutable_appearance(sim.cached_hull_icon)
+	damage_tint.color = integrity <= 0 ? "#701b1b" : "#a64b4b"
+	damage_tint.alpha = integrity <= 0 ? 150 : 90
+	. += damage_tint
+
 // SIMULATED SHIP - bound to a real shuttle docking port.
 
 #define SHIP_SIZE_THRESHOLD 300
@@ -312,6 +367,14 @@
 	var/home_level_id
 	/// Uncontrolled site LZ pins: site REF → landing zone REF. Cleared on undock.
 	var/list/assigned_landing_zones
+	/// TRUE while the high-authority recovery brake is decelerating the ship.
+	var/emergency_braking = FALSE
+	/// Rated acceleration captured when the emergency brake engages.
+	var/emergency_brake_acceleration = 0
+	/// Disabled ships automatically land once emergency braking reaches zero.
+	var/emergency_auto_land = FALSE
+	/// Prevent repeated recovery attempts after a landing fault.
+	var/emergency_recovery_attempted = FALSE
 
 /obj/structure/overmap/ship/simulated/Initialize(mapload, _id, obj/docking_port/mobile/_shuttle)
 	. = ..()
@@ -334,6 +397,7 @@
 /obj/structure/overmap/ship/simulated/proc/prepare_for_flight()
 	calculate_mass()
 	refresh_engines()
+	refresh_flight_envelope()
 	calculate_avg_fuel()
 	// Hull icon generation is async (sleeps while Rust DLL processes).
 	// Spawn it so it doesn't block the undock flow.
@@ -386,6 +450,19 @@
 		best = max(best, injector.return_feed_pressure())
 	return best
 
+/// Full-throttle capability independent of command/spool state.
+/// update_engine() refreshes panel, injector, and hall-only availability;
+/// get_current_thrust() folds in current power fraction and injector ISP.
+/obj/structure/overmap/ship/simulated/get_available_thrust()
+	if(!shuttle)
+		return 0
+	var/total = 0
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle.engine_list)
+		if(!engine.update_engine())
+			continue
+		total += engine.get_current_thrust()
+	return total
+
 /// Slews delivered_mol_s toward throttle×demand; L2 pressure sets spool-up rate.
 /obj/structure/overmap/ship/simulated/proc/update_propellant_spool(dt)
 	if(dt <= 0)
@@ -411,6 +488,66 @@
 		delivered_mol_s += max(delta, -OVERMAP_SPOOL_DECEL * dt)
 	delivered_mol_s = max(delivered_mol_s, 0)
 
+/obj/structure/overmap/ship/simulated/receive_damage(amount)
+	var/previous_integrity = integrity
+	. = ..()
+	if(integrity <= 0 && emergency_braking)
+		emergency_auto_land = TRUE
+	if(previous_integrity > 0 && integrity <= 0 && state == OVERMAP_SHIP_FLYING && !emergency_braking)
+		engage_emergency_brake(TRUE)
+
+/// Engage the independent recovery brake. Damage is applied once, while the
+/// captured 3x rated authority remains active until the ship stops.
+/obj/structure/overmap/ship/simulated/proc/engage_emergency_brake(automatic = FALSE)
+	if(state != OVERMAP_SHIP_FLYING || emergency_braking || is_still())
+		return FALSE
+	emergency_braking = TRUE
+	emergency_auto_land = automatic || integrity <= 0
+	emergency_recovery_attempted = FALSE
+	all_stop()
+	if(!mass)
+		calculate_mass()
+	var/rated_thrust = 0
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle?.engine_list)
+		if(QDELETED(engine))
+			continue
+		rated_thrust += max(engine.thrust, engine.get_rated_thrust())
+	emergency_brake_acceleration = max(
+		(rated_thrust / max(get_effective_mass(), 1)) * OVERMAP_THRUST_ACCEL_SCALE * OVERMAP_EMERGENCY_BRAKE_MULTIPLIER,
+		OVERMAP_VELOCITY_EPSILON * 10,
+	)
+	var/speed_fraction = clamp(get_speed() / OVERMAP_MAX_SPEED, 0, 1)
+	var/hull_damage = round(lerp(OVERMAP_EMERGENCY_BRAKE_HULL_DAMAGE_MIN, OVERMAP_EMERGENCY_BRAKE_HULL_DAMAGE_MAX, speed_fraction))
+	if(hull_damage > 0)
+		receive_damage(hull_damage)
+	if(integrity <= 0)
+		emergency_auto_land = TRUE
+	var/engine_damage = round(lerp(OVERMAP_EMERGENCY_BRAKE_ENGINE_DAMAGE_MIN, OVERMAP_EMERGENCY_BRAKE_ENGINE_DAMAGE_MAX, speed_fraction))
+	for(var/obj/machinery/power/shuttle_engine/overmap/engine in shuttle?.engine_list)
+		if(QDELETED(engine) || !engine.enabled)
+			continue
+		engine.take_damage(engine_damage, BRUTE)
+		engine.update_engine()
+		engine.update_appearance()
+	refresh_engines()
+	refresh_flight_envelope()
+	activate_physics()
+	announce_to_helms(automatic ? "CRITICAL HULL FAILURE. Emergency braking engaged; preparing automatic open-space recovery." : "Emergency brake engaged. Hull and propulsion stress detected.")
+	return TRUE
+
+/obj/structure/overmap/ship/simulated/apply_braking(dt)
+	if(!emergency_braking)
+		return ..()
+	var/brake_rate = emergency_brake_acceleration * dt
+	var/speed = get_speed()
+	if(speed <= brake_rate)
+		vel_x = 0
+		vel_y = 0
+		return
+	var/scale = (speed - brake_rate) / speed
+	vel_x *= scale
+	vel_y *= scale
+
 /// Override physics_tick: if docked, do nothing. If out of fuel, decay.
 /// While thrusting, aggregate live burn thrust into `est_thrust` for accel.
 /obj/structure/overmap/ship/simulated/physics_tick(dt)
@@ -421,6 +558,8 @@
 		deactivate_physics()
 		return
 	calculate_avg_fuel()
+	// Sample full-output capability before this tick's burn adds power load.
+	refresh_flight_envelope()
 	if(avg_fuel_amnt < 1)
 		desired_throttle = max(desired_throttle - 0.1 * dt, 0)
 	update_propellant_spool(dt)
@@ -438,12 +577,20 @@
 			var/obj/machinery/overmap/fuel_injector/injector = engine.get_linked_injector()
 			if(injector?.has_feed_propellant())
 				continue
-			thrust_sum += engine.burn_engine(hall_pct, skip_engine_update = TRUE)
+			thrust_sum += engine.burn_engine(hall_pct, skip_engine_update = TRUE, dt = dt)
 			engine.burning = FALSE
 		est_thrust = thrust_sum
 	else
 		est_thrust = 0
-	..()
+	..(dt, FALSE)
+	if(emergency_braking && can_full_stop())
+		full_stop()
+	if(emergency_braking && is_still())
+		emergency_braking = FALSE
+		emergency_brake_acceleration = 0
+		if(emergency_auto_land && !emergency_recovery_attempted)
+			emergency_recovery_attempted = TRUE
+			recover_disabled_ship()
 
 /// Batch L2 feed burns for injector-fed engines. `moles_requested` is total moles this tick.
 /obj/structure/overmap/ship/simulated/proc/process_engine_fuel_burns(moles_requested, dt = 1)
@@ -606,6 +753,8 @@
 /obj/structure/overmap/ship/simulated/proc/undock()
 	if(!shuttle)
 		return "Shuttle not found!"
+	if(integrity <= 0)
+		return "Hull control systems are disabled! Repair the vessel before launch."
 	if(state != OVERMAP_SHIP_IDLE)
 		return "Ship is not docked!"
 	if(!docked)
@@ -670,6 +819,9 @@
 	if(istype(prev_docked, /obj/structure/overmap/dynamic))
 		var/obj/structure/overmap/dynamic/encounter = prev_docked
 		encounter.unload_level()
+	if(istype(prev_docked, /obj/structure/overmap/level/site/open_space))
+		var/obj/structure/overmap/level/site/open_space/open_site = prev_docked
+		open_site.try_cleanup()
 
 #undef UNDOCK_TRANSIT_RETRIES
 
@@ -803,6 +955,58 @@
 		qdel(port)
 		return null
 	return port
+
+/// Voluntarily land at the shared open-space site for the current overmap
+/// tile. A new blank site is created only when no level already owns it.
+/obj/structure/overmap/ship/simulated/proc/land_in_open_space(lz_ref)
+	if(state != OVERMAP_SHIP_FLYING)
+		return "Ship is not in flight."
+	if(!is_still())
+		return "Ship must be stopped before landing in open space."
+	var/turf/overmap_tile = get_turf(src)
+	var/obj/structure/overmap/level/landing_site = SSovermap.get_or_create_open_space_site(overmap_tile)
+	if(!landing_site)
+		return "Unable to stabilize an open-space landing site at these coordinates."
+	var/result = dock(landing_site, lz_ref)
+	if(state != OVERMAP_SHIP_DOCKING && istype(landing_site, /obj/structure/overmap/level/site/open_space))
+		var/obj/structure/overmap/level/site/open_space/open_site = landing_site
+		open_site.try_cleanup()
+	return result
+
+/// Force a disabled, stopped hull onto a validated landing zone without
+/// requiring functional shuttle engines.
+/obj/structure/overmap/ship/simulated/proc/recover_disabled_ship()
+	if(state != OVERMAP_SHIP_FLYING || !is_still() || !shuttle)
+		return FALSE
+	var/obj/structure/overmap/level/landing_site = SSovermap.get_or_create_open_space_site(get_turf(src))
+	if(!landing_site)
+		announce_to_helms("EMERGENCY RECOVERY FAILED. No stable open-space site is available at this coordinate.")
+		return FALSE
+	var/list/zones = get_landing_zones_for(landing_site)
+	if(!length(zones))
+		announce_to_helms("EMERGENCY RECOVERY FAILED. No clear landing zone can contain this hull.")
+		if(istype(landing_site, /obj/structure/overmap/level/site/open_space))
+			var/obj/structure/overmap/level/site/open_space/open_site = landing_site
+			open_site.try_cleanup()
+		return FALSE
+	var/obj/docking_port/stationary/recovery_port = create_landing_zone_port(pick(zones))
+	if(!recovery_port)
+		announce_to_helms("EMERGENCY RECOVERY FAILED. Landing-zone geometry changed before touchdown.")
+		return FALSE
+	docked = landing_site
+	state = OVERMAP_SHIP_DOCKING
+	var/docking_result = shuttle.initiate_docking(recovery_port, force = TRUE)
+	if(docking_result != DOCKING_SUCCESS)
+		docked = null
+		state = OVERMAP_SHIP_FLYING
+		qdel(recovery_port)
+		announce_to_helms("EMERGENCY RECOVERY FAILED. Physical docking transfer was rejected.")
+		return FALSE
+	if(state == OVERMAP_SHIP_DOCKING)
+		complete_dock()
+	emergency_auto_land = FALSE
+	announce_to_helms("Emergency recovery complete. Hull secured in open space.")
+	return TRUE
 
 /// Stationary dock lookup by shuttle_id without SSshuttle.getDock()'s
 /// "couldn't find dock" warning. dock() probes several speculative IDs per
@@ -987,7 +1191,6 @@
 /// Fighter: direct piloting only (NIF or neurohelm). No helm console.
 /obj/structure/overmap/ship/simulated/fighter
 	control_flags = SHIP_CONTROL_DIRECT
-	max_speed = OVERMAP_MAX_SPEED * 1.5
 
 /// Frigate: purpose-built overmap ship. Supports both helm console and
 /// direct piloting.

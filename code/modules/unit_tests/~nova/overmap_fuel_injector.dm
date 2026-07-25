@@ -598,6 +598,9 @@
 	// ISP is propellant-only — must not collapse when grid surplus is zero.
 	refresh_grid_power(grid_apc)
 	TEST_ASSERT(engine.get_power_fraction() > 0, "Grid surplus required before zeroing avail.")
+	var/initial_power_fraction = engine.get_power_fraction()
+	engine.powernet.load = engine.powernet.avail
+	TEST_ASSERT_EQUAL(engine.get_power_fraction(), initial_power_fraction, "Engine power fraction must not choke on its own accumulated cycle load.")
 	var/isp_with_power = fuel_injector_estimate_isp(injector)
 	engine.powernet.avail = 0
 	engine.powernet.load = 999 KILO JOULES

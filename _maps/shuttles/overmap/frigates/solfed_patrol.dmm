@@ -82,6 +82,7 @@
 /obj/machinery/power/shuttle_engine/overmap/standard{
 	dir = 8
 	},
+/obj/structure/cable,
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
 "ph" = (
@@ -118,6 +119,10 @@
 	pipe_color = "#0000FF"
 	},
 /turf/open/floor/engine,
+/area/shuttle/overmap/frigate)
+"xY" = (
+/obj/structure/table/reinforced,
+/turf/open/floor/iron/smooth,
 /area/shuttle/overmap/frigate)
 "yP" = (
 /obj/machinery/light/directional/north,
@@ -410,7 +415,7 @@ co
 co
 pR
 Sy
-NI
+xY
 Sy
 hA
 co

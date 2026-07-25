@@ -13,6 +13,9 @@
 /// Void engines don't need propellant or power — always active.
 /obj/machinery/power/shuttle_engine/overmap/void/update_engine()
 	thruster_active = TRUE
+	if(machine_stat & BROKEN)
+		thruster_active = FALSE
+		return FALSE
 	if(panel_open)
 		thruster_active = FALSE
 		return FALSE
@@ -21,7 +24,7 @@
 		return FALSE
 	return TRUE
 
-/obj/machinery/power/shuttle_engine/overmap/void/burn_engine(percentage = 100, skip_engine_update = FALSE)
+/obj/machinery/power/shuttle_engine/overmap/void/burn_engine(percentage = 100, skip_engine_update = FALSE, dt = 1)
 	if(!enabled)
 		return 0
 	if(!skip_engine_update && !update_engine())
@@ -49,7 +52,7 @@
 	icon_state = "propulsion"
 	circuit = /obj/item/circuitboard/machine/engine/overmap/standard
 	thrust = 30
-	max_power_draw = 80000
+	max_power_draw = 40000
 	/// Fraction of rated thrust produced in hall-only mode (no propellant, grid power only).
 	var/hall_only_efficiency = 0.15
 	/// Power draw multiplier while running in hall-only mode.
@@ -69,6 +72,9 @@
 /// Active whenever it has propellant OR any grid power to run hall-only mode.
 /obj/machinery/power/shuttle_engine/overmap/standard/update_engine()
 	thruster_active = TRUE
+	if(machine_stat & BROKEN)
+		thruster_active = FALSE
+		return FALSE
 	if(panel_open)
 		thruster_active = FALSE
 		return FALSE
@@ -84,7 +90,7 @@
 	thruster_active = FALSE
 	return FALSE
 
-/obj/machinery/power/shuttle_engine/overmap/standard/burn_engine(percentage = 100, skip_engine_update = FALSE)
+/obj/machinery/power/shuttle_engine/overmap/standard/burn_engine(percentage = 100, skip_engine_update = FALSE, dt = 1)
 	if(!enabled)
 		return 0
 	if(!skip_engine_update && !update_engine())
@@ -93,7 +99,7 @@
 		return 0
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_feed_propellant())
-		return ..(percentage, skip_engine_update = TRUE)
+		return ..(percentage, skip_engine_update = TRUE, dt = dt)
 	// Chamber still has gas but L2 has not pressurized yet — wait, do not hall-only.
 	if(injector?.has_propellant())
 		return 0
@@ -101,7 +107,7 @@
 	var/power_fraction = get_power_fraction()
 	if(power_fraction <= 0)
 		return 0
-	use_energy(max_power_draw * power_fraction * hall_only_power_mult * (percentage / 100))
+	consume_grid_power(power_fraction, hall_only_power_mult * (percentage / 100), dt)
 	burning = TRUE
 	return thrust * power_fraction * hall_only_efficiency * (percentage / 100)
 

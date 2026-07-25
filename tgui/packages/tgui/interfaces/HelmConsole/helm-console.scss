@@ -26,6 +26,71 @@
   height: 100% !important;
 }
 
+.HelmConsole__contact-overlay {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.HelmConsole__contact-reticle,
+.HelmConsole__contact-arrow {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  color: #8cf;
+  text-shadow: 0 0 5px rgba(80, 180, 255, 0.8);
+}
+
+.HelmConsole__contact-reticle-ring {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #8cf;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 8px rgba(80, 180, 255, 0.35),
+    0 0 8px rgba(80, 180, 255, 0.35);
+}
+
+.HelmConsole__contact-reticle-ring::before,
+.HelmConsole__contact-reticle-ring::after {
+  position: absolute;
+  content: '';
+  background: #8cf;
+}
+
+.HelmConsole__contact-reticle-ring::before {
+  top: 14px;
+  left: 4px;
+  width: 20px;
+  height: 1px;
+}
+
+.HelmConsole__contact-reticle-ring::after {
+  top: 4px;
+  left: 14px;
+  width: 1px;
+  height: 20px;
+}
+
+.HelmConsole__contact-arrow {
+  max-width: 300px;
+}
+
+.HelmConsole__contact-arrow-glyph {
+  display: inline-block;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.HelmConsole__contact-label {
+  padding: 2px 5px;
+  background: rgba(4, 10, 18, 0.82);
+  border: 1px solid rgba(80, 180, 255, 0.45);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .HelmConsole__console {
   flex: 0 0 310px;
   display: flex;
@@ -338,6 +403,10 @@
   margin-bottom: 6px;
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(80, 160, 255, 0.1);
+
+  &--spaced {
+    margin-top: 10px;
+  }
 }
 
 .HelmPanel__row {

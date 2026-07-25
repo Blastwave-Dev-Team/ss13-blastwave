@@ -93,6 +93,11 @@
 	var/vel_y = 0
 	/// Earliest world.time we may rebuild cam_screen without `force`.
 	var/next_screen_update = 0
+	/// Last live-camera turf bounds, exposed to TGUI for contact projection.
+	var/camera_min_x
+	var/camera_min_y
+	var/camera_size_x
+	var/camera_size_y
 	/// Admin diag: stay on SSfastprocess while stationary (no icon motion).
 	var/diag_hold_physics = FALSE
 	/// Fractional-tile position (tile units). Reconciled via Move(); rendered with pixel_x/y + animate.
@@ -124,14 +129,12 @@
 		cam_screen = new
 		cam_screen.generate_view(map_name)
 		update_screen(TRUE)
-	// new(turf) may skip Moved — seed same-tile peers here.
-	if(isturf(loc))
-		for(var/obj/structure/overmap/peer in loc)
-			if(peer == src)
-				continue
-			peer.on_overmap_crossed(src, null)
+	refresh_close_overmap_objects()
 
 /obj/structure/overmap/Destroy()
+	for(var/obj/structure/overmap/peer as anything in close_overmap_objects)
+		LAZYREMOVE(peer.close_overmap_objects, src)
+	close_overmap_objects = null
 	LAZYREMOVE(SSovermap.overmap_objects, src)
 	STOP_PROCESSING(SSfastprocess, src)
 	QDEL_NULL(cam_screen)
@@ -169,6 +172,7 @@
 			if(peer == src)
 				continue
 			peer.on_overmap_crossed(src, old_loc)
+	refresh_close_overmap_objects()
 
 /// Absolute pixel X on the overmap grid (tile anchor + fractional offset).
 /obj/structure/overmap/proc/get_overmap_abs_px()
@@ -189,6 +193,37 @@
 	pixel_x = 0
 	pixel_y = 0
 	animate(src, pixel_x = 0, pixel_y = 0, time = 0, flags = ANIMATION_END_NOW)
+
+/// When nearly still, Move() to the nearest turf under the visible sprite.
+/// Spacepod-style: |offset| > 0.5 crosses a tile boundary; otherwise stay.
+/// Failed Moves clear that axis offset so map edges cannot soft-lock.
+/obj/structure/overmap/proc/settle_overmap_rest_offsets()
+	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_x > 0.5)
+			if(Move(get_step(src, EAST)))
+				offset_x -= 1
+				motion_last_offset_x -= 1
+			else
+				offset_x = 0
+		if(offset_x < -0.5)
+			if(Move(get_step(src, WEST)))
+				offset_x += 1
+				motion_last_offset_x += 1
+			else
+				offset_x = 0
+	if(abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_y > 0.5)
+			if(Move(get_step(src, NORTH)))
+				offset_y -= 1
+				motion_last_offset_y -= 1
+			else
+				offset_y = 0
+		if(offset_y < -0.5)
+			if(Move(get_step(src, SOUTH)))
+				offset_y += 1
+				motion_last_offset_y += 1
+			else
+				offset_y = 0
 
 /// Reconcile fractional offsets with tile coordinates via Move(), spacepod-style.
 /obj/structure/overmap/proc/reconcile_overmap_offsets()
@@ -233,32 +268,7 @@
 			failed_y = TRUE
 		if(failed_x && failed_y)
 			break
-	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON)
-		if(offset_x > 0.5)
-			if(Move(get_step(src, EAST)))
-				offset_x -= 1
-				motion_last_offset_x -= 1
-			else
-				offset_x = 0
-		if(offset_x < -0.5)
-			if(Move(get_step(src, WEST)))
-				offset_x += 1
-				motion_last_offset_x += 1
-			else
-				offset_x = 0
-	if(abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
-		if(offset_y > 0.5)
-			if(Move(get_step(src, NORTH)))
-				offset_y -= 1
-				motion_last_offset_y -= 1
-			else
-				offset_y = 0
-		if(offset_y < -0.5)
-			if(Move(get_step(src, SOUTH)))
-				offset_y += 1
-				motion_last_offset_y += 1
-			else
-				offset_y = 0
+	settle_overmap_rest_offsets()
 
 /// Client-side glide for fractional motion; does not touch step_x/step_y.
 /obj/structure/overmap/proc/apply_overmap_visual(dt)
@@ -294,11 +304,19 @@
 	if(!length(visible_turfs))
 		// Off-grid (e.g. ship in CentCom-tier nullspace). Show static so the
 		// widget still has visible dimensions instead of collapsing to ~0px.
+		camera_min_x = null
+		camera_min_y = null
+		camera_size_x = null
+		camera_size_y = null
 		cam_screen.show_camera_static()
 		return TRUE
 	var/list/bbox = get_bbox_of_atoms(visible_turfs)
 	var/size_x = bbox[3] - bbox[1] + 1
 	var/size_y = bbox[4] - bbox[2] + 1
+	camera_min_x = bbox[1]
+	camera_min_y = bbox[2]
+	camera_size_x = size_x
+	camera_size_y = size_y
 	cam_screen.show_camera(visible_turfs, size_x, size_y)
 	return TRUE
 
@@ -374,8 +392,8 @@
 	cam_background.icon_state = "scanline2"
 	cam_background.fill_rect(1, 1, 9, 9)
 
-/// Adjacency tracking. Two overmap objects on the same tile know about each
-/// other so the helm radar and dock-via-Act flow can find their neighbors.
+/// Proximity tracking for helm actions. Crossing callbacks seed exact-tile
+/// peers; refresh_close_overmap_objects() extends this to interaction range.
 /// Uses custom procs because `/atom/movable/Crossed` is not overridable.
 /obj/structure/overmap/proc/on_overmap_crossed(obj/structure/overmap/other, atom/oldloc)
 	if(!istype(loc, /turf) || !istype(other))
@@ -395,8 +413,29 @@
 	LAZYREMOVE(other.close_overmap_objects, src)
 	LAZYREMOVE(close_overmap_objects, other)
 
+/obj/structure/overmap/proc/is_in_overmap_interaction_range(obj/structure/overmap/other)
+	return other && other != src && z == other.z && get_dist(src, other) <= OVERMAP_INTERACTION_RANGE
+
+/obj/structure/overmap/proc/refresh_close_overmap_objects()
+	for(var/obj/structure/overmap/peer as anything in close_overmap_objects?.Copy())
+		if(is_in_overmap_interaction_range(peer))
+			// Normalize any duplicates accumulated by older append-based refreshes.
+			LAZYREMOVE(peer.close_overmap_objects, src)
+			LAZYOR(peer.close_overmap_objects, src)
+			LAZYREMOVE(close_overmap_objects, peer)
+			LAZYOR(close_overmap_objects, peer)
+			continue
+		LAZYREMOVE(peer.close_overmap_objects, src)
+		LAZYREMOVE(close_overmap_objects, peer)
+	for(var/obj/structure/overmap/peer as anything in SSovermap.overmap_objects)
+		if(!is_in_overmap_interaction_range(peer))
+			continue
+		LAZYOR(peer.close_overmap_objects, src)
+		LAZYOR(close_overmap_objects, peer)
+
 /obj/structure/overmap/proc/receive_damage(amount)
 	integrity = max(integrity - (amount / overmap_armor), 0)
+	update_appearance()
 
 /// Integrates velocity into pixel displacement. Ticked by SSfastprocess via `process()`.
 /obj/structure/overmap/proc/physics_tick(dt)
@@ -425,11 +464,14 @@
 	START_PROCESSING(SSfastprocess, src)
 
 /// Stop physics ticks and zero velocity.
+/// Settles to the nearest turf under the visible sprite before clearing
+/// fractional offsets so parking does not jump +1 in the travel direction.
 /obj/structure/overmap/proc/deactivate_physics()
 	diag_hold_physics = FALSE
-	overmap_reset_visual_offset()
 	vel_x = 0
 	vel_y = 0
+	settle_overmap_rest_offsets()
+	overmap_reset_visual_offset()
 	if(render_map && cam_screen && cam_has_viewers())
 		update_screen(TRUE)
 	STOP_PROCESSING(SSfastprocess, src)
@@ -565,4 +607,35 @@
 	member_template_ids = null
 	chained_templates = null
 	return ..()
+
+/// A lazily-created shared EVA space for ships landed on an otherwise empty
+/// overmap tile. It persists while ships or minded crew remain.
+/obj/structure/overmap/level/site/open_space
+	name = "Open Space"
+	desc = "A locally stabilized patch of open space suitable for EVA and boarding."
+	id = null
+	preloaded = TRUE
+	preserve_level = FALSE
+	controlled = TRUE
+
+/obj/structure/overmap/level/site/open_space/Destroy()
+	if(length(linked_levels))
+		for(var/z_value in linked_levels)
+			INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value)
+	linked_levels = null
+	return ..()
+
+/obj/structure/overmap/level/site/open_space/proc/try_cleanup()
+	if(!length(linked_levels))
+		return
+	var/content_z = linked_levels[1]
+	for(var/obj/docking_port/mobile/port as anything in SSshuttle.mobile_docking_ports)
+		if(port.z == content_z)
+			return
+	for(var/mob/living/living_mob as anything in GLOB.mob_living_list)
+		if(living_mob.z == content_z && living_mob.mind)
+			return
+	linked_levels = null
+	INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), content_z)
+	qdel(src)
 

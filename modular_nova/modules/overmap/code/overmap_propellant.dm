@@ -155,10 +155,9 @@ GLOBAL_LIST_INIT(overmap_propellant_isp, list(
 
 /// Full-throttle propellant demand for one engine (mol/s).
 /proc/overmap_engine_propellant_mol_s(thrust, power_fraction)
-	var/denom = OVERMAP_G0 * OVERMAP_PROP_MOLES_PER_THRUST
-	if(denom <= 0)
+	if(OVERMAP_PROP_MOLES_PER_THRUST <= 0)
 		return 0
-	return (thrust * clamp(power_fraction, 0, 1)) / denom
+	return thrust * clamp(power_fraction, 0, 1) * OVERMAP_PROP_MOLES_PER_THRUST
 
 /// Propellant moles for a burn slice. `burn_pct` 100 = one second of full demand.
 /proc/overmap_engine_propellant_share_moles(thrust, power_fraction, burn_pct)

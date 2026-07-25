@@ -1,10 +1,11 @@
 // THIS IS A NOVA SECTOR UI FILE
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ByondUi, NoticeBox, ProgressBar } from 'tgui-core/components';
 import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
 import { Window } from '../layouts';
+import { ContactIndicator } from './HelmConsole/ContactIndicator';
 import { NavBall } from './HelmConsole/NavBall';
 import './HelmConsole/helm-console.scss';
 
@@ -16,6 +17,7 @@ type ShipInfo = {
   ref: string;
   mass?: number;
   est_thrust?: number;
+  disabled?: BooleanLike;
 };
 
 type LandingZone = {
@@ -41,11 +43,40 @@ type EngineInfo = {
   fuel: number;
   maxFuel: number;
   enabled: BooleanLike;
+  broken?: BooleanLike;
   ref: string;
   fuelSource?: 'injector' | 'hall-only' | 'none';
   pressure?: number;
   temperature?: number;
   feedPressure?: number;
+};
+
+export type GpsContact = {
+  name: string;
+  ref: string;
+  tags: string[];
+  bearing: number;
+  distance: number;
+  x: number;
+  y: number;
+  offsetX: number;
+  offsetY: number;
+  local: BooleanLike;
+};
+
+export type MapView = {
+  minX: number;
+  minY: number;
+  sizeX: number;
+  sizeY: number;
+};
+
+type OpenSpaceData = {
+  x: number;
+  y: number;
+  available: BooleanLike;
+  siteRef?: string;
+  landingZones: LandingZone[];
 };
 
 type Data = {
@@ -68,6 +99,11 @@ type Data = {
   spool_pct?: number;
   x: number;
   y: number;
+  offsetX?: number;
+  offsetY?: number;
+  gpsContacts?: GpsContact[];
+  mapView?: MapView;
+  openSpace?: OpenSpaceData;
   state?: 'idle' | 'flying' | 'docking' | 'undocking';
   stopped?: BooleanLike;
   docked?: BooleanLike;
@@ -76,6 +112,7 @@ type Data = {
   gpsBeacon?: BooleanLike;
   gpsBeaconPref?: BooleanLike;
   gpsBeaconLanded?: BooleanLike;
+  emergencyBraking?: BooleanLike;
 };
 
 export const HelmConsole = () => {
@@ -84,6 +121,16 @@ export const HelmConsole = () => {
   const [activeTab, setActiveTab] = useState<'status' | 'engines' | 'radar'>(
     'status',
   );
+  const [selectedGpsRef, setSelectedGpsRef] = useState<string>();
+  const selectedGps = data.gpsContacts?.find(
+    (contact) => contact.ref === selectedGpsRef,
+  );
+
+  useEffect(() => {
+    if (selectedGpsRef && !selectedGps) {
+      setSelectedGpsRef(undefined);
+    }
+  }, [selectedGps, selectedGpsRef]);
 
   return (
     <Window width={900} height={720}>
@@ -100,6 +147,17 @@ export const HelmConsole = () => {
               Helm not bound to any starmap object. Move it to a shuttle, or
               set its target via VV.
             </NoticeBox>
+          )}
+          {selectedGps && data.mapView && (
+            <ContactIndicator
+              contact={selectedGps}
+              heading={data.heading ?? 0}
+              mapView={data.mapView}
+              shipX={data.x}
+              shipY={data.y}
+              shipOffsetX={data.offsetX ?? 0}
+              shipOffsetY={data.offsetY ?? 0}
+            />
           )}
         </div>
         <div className="HelmConsole__console">
@@ -151,7 +209,12 @@ export const HelmConsole = () => {
             <div className="HelmConsole__tab-content">
               {activeTab === 'status' && <StatusTab />}
               {activeTab === 'engines' && <EnginesTab />}
-              {activeTab === 'radar' && <RadarTab />}
+              {activeTab === 'radar' && (
+                <RadarTab
+                  selectedGpsRef={selectedGpsRef}
+                  onSelectGps={setSelectedGpsRef}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -171,6 +234,7 @@ const StatusTab = () => {
     isViewer,
     gpsBeacon,
     gpsBeaconLanded,
+    emergencyBraking,
     target_mol_s = 0,
     delivered_mol_s = 0,
     spool_pct = 0,
@@ -273,6 +337,20 @@ const StatusTab = () => {
           </>
         )}
       </div>
+      {!isViewer && state === 'flying' && (
+        <div className="HelmPanel__section">
+          <button
+            className="HelmPanel__btn HelmPanel__btn--danger"
+            style={{ width: '100%' }}
+            disabled={!!emergencyBraking}
+            onClick={() => act('emergency_brake')}
+          >
+            {emergencyBraking
+              ? 'Emergency Brake Active'
+              : 'Engage Emergency Brake'}
+          </button>
+        </div>
+      )}
       {!!docked && state === 'idle' && (
         <div className="HelmPanel__section">
           <button
@@ -346,18 +424,23 @@ const EnginesTab = () => {
               <button
                 className={
                   'HelmPanel__engine-toggle' +
-                  (engine.enabled ? ' HelmPanel__engine-toggle--on' : '')
+                  (engine.enabled && !engine.broken
+                    ? ' HelmPanel__engine-toggle--on'
+                    : '')
                 }
-                disabled={!!isViewer}
+                disabled={!!isViewer || !!engine.broken}
                 onClick={() => act('toggle_engine', { engine: engine.ref })}
               >
                 <span
                   className={
                     'HelmPanel__engine-indicator' +
-                    (engine.enabled ? ' HelmPanel__engine-indicator--on' : '')
+                    (engine.enabled && !engine.broken
+                      ? ' HelmPanel__engine-indicator--on'
+                      : '')
                   }
                 />
                 {engine.name}
+                {engine.broken ? ' [BROKEN]' : ''}
               </button>
               <div className="HelmPanel__engine-fuel">
                 {engine.maxFuel > 0 && (
@@ -444,9 +527,22 @@ const contactTypeLabel = (type?: string) => {
   }
 };
 
-const RadarTab = () => {
+type RadarTabProps = {
+  selectedGpsRef?: string;
+  onSelectGps: (ref?: string) => void;
+};
+
+const RadarTab = ({ selectedGpsRef, onSelectGps }: RadarTabProps) => {
   const { act, data } = useBackend<Data>();
-  const { isViewer, otherInfo = [], state, stopped, scanReady } = data;
+  const {
+    gpsContacts = [],
+    isViewer,
+    openSpace,
+    otherInfo = [],
+    state,
+    stopped,
+    scanReady,
+  } = data;
   const canDock = !isViewer && state === 'flying' && !!stopped && !data.docked;
 
   return (
@@ -553,6 +649,105 @@ const RadarTab = () => {
             ) : null}
           </div>
         ))
+      )}
+      <div className="HelmPanel__section-title HelmPanel__section-title--spaced">
+        GPS Transponders
+      </div>
+      {gpsContacts.length === 0 ? (
+        <div className="HelmPanel__radar-empty">
+          No active transponders resolved.
+        </div>
+      ) : (
+        gpsContacts.map((contact) => (
+          <div className="HelmPanel__radar-item" key={contact.ref}>
+            <div style={{ flex: 1 }}>
+              <div className="HelmPanel__radar-name">
+                [{contact.local ? 'LOCAL' : 'GPS'}] {contact.name}
+              </div>
+              <div
+                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+              >
+                {contact.tags.join(', ')}
+                {!contact.local &&
+                  ` · ${String(contact.bearing).padStart(3, '0')}° / ${contact.distance} tiles`}
+              </div>
+            </div>
+            {!contact.local && (
+              <button
+                className={
+                  'HelmPanel__btn' +
+                  (selectedGpsRef === contact.ref
+                    ? ' HelmPanel__btn--active'
+                    : '')
+                }
+                onClick={() =>
+                  onSelectGps(
+                    selectedGpsRef === contact.ref ? undefined : contact.ref,
+                  )
+                }
+              >
+                {selectedGpsRef === contact.ref ? 'Tracking' : 'Track'}
+              </button>
+            )}
+          </div>
+        ))
+      )}
+      {!isViewer && state === 'flying' && openSpace && (
+        <>
+          <div className="HelmPanel__section-title HelmPanel__section-title--spaced">
+            Open-Space Landing
+          </div>
+          <div className="HelmPanel__radar-item">
+            <div style={{ flex: 1 }}>
+              <div className="HelmPanel__radar-name">
+                Coordinate {openSpace.x}, {openSpace.y}
+              </div>
+              <div
+                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+              >
+                {stopped
+                  ? 'Ready to stabilize landing site'
+                  : 'Residual drift detected — all stop required'}
+              </div>
+            </div>
+            <button
+              className="HelmPanel__btn"
+              onClick={() => act('land_open_space')}
+            >
+              Dock in Space
+            </button>
+          </div>
+          {(openSpace.landingZones?.length ?? 0) > 0 && (
+            <div style={{ marginLeft: '16px' }}>
+              {openSpace.landingZones.map((zone) => (
+                <div className="HelmPanel__radar-item" key={zone.ref}>
+                  <div style={{ flex: 1 }}>
+                    <div className="HelmPanel__radar-name">{zone.name}</div>
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        opacity: 0.7,
+                        marginTop: '2px',
+                      }}
+                    >
+                      {zone.width}x{zone.height} tiles
+                    </div>
+                  </div>
+                  <button
+                    className="HelmPanel__btn"
+                    onClick={() =>
+                      act('land_open_space', {
+                        lz: zone.ref,
+                      })
+                    }
+                  >
+                    Land
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

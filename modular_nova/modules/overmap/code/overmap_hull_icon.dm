@@ -172,6 +172,12 @@
 
 	var/result = call_ext(lib_name, "byond,await:generate_hull")(json)
 
+	// The renderer sleeps outside BYOND. The ship may be deleted while it runs.
+	if(QDELETED(src) || !shuttle)
+		if(result && fexists(result))
+			fdel(result)
+		return null
+
 	if(!result)
 		log_game("OVERMAP: Hull icon generation failed — Rust DLL returned null")
 		generating_hull_icon = FALSE

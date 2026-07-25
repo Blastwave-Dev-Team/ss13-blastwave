@@ -6,7 +6,7 @@
 #define ZTRAIT_OVERMAP "Overmap"
 
 /// Width/height of the overmap grid (square).
-#define OVERMAP_DIMENSIONS 20
+#define OVERMAP_DIMENSIONS 64
 
 /// Cap on placement retries when picking a free overmap tile.
 #define MAX_OVERMAP_PLACEMENT_ATTEMPTS 100
@@ -63,6 +63,27 @@
 /// Programmable landing controller board: lock console to one ID owner; pad stays open.
 #define LANDING_CONTROLLER_LOCK_USER "user"
 
+// Shipyard fabricator construction phases.
+#define SHIPYARD_PHASE_RODS 1
+#define SHIPYARD_PHASE_PLATING 2
+#define SHIPYARD_PHASE_FRAMES 3
+#define SHIPYARD_PHASE_STRUCTURE 4
+#define SHIPYARD_PHASE_NETWORKS 5
+#define SHIPYARD_PHASE_FINAL 6
+#define SHIPYARD_PHASE_COMMISSIONING 7
+
+// Declarative shipyard operation kinds.
+#define SHIPYARD_OP_RODS "rods"
+#define SHIPYARD_OP_PLATING "plating"
+#define SHIPYARD_OP_GIRDER "girder"
+#define SHIPYARD_OP_MACHINE_FRAME "machine_frame"
+#define SHIPYARD_OP_COMPUTER_FRAME "computer_frame"
+#define SHIPYARD_OP_TURF "turf"
+#define SHIPYARD_OP_OBJECT "object"
+#define SHIPYARD_OP_MACHINE "machine"
+#define SHIPYARD_OP_COMPUTER "computer"
+#define SHIPYARD_OP_COMMISSION "commission"
+
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"
 #define OVERMAP_SHIP_FLYING "flying"
@@ -84,6 +105,9 @@
 /// Cooldown between active radar scans from a single ship.
 #define OVERMAP_SCAN_COOLDOWN (5 SECONDS)
 
+/// Chebyshev tile range for docking and direct overmap interactions.
+#define OVERMAP_INTERACTION_RANGE 1
+
 /// Time before a scanned contact fades from the radar if not re-scanned.
 #define OVERMAP_SCAN_DECAY (30 SECONDS)
 
@@ -97,17 +121,19 @@
 
 /// Max pixel displacement per physics tick. Prevents ships from clipping
 /// through edge turfs. Must be less than ICON_SIZE_ALL (32) to guarantee
-/// no tile-skipping. At 5Hz and OVERMAP_MAX_SPEED=2, peak displacement
+/// no tile-skipping. At 5Hz and the hard speed limit of 2, peak displacement
 /// is 12.8px/tick — comfortably under this cap.
 #define OVERMAP_INTERPOLATE_LIMIT 16
 
 /// Velocity epsilon: below this threshold, consider the ship stopped.
-#define OVERMAP_VELOCITY_EPSILON 0.001
+/// Must stay below one assisted hall/partial-throttle acceleration step.
+#define OVERMAP_VELOCITY_EPSILON 0.00001
 
 /// Gravitational constant for ISP/escape velocity calculations.
 #define OVERMAP_G0 9.8
 
-/// Max ship speed in tiles/second.
+/// Emergency integration ceiling in tiles/second. Normal cruise is the lower
+/// flight-assisted envelope derived from thrust, mass, and braking distance.
 #define OVERMAP_MAX_SPEED 2
 
 /// Maneuverability: how quickly actual velocity converges on desired (0..1 per second).
@@ -115,10 +141,22 @@
 #define OVERMAP_MANEUVERABILITY 0.8
 
 /// Converts thrust/mass into tiles/s² toward the throttle target.
-/// Tuned so a typical frigate (~3× HNT ≈ 90 thrust, ~100 turf mass) reaches cruise
-/// in a similar ballpark to the old OVERMAP_MANEUVERABILITY=0.8 blend from rest
-/// (initial accel ≈ max_speed * 0.8). Hall-only (~0.15× thrust) is then ~6–7× slower.
-#define OVERMAP_THRUST_ACCEL_SCALE 1.8
+/// At 0.029, one healthy HNT (30 thrust) on a mass-100 ship crosses the
+/// 64×64 playable diagonal in roughly six minutes at full throttle.
+#define OVERMAP_THRUST_ACCEL_SCALE 0.029
+
+/// Flight computer target stopping distance in overmap tiles. The assisted
+/// speed envelope is sqrt(2 * available_acceleration * this distance).
+#define OVERMAP_ASSIST_BRAKING_DISTANCE 4
+
+/// Emergency recovery brake authority relative to normal rated braking.
+#define OVERMAP_EMERGENCY_BRAKE_MULTIPLIER 3
+/// One-shot hull integrity cost at minimum and maximum flight speed.
+#define OVERMAP_EMERGENCY_BRAKE_HULL_DAMAGE_MIN 3
+#define OVERMAP_EMERGENCY_BRAKE_HULL_DAMAGE_MAX 15
+/// Physical brute damage dealt to each active engine at minimum/maximum speed.
+#define OVERMAP_EMERGENCY_BRAKE_ENGINE_DAMAGE_MIN 20
+#define OVERMAP_EMERGENCY_BRAKE_ENGINE_DAMAGE_MAX 100
 
 // --- Propellant / fuel injector ---
 
