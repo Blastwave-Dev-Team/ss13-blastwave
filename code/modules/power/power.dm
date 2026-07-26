@@ -379,6 +379,10 @@
 	return .
 
 /proc/update_cable_icons_on_turf(turf/T)
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - target turf may be deleted before a deferred icon update
+	if(isnull(T))
+		return
+	// BLASTWAVE EDIT ADDITION END
 	for(var/obj/structure/cable/C in T.contents)
 		C.update_appearance()
 

@@ -20,11 +20,17 @@
 
 /obj/item/ship_blueprint_disk/Initialize(mapload)
 	. = ..()
+	addtimer(CALLBACK(src, PROC_REF(load_ship_plan)), 0)
+
+/obj/item/ship_blueprint_disk/proc/load_ship_plan()
+	if(ship_plan)
+		return ship_plan
 	if(!ispath(template_type, /datum/map_template/shuttle))
-		return
+		return null
 	var/datum/map_template/shuttle/template = new template_type()
 	ship_plan = new /datum/ship_plan/template(template)
 	update_appearance()
+	return ship_plan
 
 /obj/item/ship_blueprint_disk/Destroy()
 	QDEL_NULL(ship_plan)

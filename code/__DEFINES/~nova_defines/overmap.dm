@@ -80,6 +80,7 @@
 #define SHIPYARD_OP_COMPUTER_FRAME "computer_frame"
 #define SHIPYARD_OP_TURF "turf"
 #define SHIPYARD_OP_OBJECT "object"
+#define SHIPYARD_OP_GENERATED "generated"
 #define SHIPYARD_OP_MACHINE "machine"
 #define SHIPYARD_OP_COMPUTER "computer"
 #define SHIPYARD_OP_COMMISSION "commission"

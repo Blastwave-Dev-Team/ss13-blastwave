@@ -15,6 +15,8 @@
 #define SHIPYARD_DISH_IDLE "shuttle_printer-dish_idle"
 #define SHIPYARD_DISH_ACTIVE "shuttle_printer-dish_active"
 #define SHIPYARD_DISH_ERROR "shuttle_printer-dish_error"
+#define SHIPYARD_RPED "shuttle_printer-rped"
+#define SHIPYARD_RPED_BLUESPACE "shuttle_printer-rped_bluespace"
 
 /// Landing-zone claim held while a shipyard build is active.
 /obj/effect/landmark/overmap_landing_zone
@@ -141,6 +143,9 @@
 
 /obj/machinery/shipyard_fabricator/update_overlays()
 	. = ..()
+	if(docked_rped)
+		var/rped_icon_state = istype(docked_rped, /obj/item/storage/part_replacer/bluespace) ? SHIPYARD_RPED_BLUESPACE : SHIPYARD_RPED
+		. += mutable_appearance(icon, rped_icon_state, layer + 0.1)
 	if(!printer_deployed)
 		return
 	var/mutable_appearance/dish = mutable_appearance(icon, dish_icon_state, layer + 0.2)
@@ -241,6 +246,8 @@
 	blueprint_disk = null
 	docked_rped = null
 	intake_blueprints = null
+	if(!QDELETED(src))
+		update_appearance()
 
 /obj/machinery/shipyard_fabricator/add_context(atom/source, list/context, obj/item/held_item, mob/user)
 	. = ..()
@@ -253,7 +260,7 @@
 
 /obj/machinery/shipyard_fabricator/proc/dock_rped(mob/user, obj/item/storage/part_replacer/replacer)
 	if(docked_rped)
-		balloon_alert(user, "RPED dock occupied")
+		balloon_alert(user, "rped dock occupied")
 		return FALSE
 	if(!user.Adjacent(src))
 		balloon_alert(user, "too far away")
@@ -261,7 +268,8 @@
 	if(!user.transferItemToLoc(replacer, src))
 		return FALSE
 	docked_rped = replacer
-	balloon_alert(user, "RPED docked")
+	update_appearance()
+	balloon_alert(user, "rped docked")
 	return TRUE
 
 // RPEDs intercept machinery clicks before item_interaction(). Treat the first
@@ -276,9 +284,13 @@
 		if(blueprint_disk)
 			balloon_alert(user, "disk slot occupied")
 			return ITEM_INTERACT_BLOCKING
+		var/obj/item/ship_blueprint_disk/disk = tool
+		if(!disk.load_ship_plan())
+			balloon_alert(user, "unreadable blueprint")
+			return ITEM_INTERACT_BLOCKING
 		if(!user.transferItemToLoc(tool, src))
 			return ITEM_INTERACT_BLOCKING
-		blueprint_disk = tool
+		blueprint_disk = disk
 		balloon_alert(user, "blueprint loaded")
 		return ITEM_INTERACT_SUCCESS
 	if(istype(tool, /obj/item/storage/part_replacer))
@@ -412,6 +424,7 @@
 				return FALSE
 			docked_rped?.forceMove(drop_location())
 			docked_rped = null
+			update_appearance()
 			. = TRUE
 		if("eject_blueprints")
 			intake_blueprints?.forceMove(drop_location())

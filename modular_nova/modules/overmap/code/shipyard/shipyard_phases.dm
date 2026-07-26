@@ -17,7 +17,7 @@
 			return !!(locate(/obj/structure/frame/computer) in work_turf)
 		if(SHIPYARD_OP_TURF)
 			return istype(work_turf, target_path)
-		if(SHIPYARD_OP_OBJECT, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER, SHIPYARD_OP_COMMISSION)
+		if(SHIPYARD_OP_OBJECT, SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER, SHIPYARD_OP_COMMISSION)
 			return !!(locate(target_path) in work_turf)
 	return FALSE
 
@@ -53,6 +53,8 @@
 			result = execute_turf(work_turf)
 		if(SHIPYARD_OP_OBJECT)
 			result = execute_object(work_turf)
+		if(SHIPYARD_OP_GENERATED)
+			result = execute_generated(work_turf)
 		if(SHIPYARD_OP_MACHINE)
 			result = execute_machine(work_turf, fabricator)
 		if(SHIPYARD_OP_COMPUTER)
@@ -140,6 +142,31 @@
 		created.setDir(desired_vars["dir"])
 	return TRUE
 
+/// Initialize away from the world, sanitize, then place and activate atomically.
+/datum/ship_plan_op/proc/execute_generated(turf/work_turf)
+	if(locate(target_path) in work_turf)
+		return TRUE
+	var/atom/movable/created = new target_path(null)
+	if(!created || QDELETED(created))
+		return "Failed to initialize [target_path]."
+	if(!created.shipyard_prepare(desired_vars))
+		qdel(created)
+		return "Failed to prepare [target_path] for placement."
+	created.forceMove(work_turf)
+	if(QDELETED(created))
+		return "Failed to place [target_path]."
+	created.shipyard_commission(desired_vars)
+	apply_mapping_helpers(created)
+	return TRUE
+
+/datum/ship_plan_op/proc/apply_mapping_helpers(atom/movable/target)
+	for(var/list/helper_spec as anything in helper_specs)
+		var/helper_path = helper_spec["path"]
+		if(!ispath(helper_path, /obj/effect/mapping_helpers))
+			continue
+		var/list/helper_vars = helper_spec["vars"]
+		new helper_path(get_turf(target), target, helper_vars)
+
 /datum/ship_plan_op/proc/find_board(obj/item/storage/part_replacer/replacer)
 	if(!replacer || !board_path)
 		return null
@@ -200,6 +227,26 @@
 	target.shipyard_commission(desired_vars)
 	return TRUE
 
+/// Nullspace preparation hook. Return FALSE to prevent world placement.
+/atom/movable/proc/shipyard_prepare(list/desired_vars)
+	if(!islist(desired_vars))
+		return TRUE
+	if("dir" in desired_vars)
+		setDir(desired_vars["dir"])
+	if("anchored" in desired_vars)
+		set_anchored(desired_vars["anchored"])
+	for(var/var_name in desired_vars)
+		if(var_name in list("dir", "anchored"))
+			continue
+		if(var_name in vars)
+			var/value = desired_vars[var_name]
+			if(islist(value))
+				var/list/list_value = value
+				vars[var_name] = list_value.Copy()
+			else
+				vars[var_name] = value
+	return TRUE
+
 /// Safe default commissioning surface. Rich machines override this hook.
 /atom/movable/proc/shipyard_commission(list/desired_vars)
 	if(!islist(desired_vars))
@@ -209,9 +256,77 @@
 	if("anchored" in desired_vars)
 		set_anchored(desired_vars["anchored"])
 	for(var/var_name in list("color", "initialize_directions", "pipe_color", "piping_layer"))
-		if(var_name in desired_vars && var_name in vars)
+		if((var_name in desired_vars) && (var_name in vars))
 			vars[var_name] = desired_vars[var_name]
 	update_appearance()
+
+/obj/machinery/light/shipyard_prepare(list/desired_vars)
+	. = ..()
+	status = LIGHT_OK
+	return TRUE
+
+/obj/machinery/light/shipyard_commission(list/desired_vars)
+	. = ..()
+	find_and_mount_on_atom()
+	power_change()
+	update(instant = TRUE, play_sound = FALSE)
+
+/obj/structure/closet/shipyard_prepare(list/desired_vars)
+	. = ..()
+	contents_initialized = TRUE
+	is_maploaded = FALSE
+	opened = FALSE
+	for(var/atom/movable/content as anything in contents.Copy())
+		qdel(content)
+	return TRUE
+
+/obj/machinery/portable_atmospherics/canister/shipyard_prepare(list/desired_vars)
+	. = ..()
+	QDEL_NULL(internal_cell)
+	air_contents = new(volume)
+	air_contents.temperature = T20C
+	valve_open = FALSE
+	holding = null
+	return TRUE
+
+/obj/machinery/power/apc/shipyard_prepare(list/desired_vars)
+	. = ..()
+	QDEL_NULL(cell)
+	if(cell_type)
+		cell = new cell_type(src)
+		cell.charge = clamp(start_charge, 0, 100) * cell.maxcharge / 100
+	has_electronics = APC_ELECTRONICS_SECURED
+	opened = APC_COVER_CLOSED
+	operating = TRUE
+	set_machine_stat(machine_stat & ~MAINT)
+	return TRUE
+
+/obj/machinery/power/apc/shipyard_commission(list/desired_vars)
+	. = ..()
+	assign_to_area()
+	make_terminal()
+	terminal?.connect_to_network()
+	find_and_mount_on_atom()
+	update()
+
+/obj/machinery/airalarm/shipyard_prepare(list/desired_vars)
+	. = ..()
+	buildstage = AIR_ALARM_BUILD_COMPLETE
+	set_panel_open(FALSE)
+	return TRUE
+
+/obj/machinery/airalarm/shipyard_commission(list/desired_vars)
+	. = ..()
+	my_area = get_area(src)
+	if(!("name" in desired_vars))
+		name = "[get_area_name(src)] Air Alarm"
+	find_and_mount_on_atom()
+	check_enviroment()
+
+/obj/machinery/power/terminal/shipyard_commission(list/desired_vars)
+	. = ..()
+	master = null
+	connect_to_network()
 
 /obj/machinery/power/shuttle_engine/overmap/shipyard_commission(list/desired_vars)
 	. = ..()

@@ -128,6 +128,16 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `code/controllers/subsystem/atoms.dm` - re-check `INITIALIZED_1` after
   `CreateAtoms` yield so async modular map loads (Port Tarkon) cannot
   double-init unique ruin areas (BLASTWAVE EDIT - OVERMAP).
+- `code/game/objects/structures/crates_lockers/closets/utility_closets.dm` -
+  confines emergency-closet random replacement/deletion to mapload so
+  nullspace shipyard preparation is deterministic.
+- `code/modules/mapping/mapping_helpers.dm` - accepts an explicit completed
+  shipyard target and serialized DMM vars, then applies airlock, air-alarm,
+  and APC behavior through the actual inherited helper subtype.
+- `code/modules/power/lighting/light.dm` - permits initialized light fixtures
+  to remain safely in nullspace until atomic shipyard placement.
+- `code/modules/power/power.dm` - ignores deferred cable icon refreshes whose
+  turf was deleted during shuttle/test cleanup.
 
 ### Config (map JSON, not .dmm)
 

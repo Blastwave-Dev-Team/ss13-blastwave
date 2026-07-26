@@ -121,9 +121,25 @@
 	// Unless otherwise specified, layer above everything
 	layer = ABOVE_ALL_MOB_LAYER
 	var/late = FALSE
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - apply serialized helpers to shipyard-built targets
+	/// Explicit completed target supplied by shipyard fabrication.
+	var/atom/movable/shipyard_target
+	// BLASTWAVE EDIT ADDITION END
 
-/obj/effect/mapping_helpers/Initialize(mapload)
+/obj/effect/mapping_helpers/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/effect/mapping_helpers/Initialize(mapload)
 	..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - restore DMM helper vars before inherited payload
+	if(explicit_target)
+		shipyard_target = explicit_target
+		for(var/var_name in mapped_vars)
+			if(var_name in vars)
+				var/value = mapped_vars[var_name]
+				if(islist(value))
+					var/list/list_value = value
+					vars[var_name] = list_value.Copy()
+				else
+					vars[var_name] = value
+	// BLASTWAVE EDIT ADDITION END
 	return late ? INITIALIZE_HINT_LATELOAD : INITIALIZE_HINT_QDEL
 
 //airlock helpers
@@ -133,8 +149,15 @@
 	/// If TRUE we will apply to every windoor in the loc if we can't find an airlock.
 	var/apply_to_windoors = FALSE
 
-/obj/effect/mapping_helpers/airlock/Initialize(mapload)
+/obj/effect/mapping_helpers/airlock/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/effect/mapping_helpers/airlock/Initialize(mapload)
 	. = ..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - delegate shipyard access setup to the actual helper subtype
+	if(shipyard_target)
+		if(!istype(shipyard_target, /obj/machinery/door/airlock))
+			return INITIALIZE_HINT_QDEL
+		payload(shipyard_target)
+		return INITIALIZE_HINT_LATELOAD
+	// BLASTWAVE EDIT ADDITION END
 	if(!mapload)
 		log_mapping("[src] spawned outside of mapload!")
 		return
@@ -156,7 +179,7 @@
 	payload(airlock)
 
 /obj/effect/mapping_helpers/airlock/LateInitialize()
-	var/obj/machinery/door/airlock/airlock = locate(/obj/machinery/door/airlock) in loc
+	var/obj/machinery/door/airlock/airlock = shipyard_target ? shipyard_target : locate(/obj/machinery/door/airlock) in loc // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/obj/machinery/door/airlock/airlock = locate(/obj/machinery/door/airlock) in loc
 	if(!airlock)
 		qdel(src)
 		return
@@ -310,8 +333,15 @@
 	desc = "You shouldn't see this. Report it please."
 	late = TRUE
 
-/obj/effect/mapping_helpers/airalarm/Initialize(mapload)
+/obj/effect/mapping_helpers/airalarm/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/effect/mapping_helpers/airalarm/Initialize(mapload)
 	. = ..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - delegate shipyard alarm setup to the actual helper subtype
+	if(shipyard_target)
+		if(!istype(shipyard_target, /obj/machinery/airalarm))
+			return INITIALIZE_HINT_QDEL
+		payload(shipyard_target)
+		return INITIALIZE_HINT_LATELOAD
+	// BLASTWAVE EDIT ADDITION END
 	if(!mapload)
 		log_mapping("[src] spawned outside of mapload!")
 		return INITIALIZE_HINT_QDEL
@@ -326,7 +356,7 @@
 	return INITIALIZE_HINT_LATELOAD
 
 /obj/effect/mapping_helpers/airalarm/LateInitialize()
-	var/obj/machinery/airalarm/target = locate(/obj/machinery/airalarm) in loc
+	var/obj/machinery/airalarm/target = shipyard_target ? shipyard_target : locate(/obj/machinery/airalarm) in loc // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/obj/machinery/airalarm/target = locate(/obj/machinery/airalarm) in loc
 
 	if(isnull(target))
 		qdel(src)
@@ -459,14 +489,14 @@
 	var/chamber_id = ""
 	var/allow_link_change = FALSE
 
-/obj/effect/mapping_helpers/airalarm/link/Initialize(mapload)
+/obj/effect/mapping_helpers/airalarm/link/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/effect/mapping_helpers/airalarm/link/Initialize(mapload)
 	. = ..()
-	if(!mapload)
+	if(!mapload && !shipyard_target) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: if(!mapload)
 		log_mapping("[src] spawned outside of mapload!")
 		return INITIALIZE_HINT_QDEL
 
 /obj/effect/mapping_helpers/airalarm/link/LateInitialize(mapload)
-	var/obj/machinery/airalarm/alarm = locate(/obj/machinery/airalarm) in loc
+	var/obj/machinery/airalarm/alarm = shipyard_target ? shipyard_target : locate(/obj/machinery/airalarm) in loc // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/obj/machinery/airalarm/alarm = locate(/obj/machinery/airalarm) in loc
 	if(!isnull(alarm))
 		alarm.air_sensor_chamber_id = chamber_id
 		alarm.allow_link_change = allow_link_change
@@ -491,8 +521,15 @@
 	desc = "You shouldn't see this. Report it please."
 	late = TRUE
 
-/obj/effect/mapping_helpers/apc/Initialize(mapload)
+/obj/effect/mapping_helpers/apc/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/effect/mapping_helpers/apc/Initialize(mapload)
 	. = ..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - delegate shipyard APC setup to the actual helper subtype
+	if(shipyard_target)
+		if(!istype(shipyard_target, /obj/machinery/power/apc))
+			return INITIALIZE_HINT_QDEL
+		payload(shipyard_target)
+		return INITIALIZE_HINT_LATELOAD
+	// BLASTWAVE EDIT ADDITION END
 	if(!mapload)
 		log_mapping("[src] spawned outside of mapload!")
 		return INITIALIZE_HINT_QDEL
@@ -507,7 +544,7 @@
 	return INITIALIZE_HINT_LATELOAD
 
 /obj/effect/mapping_helpers/apc/LateInitialize()
-	var/obj/machinery/power/apc/target = locate(/obj/machinery/power/apc) in loc
+	var/obj/machinery/power/apc/target = shipyard_target ? shipyard_target : locate(/obj/machinery/power/apc) in loc // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/obj/machinery/power/apc/target = locate(/obj/machinery/power/apc) in loc
 
 	if(isnull(target))
 		qdel(src)

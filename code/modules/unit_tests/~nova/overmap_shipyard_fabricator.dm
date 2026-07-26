@@ -32,6 +32,7 @@
 	for(var/disk_type in disk_types)
 		var/obj/item/ship_blueprint_disk/disk = allocate(disk_type)
 		disks[disk_type] = disk
+		disk.load_ship_plan()
 		TEST_ASSERT(disk.ship_plan, "[disk_type] should initialize a ship plan.")
 		TEST_ASSERT_EQUAL(disk.ship_plan.width, 18, "[disk_type] should retain the frigate template width.")
 		TEST_ASSERT_EQUAL(disk.ship_plan.height, 12, "[disk_type] should retain the frigate template height.")
@@ -45,6 +46,42 @@
 	var/obj/item/ship_blueprint_disk/typed_cutter = disks[/obj/item/ship_blueprint_disk/solfed_cutter/typed]
 	var/obj/item/ship_blueprint_disk/generic_patrol = disks[/obj/item/ship_blueprint_disk/solfed_patrol]
 	var/obj/item/ship_blueprint_disk/typed_patrol = disks[/obj/item/ship_blueprint_disk/solfed_patrol/typed]
+	var/cutter_wall_count = 0
+	var/list/generated_families = list(
+		"light" = FALSE,
+		"chair" = FALSE,
+		"closet" = FALSE,
+		"canister" = FALSE,
+		"apc" = FALSE,
+		"airalarm" = FALSE,
+		"terminal" = FALSE,
+	)
+	for(var/datum/ship_plan_op/operation as anything in generic_cutter.ship_plan.manifest)
+		if(operation.op_type != SHIPYARD_OP_TURF || !ispath(operation.target_path, /turf/closed/wall))
+			if(operation.op_type != SHIPYARD_OP_GENERATED)
+				continue
+			if(ispath(operation.target_path, /obj/machinery/light))
+				generated_families["light"] = TRUE
+			else if(ispath(operation.target_path, /obj/structure/chair))
+				generated_families["chair"] = TRUE
+			else if(ispath(operation.target_path, /obj/structure/closet))
+				generated_families["closet"] = TRUE
+			else if(ispath(operation.target_path, /obj/machinery/portable_atmospherics/canister))
+				generated_families["canister"] = TRUE
+			else if(ispath(operation.target_path, /obj/machinery/power/apc))
+				generated_families["apc"] = TRUE
+				TEST_ASSERT(operation.material_cost[/datum/material/glass] >= SMALL_MATERIAL_AMOUNT, "APC generation should include its autolathe electronics cost.")
+			else if(ispath(operation.target_path, /obj/machinery/airalarm))
+				generated_families["airalarm"] = TRUE
+			else if(ispath(operation.target_path, /obj/machinery/power/terminal))
+				generated_families["terminal"] = TRUE
+			continue
+		cutter_wall_count++
+		TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/titanium], SHEET_MATERIAL_AMOUNT * 2, "Cutter walls should retain their declared titanium cost.")
+		TEST_ASSERT(!operation.material_cost[/datum/material/iron], "Cutter wall construction should not substitute iron for titanium.")
+	TEST_ASSERT(cutter_wall_count, "Cutter blueprint should contain material-aware wall operations.")
+	for(var/family in generated_families)
+		TEST_ASSERT(generated_families[family], "Cutter blueprint should generate its mapped [family] fixtures.")
 	TEST_ASSERT_EQUAL(generic_cutter.registration_port_type, /obj/docking_port/mobile/custom, "Generic Cutter disk should retain custom registration.")
 	TEST_ASSERT_EQUAL(generic_patrol.registration_port_type, /obj/docking_port/mobile/custom, "Generic Patrol disk should retain custom registration.")
 	TEST_ASSERT_EQUAL(typed_cutter.registration_port_type, /obj/docking_port/mobile/overmap/frigate/solfed_cutter, "Typed Cutter disk should select its frigate port.")
@@ -52,6 +89,93 @@
 	TEST_ASSERT_EQUAL(typed_cutter.registration_area_type, /area/shuttle/overmap/frigate, "Typed Cutter disk should select the frigate area.")
 	TEST_ASSERT_EQUAL(typed_patrol.registration_area_type, /area/shuttle/overmap/frigate, "Typed Patrol disk should select the frigate area.")
 	TEST_ASSERT(!typed_cutter.registration_is_custom && !typed_patrol.registration_is_custom, "Typed disks should register as non-custom shuttles.")
+
+/datum/unit_test/overmap_shipyard_fabricator/generated_objects
+
+/datum/unit_test/overmap_shipyard_fabricator/generated_objects/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, origin)
+	zone.zone_width = 4
+	zone.zone_height = 2
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, get_step(origin, WEST))
+	fabricator.claimed_zone = WEAKREF(zone)
+
+	var/datum/ship_plan_op/closet_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		0,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/structure/closet/emcloset/wall,
+	)
+	TEST_ASSERT_EQUAL(closet_operation.execute_generated(origin), TRUE, "Closet shell should generate.")
+	var/obj/structure/closet/generated_closet = locate() in origin
+	TEST_ASSERT(generated_closet.contents_initialized, "Generated closet should suppress lazy contents.")
+	TEST_ASSERT(!length(generated_closet.contents), "Generated closet should be empty before entering the world.")
+
+	var/turf/canister_turf = get_step(origin, EAST)
+	var/datum/ship_plan_op/canister_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		1,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/portable_atmospherics/canister/air,
+	)
+	TEST_ASSERT_EQUAL(canister_operation.execute_generated(canister_turf), TRUE, "Canister shell should generate.")
+	var/obj/machinery/portable_atmospherics/canister/generated_canister = locate() in canister_turf
+	TEST_ASSERT_EQUAL(generated_canister.air_contents.total_moles(), 0, "Generated canister should be empty before entering the world.")
+	TEST_ASSERT(!generated_canister.internal_cell, "Generated canister should omit its mapload-only cell.")
+
+	var/turf/light_turf = get_step(origin, NORTH)
+	var/datum/ship_plan_op/light_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		0,
+		1,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/light/floor/transport,
+	)
+	TEST_ASSERT_EQUAL(light_operation.execute_generated(light_turf), TRUE, "Light fixture should generate.")
+	var/obj/machinery/light/generated_light = locate() in light_turf
+	TEST_ASSERT_EQUAL(generated_light.status, LIGHT_OK, "Generated light fixture should be operational.")
+
+	var/turf/chair_turf = get_step(light_turf, EAST)
+	var/datum/ship_plan_op/chair_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		1,
+		1,
+		SHIPYARD_OP_GENERATED,
+		/obj/structure/chair/comfy/shuttle/tactical,
+		null,
+		list("dir" = EAST),
+	)
+	TEST_ASSERT_EQUAL(chair_operation.execute_generated(chair_turf), TRUE, "Chair should generate.")
+	var/obj/structure/chair/generated_chair = locate() in chair_turf
+	TEST_ASSERT_EQUAL(generated_chair.dir, EAST, "Generated chair should preserve its mapped direction.")
+
+	var/obj/machinery/power/apc/generated_apc = new /obj/machinery/power/apc(null)
+	TEST_ASSERT(generated_apc.shipyard_prepare(list("cell_type" = /obj/item/stock_parts/power_store/battery/bluespace, "start_charge" = 50)), "APC should prepare in nullspace.")
+	TEST_ASSERT(istype(generated_apc.cell, /obj/item/stock_parts/power_store/battery/bluespace), "Prepared APC should use its DMM-selected cell type.")
+	TEST_ASSERT_EQUAL(generated_apc.cell.charge, generated_apc.cell.maxcharge * 0.5, "Prepared APC should honor its mapped starting charge.")
+	qdel(generated_apc)
+
+	var/turf/airlock_turf = get_step(canister_turf, EAST)
+	var/list/helper_specs = list(list(
+		"path" = /obj/effect/mapping_helpers/airlock/access/any/engineering/engine_equipment,
+		"vars" = list(),
+	))
+	var/datum/ship_plan_op/airlock_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		2,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/door/airlock/engineering/glass,
+		null,
+		null,
+		null,
+		helper_specs,
+	)
+	TEST_ASSERT_EQUAL(airlock_operation.execute_generated(airlock_turf), TRUE, "Airlock should generate with its helper.")
+	var/obj/machinery/door/airlock/generated_airlock = locate() in airlock_turf
+	TEST_ASSERT(ACCESS_ENGINE_EQUIP in generated_airlock.req_one_access, "Generated airlock should inherit access from the real mapping-helper subtype.")
 
 /datum/unit_test/overmap_shipyard_fabricator/typed_registration
 	var/datum/turf_reservation/typed_reservation
@@ -167,6 +291,22 @@
 	TEST_ASSERT_EQUAL(replacer.interact_with_atom(fabricator, user, list()), ITEM_INTERACT_SUCCESS, "The RPED's machinery interaction should dock instead of exchanging fabricator parts.")
 	TEST_ASSERT_EQUAL(fabricator.docked_rped, replacer, "The clicked RPED should become the shipyard parts inventory.")
 	TEST_ASSERT(replacer.loc == fabricator, "A docked RPED should be transferred into the fabricator.")
+	var/found_rped_overlay = FALSE
+	for(var/mutable_appearance/overlay as anything in fabricator.update_overlays())
+		if(overlay.icon_state == "shuttle_printer-rped")
+			found_rped_overlay = TRUE
+			break
+	TEST_ASSERT(found_rped_overlay, "A docked RPED should appear in the printer's right-hand dock.")
+
+	replacer.forceMove(user_turf)
+	var/obj/item/storage/part_replacer/bluespace/bluespace_replacer = allocate(/obj/item/storage/part_replacer/bluespace, fabricator)
+	fabricator.docked_rped = bluespace_replacer
+	var/found_bluespace_overlay = FALSE
+	for(var/mutable_appearance/overlay as anything in fabricator.update_overlays())
+		if(overlay.icon_state == "shuttle_printer-rped_bluespace")
+			found_bluespace_overlay = TRUE
+			break
+	TEST_ASSERT(found_bluespace_overlay, "A docked bluespace RPED should use its matching dock overlay.")
 
 /datum/unit_test/overmap_shipyard_fabricator/phase_projections
 
