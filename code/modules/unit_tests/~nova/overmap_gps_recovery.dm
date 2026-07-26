@@ -99,14 +99,14 @@
 	ship.mass = 100
 	ship.vel_x = 0.2
 	ship.vel_y = 0
-	var/engine_integrity_before = engine.atom_integrity
+	var/engine_integrity_before = engine.get_integrity()
 	var/expected_acceleration = (engine.thrust / ship.mass) * OVERMAP_THRUST_ACCEL_SCALE * OVERMAP_EMERGENCY_BRAKE_MULTIPLIER
 
 	TEST_ASSERT(ship.engage_emergency_brake(), "Moving ship should engage its emergency brake.")
 	TEST_ASSERT(ship.emergency_braking, "Emergency brake state should remain active until stopped.")
 	TEST_ASSERT(abs(ship.emergency_brake_acceleration - expected_acceleration) < 0.0001, "Emergency braking should use three times rated acceleration.")
 	TEST_ASSERT(ship.integrity < initial(ship.integrity), "Emergency braking should damage hull integrity once.")
-	TEST_ASSERT(engine.atom_integrity < engine_integrity_before, "Emergency braking should physically damage active engines.")
+	TEST_ASSERT(engine.get_integrity() < engine_integrity_before, "Emergency braking should physically damage active engines.")
 	var/speed_before = ship.get_speed()
 	ship.apply_braking(1)
 	TEST_ASSERT(abs((speed_before - ship.get_speed()) - expected_acceleration) < 0.0001, "Emergency braking deceleration should match captured authority.")
