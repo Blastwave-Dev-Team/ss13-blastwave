@@ -122,6 +122,37 @@
 	TEST_ASSERT_EQUAL(typed_patrol.registration_area_type, /area/shuttle/overmap/frigate, "Typed Patrol disk should select the frigate area.")
 	TEST_ASSERT(!typed_cutter.registration_is_custom && !typed_patrol.registration_is_custom, "Typed disks should register as non-custom shuttles.")
 
+/datum/unit_test/overmap_shipyard_fabricator/chair_recipes
+
+/datum/unit_test/overmap_shipyard_fabricator/chair_recipes/Run()
+	var/datum/ship_plan/template/plan = new
+	var/supported_count = 0
+	var/blacklisted_count = 0
+	for(var/chair_path in typesof(/obj/structure/chair))
+		var/datum/shipyard_generator/generator = get_shipyard_generator(chair_path)
+		TEST_ASSERT(generator, "[chair_path] should resolve to a shipyard generator or blacklist.")
+		if(!generator)
+			continue
+		if(generator.blacklisted)
+			blacklisted_count++
+			continue
+
+		var/list/resolved_cost = generator.resolve_materials(plan, chair_path, list())
+		TEST_ASSERT(length(resolved_cost), "[chair_path] should resolve a non-empty fabrication cost or be explicitly blacklisted.")
+		for(var/material_path in resolved_cost)
+			TEST_ASSERT(ispath(material_path, /datum/material), "[chair_path] returned non-material fabrication key [material_path].")
+			TEST_ASSERT(resolved_cost[material_path] > 0, "[chair_path] returned a non-positive fabrication cost for [material_path].")
+
+		var/obj/structure/chair/chair_type = chair_path
+		var/list/declared_materials = initial(chair_type.custom_materials)
+		for(var/material_path in declared_materials)
+			TEST_ASSERT_EQUAL(resolved_cost[material_path], declared_materials[material_path], "[chair_path] should retain its declared [material_path] cost.")
+		supported_count++
+
+	TEST_ASSERT(supported_count, "Chair recipe coverage should include supported chair types.")
+	TEST_ASSERT(blacklisted_count, "Chair recipe coverage should include explicitly blacklisted chair types.")
+	qdel(plan)
+
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects
 
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects/Run()

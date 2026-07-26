@@ -89,6 +89,8 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	var/phase = SHIPYARD_PHASE_FINAL
 	/// Suppress a standalone terminal when its tile already contains an APC.
 	var/skip_on_apc_tile = FALSE
+	/// This type and its descendants cannot be safely reproduced by the shipyard.
+	var/blacklisted = FALSE
 
 /datum/shipyard_generator/proc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
 	var/list/result
@@ -112,10 +114,17 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	list/member_attributes,
 	has_apc,
 )
+	if(blacklisted)
+		plan.record_skipped(produced_type, rel_x, rel_y, "blacklisted fabrication type")
+		return
 	if(skip_on_apc_tile && has_apc)
 		return
 	if(board_path)
 		plan.add_machine_operations(produced_type, rel_x, rel_y, desired, FALSE, board_path)
+		return
+	var/list/resolved_materials = resolve_materials(plan, produced_type, desired)
+	if(!length(resolved_materials))
+		plan.record_skipped(produced_type, rel_x, rel_y, "no fabrication material recipe")
 		return
 	var/list/helper_specs
 	if(helper_type)
@@ -127,7 +136,7 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 		desired,
 		helper_specs,
 		phase,
-		resolve_materials(plan, produced_type, desired),
+		resolved_materials,
 		required_parts,
 	)
 
@@ -146,7 +155,27 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 /datum/shipyard_generator/chair/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
 	// Chair subtypes declare their actual construction stock (for example, shuttle
 	// seats use titanium while ordinary chairs use iron).
-	return plan.declared_material_cost(produced_type)
+	var/obj/structure/chair/chair_type = produced_type
+	var/list/declared_materials = initial(chair_type.custom_materials)
+	if(length(declared_materials))
+		return declared_materials.Copy()
+	return plan.stack_material_cost(initial(chair_type.buildstacktype), initial(chair_type.buildstackamount))
+
+/datum/shipyard_generator/chair/greyscale
+	target_type = /obj/structure/chair/greyscale
+	blacklisted = TRUE
+
+/datum/shipyard_generator/chair/carp
+	target_type = /obj/structure/chair/comfy/carp
+	blacklisted = TRUE
+
+/datum/shipyard_generator/chair/electric
+	target_type = /obj/structure/chair/e_chair
+	blacklisted = TRUE
+
+/datum/shipyard_generator/chair/mime
+	target_type = /obj/structure/chair/mime
+	blacklisted = TRUE
 
 /datum/shipyard_generator/closet
 	target_type = /obj/structure/closet
@@ -330,20 +359,27 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	if(length(declared_materials))
 		return declared_materials.Copy()
 
-	var/obj/item/stack/sheet/sheet_type = initial(wall_type.sheet_type)
-	var/list/per_sheet = initial(sheet_type.mats_per_unit)
-	if(!length(per_sheet))
-		var/material_type = initial(sheet_type.material_type)
-		if(material_type)
-			per_sheet = list()
-			per_sheet[material_type] = SHEET_MATERIAL_AMOUNT
-	if(!length(per_sheet))
+	var/list/result = stack_material_cost(initial(wall_type.sheet_type), initial(wall_type.sheet_amount))
+	if(!length(result))
 		return list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+	return result
 
+/// Resolve the material content of a number of stack units.
+/datum/ship_plan/template/proc/stack_material_cost(stack_path, amount)
+	if(!ispath(stack_path, /obj/item/stack) || amount <= 0)
+		return list()
+	var/obj/item/stack/stack_type = stack_path
+	var/list/per_unit = initial(stack_type.mats_per_unit)
+	if(!length(per_unit))
+		var/material_type = initial(stack_type.material_type)
+		if(material_type)
+			per_unit = list()
+			per_unit[material_type] = SHEET_MATERIAL_AMOUNT
+	if(!length(per_unit))
+		return list()
 	var/list/result = list()
-	var/sheet_amount = initial(wall_type.sheet_amount)
-	for(var/material_path in per_sheet)
-		result[material_path] = per_sheet[material_path] * sheet_amount
+	for(var/material_path in per_unit)
+		result[material_path] = per_unit[material_path] * amount
 	return result
 
 /// Merge a material dictionary into another without retaining shared lists.
