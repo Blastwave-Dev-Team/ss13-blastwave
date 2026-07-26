@@ -198,10 +198,7 @@
 	var/list/available_parts = replacer.get_sorted_parts()
 	var/list/selected_parts = list()
 	for(var/requirement in required_parts)
-		var/target_path = requirement
-		if(ispath(requirement, /datum/stock_part))
-			var/datum/stock_part/stock_part = requirement
-			target_path = initial(stock_part.physical_object_base_type)
+		var/target_path = shipyard_part_item_type(requirement)
 		var/remaining = required_parts[requirement]
 		for(var/obj/item/part as anything in available_parts)
 			if(!istype(part, target_path))

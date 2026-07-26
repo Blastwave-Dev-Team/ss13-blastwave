@@ -619,7 +619,8 @@
 
 	var/list/requirements = shipyard_board_requirements(board_path)
 	var/list/component_materials = apply_material_policy_soft(requirements["materials"], machine_path, rel_x, rel_y)
-	var/list/component_parts = requirements["parts"].Copy()
+	var/list/board_parts = requirements["parts"]
+	var/list/component_parts = board_parts.Copy()
 	for(var/part_path in route?.required_parts)
 		component_parts[part_path] = (component_parts[part_path] || 0) + route.required_parts[part_path]
 

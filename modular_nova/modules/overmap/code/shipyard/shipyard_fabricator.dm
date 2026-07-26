@@ -387,11 +387,11 @@
 	if(!plan)
 		return result
 	for(var/part_path in plan.required_parts)
+		var/obj/item/item_path = shipyard_part_item_type(part_path)
 		var/count = 0
 		for(var/obj/item/part in docked_rped?.contents)
-			if(istype(part, part_path))
+			if(istype(part, item_path))
 				count++
-		var/obj/item/item_path = part_path
 		result += list(list(
 			"name" = initial(item_path.name),
 			"required" = plan.required_parts[part_path],

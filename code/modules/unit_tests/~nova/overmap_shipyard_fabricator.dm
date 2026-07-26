@@ -396,6 +396,72 @@
 	if(length(failures))
 		TEST_FAIL("Board machine coverage found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
 
+/// Board manifests name stock parts as datums while an RPED holds items, so the
+/// readout must translate between them or report everything as unavailable.
+/datum/unit_test/overmap_shipyard_fabricator/rped_availability
+
+/datum/unit_test/overmap_shipyard_fabricator/rped_availability/Run()
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		run_loc_floor_bottom_left,
+	)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/solfed_cutter)
+	disk.load_ship_plan()
+	var/datum/ship_plan/template/plan = disk.ship_plan
+	TEST_ASSERT(istype(plan), "RPED availability test requires the Cutter template plan.")
+
+	var/list/stock_part_requirements = list()
+	for(var/requirement in plan.required_parts)
+		if(ispath(requirement, /datum/stock_part))
+			stock_part_requirements += requirement
+	TEST_ASSERT(length(stock_part_requirements), "Cutter blueprint should request stock parts from an RPED.")
+
+	var/obj/item/storage/part_replacer/replacer = allocate(/obj/item/storage/part_replacer/bluespace)
+	for(var/requirement in stock_part_requirements)
+		var/obj/item/item_path = shipyard_part_item_type(requirement)
+		TEST_ASSERT(ispath(item_path, /obj/item), "[requirement] should name a physical stock part item.")
+		var/obj/item/part = allocate(item_path)
+		part.forceMove(replacer)
+	fabricator.docked_rped = replacer
+
+	var/list/summary = fabricator.part_summary(plan)
+	TEST_ASSERT_EQUAL(length(summary), length(plan.required_parts), "Every requirement should report a row.")
+
+	var/list/failures = list()
+	var/row_index = 0
+	for(var/requirement in plan.required_parts)
+		row_index++
+		if(!ispath(requirement, /datum/stock_part))
+			continue
+		var/list/row = summary[row_index]
+		var/obj/item/item_path = shipyard_part_item_type(requirement)
+		if(row["available"] < 1)
+			failures += "[requirement] reads as unavailable while the RPED holds one"
+		if(row["name"] != initial(item_path.name))
+			failures += "[requirement] is labelled '[row["name"]]' rather than '[initial(item_path.name)]'"
+	if(length(failures))
+		TEST_FAIL("RPED availability found [length(failures)] issue(s):\n[jointext(failures, "\n")]")
+
+	// A better part satisfies a requirement for a plainer one, so the upgraded
+	// tiers a bluespace RPED is stocked with have to count toward it.
+	TEST_ASSERT(plan.required_parts[/datum/stock_part/capacitor], "Cutter blueprint should request baseline capacitors.")
+	var/capacitor_row = 0
+	row_index = 0
+	for(var/requirement in plan.required_parts)
+		row_index++
+		if(requirement == /datum/stock_part/capacitor)
+			capacitor_row = row_index
+			break
+	var/baseline = summary[capacitor_row]["available"]
+	var/obj/item/upgraded = allocate(/obj/item/stock_parts/capacitor/quadratic)
+	upgraded.forceMove(replacer)
+	summary = fabricator.part_summary(plan)
+	TEST_ASSERT_EQUAL(
+		summary[capacitor_row]["available"],
+		baseline + 1,
+		"A quadratic capacitor should count toward a baseline capacitor requirement.",
+	)
+
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects
 
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects/Run()

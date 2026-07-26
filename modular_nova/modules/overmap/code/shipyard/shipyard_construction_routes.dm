@@ -141,6 +141,19 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	GLOB.shipyard_board_requirements[board_path] = requirements
 	return requirements
 
+/**
+ * The physical item that satisfies a part requirement.
+ *
+ * Board manifests name stock parts as datums rather than items, so a docked
+ * RPED is searched for the base item they describe. Every tier is a subtype of
+ * that base, which is what lets a better part stand in for the one asked for.
+ */
+/proc/shipyard_part_item_type(requirement)
+	if(!ispath(requirement, /datum/stock_part))
+		return requirement
+	var/datum/stock_part/stock_part = requirement
+	return initial(stock_part.physical_object_base_type)
+
 /// Silo cost of printing a quantity of a loose machine component.
 /proc/shipyard_printed_component_cost(component_path, amount)
 	if(ispath(component_path, /obj/item/stack))
