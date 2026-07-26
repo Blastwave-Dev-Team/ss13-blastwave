@@ -346,7 +346,7 @@
 	data["operationTotal"] = length(plan?.manifest)
 	data["phase"] = current_phase
 	data["phaseCounts"] = plan?.phase_counts() || list()
-	data["skipped"] = plan?.skipped_contents || list()
+	data["skipped"] = plan?.skipped_report(check_rights_for(user.client, R_ADMIN | R_DEBUG)) || list()
 	data["faults"] = faults
 	data["siloLinked"] = !!materials?.silo
 	data["siloOnHold"] = materials?.on_hold()

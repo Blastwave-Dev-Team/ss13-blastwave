@@ -54,7 +54,7 @@
 		if(SHIPYARD_OP_OBJECT)
 			result = execute_object(work_turf)
 		if(SHIPYARD_OP_GENERATED)
-			result = execute_generated(work_turf)
+			result = execute_generated(work_turf, fabricator)
 		if(SHIPYARD_OP_MACHINE)
 			result = execute_machine(work_turf, fabricator)
 		if(SHIPYARD_OP_COMPUTER)
@@ -143,7 +143,7 @@
 	return TRUE
 
 /// Initialize away from the world, sanitize, then place and activate atomically.
-/datum/ship_plan_op/proc/execute_generated(turf/work_turf)
+/datum/ship_plan_op/proc/execute_generated(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
 	var/atom/movable/created = new target_path(null)
@@ -152,11 +152,45 @@
 	if(!created.shipyard_prepare(desired_vars))
 		qdel(created)
 		return "Failed to prepare [target_path] for placement."
+	if(!consume_required_parts(fabricator?.docked_rped, created))
+		if(fabricator)
+			fabricator.paused_reason = "RPED lacks parts for [target_path]."
+		qdel(created)
+		return null
 	created.forceMove(work_turf)
 	if(QDELETED(created))
 		return "Failed to place [target_path]."
 	created.shipyard_commission(desired_vars)
 	apply_mapping_helpers(created)
+	return TRUE
+
+/datum/ship_plan_op/proc/consume_required_parts(obj/item/storage/part_replacer/replacer, atom/movable/destination)
+	if(!length(required_parts))
+		return TRUE
+	if(!replacer)
+		return FALSE
+	var/list/available_parts = replacer.get_sorted_parts()
+	var/list/selected_parts = list()
+	for(var/requirement in required_parts)
+		var/target_path = requirement
+		if(ispath(requirement, /datum/stock_part))
+			var/datum/stock_part/stock_part = requirement
+			target_path = initial(stock_part.physical_object_base_type)
+		var/remaining = required_parts[requirement]
+		for(var/obj/item/part as anything in available_parts)
+			if(!istype(part, target_path))
+				continue
+			selected_parts += part
+			available_parts -= part
+			remaining--
+			if(!remaining)
+				break
+		if(remaining)
+			return FALSE
+	for(var/obj/item/part as anything in selected_parts)
+		if(!replacer.atom_storage.attempt_remove(part, destination))
+			return FALSE
+		qdel(part)
 	return TRUE
 
 /datum/ship_plan_op/proc/apply_mapping_helpers(atom/movable/target)
@@ -186,6 +220,7 @@
 		if(!board)
 			fabricator.paused_reason = "RPED lacks [board_path]."
 			return null
+		board.build_path = target_path
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Machine board could not be installed."
 	frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
@@ -327,6 +362,24 @@
 	. = ..()
 	master = null
 	connect_to_network()
+
+/obj/machinery/power/megacell_charger/shipyard_prepare(list/desired_vars)
+	. = ..()
+	buildstage = MEGACELL_CHARGER_COMPLETE
+	panel_open = FALSE
+	req_components = list()
+	return TRUE
+
+/obj/machinery/power/megacell_charger/shipyard_commission(list/desired_vars)
+	. = ..()
+	make_terminal()
+	terminal?.connect_to_network()
+	find_and_mount_on_atom()
+
+/obj/machinery/cell_charger_multi/wall_mounted/shipyard_commission(list/desired_vars)
+	. = ..()
+	find_and_mount_on_atom()
+	RefreshParts()
 
 /obj/machinery/power/shuttle_engine/overmap/shipyard_commission(list/desired_vars)
 	. = ..()

@@ -27,7 +27,11 @@
 		return ship_plan
 	if(!ispath(template_type, /datum/map_template/shuttle))
 		return null
-	var/datum/map_template/shuttle/template = new template_type()
+	var/datum/map_template/shuttle/template_defaults = template_type
+	var/template_key = "[initial(template_defaults.port_id)]_[initial(template_defaults.suffix)]"
+	var/datum/map_template/shuttle/template = SSmapping.shuttle_templates[template_key]
+	if(!template)
+		template = new template_type()
 	ship_plan = new /datum/ship_plan/template(template)
 	update_appearance()
 	return ship_plan

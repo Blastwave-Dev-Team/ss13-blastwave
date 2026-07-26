@@ -47,6 +47,12 @@
 	var/obj/item/ship_blueprint_disk/generic_patrol = disks[/obj/item/ship_blueprint_disk/solfed_patrol]
 	var/obj/item/ship_blueprint_disk/typed_patrol = disks[/obj/item/ship_blueprint_disk/solfed_patrol/typed]
 	var/cutter_wall_count = 0
+	var/found_tiny_fan = FALSE
+	var/found_metal_barricade = FALSE
+	var/found_plasteel_barricade = FALSE
+	var/found_megacell_charger = FALSE
+	var/found_wall_multicell_charger = FALSE
+	var/found_shuttle_chair = FALSE
 	var/list/generated_families = list(
 		"light" = FALSE,
 		"chair" = FALSE,
@@ -57,6 +63,23 @@
 		"terminal" = FALSE,
 	)
 	for(var/datum/ship_plan_op/operation as anything in generic_cutter.ship_plan.manifest)
+		if(operation.target_path == /obj/structure/fans/tiny)
+			found_tiny_fan = TRUE
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Tiny fan should use its two-sheet construction cost.")
+		else if(operation.target_path == /obj/structure/deployable_barricade/metal)
+			found_metal_barricade = TRUE
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Metal barricade should use its print cost.")
+		else if(operation.target_path == /obj/structure/deployable_barricade/metal/plasteel)
+			found_plasteel_barricade = TRUE
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Plasteel barricade should retain the base print cost.")
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/alloy/plasteel], SHEET_MATERIAL_AMOUNT * 2, "Plasteel barricade should add its upgrade cost.")
+		else if(operation.target_path == /obj/machinery/power/megacell_charger/wall)
+			found_megacell_charger = TRUE
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 7, "Megacell charger should consume seven iron sheets.")
+			TEST_ASSERT_EQUAL(operation.required_parts[/datum/stock_part/capacitor], 1, "Megacell charger should require one RPED capacitor.")
+		else if(operation.target_path == /obj/machinery/cell_charger_multi/wall_mounted && operation.op_type == SHIPYARD_OP_MACHINE)
+			found_wall_multicell_charger = TRUE
+			TEST_ASSERT_EQUAL(operation.board_path, /obj/item/circuitboard/machine/cell_charger_multi, "Wall multi-cell charger should use the standard multi-cell charger board.")
 		if(operation.op_type != SHIPYARD_OP_TURF || !ispath(operation.target_path, /turf/closed/wall))
 			if(operation.op_type != SHIPYARD_OP_GENERATED)
 				continue
@@ -64,6 +87,10 @@
 				generated_families["light"] = TRUE
 			else if(ispath(operation.target_path, /obj/structure/chair))
 				generated_families["chair"] = TRUE
+				if(ispath(operation.target_path, /obj/structure/chair/comfy/shuttle))
+					found_shuttle_chair = TRUE
+					TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/titanium], SHEET_MATERIAL_AMOUNT * 2, "Shuttle chairs should retain their two-sheet titanium cost.")
+					TEST_ASSERT(!operation.material_cost[/datum/material/iron], "Shuttle chair construction should not substitute iron for titanium.")
 			else if(ispath(operation.target_path, /obj/structure/closet))
 				generated_families["closet"] = TRUE
 			else if(ispath(operation.target_path, /obj/machinery/portable_atmospherics/canister))
@@ -80,6 +107,11 @@
 		TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/titanium], SHEET_MATERIAL_AMOUNT * 2, "Cutter walls should retain their declared titanium cost.")
 		TEST_ASSERT(!operation.material_cost[/datum/material/iron], "Cutter wall construction should not substitute iron for titanium.")
 	TEST_ASSERT(cutter_wall_count, "Cutter blueprint should contain material-aware wall operations.")
+	TEST_ASSERT(found_tiny_fan, "Cutter blueprint should generate its tiny fan.")
+	TEST_ASSERT(found_metal_barricade && found_plasteel_barricade, "Cutter blueprint should generate both deployable barricade types.")
+	TEST_ASSERT(found_megacell_charger, "Cutter blueprint should generate its wall megacell charger.")
+	TEST_ASSERT(found_wall_multicell_charger, "Cutter blueprint should construct its wall-mounted multi-cell charger.")
+	TEST_ASSERT(found_shuttle_chair, "Cutter blueprint should contain a material-aware shuttle chair.")
 	for(var/family in generated_families)
 		TEST_ASSERT(generated_families[family], "Cutter blueprint should generate its mapped [family] fixtures.")
 	TEST_ASSERT_EQUAL(generic_cutter.registration_port_type, /obj/docking_port/mobile/custom, "Generic Cutter disk should retain custom registration.")

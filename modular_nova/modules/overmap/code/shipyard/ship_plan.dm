@@ -13,6 +13,8 @@
 	var/list/desired_vars = list()
 	/// Mapping-helper types and var edits to apply after generated placement.
 	var/list/helper_specs = list()
+	/// Finished stock parts consumed from the docked RPED before direct generation.
+	var/list/required_parts = list()
 
 /datum/ship_plan_op/New(
 	phase,
@@ -24,6 +26,7 @@
 	list/desired_vars,
 	board_path,
 	list/helper_specs,
+	list/required_parts,
 )
 	src.phase = phase
 	src.rel_x = rel_x
@@ -37,6 +40,8 @@
 		src.desired_vars = desired_vars.Copy()
 	if(helper_specs)
 		src.helper_specs = helper_specs.Copy()
+	if(required_parts)
+		src.required_parts = required_parts.Copy()
 
 /// Returns a JSON-friendly summary for the fabricator UI.
 /datum/ship_plan_op/proc/as_list()
@@ -47,6 +52,170 @@
 		"operation" = op_type,
 		"target" = target_path ? "[target_path]" : null,
 	)
+
+GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
+
+/proc/build_shipyard_generator_registry()
+	var/list/registry = list()
+	for(var/generator_type in subtypesof(/datum/shipyard_generator))
+		var/datum/shipyard_generator/generator = new generator_type
+		if(generator.target_type)
+			registry[generator.target_type] = generator
+	return registry
+
+/proc/get_shipyard_generator(target_type)
+	while(target_type)
+		var/datum/shipyard_generator/generator = GLOB.shipyard_generators[target_type]
+		if(generator)
+			return generator
+		target_type = type2parent(target_type)
+	return null
+
+/// Declarative construction recipe for a directly reproduced mapped type.
+/datum/shipyard_generator
+	/// Base or exact map type handled by this recipe.
+	var/target_type
+	/// Silo materials. Empty recipes resolve the target's print/declaration cost.
+	var/list/materials = list()
+	/// Additional finished item paths whose autolathe costs come from the silo.
+	var/list/autolathe_inputs = list()
+	/// Finished stock parts consumed from the docked RPED.
+	var/list/required_parts = list()
+	/// Optional board for conventional machine-frame construction.
+	var/board_path
+	/// Mapping-helper family delegated to the completed target.
+	var/helper_type
+	/// Construction phase for direct generation.
+	var/phase = SHIPYARD_PHASE_FINAL
+	/// Suppress a standalone terminal when its tile already contains an APC.
+	var/skip_on_apc_tile = FALSE
+
+/datum/shipyard_generator/proc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
+	var/list/result
+	if(length(materials))
+		result = materials.Copy()
+	else
+		result = plan.autolathe_material_cost(produced_type)
+		if(!length(result))
+			result = plan.declared_material_cost(produced_type)
+	for(var/input_path in autolathe_inputs)
+		plan.merge_material_cost(result, plan.autolathe_material_cost(input_path))
+	return result
+
+/datum/shipyard_generator/proc/add_to_plan(
+	datum/ship_plan/template/plan,
+	produced_type,
+	rel_x,
+	rel_y,
+	list/desired,
+	list/members,
+	list/member_attributes,
+	has_apc,
+)
+	if(skip_on_apc_tile && has_apc)
+		return
+	if(board_path)
+		plan.add_machine_operations(produced_type, rel_x, rel_y, desired, FALSE, board_path)
+		return
+	var/list/helper_specs
+	if(helper_type)
+		helper_specs = plan.collect_helper_specs(members, member_attributes, helper_type)
+	plan.add_generated_operation(
+		produced_type,
+		rel_x,
+		rel_y,
+		desired,
+		helper_specs,
+		phase,
+		resolve_materials(plan, produced_type, desired),
+		required_parts,
+	)
+
+/datum/shipyard_generator/light
+	target_type = /obj/machinery/light
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+
+/datum/shipyard_generator/light/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
+	. = ..()
+	var/light_item = ispath(produced_type, /obj/machinery/light/small) ? /obj/item/light/bulb : /obj/item/light/tube
+	plan.merge_material_cost(., plan.autolathe_material_cost(light_item))
+
+/datum/shipyard_generator/chair
+	target_type = /obj/structure/chair
+
+/datum/shipyard_generator/chair/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
+	// Chair subtypes declare their actual construction stock (for example, shuttle
+	// seats use titanium while ordinary chairs use iron).
+	return plan.declared_material_cost(produced_type)
+
+/datum/shipyard_generator/closet
+	target_type = /obj/structure/closet
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+
+/datum/shipyard_generator/canister
+	target_type = /obj/machinery/portable_atmospherics/canister
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 10)
+
+/datum/shipyard_generator/apc
+	target_type = /obj/machinery/power/apc
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+	autolathe_inputs = list(/obj/item/electronics/apc)
+	helper_type = /obj/effect/mapping_helpers/apc
+
+/datum/shipyard_generator/apc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
+	. = ..()
+	var/cell_type = desired["cell_type"]
+	if(!ispath(cell_type, /obj/item/stock_parts/power_store))
+		var/obj/machinery/power/apc/apc_type = produced_type
+		cell_type = initial(apc_type.cell_type)
+	var/list/cell_cost = plan.autolathe_material_cost(cell_type)
+	if(!length(cell_cost))
+		cell_cost = plan.declared_material_cost(cell_type)
+	plan.merge_material_cost(., cell_cost)
+
+/datum/shipyard_generator/airalarm
+	target_type = /obj/machinery/airalarm
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+	autolathe_inputs = list(/obj/item/electronics/airalarm)
+	helper_type = /obj/effect/mapping_helpers/airalarm
+
+/datum/shipyard_generator/terminal
+	target_type = /obj/machinery/power/terminal
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT)
+	phase = SHIPYARD_PHASE_NETWORKS
+	skip_on_apc_tile = TRUE
+
+/datum/shipyard_generator/airlock
+	target_type = /obj/machinery/door
+	materials = list(
+		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
+		/datum/material/glass = HALF_SHEET_MATERIAL_AMOUNT,
+	)
+	helper_type = /obj/effect/mapping_helpers/airlock
+
+/datum/shipyard_generator/tiny_fan
+	target_type = /obj/structure/fans/tiny
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+
+/datum/shipyard_generator/metal_barricade
+	target_type = /obj/structure/deployable_barricade/metal
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+
+/datum/shipyard_generator/plasteel_barricade
+	target_type = /obj/structure/deployable_barricade/metal/plasteel
+	materials = list(
+		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
+		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2,
+	)
+
+/datum/shipyard_generator/megacell_charger
+	target_type = /obj/machinery/power/megacell_charger
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 7)
+	required_parts = list(/datum/stock_part/capacitor = 1)
+
+/datum/shipyard_generator/wall_multicell_charger
+	target_type = /obj/machinery/cell_charger_multi/wall_mounted
+	board_path = /obj/item/circuitboard/machine/cell_charger_multi
 
 /// A load-source-agnostic ship recipe.
 /datum/ship_plan
@@ -78,12 +247,28 @@
 		material_cost[material_path] = (material_cost[material_path] || 0) + operation.material_cost[material_path]
 	if(operation.board_path)
 		required_parts[operation.board_path] = (required_parts[operation.board_path] || 0) + 1
+	for(var/part_path in operation.required_parts)
+		required_parts[part_path] = (required_parts[part_path] || 0) + operation.required_parts[part_path]
 
 /datum/ship_plan/proc/phase_counts()
 	var/list/counts = list()
 	for(var/datum/ship_plan_op/operation as anything in manifest)
 		counts["[operation.phase]"] = (counts["[operation.phase]"] || 0) + 1
 	return counts
+
+/datum/ship_plan/proc/skipped_report(show_debug_details = FALSE)
+	var/list/report = list()
+	for(var/list/skipped as anything in skipped_contents)
+		var/atom/skipped_type = skipped["path"]
+		var/item_name = initial(skipped_type.name) || "unknown item"
+		if(show_debug_details)
+			var/reason = skipped["reason"]
+			var/rel_x = skipped["x"]
+			var/rel_y = skipped["y"]
+			report += "[skipped_type] at ([rel_x], [rel_y])[reason ? " ([reason])" : ""]"
+		else
+			report += item_name
+	return report
 
 /// A plan derived from a parsed shuttle DMM without loading it into the world.
 /datum/ship_plan/template
@@ -189,45 +374,6 @@
 	var/list/declared = initial(atom_type.custom_materials)
 	return length(declared) ? declared.Copy() : list()
 
-/// Costs for direct-generated fixtures and wall electronics.
-/datum/ship_plan/template/proc/generated_material_cost(target_path, list/desired)
-	var/list/result = autolathe_material_cost(target_path)
-	if(!length(result))
-		result = declared_material_cost(target_path)
-	if(ispath(target_path, /obj/machinery/light))
-		if(!length(result))
-			result[/datum/material/iron] = SHEET_MATERIAL_AMOUNT * 2
-		var/light_item = ispath(target_path, /obj/machinery/light/small) ? /obj/item/light/bulb : /obj/item/light/tube
-		merge_material_cost(result, autolathe_material_cost(light_item))
-	else if(ispath(target_path, /obj/structure/closet))
-		if(!length(result))
-			result[/datum/material/iron] = SHEET_MATERIAL_AMOUNT * 2
-	else if(ispath(target_path, /obj/machinery/portable_atmospherics/canister))
-		if(!length(result))
-			result[/datum/material/iron] = SHEET_MATERIAL_AMOUNT * 10
-	else if(ispath(target_path, /obj/machinery/power/apc))
-		result[/datum/material/iron] = (result[/datum/material/iron] || 0) + SHEET_MATERIAL_AMOUNT * 2
-		merge_material_cost(result, autolathe_material_cost(/obj/item/electronics/apc))
-		var/cell_type = desired["cell_type"]
-		if(!ispath(cell_type, /obj/item/stock_parts/power_store))
-			var/obj/machinery/power/apc/apc_type = target_path
-			cell_type = initial(apc_type.cell_type)
-		var/list/cell_cost = autolathe_material_cost(cell_type)
-		merge_material_cost(result, cell_cost)
-		if(!length(cell_cost))
-			merge_material_cost(result, declared_material_cost(cell_type))
-	else if(ispath(target_path, /obj/machinery/airalarm))
-		result[/datum/material/iron] = (result[/datum/material/iron] || 0) + SHEET_MATERIAL_AMOUNT * 2
-		merge_material_cost(result, autolathe_material_cost(/obj/item/electronics/airalarm))
-	else if(ispath(target_path, /obj/machinery/power/terminal))
-		if(!length(result))
-			result[/datum/material/iron] = SHEET_MATERIAL_AMOUNT
-	else if(ispath(target_path, /obj/machinery/door))
-		if(!length(result))
-			result[/datum/material/iron] = SHEET_MATERIAL_AMOUNT * 2
-			result[/datum/material/glass] = HALF_SHEET_MATERIAL_AMOUNT
-	return result
-
 /// Serialize colocated mapping helpers for a generated target family.
 /datum/ship_plan/template/proc/collect_helper_specs(list/members, list/member_attributes, helper_base)
 	var/list/result = list()
@@ -243,17 +389,31 @@
 	return result
 
 /// Add an object that is prepared in nullspace and commissioned on placement.
-/datum/ship_plan/template/proc/add_generated_operation(target_path, rel_x, rel_y, list/desired, list/helper_specs, phase = SHIPYARD_PHASE_FINAL)
+/datum/ship_plan/template/proc/add_generated_operation(
+	target_path,
+	rel_x,
+	rel_y,
+	list/desired,
+	list/helper_specs,
+	phase = SHIPYARD_PHASE_FINAL,
+	list/material_override,
+	list/required_parts,
+)
+	var/list/resolved_materials = material_override
+	if(!resolved_materials)
+		var/datum/shipyard_generator/generator = get_shipyard_generator(target_path)
+		resolved_materials = generator ? generator.resolve_materials(src, target_path, desired) : declared_material_cost(target_path)
 	add_operation(new /datum/ship_plan_op(
 		phase,
 		rel_x,
 		rel_y,
 		SHIPYARD_OP_GENERATED,
 		target_path,
-		generated_material_cost(target_path, desired),
+		resolved_materials,
 		desired,
 		null,
 		helper_specs,
+		required_parts,
 	))
 
 /// Translate one parsed map cell into ordered, constructible operations.
@@ -315,41 +475,13 @@
 			|| ispath(member_path, /obj/effect/mapping_helpers/apc))
 			continue
 		var/list/desired = sanitize_desired_vars(member_attributes[member_index])
-		if(ispath(member_path, /obj/machinery/computer))
+		var/datum/shipyard_generator/generator = get_shipyard_generator(member_path)
+		if(generator)
+			generator.add_to_plan(src, member_path, rel_x, rel_y, desired, members, member_attributes, has_apc)
+		else if(ispath(member_path, /obj/machinery/computer))
 			add_machine_operations(member_path, rel_x, rel_y, desired, TRUE)
 		else if(ispath(member_path, /obj/machinery))
-			if(ispath(member_path, /obj/machinery/door))
-				add_generated_operation(
-					member_path,
-					rel_x,
-					rel_y,
-					desired,
-					collect_helper_specs(members, member_attributes, /obj/effect/mapping_helpers/airlock),
-				)
-			else if(ispath(member_path, /obj/machinery/light))
-				add_generated_operation(member_path, rel_x, rel_y, desired)
-			else if(ispath(member_path, /obj/machinery/portable_atmospherics/canister))
-				add_generated_operation(member_path, rel_x, rel_y, desired)
-			else if(ispath(member_path, /obj/machinery/power/apc))
-				add_generated_operation(
-					member_path,
-					rel_x,
-					rel_y,
-					desired,
-					collect_helper_specs(members, member_attributes, /obj/effect/mapping_helpers/apc),
-				)
-			else if(ispath(member_path, /obj/machinery/airalarm))
-				add_generated_operation(
-					member_path,
-					rel_x,
-					rel_y,
-					desired,
-					collect_helper_specs(members, member_attributes, /obj/effect/mapping_helpers/airalarm),
-				)
-			else if(ispath(member_path, /obj/machinery/power/terminal))
-				if(!has_apc)
-					add_generated_operation(member_path, rel_x, rel_y, desired, phase = SHIPYARD_PHASE_NETWORKS)
-			else if(ispath(member_path, /obj/machinery/atmospherics))
+			if(ispath(member_path, /obj/machinery/atmospherics))
 				add_operation(new /datum/ship_plan_op(
 					SHIPYARD_PHASE_NETWORKS,
 					rel_x,
@@ -362,8 +494,6 @@
 				add_commission_operation(member_path, rel_x, rel_y, desired)
 			else
 				add_machine_operations(member_path, rel_x, rel_y, desired, FALSE)
-		else if(ispath(member_path, /obj/structure/chair) || ispath(member_path, /obj/structure/closet))
-			add_generated_operation(member_path, rel_x, rel_y, desired)
 		else if(ispath(member_path, /obj/structure/cable) || ispath(member_path, /obj/structure/disposalpipe))
 			add_operation(new /datum/ship_plan_op(
 				SHIPYARD_PHASE_NETWORKS,
@@ -387,18 +517,18 @@
 			))
 			add_commission_operation(member_path, rel_x, rel_y, desired)
 		else
-			skipped_contents += "[member_path] at ([rel_x], [rel_y])"
+			record_skipped(member_path, rel_x, rel_y)
 
-/datum/ship_plan/template/proc/add_machine_operations(machine_path, rel_x, rel_y, list/desired, computer)
-	var/board_path
+/datum/ship_plan/template/proc/add_machine_operations(machine_path, rel_x, rel_y, list/desired, computer, board_override)
+	var/board_path = board_override
 	if(computer)
 		var/obj/machinery/computer/computer_type = machine_path
-		board_path = initial(computer_type.circuit)
-	else
+		board_path ||= initial(computer_type.circuit)
+	else if(!board_path)
 		var/obj/machinery/machine_type = machine_path
 		board_path = initial(machine_type.circuit)
 	if(!ispath(board_path, /obj/item/circuitboard))
-		skipped_contents += "[machine_path] at ([rel_x], [rel_y]) (no constructible board)"
+		record_skipped(machine_path, rel_x, rel_y, "no constructible board")
 		return
 	add_operation(new /datum/ship_plan_op(
 		SHIPYARD_PHASE_FRAMES,
@@ -420,10 +550,24 @@
 		desired,
 		board_path,
 	))
-	add_commission_operation(machine_path, rel_x, rel_y, desired)
+	add_commission_operation(
+		machine_path,
+		rel_x,
+		rel_y,
+		desired,
+		ispath(machine_path, /obj/machinery/cell_charger_multi/wall_mounted),
+	)
 
-/datum/ship_plan/template/proc/add_commission_operation(target_path, rel_x, rel_y, list/desired)
-	if(!length(desired))
+/datum/ship_plan/template/proc/record_skipped(target_path, rel_x, rel_y, reason)
+	skipped_contents += list(list(
+		"path" = target_path,
+		"x" = rel_x,
+		"y" = rel_y,
+		"reason" = reason,
+	))
+
+/datum/ship_plan/template/proc/add_commission_operation(target_path, rel_x, rel_y, list/desired, force = FALSE)
+	if(!force && !length(desired))
 		return
 	add_operation(new /datum/ship_plan_op(
 		SHIPYARD_PHASE_COMMISSIONING,
