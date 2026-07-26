@@ -9264,6 +9264,7 @@
 #include "modular_nova\modules\overmap\code\overmap_syndicate_beacon.dm"
 #include "modular_nova\modules\overmap\code\portables_connector.dm"
 #include "modular_nova\modules\overmap\code\shipyard\ship_plan.dm"
+#include "modular_nova\modules\overmap\code\shipyard\shipyard_construction_routes.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_fabricator.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_items.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_phases.dm"

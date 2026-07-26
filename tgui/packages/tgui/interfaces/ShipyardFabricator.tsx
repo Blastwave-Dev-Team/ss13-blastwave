@@ -27,6 +27,14 @@ type Fault = {
   reason: string;
 };
 
+type SkipCategory = 'ignored' | 'blacklisted' | 'unsupported';
+
+const SKIP_CATEGORY_LABELS: Record<SkipCategory, string> = {
+  unsupported: 'no construction route',
+  blacklisted: 'refused',
+  ignored: 'cosmetic',
+};
+
 type Data = {
   state: 'idle' | 'building' | 'paused' | 'fault' | 'complete';
   pausedReason: string | null;
@@ -37,6 +45,7 @@ type Data = {
   operationTotal: number;
   phase: number;
   skipped: string[];
+  skippedCounts: Partial<Record<SkipCategory, number>>;
   faults: Fault[];
   siloLinked: BooleanLike;
   siloOnHold: BooleanLike;
@@ -66,6 +75,17 @@ const PHASE_NAMES = [
   'Machines and airlocks',
   'Commissioning',
 ];
+
+const summarizeSkips = (
+  counts: Partial<Record<SkipCategory, number>>,
+): string => {
+  const parts = (Object.keys(SKIP_CATEGORY_LABELS) as SkipCategory[])
+    .filter((category) => !!counts[category])
+    .map((category) => `${counts[category]} ${SKIP_CATEGORY_LABELS[category]}`);
+  return parts.length
+    ? `Not built: ${parts.join(', ')}.`
+    : 'Every mapped entry has a construction route.';
+};
 
 export const ShipyardFabricator = () => {
   const { act, data } = useBackend<Data>();
@@ -225,6 +245,7 @@ export const ShipyardFabricator = () => {
 
         {!!data.skipped.length && (
           <Section title="Manifest Skip Report">
+            <Box mb={1}>{summarizeSkips(data.skippedCounts)}</Box>
             {data.skipped.map((entry, index) => (
               <Box key={index} color="label">
                 {entry}

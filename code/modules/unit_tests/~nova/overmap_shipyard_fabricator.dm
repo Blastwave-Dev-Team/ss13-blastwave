@@ -48,7 +48,6 @@
 	var/obj/item/ship_blueprint_disk/typed_patrol = disks[/obj/item/ship_blueprint_disk/solfed_patrol/typed]
 	var/cutter_wall_count = 0
 	var/found_tiny_fan = FALSE
-	var/found_metal_barricade = FALSE
 	var/found_plasteel_barricade = FALSE
 	var/found_megacell_charger = FALSE
 	var/found_wall_multicell_charger = FALSE
@@ -66,18 +65,18 @@
 		if(operation.target_path == /obj/structure/fans/tiny)
 			found_tiny_fan = TRUE
 			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Tiny fan should use its two-sheet construction cost.")
-		else if(operation.target_path == /obj/structure/deployable_barricade/metal)
-			found_metal_barricade = TRUE
-			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Metal barricade should use its print cost.")
 		else if(operation.target_path == /obj/structure/deployable_barricade/metal/plasteel)
 			found_plasteel_barricade = TRUE
-			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 2, "Plasteel barricade should retain the base print cost.")
-			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/alloy/plasteel], SHEET_MATERIAL_AMOUNT * 2, "Plasteel barricade should add its upgrade cost.")
+			// The barricade costs two iron sheets plus a two-sheet plasteel
+			// upgrade, and the silo pays for plasteel as iron and plasma.
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 4, "Plasteel barricade should bill its base and upgrade iron.")
+			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/plasma], SHEET_MATERIAL_AMOUNT * 2, "Plasteel barricade should bill the plasma half of its upgrade.")
+			TEST_ASSERT(!operation.material_cost[/datum/material/alloy/plasteel], "Plasteel should be decomposed into silo-storable stock.")
 		else if(operation.target_path == /obj/machinery/power/megacell_charger/wall)
 			found_megacell_charger = TRUE
 			TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/iron], SHEET_MATERIAL_AMOUNT * 7, "Megacell charger should consume seven iron sheets.")
 			TEST_ASSERT_EQUAL(operation.required_parts[/datum/stock_part/capacitor], 1, "Megacell charger should require one RPED capacitor.")
-		else if(operation.target_path == /obj/machinery/cell_charger_multi/wall_mounted && operation.op_type == SHIPYARD_OP_MACHINE)
+		else if(ispath(operation.target_path, /obj/machinery/cell_charger_multi/wall_mounted) && operation.op_type == SHIPYARD_OP_MACHINE)
 			found_wall_multicell_charger = TRUE
 			TEST_ASSERT_EQUAL(operation.board_path, /obj/item/circuitboard/machine/cell_charger_multi, "Wall multi-cell charger should use the standard multi-cell charger board.")
 		if(operation.op_type != SHIPYARD_OP_TURF || !ispath(operation.target_path, /turf/closed/wall))
@@ -106,14 +105,31 @@
 		cutter_wall_count++
 		TEST_ASSERT_EQUAL(operation.material_cost[/datum/material/titanium], SHEET_MATERIAL_AMOUNT * 2, "Cutter walls should retain their declared titanium cost.")
 		TEST_ASSERT(!operation.material_cost[/datum/material/iron], "Cutter wall construction should not substitute iron for titanium.")
-	TEST_ASSERT(cutter_wall_count, "Cutter blueprint should contain material-aware wall operations.")
-	TEST_ASSERT(found_tiny_fan, "Cutter blueprint should generate its tiny fan.")
-	TEST_ASSERT(found_metal_barricade && found_plasteel_barricade, "Cutter blueprint should generate both deployable barricade types.")
-	TEST_ASSERT(found_megacell_charger, "Cutter blueprint should generate its wall megacell charger.")
-	TEST_ASSERT(found_wall_multicell_charger, "Cutter blueprint should construct its wall-mounted multi-cell charger.")
-	TEST_ASSERT(found_shuttle_chair, "Cutter blueprint should contain a material-aware shuttle chair.")
+	var/list/missing_cutter_content = list()
+	if(!cutter_wall_count)
+		missing_cutter_content += "material-aware walls"
+	if(!found_tiny_fan)
+		missing_cutter_content += "tiny fan"
+	if(!found_plasteel_barricade)
+		missing_cutter_content += "plasteel barricade"
+	if(!found_megacell_charger)
+		missing_cutter_content += "wall megacell charger"
+	if(!found_wall_multicell_charger)
+		missing_cutter_content += "wall-mounted multi-cell charger"
+	if(!found_shuttle_chair)
+		missing_cutter_content += "material-aware shuttle chair"
 	for(var/family in generated_families)
-		TEST_ASSERT(generated_families[family], "Cutter blueprint should generate its mapped [family] fixtures.")
+		if(!generated_families[family])
+			missing_cutter_content += "[family] fixtures"
+	if(length(missing_cutter_content))
+		TEST_FAIL("Cutter blueprint omitted [length(missing_cutter_content)] expected type(s): [jointext(missing_cutter_content, ", ")]. Skipped entries: [jointext(generic_cutter.ship_plan.skipped_report(TRUE), "; ")]")
+	var/deck_paint_count = 0
+	for(var/datum/ship_plan_op/operation as anything in generic_patrol.ship_plan.manifest)
+		if(operation.op_type != SHIPYARD_OP_DECAL)
+			continue
+		deck_paint_count++
+		TEST_ASSERT(!length(operation.material_cost), "Deck paint should not be billed to the silo.")
+	TEST_ASSERT(deck_paint_count, "Patrol blueprint should repaint its mapped deck markings.")
 	TEST_ASSERT_EQUAL(generic_cutter.registration_port_type, /obj/docking_port/mobile/custom, "Generic Cutter disk should retain custom registration.")
 	TEST_ASSERT_EQUAL(generic_patrol.registration_port_type, /obj/docking_port/mobile/custom, "Generic Patrol disk should retain custom registration.")
 	TEST_ASSERT_EQUAL(typed_cutter.registration_port_type, /obj/docking_port/mobile/overmap/frigate/solfed_cutter, "Typed Cutter disk should select its frigate port.")
@@ -122,36 +138,263 @@
 	TEST_ASSERT_EQUAL(typed_patrol.registration_area_type, /area/shuttle/overmap/frigate, "Typed Patrol disk should select the frigate area.")
 	TEST_ASSERT(!typed_cutter.registration_is_custom && !typed_patrol.registration_is_custom, "Typed disks should register as non-custom shuttles.")
 
-/datum/unit_test/overmap_shipyard_fabricator/chair_recipes
+/// Every mapped path in a fabricable blueprint must reach a documented
+/// decision, so coverage gaps surface as one report instead of one per build.
+/datum/unit_test/overmap_shipyard_fabricator/template_coverage
 
-/datum/unit_test/overmap_shipyard_fabricator/chair_recipes/Run()
+/datum/unit_test/overmap_shipyard_fabricator/template_coverage/Run()
+	var/static/list/disk_types = list(
+		/obj/item/ship_blueprint_disk/solfed_cutter,
+		/obj/item/ship_blueprint_disk/solfed_patrol,
+	)
+	var/list/failures = list()
+	var/classified_total = 0
+	for(var/disk_type in disk_types)
+		var/obj/item/ship_blueprint_disk/disk = allocate(disk_type)
+		disk.load_ship_plan()
+		var/datum/ship_plan/template/plan = disk.ship_plan
+		if(!istype(plan))
+			failures += "[disk_type]: no template plan"
+			continue
+		classified_total += length(plan.classified_paths)
+		for(var/mapped_path in plan.classified_paths)
+			if(!plan.classified_paths[mapped_path])
+				failures += "[disk_type]: [mapped_path] has no construction route"
+		for(var/list/skipped as anything in plan.skipped_contents)
+			if(skipped["category"] != SHIPYARD_SKIP_UNSUPPORTED)
+				continue
+			failures += "[disk_type]: [skipped["path"]] is unsupported ([skipped["reason"]])"
+
+	if(!classified_total)
+		failures += "no blueprint content was classified at all"
+	if(length(failures))
+		TEST_FAIL("Blueprint route coverage found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
+
+/// Generic families must price every mapped subtype, not just the ones that
+/// happen to appear on the current blueprints.
+/datum/unit_test/overmap_shipyard_fabricator/route_families
+
+/datum/unit_test/overmap_shipyard_fabricator/route_families/Run()
+	var/static/list/families = list(
+		/obj/structure/chair,
+		/obj/structure/window,
+		/obj/structure/grille,
+		/obj/structure/table,
+		/obj/structure/rack,
+		/obj/structure/cable,
+		/obj/structure/closet,
+	)
 	var/datum/ship_plan/template/plan = new
-	var/supported_count = 0
-	var/blacklisted_count = 0
-	for(var/chair_path in typesof(/obj/structure/chair))
-		var/datum/shipyard_generator/generator = get_shipyard_generator(chair_path)
-		TEST_ASSERT(generator, "[chair_path] should resolve to a shipyard generator or blacklist.")
-		if(!generator)
-			continue
-		if(generator.blacklisted)
-			blacklisted_count++
-			continue
+	var/list/failures = list()
+	var/priced_count = 0
+	var/refused_count = 0
+	for(var/family_path in families)
+		for(var/obj/member_path as anything in typesof(family_path))
+			if(member_path::abstract_type == member_path)
+				continue
+			var/datum/shipyard_route/route = get_shipyard_route(member_path)
+			if(!route)
+				failures += "[member_path]: no construction route"
+				continue
+			if(route.get_strategy(member_path) == SHIPYARD_ROUTE_SKIP)
+				refused_count++
+				continue
+			var/list/resolved = plan.normalize_material_cost(route.resolve_materials(plan, member_path, list()))
+			if(!length(resolved))
+				failures += "[member_path]: no fabrication material recipe"
+				continue
+			if(shipyard_material_rejection(resolved))
+				// Organic and non-silo composition is a valid, automatic refusal.
+				refused_count++
+				continue
+			for(var/material_path in resolved)
+				if(resolved[material_path] <= 0)
+					failures += "[member_path]: non-positive [material_path] cost"
+			priced_count++
 
-		var/list/resolved_cost = generator.resolve_materials(plan, chair_path, list())
-		TEST_ASSERT(length(resolved_cost), "[chair_path] should resolve a non-empty fabrication cost or be explicitly blacklisted.")
-		for(var/material_path in resolved_cost)
-			TEST_ASSERT(ispath(material_path, /datum/material), "[chair_path] returned non-material fabrication key [material_path].")
-			TEST_ASSERT(resolved_cost[material_path] > 0, "[chair_path] returned a non-positive fabrication cost for [material_path].")
-
-		var/obj/structure/chair/chair_type = chair_path
-		var/list/declared_materials = initial(chair_type.custom_materials)
-		for(var/material_path in declared_materials)
-			TEST_ASSERT_EQUAL(resolved_cost[material_path], declared_materials[material_path], "[chair_path] should retain its declared [material_path] cost.")
-		supported_count++
-
-	TEST_ASSERT(supported_count, "Chair recipe coverage should include supported chair types.")
-	TEST_ASSERT(blacklisted_count, "Chair recipe coverage should include explicitly blacklisted chair types.")
+	if(!priced_count)
+		failures += "no family member resolved a payable cost"
+	if(!refused_count)
+		failures += "no family member was refused, so the blacklist path is untested"
+	if(length(failures))
+		TEST_FAIL("Route family coverage found [length(failures)] issue(s):\n[jointext(failures, "\n")]")
 	qdel(plan)
+
+/// Organic and non-silo stock is refused automatically; alloys the silo cannot
+/// hold are broken down into the components it can.
+/datum/unit_test/overmap_shipyard_fabricator/material_policy
+
+/datum/unit_test/overmap_shipyard_fabricator/material_policy/Run()
+	var/static/list/refused_materials = list(
+		/datum/material/wood,
+		/datum/material/bamboo,
+		/datum/material/bone,
+		/datum/material/cardboard,
+		/datum/material/paper,
+		/datum/material/meat,
+		/datum/material/bronze,
+		/datum/material/mythril,
+	)
+	var/static/list/accepted_materials = list(
+		/datum/material/iron,
+		/datum/material/glass,
+		/datum/material/titanium,
+		/datum/material/plasma,
+	)
+	var/datum/ship_plan/template/plan = new
+	var/list/failures = list()
+
+	for(var/material_path in refused_materials)
+		var/list/normalized = plan.normalize_material_cost(list((material_path) = SHEET_MATERIAL_AMOUNT))
+		if(!shipyard_material_rejection(normalized))
+			failures += "[material_path] should be refused as unfabricable stock"
+	for(var/material_path in accepted_materials)
+		var/list/normalized = plan.normalize_material_cost(list((material_path) = SHEET_MATERIAL_AMOUNT))
+		var/rejection = shipyard_material_rejection(normalized)
+		if(rejection)
+			failures += "[material_path] should be payable from the silo, got '[rejection]'"
+
+	// Plasteel is not silo-stored, but its iron and plasma components are.
+	var/list/plasteel_cost = plan.normalize_material_cost(list(/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2))
+	if(shipyard_material_rejection(plasteel_cost))
+		failures += "plasteel should decompose into silo-storable components"
+	if(plasteel_cost[/datum/material/alloy/plasteel])
+		failures += "plasteel should not remain in a normalized cost"
+	if(plasteel_cost[/datum/material/iron] != SHEET_MATERIAL_AMOUNT * 2)
+		failures += "plasteel should contribute [SHEET_MATERIAL_AMOUNT * 2] iron, got [plasteel_cost[/datum/material/iron] || 0]"
+	if(plasteel_cost[/datum/material/plasma] != SHEET_MATERIAL_AMOUNT * 2)
+		failures += "plasteel should contribute [SHEET_MATERIAL_AMOUNT * 2] plasma, got [plasteel_cost[/datum/material/plasma] || 0]"
+
+	// Composition declared on a type has to be readable, or every structure
+	// priced from it silently reports as having no recipe at all.
+	var/list/rack_cost = plan.declared_material_cost(/obj/structure/rack)
+	if(rack_cost[/datum/material/iron] != SHEET_MATERIAL_AMOUNT)
+		failures += "a rack should declare [SHEET_MATERIAL_AMOUNT] iron, got [rack_cost[/datum/material/iron] || 0]"
+	var/list/wooden_rack_cost = plan.declared_material_cost(/obj/structure/rack/wooden)
+	if(!shipyard_material_rejection(plan.normalize_material_cost(wooden_rack_cost)))
+		failures += "a wooden rack should be refused from its own declared composition"
+
+	// A wooden structure is refused without needing an explicit blacklist entry.
+	var/list/wooden_cost = plan.apply_material_policy(
+		list(/datum/material/wood = SHEET_MATERIAL_AMOUNT),
+		/obj/structure/table/wood,
+		0,
+		0,
+	)
+	if(length(wooden_cost))
+		failures += "wooden furniture should be refused by the automatic material policy"
+	var/list/categories = plan.skipped_counts()
+	if(!categories[SHIPYARD_SKIP_BLACKLISTED])
+		failures += "an automatic material refusal should be reported as blacklisted"
+
+	if(length(failures))
+		TEST_FAIL("Material policy found [length(failures)] issue(s):\n[jointext(failures, "\n")]")
+	qdel(plan)
+
+/// Networks derive their cost from the item that actually builds them.
+/datum/unit_test/overmap_shipyard_fabricator/network_routes
+
+/datum/unit_test/overmap_shipyard_fabricator/network_routes/Run()
+	var/static/list/pipe_fixtures = list(
+		/obj/machinery/atmospherics/components/binary/pump = /obj/item/pipe/binary/pressure_pump,
+		/obj/machinery/atmospherics/components/unary/vent_pump = /obj/item/pipe/directional/vent,
+		/obj/machinery/atmospherics/components/unary/vent_scrubber = /obj/item/pipe/directional/scrubber,
+		/obj/machinery/atmospherics/pipe/smart/simple/general/visible = /obj/item/pipe/quaternary/pipe,
+	)
+	// Devices with no fitting of their own are still laid by an RPD, so they
+	// cost the generic fitting rather than falling through to no recipe.
+	var/static/list/generic_fittings = list(
+		/obj/machinery/atmospherics/components/binary/volume_pump = /obj/item/pipe/directional,
+		/obj/machinery/atmospherics/components/binary/dp_vent_pump = /obj/item/pipe,
+	)
+	var/datum/ship_plan/template/plan = new
+	var/list/failures = list()
+
+	for(var/machinery_path in pipe_fixtures)
+		var/expected_fitting = pipe_fixtures[machinery_path]
+		var/resolved_fitting = get_shipyard_pipe_fitting(machinery_path)
+		if(resolved_fitting != expected_fitting)
+			failures += "[machinery_path]: expected fitting [expected_fitting], got [resolved_fitting || "none"]"
+			continue
+		var/datum/shipyard_route/route = get_shipyard_route(machinery_path)
+		if(route.get_strategy(machinery_path) != SHIPYARD_ROUTE_PLACE)
+			failures += "[machinery_path]: pipes should be placed directly, not frame-built"
+		var/list/resolved = route.resolve_materials(plan, machinery_path, list())
+		var/list/expected = shipyard_declared_material_cost(expected_fitting)
+		if(!length(expected))
+			failures += "[expected_fitting]: fitting declares no material composition to price from"
+			continue
+		for(var/material_path in expected)
+			if(resolved[material_path] != expected[material_path])
+				failures += "[machinery_path]: expected [expected[material_path]] [material_path], got [resolved[material_path] || 0]"
+
+	for(var/machinery_path in generic_fittings)
+		var/expected_fitting = generic_fittings[machinery_path]
+		var/resolved_fitting = get_shipyard_pipe_fitting(machinery_path)
+		if(resolved_fitting != expected_fitting)
+			failures += "[machinery_path]: expected generic fitting [expected_fitting], got [resolved_fitting || "none"]"
+			continue
+		var/datum/shipyard_route/route = get_shipyard_route(machinery_path)
+		var/list/resolved = route.resolve_materials(plan, machinery_path, list())
+		if(resolved[/datum/material/iron] != SHEET_MATERIAL_AMOUNT)
+			failures += "[machinery_path]: expected one fitting of iron, got [resolved[/datum/material/iron] || 0]"
+
+	var/datum/shipyard_route/cable_route = get_shipyard_route(/obj/structure/cable)
+	var/list/cable_cost = cable_route.resolve_materials(plan, /obj/structure/cable, list())
+	var/list/coil_cost = shipyard_stack_material_cost(/obj/item/stack/cable_coil, 1)
+	if(!length(coil_cost))
+		failures += "cable coil metadata should describe a per-unit cost"
+	for(var/material_path in coil_cost)
+		if(cable_cost[material_path] != coil_cost[material_path])
+			failures += "cable: expected [coil_cost[material_path]] [material_path], got [cable_cost[material_path] || 0]"
+
+	if(length(failures))
+		TEST_FAIL("Network route coverage found [length(failures)] issue(s):\n[jointext(failures, "\n")]")
+	qdel(plan)
+
+/// Frame-built machines must pair a frame with a board, bill printable board
+/// components to the silo, and leave finished stock parts to the RPED.
+/datum/unit_test/overmap_shipyard_fabricator/board_machines
+
+/datum/unit_test/overmap_shipyard_fabricator/board_machines/Run()
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/solfed_cutter)
+	disk.load_ship_plan()
+	var/datum/ship_plan/template/plan = disk.ship_plan
+	TEST_ASSERT(istype(plan), "Board machine test requires the Cutter template plan.")
+
+	var/list/failures = list()
+	var/list/frame_coords = list()
+	var/machine_count = 0
+	var/decomposed_board_count = 0
+	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
+		if(operation.op_type == SHIPYARD_OP_MACHINE_FRAME || operation.op_type == SHIPYARD_OP_COMPUTER_FRAME)
+			frame_coords["[operation.target_path]@[operation.rel_x],[operation.rel_y]"] = TRUE
+			continue
+		if(operation.op_type != SHIPYARD_OP_MACHINE && operation.op_type != SHIPYARD_OP_COMPUTER)
+			continue
+		machine_count++
+		if(!ispath(operation.board_path, /obj/item/circuitboard))
+			failures += "[operation.target_path]: finalization has no circuit board"
+		if(!frame_coords["[operation.target_path]@[operation.rel_x],[operation.rel_y]"])
+			failures += "[operation.target_path]: finalization has no matching frame at ([operation.rel_x], [operation.rel_y])"
+		var/list/requirements = shipyard_board_requirements(operation.board_path)
+		if(length(requirements["parts"]) || length(requirements["materials"]))
+			decomposed_board_count++
+		for(var/part_path in requirements["parts"])
+			if(!operation.required_parts[part_path])
+				failures += "[operation.target_path]: board part [part_path] is not requested from the RPED"
+		for(var/material_path in requirements["materials"])
+			if(!operation.material_cost[material_path])
+				failures += "[operation.target_path]: printable component material [material_path] is not billed to the silo"
+		if(plan.required_parts[operation.board_path] < 1)
+			failures += "[operation.target_path]: board [operation.board_path] is missing from the aggregate parts list"
+
+	if(!machine_count)
+		failures += "the Cutter blueprint produced no frame-built machines"
+	if(!decomposed_board_count)
+		failures += "no circuit board reported the components it is assembled from"
+	if(length(failures))
+		TEST_FAIL("Board machine coverage found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
 
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects
 
@@ -219,6 +462,21 @@
 	TEST_ASSERT(istype(generated_apc.cell, /obj/item/stock_parts/power_store/battery/bluespace), "Prepared APC should use its DMM-selected cell type.")
 	TEST_ASSERT_EQUAL(generated_apc.cell.charge, generated_apc.cell.maxcharge * 0.5, "Prepared APC should honor its mapped starting charge.")
 	qdel(generated_apc)
+
+	var/paint_overlays = length(origin.overlays)
+	var/datum/ship_plan_op/paint_operation = new(
+		SHIPYARD_PHASE_STRUCTURE,
+		0,
+		0,
+		SHIPYARD_OP_DECAL,
+		/obj/effect/turf_decal/stripes/line,
+		null,
+		list("dir" = WEST),
+	)
+	TEST_ASSERT_EQUAL(paint_operation.execute_decal(origin), TRUE, "Deck markings should paint onto a floor.")
+	TEST_ASSERT(!(locate(/obj/effect/turf_decal) in origin), "Applied paint should not leave an effect behind.")
+	TEST_ASSERT(length(origin.overlays) > paint_overlays, "Applied paint should add a decal to the turf.")
+	TEST_ASSERT(!GLOB.use_preloader, "Painting should not leave the map preloader armed.")
 
 	var/turf/airlock_turf = get_step(canister_turf, EAST)
 	var/list/helper_specs = list(list(

@@ -19,6 +19,10 @@
 			return istype(work_turf, target_path)
 		if(SHIPYARD_OP_OBJECT, SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER, SHIPYARD_OP_COMMISSION)
 			return !!(locate(target_path) in work_turf)
+		if(SHIPYARD_OP_DECAL)
+			// Paint leaves no object on the turf to detect, so it is always
+			// pending until the build index moves past it.
+			return FALSE
 	return FALSE
 
 /// Execute one operation. TRUE means complete, null means a replenishable
@@ -53,6 +57,8 @@
 			result = execute_turf(work_turf)
 		if(SHIPYARD_OP_OBJECT)
 			result = execute_object(work_turf)
+		if(SHIPYARD_OP_DECAL)
+			result = execute_decal(work_turf)
 		if(SHIPYARD_OP_GENERATED)
 			result = execute_generated(work_turf, fabricator)
 		if(SHIPYARD_OP_MACHINE)
@@ -142,6 +148,24 @@
 		created.setDir(desired_vars["dir"])
 	return TRUE
 
+/**
+ * Paint a turf decal onto the deck.
+ *
+ * A decal applies itself during `Initialize()` and then deletes itself, so its
+ * mapped direction and colour have to be in place before it is created. That is
+ * what the map loader's preloader is for, and using it keeps the printed
+ * markings identical to the ones in the blueprint.
+ */
+/datum/ship_plan_op/proc/execute_decal(turf/work_turf)
+	if(isclosedturf(work_turf))
+		return "Cannot paint [target_path] onto a wall."
+	if(length(desired_vars))
+		world.preloader_setup(desired_vars, target_path)
+	var/atom/painted = new target_path(work_turf)
+	if(GLOB.use_preloader)
+		world.preloader_load(painted)
+	return TRUE
+
 /// Initialize away from the world, sanitize, then place and activate atomically.
 /datum/ship_plan_op/proc/execute_generated(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
@@ -161,6 +185,8 @@
 	if(QDELETED(created))
 		return "Failed to place [target_path]."
 	created.shipyard_commission(desired_vars)
+	var/datum/shipyard_route/route = get_shipyard_route(target_path)
+	route?.commission(created, desired_vars)
 	apply_mapping_helpers(created)
 	return TRUE
 
@@ -209,6 +235,24 @@
 			return board
 	return null
 
+/**
+ * Fill in the board components the manifest already billed to the ore silo.
+ *
+ * Stacks are only tracked as a remaining count on the frame, so satisfying them
+ * is a matter of clearing that count; loose printable items still have to exist.
+ */
+/datum/ship_plan_op/proc/supply_printed_components(obj/structure/frame/machine/frame)
+	var/list/printed = shipyard_board_requirements(board_path)["printed"]
+	for(var/component_path in printed)
+		var/remaining = frame.req_components[component_path]
+		if(!remaining || remaining <= 0)
+			continue
+		if(!ispath(component_path, /obj/item/stack))
+			for(var/index in 1 to remaining)
+				var/obj/item/component = new component_path(frame)
+				frame.components += component
+		frame.req_components[component_path] = 0
+
 /datum/ship_plan_op/proc/execute_machine(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
@@ -223,6 +267,7 @@
 		board.build_path = target_path
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Machine board could not be installed."
+	supply_printed_components(frame)
 	frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
 	for(var/component_path in frame.req_components)
 		if(frame.req_components[component_path] > 0)
@@ -260,6 +305,8 @@
 	if(!target)
 		return "Commissioning target [target_path] is missing."
 	target.shipyard_commission(desired_vars)
+	var/datum/shipyard_route/route = get_shipyard_route(target_path)
+	route?.commission(target, desired_vars)
 	return TRUE
 
 /// Nullspace preparation hook. Return FALSE to prevent world placement.
@@ -302,7 +349,6 @@
 
 /obj/machinery/light/shipyard_commission(list/desired_vars)
 	. = ..()
-	find_and_mount_on_atom()
 	power_change()
 	update(instant = TRUE, play_sound = FALSE)
 
@@ -341,7 +387,6 @@
 	assign_to_area()
 	make_terminal()
 	terminal?.connect_to_network()
-	find_and_mount_on_atom()
 	update()
 
 /obj/machinery/airalarm/shipyard_prepare(list/desired_vars)
@@ -355,13 +400,11 @@
 	my_area = get_area(src)
 	if(!("name" in desired_vars))
 		name = "[get_area_name(src)] Air Alarm"
-	find_and_mount_on_atom()
 	check_enviroment()
 
 /obj/machinery/power/terminal/shipyard_commission(list/desired_vars)
 	. = ..()
 	master = null
-	connect_to_network()
 
 /obj/machinery/power/megacell_charger/shipyard_prepare(list/desired_vars)
 	. = ..()
@@ -374,8 +417,9 @@
 	. = ..()
 	make_terminal()
 	terminal?.connect_to_network()
-	find_and_mount_on_atom()
 
+// Frame-built rather than generated, so it does not pass through route
+// commissioning and mounts itself here.
 /obj/machinery/cell_charger_multi/wall_mounted/shipyard_commission(list/desired_vars)
 	. = ..()
 	find_and_mount_on_atom()

@@ -84,6 +84,35 @@
 #define SHIPYARD_OP_MACHINE "machine"
 #define SHIPYARD_OP_COMPUTER "computer"
 #define SHIPYARD_OP_COMMISSION "commission"
+#define SHIPYARD_OP_DECAL "decal"
+
+// Declarative construction-route strategies. A route decides how one mapped
+// type is reproduced; the material policy separately decides what it costs.
+/// Initialize in nullspace, prepare, place atomically, then commission.
+#define SHIPYARD_ROUTE_GENERATE "generate"
+/// Construct directly on the target turf, then commission. Used by networks.
+#define SHIPYARD_ROUTE_PLACE "place"
+/// Machine frame plus circuit board and stock parts.
+#define SHIPYARD_ROUTE_MACHINE "machine"
+/// Computer frame plus circuit board and glass.
+#define SHIPYARD_ROUTE_COMPUTER "computer"
+/// Replay a map spawner as the concrete types it would have produced.
+#define SHIPYARD_ROUTE_EXPAND "expand"
+/// Apply a turf decal. Free, since it is paint rather than construction.
+#define SHIPYARD_ROUTE_PAINT "paint"
+/// Record the target instead of building it.
+#define SHIPYARD_ROUTE_SKIP "skip"
+
+// Grouping for manifest content the shipyard does not construct.
+/// Cosmetic or map-only content that never needed construction.
+#define SHIPYARD_SKIP_IGNORED "ignored"
+/// Deliberately refused: unsafe, stateful, or organic composition.
+#define SHIPYARD_SKIP_BLACKLISTED "blacklisted"
+/// No construction route or material recipe could be derived.
+#define SHIPYARD_SKIP_UNSUPPORTED "unsupported"
+
+/// Recursion guard when replaying map spawners as concrete construction targets.
+#define SHIPYARD_EXPANSION_DEPTH 3
 
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"

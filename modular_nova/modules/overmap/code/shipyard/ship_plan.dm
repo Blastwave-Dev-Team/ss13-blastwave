@@ -53,198 +53,128 @@
 		"target" = target_path ? "[target_path]" : null,
 	)
 
-GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
+// --- Material cost primitives ----------------------------------------------
+// These are pure lookups over compile-time metadata, so they are global procs
+// and cached where instantiation is involved.
 
-/proc/build_shipyard_generator_registry()
-	var/list/registry = list()
-	for(var/generator_type in subtypesof(/datum/shipyard_generator))
-		var/datum/shipyard_generator/generator = new generator_type
-		if(generator.target_type)
-			registry[generator.target_type] = generator
-	return registry
+/// Canonical autolathe cost for an exact output path.
+/proc/shipyard_printable_material_cost(build_path)
+	var/list/datum/design/candidates = SSresearch.item_to_design[build_path]
+	for(var/datum/design/design as anything in candidates)
+		if(!(design.build_type & AUTOLATHE))
+			continue
+		var/list/result = list()
+		for(var/material in design.materials)
+			var/material_key = material
+			if(istype(material, /datum/material))
+				var/datum/material/material_datum = material
+				material_key = material_datum.type
+			result[material_key] = design.materials[material]
+		return result
+	return list()
 
-/proc/get_shipyard_generator(target_type)
-	while(target_type)
-		var/datum/shipyard_generator/generator = GLOB.shipyard_generators[target_type]
-		if(generator)
-			return generator
-		target_type = type2parent(target_type)
-	return null
+/**
+ * Material composition declared on an atom path.
+ *
+ * `custom_materials` is a list var, and DM cannot read the compile-time value
+ * of a list var through `initial()`. The composition is therefore read off a
+ * cached scratch instance, which also resolves it into material datums the way
+ * the rest of the game sees it. Only items and structures are instantiated;
+ * machinery is priced from its design, board, or route instead, so nothing
+ * with a heavyweight or location-dependent `Initialize()` is built here.
+ */
+/proc/shipyard_declared_material_cost(atom_path)
+	if(!ispath(atom_path, /obj/item) && !ispath(atom_path, /obj/structure))
+		return list()
+	var/static/list/declared_costs = list()
+	var/list/declared = declared_costs[atom_path]
+	if(isnull(declared))
+		declared = list()
+		var/obj/scratch = new atom_path(null)
+		for(var/datum/material/material as anything in scratch.custom_materials)
+			declared[material.type] = scratch.custom_materials[material]
+		qdel(scratch)
+		declared_costs[atom_path] = declared
+	return declared.Copy()
 
-/// Declarative construction recipe for a directly reproduced mapped type.
-/datum/shipyard_generator
-	/// Base or exact map type handled by this recipe.
-	var/target_type
-	/// Silo materials. Empty recipes resolve the target's print/declaration cost.
-	var/list/materials = list()
-	/// Additional finished item paths whose autolathe costs come from the silo.
-	var/list/autolathe_inputs = list()
-	/// Finished stock parts consumed from the docked RPED.
-	var/list/required_parts = list()
-	/// Optional board for conventional machine-frame construction.
-	var/board_path
-	/// Mapping-helper family delegated to the completed target.
-	var/helper_type
-	/// Construction phase for direct generation.
-	var/phase = SHIPYARD_PHASE_FINAL
-	/// Suppress a standalone terminal when its tile already contains an APC.
-	var/skip_on_apc_tile = FALSE
-	/// This type and its descendants cannot be safely reproduced by the shipyard.
-	var/blacklisted = FALSE
-
-/datum/shipyard_generator/proc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
-	var/list/result
-	if(length(materials))
-		result = materials.Copy()
-	else
-		result = plan.autolathe_material_cost(produced_type)
-		if(!length(result))
-			result = plan.declared_material_cost(produced_type)
-	for(var/input_path in autolathe_inputs)
-		plan.merge_material_cost(result, plan.autolathe_material_cost(input_path))
+/// Material content of a number of stack units, read from a scratch stack.
+/proc/shipyard_stack_material_cost(stack_path, amount)
+	if(!ispath(stack_path, /obj/item/stack) || amount <= 0)
+		return list()
+	var/list/unit_cost = shipyard_declared_material_cost(stack_path)
+	var/list/result = list()
+	for(var/material_path in unit_cost)
+		result[material_path] = unit_cost[material_path] * amount
 	return result
 
-/datum/shipyard_generator/proc/add_to_plan(
-	datum/ship_plan/template/plan,
-	produced_type,
-	rel_x,
-	rel_y,
-	list/desired,
-	list/members,
-	list/member_attributes,
-	has_apc,
-)
-	if(blacklisted)
-		plan.record_skipped(produced_type, rel_x, rel_y, "blacklisted fabrication type")
-		return
-	if(skip_on_apc_tile && has_apc)
-		return
-	if(board_path)
-		plan.add_machine_operations(produced_type, rel_x, rel_y, desired, FALSE, board_path)
-		return
-	var/list/resolved_materials = resolve_materials(plan, produced_type, desired)
-	if(!length(resolved_materials))
-		plan.record_skipped(produced_type, rel_x, rel_y, "no fabrication material recipe")
-		return
-	var/list/helper_specs
-	if(helper_type)
-		helper_specs = plan.collect_helper_specs(members, member_attributes, helper_type)
-	plan.add_generated_operation(
-		produced_type,
-		rel_x,
-		rel_y,
-		desired,
-		helper_specs,
-		phase,
-		resolved_materials,
-		required_parts,
-	)
+/**
+ * Cost of the stacks an object is built from and deconstructs back into.
+ *
+ * The vars naming those stacks are declared ad hoc on individual structure
+ * families rather than on a shared ancestor, so the families that expose them
+ * are enumerated here. This is the construction recipe rather than the finished
+ * composition, which is what makes a shuttle chair cost titanium and a wooden
+ * table cost wood without either needing its own entry in the route registry.
+ */
+/proc/shipyard_build_stack_material_cost(atom_path)
+	if(ispath(atom_path, /obj/structure/chair))
+		var/obj/structure/chair/chair_type = atom_path
+		return shipyard_stack_material_cost(initial(chair_type.buildstacktype), initial(chair_type.buildstackamount))
+	if(ispath(atom_path, /obj/structure/fans))
+		var/obj/structure/fans/fan_type = atom_path
+		return shipyard_stack_material_cost(initial(fan_type.buildstacktype), initial(fan_type.buildstackamount))
+	if(ispath(atom_path, /obj/structure/sink))
+		var/obj/structure/sink/sink_type = atom_path
+		return shipyard_stack_material_cost(initial(sink_type.buildstacktype), initial(sink_type.buildstackamount))
+	if(ispath(atom_path, /obj/structure/window))
+		var/obj/structure/window/window_type = atom_path
+		return shipyard_stack_material_cost(initial(window_type.glass_type), initial(window_type.glass_amount))
+	if(ispath(atom_path, /obj/structure/grille))
+		var/obj/structure/grille/grille_type = atom_path
+		return shipyard_stack_material_cost(initial(grille_type.rods_type), initial(grille_type.rods_amount))
+	if(ispath(atom_path, /obj/structure/table))
+		var/obj/structure/table/table_type = atom_path
+		var/list/cost = shipyard_stack_material_cost(initial(table_type.framestack), initial(table_type.framestackamount))
+		var/list/surface = shipyard_stack_material_cost(initial(table_type.buildstack), initial(table_type.buildstackamount))
+		for(var/material_path in surface)
+			cost[material_path] = (cost[material_path] || 0) + surface[material_path]
+		return cost
+	return list()
 
-/datum/shipyard_generator/light
-	target_type = /obj/machinery/light
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+/// The shared singleton for a material path, or null if it is not one.
+/proc/shipyard_material_singleton(material_path)
+	if(!ispath(material_path, /datum/material))
+		return null
+	var/datum/material/material_type = material_path
+	if(initial(material_type.init_flags) & MATERIAL_INIT_BESPOKE)
+		return null
+	return SSmaterials.get_material(material_path)
 
-/datum/shipyard_generator/light/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
-	. = ..()
-	var/light_item = ispath(produced_type, /obj/machinery/light/small) ? /obj/item/light/bulb : /obj/item/light/tube
-	plan.merge_material_cost(., plan.autolathe_material_cost(light_item))
+/// Silo-storable equivalent of one material, decomposing alloys the ore silo
+/// cannot hold into the component materials it can.
+/proc/shipyard_silo_equivalent_cost(material_path, amount)
+	var/datum/material/material = shipyard_material_singleton(material_path)
+	if(!material || (material.mat_flags & MATERIAL_SILO_STORED))
+		return list((material_path) = amount)
+	// Alloys report their own recursive breakdown; everything else reports
+	// itself, and is then refused by the policy if the silo cannot hold it.
+	var/list/decomposed = material.return_composition(amount)
+	var/list/result = list()
+	for(var/datum/material/component as anything in decomposed)
+		result[component.type] = (result[component.type] || 0) + decomposed[component]
+	return result
 
-/datum/shipyard_generator/chair
-	target_type = /obj/structure/chair
-
-/datum/shipyard_generator/chair/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
-	// Chair subtypes declare their actual construction stock (for example, shuttle
-	// seats use titanium while ordinary chairs use iron).
-	var/obj/structure/chair/chair_type = produced_type
-	var/list/declared_materials = initial(chair_type.custom_materials)
-	if(length(declared_materials))
-		return declared_materials.Copy()
-	return plan.stack_material_cost(initial(chair_type.buildstacktype), initial(chair_type.buildstackamount))
-
-/datum/shipyard_generator/chair/greyscale
-	target_type = /obj/structure/chair/greyscale
-	blacklisted = TRUE
-
-/datum/shipyard_generator/chair/carp
-	target_type = /obj/structure/chair/comfy/carp
-	blacklisted = TRUE
-
-/datum/shipyard_generator/chair/electric
-	target_type = /obj/structure/chair/e_chair
-	blacklisted = TRUE
-
-/datum/shipyard_generator/chair/mime
-	target_type = /obj/structure/chair/mime
-	blacklisted = TRUE
-
-/datum/shipyard_generator/closet
-	target_type = /obj/structure/closet
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-
-/datum/shipyard_generator/canister
-	target_type = /obj/machinery/portable_atmospherics/canister
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 10)
-
-/datum/shipyard_generator/apc
-	target_type = /obj/machinery/power/apc
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-	autolathe_inputs = list(/obj/item/electronics/apc)
-	helper_type = /obj/effect/mapping_helpers/apc
-
-/datum/shipyard_generator/apc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
-	. = ..()
-	var/cell_type = desired["cell_type"]
-	if(!ispath(cell_type, /obj/item/stock_parts/power_store))
-		var/obj/machinery/power/apc/apc_type = produced_type
-		cell_type = initial(apc_type.cell_type)
-	var/list/cell_cost = plan.autolathe_material_cost(cell_type)
-	if(!length(cell_cost))
-		cell_cost = plan.declared_material_cost(cell_type)
-	plan.merge_material_cost(., cell_cost)
-
-/datum/shipyard_generator/airalarm
-	target_type = /obj/machinery/airalarm
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-	autolathe_inputs = list(/obj/item/electronics/airalarm)
-	helper_type = /obj/effect/mapping_helpers/airalarm
-
-/datum/shipyard_generator/terminal
-	target_type = /obj/machinery/power/terminal
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT)
-	phase = SHIPYARD_PHASE_NETWORKS
-	skip_on_apc_tile = TRUE
-
-/datum/shipyard_generator/airlock
-	target_type = /obj/machinery/door
-	materials = list(
-		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
-		/datum/material/glass = HALF_SHEET_MATERIAL_AMOUNT,
-	)
-	helper_type = /obj/effect/mapping_helpers/airlock
-
-/datum/shipyard_generator/tiny_fan
-	target_type = /obj/structure/fans/tiny
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-
-/datum/shipyard_generator/metal_barricade
-	target_type = /obj/structure/deployable_barricade/metal
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-
-/datum/shipyard_generator/plasteel_barricade
-	target_type = /obj/structure/deployable_barricade/metal/plasteel
-	materials = list(
-		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
-		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2,
-	)
-
-/datum/shipyard_generator/megacell_charger
-	target_type = /obj/machinery/power/megacell_charger
-	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 7)
-	required_parts = list(/datum/stock_part/capacitor = 1)
-
-/datum/shipyard_generator/wall_multicell_charger
-	target_type = /obj/machinery/cell_charger_multi/wall_mounted
-	board_path = /obj/item/circuitboard/machine/cell_charger_multi
+/// Reason this cost cannot be paid out of an ore silo, or null when it can.
+/proc/shipyard_material_rejection(list/cost)
+	for(var/material_path in cost)
+		var/datum/material/material = shipyard_material_singleton(material_path)
+		if(!material)
+			return "unrecognized material input '[material_path]'"
+		if(material.mat_flags & MATERIAL_CLASS_ORGANIC)
+			return "organic material ([material.name])"
+		if(!(material.mat_flags & MATERIAL_SILO_STORED))
+			return "material the ore silo cannot store ([material.name])"
+	return null
 
 /// A load-source-agnostic ship recipe.
 /datum/ship_plan
@@ -274,7 +204,9 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	manifest += operation
 	for(var/material_path in operation.material_cost)
 		material_cost[material_path] = (material_cost[material_path] || 0) + operation.material_cost[material_path]
-	if(operation.board_path)
+	// Frame and finalization operations both carry the board for verification,
+	// but only the finalization step actually consumes one.
+	if(operation.board_path && (operation.op_type == SHIPYARD_OP_MACHINE || operation.op_type == SHIPYARD_OP_COMPUTER))
 		required_parts[operation.board_path] = (required_parts[operation.board_path] || 0) + 1
 	for(var/part_path in operation.required_parts)
 		required_parts[part_path] = (required_parts[part_path] || 0) + operation.required_parts[part_path]
@@ -285,23 +217,52 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 		counts["[operation.phase]"] = (counts["[operation.phase]"] || 0) + 1
 	return counts
 
-/datum/ship_plan/proc/skipped_report(show_debug_details = FALSE)
-	var/list/report = list()
+/**
+ * Operator-facing summary of everything the manifest will not build.
+ *
+ * Entries are grouped by reason so a blueprint reports "3 x wooden chair
+ * (organic material)" once rather than one line per tile. Without debug rights
+ * the report is limited to item names and counts.
+ */
+/datum/ship_plan/proc/skipped_report(show_debug_details = FALSE, include_ignored = FALSE)
+	var/list/grouped = list()
 	for(var/list/skipped as anything in skipped_contents)
+		if(!include_ignored && skipped["category"] == SHIPYARD_SKIP_IGNORED)
+			continue
 		var/atom/skipped_type = skipped["path"]
-		var/item_name = initial(skipped_type.name) || "unknown item"
-		if(show_debug_details)
-			var/reason = skipped["reason"]
-			var/rel_x = skipped["x"]
-			var/rel_y = skipped["y"]
-			report += "[skipped_type] at ([rel_x], [rel_y])[reason ? " ([reason])" : ""]"
-		else
-			report += item_name
+		var/reason = skipped["reason"]
+		var/key = show_debug_details ? "[skipped_type]|[reason]" : "[initial(skipped_type.name)]|[reason]"
+		var/list/entry = grouped[key]
+		if(!entry)
+			entry = list("path" = skipped_type, "reason" = reason, "count" = 0)
+			grouped[key] = entry
+		entry["count"] += 1
+
+	var/list/report = list()
+	for(var/key in grouped)
+		var/list/entry = grouped[key]
+		var/atom/skipped_type = entry["path"]
+		var/label = show_debug_details ? "[skipped_type]" : (initial(skipped_type.name) || "unknown item")
+		var/count = entry["count"]
+		var/reason = entry["reason"]
+		report += "[count > 1 ? "[count]x " : ""][label][reason ? " ([reason])" : ""]"
 	return report
+
+/// Counts of skipped content per SHIPYARD_SKIP_* category.
+/datum/ship_plan/proc/skipped_counts()
+	var/list/counts = list()
+	for(var/list/skipped as anything in skipped_contents)
+		var/category = skipped["category"] || SHIPYARD_SKIP_UNSUPPORTED
+		counts[category] = (counts[category] || 0) + 1
+	return counts
 
 /// A plan derived from a parsed shuttle DMM without loading it into the world.
 /datum/ship_plan/template
 	var/datum/map_template/shuttle/source_template
+	/// Every distinct mapped path seen, mapped to the route that claimed it.
+	/// Populated during classification so a blueprint can be validated in one
+	/// pass instead of discovering one unsupported path per build attempt.
+	var/list/classified_paths = list()
 
 /datum/ship_plan/template/New(datum/map_template/shuttle/template)
 	. = ..()
@@ -356,31 +317,22 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 /datum/ship_plan/template/proc/wall_material_cost(turf_path)
 	var/turf/closed/wall/wall_type = turf_path
 	var/list/declared_materials = initial(wall_type.custom_materials)
-	if(length(declared_materials))
-		return declared_materials.Copy()
+	if(!length(declared_materials))
+		declared_materials = stack_material_cost(initial(wall_type.sheet_type), initial(wall_type.sheet_amount))
+	if(!length(declared_materials))
+		declared_materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
 
-	var/list/result = stack_material_cost(initial(wall_type.sheet_type), initial(wall_type.sheet_amount))
-	if(!length(result))
-		return list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
-	return result
+	// A hull tile cannot be skipped without leaving a hole, so an unpayable wall
+	// material is reported rather than dropped. The build will fault on it.
+	var/list/normalized = normalize_material_cost(declared_materials)
+	var/rejection = shipyard_material_rejection(normalized)
+	if(rejection)
+		record_skipped(turf_path, null, null, rejection, SHIPYARD_SKIP_UNSUPPORTED)
+	return normalized
 
 /// Resolve the material content of a number of stack units.
 /datum/ship_plan/template/proc/stack_material_cost(stack_path, amount)
-	if(!ispath(stack_path, /obj/item/stack) || amount <= 0)
-		return list()
-	var/obj/item/stack/stack_type = stack_path
-	var/list/per_unit = initial(stack_type.mats_per_unit)
-	if(!length(per_unit))
-		var/material_type = initial(stack_type.material_type)
-		if(material_type)
-			per_unit = list()
-			per_unit[material_type] = SHEET_MATERIAL_AMOUNT
-	if(!length(per_unit))
-		return list()
-	var/list/result = list()
-	for(var/material_path in per_unit)
-		result[material_path] = per_unit[material_path] * amount
-	return result
+	return shipyard_stack_material_cost(stack_path, amount)
 
 /// Merge a material dictionary into another without retaining shared lists.
 /datum/ship_plan/template/proc/merge_material_cost(list/target, list/additional)
@@ -389,26 +341,81 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	return target
 
 /// Return the canonical autolathe cost for an exact output path.
-/datum/ship_plan/template/proc/autolathe_material_cost(build_path)
-	var/list/datum/design/candidates = SSresearch.item_to_design[build_path]
-	for(var/datum/design/design as anything in candidates)
-		if(!(design.build_type & AUTOLATHE))
-			continue
-		var/list/result = list()
-		for(var/material in design.materials)
-			var/material_key = material
-			if(istype(material, /datum/material))
-				var/datum/material/material_datum = material
-				material_key = material_datum.type
-			result[material_key] = design.materials[material]
-		return result
-	return list()
+/datum/ship_plan/template/proc/printable_material_cost(build_path)
+	return shipyard_printable_material_cost(build_path)
 
 /// Material declaration on an atom path, normalized into a fresh list.
 /datum/ship_plan/template/proc/declared_material_cost(atom_path)
-	var/atom/atom_type = atom_path
-	var/list/declared = initial(atom_type.custom_materials)
-	return length(declared) ? declared.Copy() : list()
+	return shipyard_declared_material_cost(atom_path)
+
+/**
+ * Unified cost resolution for one construction target.
+ *
+ * Precedence is deterministic so that a route only has to override the cases
+ * its family genuinely gets wrong:
+ *   1. explicit route override
+ *   2. exact printable design
+ *   3. construction stack recipe
+ *   4. declared material composition
+ *   5. machine board decomposition
+ *   6. fail closed with an empty cost
+ */
+/datum/ship_plan/template/proc/resolve_construction_cost(produced_type, list/desired, datum/shipyard_route/route)
+	if(length(route?.materials))
+		return route.materials.Copy()
+
+	var/list/resolved = printable_material_cost(produced_type)
+	if(length(resolved))
+		return resolved
+
+	resolved = shipyard_build_stack_material_cost(produced_type)
+	if(length(resolved))
+		return resolved
+
+	resolved = declared_material_cost(produced_type)
+	if(length(resolved))
+		return resolved
+
+	var/board_path = route?.board_path
+	if(!board_path && ispath(produced_type, /obj/machinery))
+		var/obj/machinery/machine_type = produced_type
+		board_path = initial(machine_type.circuit)
+	if(ispath(board_path, /obj/item/circuitboard/machine))
+		var/list/requirements = shipyard_board_requirements(board_path)
+		var/list/board_materials = requirements["materials"]
+		if(length(board_materials))
+			return board_materials.Copy()
+
+	return list()
+
+/// Break alloys the ore silo cannot hold into the components it can.
+/datum/ship_plan/template/proc/normalize_material_cost(list/cost)
+	var/list/normalized = list()
+	for(var/material_path in cost)
+		var/amount = cost[material_path]
+		if(!ispath(material_path, /datum/material) || amount <= 0)
+			normalized[material_path] = amount
+			continue
+		merge_material_cost(normalized, shipyard_silo_equivalent_cost(material_path, amount))
+	return normalized
+
+/**
+ * Normalize a resolved cost and fail closed when the silo could never pay it.
+ *
+ * Returns the payable cost, or an empty list after recording why the target was
+ * skipped. Organic and non-silo-storable inputs are blacklisted automatically,
+ * which is what keeps wood, bamboo, cloth, bone, and hide content out.
+ */
+/datum/ship_plan/template/proc/apply_material_policy(list/cost, produced_type, rel_x, rel_y)
+	if(!length(cost))
+		record_skipped(produced_type, rel_x, rel_y, "no fabrication material recipe", SHIPYARD_SKIP_UNSUPPORTED)
+		return list()
+	var/list/normalized = normalize_material_cost(cost)
+	var/rejection = shipyard_material_rejection(normalized)
+	if(rejection)
+		record_skipped(produced_type, rel_x, rel_y, rejection, SHIPYARD_SKIP_BLACKLISTED)
+		return list()
+	return normalized
 
 /// Serialize colocated mapping helpers for a generated target family.
 /datum/ship_plan/template/proc/collect_helper_specs(list/members, list/member_attributes, helper_base)
@@ -437,8 +444,8 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 )
 	var/list/resolved_materials = material_override
 	if(!resolved_materials)
-		var/datum/shipyard_generator/generator = get_shipyard_generator(target_path)
-		resolved_materials = generator ? generator.resolve_materials(src, target_path, desired) : declared_material_cost(target_path)
+		var/datum/shipyard_route/route = get_shipyard_route(target_path)
+		resolved_materials = route ? route.resolve_materials(src, target_path, desired) : declared_material_cost(target_path)
 	add_operation(new /datum/ship_plan_op(
 		phase,
 		rel_x,
@@ -450,6 +457,40 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 		null,
 		helper_specs,
 		required_parts,
+	))
+
+/// Add an object constructed directly on its turf, then commissioned in place.
+/// Used where nullspace initialization would break network discovery.
+/datum/ship_plan/template/proc/add_placement_operation(
+	target_path,
+	rel_x,
+	rel_y,
+	list/desired,
+	phase = SHIPYARD_PHASE_NETWORKS,
+	list/material_cost,
+)
+	add_operation(new /datum/ship_plan_op(
+		phase,
+		rel_x,
+		rel_y,
+		SHIPYARD_OP_OBJECT,
+		target_path,
+		material_cost,
+		desired,
+	))
+	add_commission_operation(target_path, rel_x, rel_y, desired)
+
+/// Add a turf decal. Paint carries no material cost and leaves no object
+/// behind, so it is neither billed nor commissioned.
+/datum/ship_plan/template/proc/add_paint_operation(target_path, rel_x, rel_y, list/desired, phase = SHIPYARD_PHASE_STRUCTURE)
+	add_operation(new /datum/ship_plan_op(
+		phase,
+		rel_x,
+		rel_y,
+		SHIPYARD_OP_DECAL,
+		target_path,
+		null,
+		desired,
 	))
 
 /// Translate one parsed map cell into ordered, constructible operations.
@@ -504,68 +545,84 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 
 	for(var/member_index in 1 to length(members))
 		var/member_path = members[member_index]
-		if(ispath(member_path, /turf) || ispath(member_path, /area) || ispath(member_path, /obj/docking_port))
+		if(ispath(member_path, /turf) || ispath(member_path, /area))
 			continue
-		if(ispath(member_path, /obj/effect/mapping_helpers/airlock) \
-			|| ispath(member_path, /obj/effect/mapping_helpers/airalarm) \
-			|| ispath(member_path, /obj/effect/mapping_helpers/apc))
+		if(is_route_owned_helper(member_path))
 			continue
 		var/list/desired = sanitize_desired_vars(member_attributes[member_index])
-		var/datum/shipyard_generator/generator = get_shipyard_generator(member_path)
-		if(generator)
-			generator.add_to_plan(src, member_path, rel_x, rel_y, desired, members, member_attributes, has_apc)
-		else if(ispath(member_path, /obj/machinery/computer))
-			add_machine_operations(member_path, rel_x, rel_y, desired, TRUE)
-		else if(ispath(member_path, /obj/machinery))
-			if(ispath(member_path, /obj/machinery/atmospherics))
-				add_operation(new /datum/ship_plan_op(
-					SHIPYARD_PHASE_NETWORKS,
-					rel_x,
-					rel_y,
-					SHIPYARD_OP_OBJECT,
-					member_path,
-					list(/datum/material/iron = SHEET_MATERIAL_AMOUNT),
-					desired,
-				))
-				add_commission_operation(member_path, rel_x, rel_y, desired)
-			else
-				add_machine_operations(member_path, rel_x, rel_y, desired, FALSE)
-		else if(ispath(member_path, /obj/structure/cable) || ispath(member_path, /obj/structure/disposalpipe))
-			add_operation(new /datum/ship_plan_op(
-				SHIPYARD_PHASE_NETWORKS,
-				rel_x,
-				rel_y,
-				SHIPYARD_OP_OBJECT,
-				member_path,
-				list(/datum/material/iron = HALF_SHEET_MATERIAL_AMOUNT),
-				desired,
-			))
-			add_commission_operation(member_path, rel_x, rel_y, desired)
-		else if(ispath(member_path, /obj/structure/grille) || ispath(member_path, /obj/structure/window))
-			add_operation(new /datum/ship_plan_op(
-				SHIPYARD_PHASE_STRUCTURE,
-				rel_x,
-				rel_y,
-				SHIPYARD_OP_OBJECT,
-				member_path,
-				list(/datum/material/iron = HALF_SHEET_MATERIAL_AMOUNT, /datum/material/glass = SHEET_MATERIAL_AMOUNT),
-				desired,
-			))
-			add_commission_operation(member_path, rel_x, rel_y, desired)
-		else
-			record_skipped(member_path, rel_x, rel_y)
+		classify_content(member_path, rel_x, rel_y, desired, members, member_attributes, has_apc)
 
-/datum/ship_plan/template/proc/add_machine_operations(machine_path, rel_x, rel_y, list/desired, computer, board_override)
-	var/board_path = board_override
-	if(computer)
-		var/obj/machinery/computer/computer_type = machine_path
-		board_path ||= initial(computer_type.circuit)
-	else if(!board_path)
+/// TRUE when a mapping helper is replayed by the route of a colocated target
+/// rather than classified as construction content of its own.
+/datum/ship_plan/template/proc/is_route_owned_helper(member_path)
+	for(var/helper_base in GLOB.shipyard_route_helper_bases)
+		if(ispath(member_path, helper_base))
+			return TRUE
+	return FALSE
+
+/// Dispatch one mapped object through its construction route.
+/datum/ship_plan/template/proc/classify_content(
+	member_path,
+	rel_x,
+	rel_y,
+	list/desired,
+	list/members,
+	list/member_attributes,
+	has_apc,
+	depth = 0,
+)
+	if(depth >= SHIPYARD_EXPANSION_DEPTH)
+		record_skipped(member_path, rel_x, rel_y, "spawner nesting is too deep to replay", SHIPYARD_SKIP_UNSUPPORTED)
+		return
+	var/datum/shipyard_route/route = get_shipyard_route(member_path)
+	classified_paths[member_path] = route?.type
+	if(!route)
+		record_skipped(member_path, rel_x, rel_y, "no construction route", SHIPYARD_SKIP_UNSUPPORTED)
+		return
+	route.add_to_plan(src, member_path, rel_x, rel_y, desired, members, member_attributes, has_apc, depth)
+
+/**
+ * One line per distinct mapped path describing the decision made for it.
+ *
+ * This is the aggregate diagnostic: it reports the whole blueprint's coverage
+ * at once rather than surfacing a single unsupported path per build attempt.
+ */
+/datum/ship_plan/template/proc/route_report()
+	var/list/reasons = list()
+	for(var/list/skipped as anything in skipped_contents)
+		var/skipped_path = skipped["path"]
+		if(reasons[skipped_path])
+			continue
+		reasons[skipped_path] = "[skipped["category"]]: [skipped["reason"]]"
+
+	var/list/report = list()
+	for(var/mapped_path in classified_paths)
+		var/decision = reasons[mapped_path] || "built by [classified_paths[mapped_path]]"
+		report += "[mapped_path] -> [decision]"
+	return report
+
+/**
+ * Emit frame, board, and finalization operations for a constructible machine.
+ *
+ * Board components split two ways: anything the fabricator can print itself is
+ * billed to the ore silo and injected at finalization, while finished stock
+ * parts remain a requirement on the docked RPED.
+ */
+/datum/ship_plan/template/proc/add_machine_operations(machine_path, rel_x, rel_y, list/desired, computer, datum/shipyard_route/route)
+	var/board_path = route?.board_path
+	if(!board_path)
 		var/obj/machinery/machine_type = machine_path
 		board_path = initial(machine_type.circuit)
 	if(!ispath(board_path, /obj/item/circuitboard))
-		record_skipped(machine_path, rel_x, rel_y, "no constructible board")
+		record_skipped(machine_path, rel_x, rel_y, "no constructible circuit board", SHIPYARD_SKIP_UNSUPPORTED)
 		return
+
+	var/list/requirements = shipyard_board_requirements(board_path)
+	var/list/component_materials = apply_material_policy_soft(requirements["materials"], machine_path, rel_x, rel_y)
+	var/list/component_parts = requirements["parts"].Copy()
+	for(var/part_path in route?.required_parts)
+		component_parts[part_path] = (component_parts[part_path] || 0) + route.required_parts[part_path]
+
 	add_operation(new /datum/ship_plan_op(
 		SHIPYARD_PHASE_FRAMES,
 		rel_x,
@@ -576,30 +633,45 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 		desired,
 		board_path,
 	))
+	var/list/finalization_cost = list()
+	if(computer)
+		finalization_cost[/datum/material/glass] = SHEET_MATERIAL_AMOUNT * 2
+	merge_material_cost(finalization_cost, component_materials)
 	add_operation(new /datum/ship_plan_op(
 		SHIPYARD_PHASE_FINAL,
 		rel_x,
 		rel_y,
 		computer ? SHIPYARD_OP_COMPUTER : SHIPYARD_OP_MACHINE,
 		machine_path,
-		list(/datum/material/glass = computer ? SHEET_MATERIAL_AMOUNT * 2 : 0),
+		finalization_cost,
 		desired,
 		board_path,
+		null,
+		component_parts,
 	))
-	add_commission_operation(
-		machine_path,
-		rel_x,
-		rel_y,
-		desired,
-		ispath(machine_path, /obj/machinery/cell_charger_multi/wall_mounted),
-	)
+	// A wall fixture still needs a commissioning pass with no mapped vars, so
+	// the route can hang it on its neighbouring wall once the frame is closed.
+	add_commission_operation(machine_path, rel_x, rel_y, desired, route?.wall_mounted)
 
-/datum/ship_plan/template/proc/record_skipped(target_path, rel_x, rel_y, reason)
+/// Material policy for costs that only partially fund an operation. An
+/// unpayable component is reported without cancelling the whole machine.
+/datum/ship_plan/template/proc/apply_material_policy_soft(list/cost, produced_type, rel_x, rel_y)
+	if(!length(cost))
+		return list()
+	var/list/normalized = normalize_material_cost(cost)
+	var/rejection = shipyard_material_rejection(normalized)
+	if(!rejection)
+		return normalized
+	record_skipped(produced_type, rel_x, rel_y, "component uses [rejection]", SHIPYARD_SKIP_UNSUPPORTED)
+	return normalized
+
+/datum/ship_plan/template/proc/record_skipped(target_path, rel_x, rel_y, reason, category = SHIPYARD_SKIP_UNSUPPORTED)
 	skipped_contents += list(list(
 		"path" = target_path,
 		"x" = rel_x,
 		"y" = rel_y,
 		"reason" = reason,
+		"category" = category,
 	))
 
 /datum/ship_plan/template/proc/add_commission_operation(target_path, rel_x, rel_y, list/desired, force = FALSE)
@@ -620,22 +692,28 @@ GLOBAL_LIST_INIT(shipyard_generators, build_shipyard_generator_registry())
 	if(!islist(raw_vars))
 		return sanitized
 	var/static/list/allowed = list(
+		"alpha",
 		"anchored",
 		"areastring",
 		"auto_name",
+		"cable_color",
 		"cable_layer",
 		"cell_type",
 		"chargemode",
 		"color",
 		"dir",
+		"dpdir",
 		"environ",
 		"equipment",
 		"greyscale_colors",
+		"icon_state",
 		"initialize_directions",
+		"layer",
 		"lighting",
 		"locked",
 		"name",
 		"pipe_color",
+		"pipe_flags",
 		"piping_layer",
 		"req_access",
 		"req_one_access",
