@@ -73,6 +73,15 @@
 	TEST_ASSERT(landing_zone_count > 0, "Open-space content Z should contain landing zones.")
 	var/obj/structure/overmap/level/site/open_space/second = SSovermap.get_or_create_open_space_site(grid_turf)
 	TEST_ASSERT_EQUAL(first, second, "One shared open-space site should own an overmap tile.")
+
+	// The teardown cases below reuse the Z this site already took. Asking the
+	// subsystem for another would hand them a brand new one: recycling only
+	// republishes a Z after sweeping every turf on it, which takes longer than a
+	// test should sit and wait. BYOND never gives a Z level back either, so each
+	// one is world.maxx * world.maxy turfs resident for the rest of the process
+	// - on a large map, the most expensive thing a test can leave behind.
+	var/content_z = first.linked_levels[1]
+	var/allocated_maxz = world.maxz
 	qdel(first)
 
 	// Deleting a site hands its content Z back, and that sweep touches every
@@ -84,7 +93,7 @@
 	// the sweep outran the collector, which made a real leak look flaky.
 	var/turf/deleted_turf = empty_overmap_turf()
 	TEST_ASSERT(deleted_turf, "No empty overmap turf available for the deletion case.")
-	TEST_ASSERT_EQUAL(refs_after_delete(deleted_turf), 2, "Deleting an open-space site left it referenced; it will hard delete.")
+	TEST_ASSERT_EQUAL(refs_after_delete(deleted_turf, content_z), 2, "Deleting an open-space site left it referenced; it will hard delete.")
 
 	// The route a round actually takes: the last ship leaves and the site
 	// retires itself. Checked for behaviour rather than reference count - it
@@ -93,10 +102,11 @@
 	// site is collected.
 	var/turf/retired_turf = empty_overmap_turf()
 	TEST_ASSERT(retired_turf, "No empty overmap turf available for the retirement case.")
-	var/obj/structure/overmap/level/site/open_space/retiring = SSovermap.get_or_create_open_space_site(retired_turf)
-	TEST_ASSERT(retiring, "Retirement case should allocate a site.")
+	var/obj/structure/overmap/level/site/open_space/retiring = new(retired_turf, "open_space_test_retire", list(content_z))
+	TEST_ASSERT(retiring, "Retirement case should build a site.")
 	retiring.try_cleanup()
 	TEST_ASSERT(QDELETED(retiring), "An unoccupied open-space site should retire itself once nothing is aboard.")
+	TEST_ASSERT_EQUAL(world.maxz, allocated_maxz, "The open-space cases took new Z levels rather than sharing one.")
 
 /// What is left holding a site once it has been deleted.
 ///
@@ -105,8 +115,8 @@
 /// anything higher is a hard delete waiting on the collector to give up. This
 /// has to be measured in a frame of its own: locals in the calling proc, and
 /// the temporaries the assertion macros declare, all count too.
-/datum/unit_test/overmap_open_space_site/proc/refs_after_delete(turf/grid_turf)
-	var/obj/structure/overmap/level/site/open_space/site = SSovermap.get_or_create_open_space_site(grid_turf)
+/datum/unit_test/overmap_open_space_site/proc/refs_after_delete(turf/grid_turf, content_z)
+	var/obj/structure/overmap/level/site/open_space/site = new(grid_turf, "open_space_test_delete", list(content_z))
 	if(!site)
 		return 0
 	qdel(site)
