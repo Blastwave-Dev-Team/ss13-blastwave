@@ -3,6 +3,9 @@
 	"map_name": "Catwalk Station",
 	"map_path": "map_files/CatwalkStation",
 	"map_file": "CatwalkStation_2023.dmm",
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"exclude_from_ci": true,
 	"shuttles": {
 		"emergency": "emergency_catwalk",

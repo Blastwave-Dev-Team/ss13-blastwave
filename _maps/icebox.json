@@ -5,6 +5,7 @@
 	"map_file": "IceBoxStation.dmm",
 	"space_ruin_levels": 0,
 	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"wilderness_levels": 2,
 	"planetary": 1,
 	"give_players_hooks": 1,

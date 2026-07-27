@@ -3,6 +3,9 @@
 	"map_name": "Void Raptor",
 	"map_path": "map_files/VoidRaptor",
 	"map_file": "VoidRaptor.dmm",
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"exclude_from_ci": true,
 	"shuttles": {
 		"emergency": "emergency_nova",

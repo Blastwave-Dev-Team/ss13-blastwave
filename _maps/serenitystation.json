@@ -6,6 +6,7 @@
 	"exclude_from_ci": false,
 	"space_ruin_levels": 0,
 	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"planetary": 1,
 	"height_autosetup": 0,
 	"allow_space_when_planetary": 1,

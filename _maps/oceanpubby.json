@@ -5,6 +5,7 @@
 	"map_file": "oceanpubby.dmm",
 	"space_ruin_levels": 0,
 	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"wilderness_levels": 0,
 	"planetary": 1,
 	"shuttles": {

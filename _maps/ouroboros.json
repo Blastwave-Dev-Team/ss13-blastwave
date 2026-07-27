@@ -3,6 +3,9 @@
 	"map_name": "Ouroboros",
 	"map_path": "map_files/Ouroboros",
 	"map_file": "Ouroboros.dmm",
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"exclude_from_ci": true,
 	"shuttles": {
 		"emergency": "emergency_nova",
