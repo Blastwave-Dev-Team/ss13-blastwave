@@ -30,6 +30,12 @@ is TRUE in map config, SSmapping no longer creates crosslinked space ruin
 Zs. Instead, SSovermap.seed_space_sites() places ruin templates as named
 `/level/site` POIs on isolated reserved Zs.
 
+Which ruins that draws, and therefore how many full Z levels of turfs a
+round carries, varies run to run. `log_overmap_footprint()` writes the
+count, the levels taken, and the template ids to `world.log` once the grid
+is generated, so a round that runs out of memory can be read back against
+what it seeded.
+
 Cross-faction stealth hides the NT station from DS2 viewers (and vice
 versa in v1) until a deployable syndicate beacon is activated.
 
@@ -74,13 +80,20 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `tgui/packages/tgui/interfaces/DistressBeacon.tsx` - evac beacon TGUI.
 - `code/__DEFINES/~nova_defines/overmap.dm` - cross-file defines.
 - `code/modules/unit_tests/~nova/overmap_ruins.dm` - unit tests for
-  site POIs, stealth gating, crosslinked Z prevention, beacon.
+  site POIs, stealth gating, crosslinked Z prevention, beacon, and the
+  corpse spawner environment exemption.
 
 ### master_files overrides
 
 - `modular_nova/master_files/code/controllers/subsystem/mapping.dm` -
   adds `overmap_space_ruins` var on `/datum/map_config`; extends
   `setup_ruins()` to skip space ruin seeding when flag is set.
+- `modular_nova/master_files/code/datums/elements/atmos_requirements.dm`
+  and `body_temp_sensitive.dm` - exempt a mob a corpse spawner is in the
+  middle of making from the maploaded-environment assertions. Sites and
+  encounters load after SSair, which is when those assertions stop being
+  deferred and start catching the live line between a corpse spawner
+  creating its mob and killing it, failing CI on airless stock ruins.
 
 ### Core file changes (BLASTWAVE EDIT ADDITION/CHANGE OVERMAP)
 
@@ -141,8 +154,10 @@ versa in v1) until a deployable syndicate beacon is activated.
 
 ### Config (map JSON, not .dmm)
 
-- `_maps/metastation.json` - `space_ruin_levels: 0`,
-  `space_empty_levels: 0`, `overmap_space_ruins: true`.
+- Every playable map's JSON (metastation, icebox, tramstation, blueshift,
+  oceanpubby, and the rest) - `space_ruin_levels: 0`,
+  `space_empty_levels: 0`, `overmap_space_ruins: true`. Debug and event
+  maps zero the legacy levels without taking overmap ruins.
 
 ## Credits
 

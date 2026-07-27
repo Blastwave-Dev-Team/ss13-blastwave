@@ -44,6 +44,50 @@
 		seen_zs += site_z
 		TEST_ASSERT(length(site.member_templates), "Site [site.id] has no member_templates.")
 
+/**
+ * A corpse spawner in an airless ruin should not read as a mapping error.
+ *
+ * The spawner builds its mob alive and kills it on the next line, so for that one
+ * line there is something breathing in whatever the ruin has - vacuum, for the
+ * airless ones. A ruin loaded before SSair comes up never shows this, because the
+ * maploaded-environment assertions wait for the subsystem and find a corpse by the
+ * time they run. Sites and encounters load long after that and are checked inline,
+ * which turned a stock space ruin into a failed CI round.
+ */
+/datum/unit_test/overmap_site_corpse_atmos
+
+/datum/unit_test/overmap_site_corpse_atmos/Run()
+	var/turf/open/pad = run_loc_floor_bottom_left
+	TEST_ASSERT(istype(pad), "Corpse atmos test requires an open floor.")
+
+	// The airless ruins this reproduces, on the mob the one that broke CI ships.
+	var/datum/gas_mixture/breathable = pad.air.copy()
+	var/datum/gas_mixture/vacuum = new()
+	vacuum.temperature = TCMB
+	pad.air.copy_from(vacuum)
+
+	var/mob/living/basic/headslug/beakless/subject = allocate(/mob/living/basic/headslug/beakless)
+	var/datum/element/atmos_requirements/requirement = SSdcs.GetElement(list(
+		/datum/element/atmos_requirements,
+		subject.habitable_atmos,
+		subject.unsuitable_atmos_damage,
+	))
+	TEST_ASSERT(istype(requirement), "The test mob should carry the atmos requirements element.")
+	// Otherwise a tile that turned out to be survivable would pass this for the
+	// wrong reason, and the assertion below would be measuring nothing.
+	TEST_ASSERT(!requirement.is_breathable_atmos(subject), "The test tile should be genuinely unbreathable.")
+
+	// Standing where a corpse spawner is working is the whole of the exemption: the
+	// spawner does not leave its tile until the mob it made is dead.
+	allocate(/obj/effect/mob_spawn/corpse/headcrab, pad, TRUE)
+	var/runtimes_before = GLOB.total_runtimes
+	requirement.check_safe_environment(subject)
+	var/runtimes_after = GLOB.total_runtimes
+
+	pad.air.copy_from(breathable)
+
+	TEST_ASSERT_EQUAL(runtimes_after, runtimes_before, "A mob a corpse spawner is in the middle of making was reported as mapped somewhere it cannot survive.")
+
 /// Verify that installation_stealth is correctly set on main and des_two.
 /datum/unit_test/overmap_stealth_flags
 

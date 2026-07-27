@@ -52,6 +52,10 @@ SUBSYSTEM_DEF(overmap)
 	var/last_encounter_spawn_error
 	/// Soft-cleared content Zs available for reuse by lazy dynamic encounters.
 	var/list/reusable_content_zs = list()
+	/// Content Z levels this round took from BYOND, which never gives one back.
+	var/content_zs_allocated = 0
+	/// Content Z levels served out of the recycle pool instead of a new one.
+	var/content_zs_reused = 0
 
 /datum/controller/subsystem/overmap/Initialize()
 	init_overmap_faction_globals()
@@ -251,6 +255,24 @@ SUBSYSTEM_DEF(overmap)
 		seed_space_sites()
 	spawn_encounters()
 	spawn_events()
+	log_overmap_footprint()
+
+/**
+ * Account for what the grid cost in Z levels.
+ *
+ * Which ruins get seeded is a weighted draw, so two rounds on the same map can
+ * differ by several full levels of turfs, and BYOND does not hand a Z back once it
+ * has been taken. That variance is invisible from the outside until a heavy map
+ * runs out of memory partway through a round, so the draw is worth writing down
+ * next to the size it cost - the template ids included, since the interesting
+ * question after a failure is usually which ruins came up.
+ */
+/datum/controller/subsystem/overmap/proc/log_overmap_footprint()
+	var/turfs_per_z = world.maxx * world.maxy
+	log_world("SSovermap footprint: [length(placed_site_template_ids)] named sites, \
+		[content_zs_allocated] content Z levels allocated, [content_zs_reused] reused, \
+		world.maxz [world.maxz], ~[content_zs_allocated * turfs_per_z] turfs added. \
+		Sites: [jointext(placed_site_template_ids, ", ") || "none"]")
 
 /// Locate the station Z-level set and drop a `/level/main` near the star.
 /// Prefers a tile in the chebyshev-`OVERMAP_STAR_BUFFER` ring around the
@@ -811,6 +833,7 @@ SUBSYSTEM_DEF(overmap)
 	if(allow_reuse && length(reusable_content_zs))
 		site_z = reusable_content_zs[1]
 		reusable_content_zs.Cut(1, 2)
+		content_zs_reused++
 	else
 		var/datum/space_level/level = SSmapping.add_new_zlevel(
 			level_name,
@@ -821,6 +844,7 @@ SUBSYSTEM_DEF(overmap)
 			WARNING("generate_overmap_content_z: failed to allocate Z for [level_name]")
 			return null
 		site_z = level.z_value
+		content_zs_allocated++
 
 	var/list/placed_rects = list()
 	var/list/datum/map_template/ruin/loaded = list()
@@ -878,6 +902,7 @@ SUBSYSTEM_DEF(overmap)
 	if(length(reusable_content_zs))
 		site_z = reusable_content_zs[1]
 		reusable_content_zs.Cut(1, 2)
+		content_zs_reused++
 	else
 		var/datum/space_level/level = SSmapping.add_new_zlevel(
 			level_name,
@@ -888,6 +913,7 @@ SUBSYSTEM_DEF(overmap)
 			WARNING("generate_blank_overmap_content_z: failed to allocate Z for [level_name]")
 			return null
 		site_z = level.z_value
+		content_zs_allocated++
 	seed_site_landing_zones(site_z, level_name, list())
 	return site_z
 
