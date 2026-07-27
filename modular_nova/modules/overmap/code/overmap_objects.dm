@@ -132,7 +132,6 @@
 	refresh_close_overmap_objects()
 
 /obj/structure/overmap/Destroy()
-	stop_being_rendered()
 	for(var/obj/structure/overmap/peer as anything in close_overmap_objects)
 		LAZYREMOVE(peer.close_overmap_objects, src)
 	close_overmap_objects = null
@@ -140,27 +139,6 @@
 	STOP_PROCESSING(SSfastprocess, src)
 	QDEL_NULL(cam_screen)
 	return ..()
-
-/// Leave every viewscreen that is currently drawing us, before we are collected.
-///
-/// A viewscreen puts the turfs around its owner into vis_contents, and BYOND
-/// references a rendered turf's contents natively. Those references are
-/// invisible to the reference tracker and are never dropped on their own: an
-/// unwatched camera skips its refresh entirely, so the snapshot it took when it
-/// was built pins anything standing on those turfs for the rest of the round.
-/// Vacating the turf and forcing the affected cameras to rebuild releases us
-/// while we are still only soft deleted.
-/obj/structure/overmap/proc/stop_being_rendered()
-	var/turf/rendered_turf = get_turf(src)
-	if(!rendered_turf)
-		return
-	moveToNullspace()
-	for(var/obj/structure/overmap/peer as anything in SSovermap.overmap_objects)
-		if(peer == src || peer.z != rendered_turf.z)
-			continue
-		if(get_dist(peer, rendered_turf) > peer.sensor_range)
-			continue
-		peer.update_screen(TRUE)
 
 /obj/structure/overmap/process(seconds_per_tick)
 	physics_tick(seconds_per_tick)
