@@ -618,10 +618,18 @@
 	preserve_level = FALSE
 	controlled = TRUE
 
+/// Hand the content Z back on a timer rather than with INVOKE_ASYNC.
+///
+/// INVOKE_ASYNC is spawn(), and a spawn inherits the enclosing proc's src. The
+/// recycle walks every turf on the Z, so spawning it from here would keep this
+/// object referenced for the whole sweep - long past the point the collector
+/// gives up and hard deletes us. The reference lives in an execution context
+/// rather than a variable, so ref tracking cannot see it either. A timer hands
+/// the work to SStimer, which only needs the Z number.
 /obj/structure/overmap/level/site/open_space/Destroy()
 	if(length(linked_levels))
 		for(var/z_value in linked_levels)
-			INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value)
+			addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value), 0)
 	linked_levels = null
 	return ..()
 
@@ -636,6 +644,8 @@
 		if(living_mob.z == content_z && living_mob.mind)
 			return
 	linked_levels = null
-	INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), content_z)
+	// Timer rather than INVOKE_ASYNC for the same reason as Destroy(): a spawn
+	// started here would inherit src and outlive the qdel below.
+	addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), content_z), 0)
 	qdel(src)
 

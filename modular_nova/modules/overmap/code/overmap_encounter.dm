@@ -26,7 +26,10 @@
 /obj/structure/overmap/dynamic/Destroy()
 	if(length(linked_levels) && !preserve_level)
 		for(var/z_value in linked_levels)
-			INVOKE_ASYNC(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value)
+			// Timer, not INVOKE_ASYNC: a spawn inherits src and would hold this
+			// encounter alive for the length of the Z sweep. See the open-space
+			// site's Destroy() for the full explanation.
+			addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value), 0)
 	linked_levels = null
 	ruin_template = null
 	member_templates = null

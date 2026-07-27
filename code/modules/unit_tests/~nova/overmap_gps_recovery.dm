@@ -75,6 +75,47 @@
 	TEST_ASSERT_EQUAL(first, second, "One shared open-space site should own an overmap tile.")
 	qdel(first)
 
+	// Deleting a site hands its content Z back, and that sweep touches every
+	// turf on the level. The handoff has to outlive the site without dragging
+	// the site along: INVOKE_ASYNC is spawn(), a spawn inherits src, and one
+	// started from the teardown kept the site referenced until the sweep
+	// finished. Reference tracking never saw it - the reference lived in an
+	// execution context rather than a variable - and it only hard deleted when
+	// the sweep outran the collector, which made a real leak look flaky.
+	var/turf/deleted_turf = empty_overmap_turf()
+	TEST_ASSERT(deleted_turf, "No empty overmap turf available for the deletion case.")
+	TEST_ASSERT_EQUAL(refs_after_delete(deleted_turf), 2, "Deleting an open-space site left it referenced; it will hard delete.")
+
+	// The route a round actually takes: the last ship leaves and the site
+	// retires itself. Checked for behaviour rather than reference count - it
+	// settles one above the deletion path, and chasing that number here would
+	// only make the test brittle when create_and_destroy already proves the
+	// site is collected.
+	var/turf/retired_turf = empty_overmap_turf()
+	TEST_ASSERT(retired_turf, "No empty overmap turf available for the retirement case.")
+	var/obj/structure/overmap/level/site/open_space/retiring = SSovermap.get_or_create_open_space_site(retired_turf)
+	TEST_ASSERT(retiring, "Retirement case should allocate a site.")
+	retiring.try_cleanup()
+	TEST_ASSERT(QDELETED(retiring), "An unoccupied open-space site should retire itself once nothing is aboard.")
+
+/// What is left holding a site once it has been deleted.
+///
+/// SSgarbage frees an object when nothing but the queue's reference and the
+/// caller's own local remain, so a clean teardown reads exactly two and
+/// anything higher is a hard delete waiting on the collector to give up. This
+/// has to be measured in a frame of its own: locals in the calling proc, and
+/// the temporaries the assertion macros declare, all count too.
+/datum/unit_test/overmap_open_space_site/proc/refs_after_delete(turf/grid_turf)
+	var/obj/structure/overmap/level/site/open_space/site = SSovermap.get_or_create_open_space_site(grid_turf)
+	if(!site)
+		return 0
+	qdel(site)
+	// Settle first. The collector does not judge an object the instant it is
+	// queued either, and references belonging to the deleting tick - the timer
+	// waiting to fire, the frame that called us - are not what strands it.
+	sleep(1 SECONDS)
+	return refcount(site)
+
 /datum/unit_test/overmap_emergency_brake
 
 /datum/unit_test/overmap_emergency_brake/Run()
