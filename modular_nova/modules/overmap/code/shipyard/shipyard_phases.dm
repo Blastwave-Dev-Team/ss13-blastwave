@@ -6,9 +6,16 @@
 		return FALSE
 	switch(op_type)
 		if(SHIPYARD_OP_RODS)
-			return HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
+			// Frame membership from any source means the rod stage is behind
+			// us, including tiles already plated over, which drop the rod
+			// source but stay in the frame.
+			return HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF)
 		if(SHIPYARD_OP_PLATING)
-			return istype(work_turf, /turf/open/floor/plating)
+			// Rods do not change the turf's own type, so a pad that was already
+			// plating still owes a hull layer. Plating is only done once that
+			// layer has covered the exposed rods.
+			return HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF) \
+				&& !HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
 		if(SHIPYARD_OP_GIRDER)
 			return !!(locate(/obj/structure/girder) in work_turf)
 		if(SHIPYARD_OP_MACHINE_FRAME)
@@ -25,6 +32,37 @@
 			return FALSE
 	return FALSE
 
+/**
+ * Whether running this operation would only confirm what is already there.
+ *
+ * Resumed builds walk the whole manifest again, and the fabricator uses this to
+ * tell a re-check apart from a real placement so catching up is not paced by
+ * placement time.
+ */
+/datum/ship_plan_op/proc/needs_no_work(obj/machinery/shipyard_fabricator/fabricator)
+	if(op_type == SHIPYARD_OP_COMMISSION)
+		return FALSE
+	return satisfied(fabricator.get_operation_turf(src))
+
+/**
+ * Something standing where hull work has to happen, or null when the tile is clear.
+ *
+ * Rods and plating go down before the plan places anything of its own, so
+ * anything structural on the tile at that point was left by the crew and would
+ * be silently built over.
+ */
+/datum/ship_plan_op/proc/hull_obstruction(turf/work_turf)
+	if(op_type != SHIPYARD_OP_RODS && op_type != SHIPYARD_OP_PLATING)
+		return null
+	for(var/obj/blocker in work_turf)
+		// Wide atoms such as the fabricator itself list themselves in the
+		// contents of every turf they overlap, so only tenants count.
+		if(blocker.loc != work_turf)
+			continue
+		if(isstructure(blocker) || ismachinery(blocker))
+			return blocker
+	return null
+
 /// Execute one operation. TRUE means complete, null means a replenishable
 /// resource wait, and text means a world-state fault that needs intervention.
 /datum/ship_plan_op/proc/execute(obj/machinery/shipyard_fabricator/fabricator)
@@ -34,6 +72,9 @@
 		return "Operation target is outside the claimed landing zone."
 	if(satisfied(work_turf) && op_type != SHIPYARD_OP_COMMISSION)
 		return TRUE
+	var/obj/blocker = hull_obstruction(work_turf)
+	if(blocker)
+		return "[blocker.name] blocks hull work at ([work_turf.x], [work_turf.y])."
 	if(length(material_cost))
 		if(!fabricator.materials?.mat_container?.has_materials(material_cost, fabricator.material_cost_multiplier))
 			fabricator.paused_reason = "Ore silo lacks material for [op_type] at ([work_turf.x], [work_turf.y])."
@@ -77,6 +118,7 @@
 			coefficient = fabricator.material_cost_multiplier,
 			action = "fabricate",
 			name = fabricator.blueprint_disk?.ship_plan?.name || "ship",
+			user_data = fabricator.consumer_id_data(),
 		)
 	return TRUE
 

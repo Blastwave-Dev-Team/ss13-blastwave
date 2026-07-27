@@ -81,3 +81,11 @@
 	registration_is_custom = FALSE
 	registration_label = "frigate registration"
 
+/// Builds the route coverage fixture. Every construction route has a
+/// representative on this hull, so a build that finishes here has exercised the
+/// whole route table rather than the subset a real ship happens to use.
+/obj/item/ship_blueprint_disk/shipyard_validation
+	name = "shipyard validation blueprint disk"
+	desc = "A diagnostic design disk. The hull it describes is a test rig: one of everything, bolted to a box."
+	template_type = /datum/map_template/shuttle/overmap/shipyard_validation
+

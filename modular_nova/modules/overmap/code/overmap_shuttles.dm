@@ -43,6 +43,17 @@
 	description = "Sol Federation patrol frigate."
 	admin_notes = "SolFed patrol frigate, seats 3 crew, 2 spacepods."
 
+/// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
+/// object family the shipyard claims to build, so a single build exercises
+/// every construction route instead of whatever the fleet happens to use.
+/datum/map_template/shuttle/overmap/shipyard_validation
+	prefix = "_maps/shuttles/overmap/test/"
+	port_id = "shipyard"
+	suffix = "validation"
+	name = "Shipyard Validation Hull"
+	description = "Route coverage fixture for the shipyard fabricator."
+	admin_notes = "Test fixture, not a playable ship. Every construction route has a representative here."
+
 /obj/docking_port/mobile/overmap
 	name = "overmap vessel"
 

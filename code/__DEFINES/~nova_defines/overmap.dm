@@ -102,6 +102,9 @@
 #define SHIPYARD_ROUTE_PAINT "paint"
 /// Record the target instead of building it.
 #define SHIPYARD_ROUTE_SKIP "skip"
+/// Another phase already accounts for the target, so the manifest stays silent
+/// about it rather than reporting it as something the build left out.
+#define SHIPYARD_ROUTE_OMIT "omit"
 
 // Grouping for manifest content the shipyard does not construct.
 /// Cosmetic or map-only content that never needed construction.

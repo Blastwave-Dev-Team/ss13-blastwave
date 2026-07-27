@@ -4,6 +4,12 @@
 /datum/unit_test/overmap_shipyard_fabricator
 	abstract_type = /datum/unit_test/overmap_shipyard_fabricator
 	priority = TEST_LONGER
+/// The icon states a fabricator currently contributes through its overlay pass.
+/datum/unit_test/overmap_shipyard_fabricator/proc/overlay_states(obj/machinery/shipyard_fabricator/fabricator)
+	var/list/states = list()
+	for(var/mutable_appearance/overlay as anything in fabricator.update_overlays())
+		states += istext(overlay) ? overlay : overlay.icon_state
+	return states
 
 /datum/unit_test/overmap_shipyard_fabricator/manifest
 
@@ -138,12 +144,42 @@
 	TEST_ASSERT_EQUAL(typed_patrol.registration_area_type, /area/shuttle/overmap/frigate, "Typed Patrol disk should select the frigate area.")
 	TEST_ASSERT(!typed_cutter.registration_is_custom && !typed_patrol.registration_is_custom, "Typed disks should register as non-custom shuttles.")
 
+/// A window sits on its grille, so the grille is framing work that has to be
+/// standing before the structure pass glazes over it.
+/datum/unit_test/overmap_shipyard_fabricator/window_framing
+
+/datum/unit_test/overmap_shipyard_fabricator/window_framing/Run()
+	var/datum/shipyard_route/grille_route = get_shipyard_route(/obj/structure/grille)
+	var/datum/shipyard_route/window_route = get_shipyard_route(/obj/structure/window)
+	TEST_ASSERT(grille_route, "Grilles should have a construction route.")
+	TEST_ASSERT(window_route, "Windows should have a construction route.")
+	TEST_ASSERT_EQUAL(grille_route.phase, SHIPYARD_PHASE_FRAMES, "Grilles should be laid with the rest of the framing.")
+	TEST_ASSERT(grille_route.phase < window_route.phase, "Grilles should be standing before anything is glazed.")
+
+	var/list/failures = list()
+	for(var/target_type in GLOB.shipyard_routes)
+		var/datum/shipyard_route/route = GLOB.shipyard_routes[target_type]
+		if(route.strategy != SHIPYARD_ROUTE_EXPAND || !length(route.expansion))
+			continue
+		var/glazes = FALSE
+		for(var/expanded in route.expansion)
+			if(ispath(expanded, /obj/structure/window))
+				glazes = TRUE
+				break
+		if(glazes && !(/obj/structure/grille in route.expansion))
+			failures += "[target_type] glazes a window without framing it"
+	if(length(failures))
+		TEST_FAIL("Window framing found [length(failures)] issue(s):\n[jointext(failures, "\n")]")
+
 /// Every mapped path in a fabricable blueprint must reach a documented
 /// decision, so coverage gaps surface as one report instead of one per build.
 /datum/unit_test/overmap_shipyard_fabricator/template_coverage
 
 /datum/unit_test/overmap_shipyard_fabricator/template_coverage/Run()
 	var/static/list/disk_types = list(
+		// The fixture carries a representative of every route; the fleet blueprints
+		// keep the real ships honest against route changes.
+		/obj/item/ship_blueprint_disk/shipyard_validation,
 		/obj/item/ship_blueprint_disk/solfed_cutter,
 		/obj/item/ship_blueprint_disk/solfed_patrol,
 	)
@@ -161,6 +197,8 @@
 			if(!plan.classified_paths[mapped_path])
 				failures += "[disk_type]: [mapped_path] has no construction route"
 		for(var/list/skipped as anything in plan.skipped_contents)
+			if(ispath(skipped["path"], /obj/docking_port))
+				failures += "[disk_type]: docking metadata belongs to commissioning and should not be reported at all"
 			if(skipped["category"] != SHIPYARD_SKIP_UNSUPPORTED)
 				continue
 			failures += "[disk_type]: [skipped["path"]] is unsupported ([skipped["reason"]])"
@@ -456,11 +494,7 @@
 	var/obj/item/upgraded = allocate(/obj/item/stock_parts/capacitor/quadratic)
 	upgraded.forceMove(replacer)
 	summary = fabricator.part_summary(plan)
-	TEST_ASSERT_EQUAL(
-		summary[capacitor_row]["available"],
-		baseline + 1,
-		"A quadratic capacitor should count toward a baseline capacitor requirement.",
-	)
+	TEST_ASSERT_EQUAL(summary[capacitor_row]["available"], baseline + 1, "A quadratic capacitor should count toward a baseline capacitor requirement.")
 
 /datum/unit_test/overmap_shipyard_fabricator/generated_objects
 
@@ -614,7 +648,7 @@
 	fabricator.blueprint_disk = disk
 	fabricator.claimed_zone = WEAKREF(zone)
 	TEST_ASSERT(fabricator.complete_phase(SHIPYARD_PHASE_PLATING), "Typed disk should register its plated hull.")
-	registered_port = fabricator.built_shuttle
+	registered_port = fabricator.built_shuttle_ref?.resolve()
 	TEST_ASSERT(istype(registered_port, /obj/docking_port/mobile/overmap/frigate/solfed_cutter), "Typed Cutter disk should create the Cutter mobile-port subtype.")
 	TEST_ASSERT(istype(get_area(origin), /area/shuttle/overmap/frigate), "Typed Cutter disk should create a frigate shuttle area.")
 
@@ -659,6 +693,33 @@
 	TEST_ASSERT_EQUAL(fabricator.bound_width, 64, "Completed shipyard fabricator should occupy two tiles.")
 	TEST_ASSERT(QDELETED(left) || left != fabricator, "Assembly half should be consumed.")
 	TEST_ASSERT(QDELETED(right) || right != fabricator, "Partner assembly half should be consumed.")
+
+/datum/unit_test/overmap_shipyard_fabricator/paired_deconstruct
+
+/datum/unit_test/overmap_shipyard_fabricator/paired_deconstruct/Run()
+	var/turf/west = run_loc_floor_bottom_left
+	var/turf/east = get_step(west, EAST)
+	TEST_ASSERT(east, "Paired-deconstruct test requires an eastern tile.")
+	var/obj/machinery/shipyard_fabricator_frame_half/left = allocate(/obj/machinery/shipyard_fabricator_frame_half, west)
+	allocate(/obj/machinery/shipyard_fabricator_frame_half, east)
+	TEST_ASSERT(left.try_complete_pair(), "Two adjacent anchored assembly halves should complete the fabricator.")
+	var/obj/machinery/shipyard_fabricator/fabricator = locate() in west
+	TEST_ASSERT(fabricator, "Paired frames should create the full fabricator.")
+
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, get_step(west, SOUTH))
+	var/obj/item/crowbar/lever = allocate(/obj/item/crowbar)
+	TEST_ASSERT_EQUAL(fabricator.crowbar_act(user, lever), ITEM_INTERACT_BLOCKING, "A sealed fabricator should refuse to come apart.")
+	TEST_ASSERT(!QDELETED(fabricator), "A sealed fabricator should survive a crowbar.")
+
+	fabricator.set_panel_open(TRUE)
+	TEST_ASSERT_EQUAL(fabricator.crowbar_act(user, lever), ITEM_INTERACT_SUCCESS, "An open fabricator should come apart under a crowbar.")
+	TEST_ASSERT(QDELETED(fabricator), "Deconstruction should consume the paired machine.")
+	var/obj/structure/frame/machine/west_frame = locate() in west
+	var/obj/structure/frame/machine/east_frame = locate() in east
+	TEST_ASSERT(west_frame, "Deconstruction should leave a frame on the machine's own tile.")
+	TEST_ASSERT(east_frame, "Deconstruction should leave a frame on the tile the machine's second half occupied.")
+	TEST_ASSERT_EQUAL(east_frame.state, FRAME_STATE_WIRED, "The second frame should come back wired like the first.")
+	TEST_ASSERT(east_frame.anchored, "The second frame should come back anchored like the first.")
 
 /datum/unit_test/overmap_shipyard_fabricator/rped_docking
 
@@ -806,10 +867,58 @@
 	TEST_ASSERT(!fabricator.printer_deployed, "Completing a build should retract the printer.")
 	TEST_ASSERT_EQUAL(fabricator.icon_state, "shuttle_printer", "Completing a build should restore the inactive composite icon.")
 
+/datum/unit_test/overmap_shipyard_fabricator/console_overlays
+
+/datum/unit_test/overmap_shipyard_fabricator/console_overlays/Run()
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		run_loc_floor_bottom_left,
+	)
+	fabricator.set_machine_stat(fabricator.machine_stat & ~(NOPOWER | BROKEN))
+
+	var/list/states = overlay_states(fabricator)
+	TEST_ASSERT(("shuttle_printer-screen_idle" in states), "A powered idle fabricator should light its console screen.")
+	TEST_ASSERT(!("shuttle_printer-maintenance_panel" in states), "A closed machine should not show its maintenance panel.")
+	TEST_ASSERT(!("shuttle_printer-computer_disk" in states), "An empty disk slot should not show a disk.")
+	TEST_ASSERT(!("shuttle_printer-rped_slot_light" in states), "An empty RPED dock should not light its slot.")
+
+	fabricator.set_build_state("building")
+	states = overlay_states(fabricator)
+	TEST_ASSERT(("shuttle_printer-screen_working" in states), "A running build should show the working console screen.")
+
+	fabricator.fault_build(null, "Console overlay test fault.")
+	states = overlay_states(fabricator)
+	TEST_ASSERT(("shuttle_printer-screen_error" in states), "A faulted build should show the error console screen.")
+	fabricator.abort_build()
+
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	var/obj/item/storage/part_replacer/replacer = allocate(/obj/item/storage/part_replacer)
+	replacer.forceMove(fabricator)
+	fabricator.docked_rped = replacer
+	fabricator.set_panel_open(TRUE)
+	states = overlay_states(fabricator)
+	TEST_ASSERT(("shuttle_printer-computer_disk" in states), "A loaded blueprint should show in the disk slot.")
+	TEST_ASSERT(("shuttle_printer-rped" in states), "A docked RPED should show on the machine.")
+	TEST_ASSERT(("shuttle_printer-rped_slot_light" in states), "A docked RPED should light its slot.")
+	TEST_ASSERT(("shuttle_printer-maintenance_panel" in states), "An open hatch should show the maintenance panel.")
+
+	fabricator.set_machine_stat(fabricator.machine_stat | NOPOWER)
+	states = overlay_states(fabricator)
+	TEST_ASSERT(!("shuttle_printer-screen_idle" in states), "An unpowered fabricator should have a dark screen.")
+	TEST_ASSERT(!("shuttle_printer-rped_slot_light" in states), "An unpowered fabricator should have a dark slot light.")
+	TEST_ASSERT(("shuttle_printer-rped" in states), "A docked RPED should stay visible without power.")
+	TEST_ASSERT(("shuttle_printer-maintenance_panel" in states), "An open hatch should stay visible without power.")
+
 /datum/unit_test/overmap_shipyard_fabricator/phase_primitives
 
 /datum/unit_test/overmap_shipyard_fabricator/phase_primitives/Run()
 	var/turf/open/floor/origin = run_loc_floor_bottom_left
+	// Landing pads are usually bare plating already, and rods leave the turf's
+	// own type alone, so hull completion cannot be judged by turf type.
+	origin = origin.ChangeTurf(/turf/open/floor/plating)
+	TEST_ASSERT(isplatingturf(origin), "Phase fixture requires a bare plating pad.")
 	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, origin)
 	zone.zone_width = 1
 	zone.zone_height = 1
@@ -835,8 +944,114 @@
 		/turf/open/floor/plating,
 		list(),
 	)
+	TEST_ASSERT(!plating.satisfied(get_turf(origin)), "Exposed frame rods on a plating pad should still owe a hull layer.")
 	TEST_ASSERT_EQUAL(plating.execute(fabricator), TRUE, "Plating phase should replay shuttle frame tiling.")
 	TEST_ASSERT(plating.satisfied(get_turf(origin)), "Plating operation postcondition should pass.")
+	TEST_ASSERT(rods.satisfied(get_turf(origin)), "A plated tile should keep counting the rod stage as done so resumes do not rebill it.")
 	qdel(rods)
 	qdel(plating)
+
+/datum/unit_test/overmap_shipyard_fabricator/resume_revalidation
+
+/datum/unit_test/overmap_shipyard_fabricator/resume_revalidation/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	// The fabricator is two tiles wide, so the zone sits clear of its footprint.
+	var/turf/zone_corner = locate(origin.x, origin.y + 2, origin.z)
+	TEST_ASSERT(isfloorturf(zone_corner), "Revalidation test requires floor two tiles north of the fixture corner.")
+	var/turf/obstructed = get_step(zone_corner, NORTH)
+	TEST_ASSERT(isfloorturf(obstructed), "Revalidation test requires a two-by-two fixture block.")
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, zone_corner)
+	zone.zone_width = 2
+	zone.zone_height = 2
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, origin)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new
+	plan.width = 2
+	plan.height = 2
+	var/list/manifest = list()
+	for(var/list/coordinate in list(list(0, 0), list(1, 0), list(0, 1), list(1, 1)))
+		manifest += new /datum/ship_plan_op(
+			SHIPYARD_PHASE_RODS,
+			coordinate[1],
+			coordinate[2],
+			SHIPYARD_OP_RODS,
+			/turf/open/floor/plating,
+			list(),
+		)
+	plan.manifest = manifest
+	disk.ship_plan = plan
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	fabricator.claimed_zone = WEAKREF(zone)
+
+	// Stand in for an aborted build: the first two tiles were already laid.
+	for(var/index in 1 to 2)
+		var/datum/ship_plan_op/placed = plan.manifest[index]
+		TEST_ASSERT_EQUAL(placed.execute(fabricator), TRUE, "Fixture rod placement [index] should succeed.")
+	var/obj/structure/railing/obstruction = allocate(/obj/structure/railing, obstructed)
+
+	fabricator.state = "building"
+	fabricator.machine_stat &= ~(NOPOWER | BROKEN)
+	fabricator.next_operation_at = 0
+	var/tick_started = world.time
+	fabricator.process(1)
+
+	TEST_ASSERT_EQUAL(fabricator.operation_index, 3, "Both standing tiles should be confirmed in a single tick.")
+	TEST_ASSERT(fabricator.next_operation_at <= tick_started, "Confirming standing work should not charge placement time.")
+	TEST_ASSERT_EQUAL(fabricator.state, "fault", "An obstructed tile should fault the build.")
+	TEST_ASSERT(findtext(fabricator.paused_reason, "railing"), "The fault should name the obstruction, got '[fabricator.paused_reason]'.")
+	TEST_ASSERT_EQUAL(length(fabricator.faults), 1, "The obstruction should be listed as a located fault.")
+	var/obj/effect/overlay/shipyard_projection/fault/marker = fabricator.fault_marker
+	TEST_ASSERT(marker, "Faulting should leave a marker on the offending tile.")
+	TEST_ASSERT_EQUAL(marker.loc, obstructed, "The fault marker should sit on the obstructed tile.")
+	TEST_ASSERT_EQUAL(marker.holo_color, COLOR_RED, "The fault marker should be a red hologram.")
+	TEST_ASSERT(length(marker.filters), "The fault marker should carry the hologram filters.")
+
+	qdel(obstruction)
+	fabricator.state = "building"
+	fabricator.next_operation_at = 0
+	tick_started = world.time
+	fabricator.process(1)
+	TEST_ASSERT_EQUAL(fabricator.operation_index, 4, "Clearing the obstruction should let the tile be placed.")
+	TEST_ASSERT(fabricator.next_operation_at > tick_started, "A real placement should charge placement time.")
+	TEST_ASSERT(!length(fabricator.faults), "Working past a fault should drop it from the report.")
+
+	fabricator.abort_build()
+	TEST_ASSERT(!fabricator.fault_marker, "Aborting should clear the fault marker.")
+
+/// A hull becomes a registered shuttle the moment its plating is finished, so
+/// every later phase runs with a docking port sitting in the landing zone. An
+/// interruption there must not strand the build behind its own occupancy check.
+/datum/unit_test/overmap_shipyard_fabricator/resume_past_registration
+
+/datum/unit_test/overmap_shipyard_fabricator/resume_past_registration/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/turf/zone_corner = locate(origin.x, origin.y + 2, origin.z)
+	TEST_ASSERT(isfloorturf(zone_corner), "Occupancy test requires floor two tiles north of the fixture corner.")
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, zone_corner)
+	zone.zone_width = 2
+	zone.zone_height = 2
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, origin)
+	// Stands in for the hull the plating phase registers. Dimensions are set
+	// after creation because the port only reads them when asked for its bounds,
+	// and registration is what puts a port on the list the zone searches.
+	var/obj/docking_port/mobile/hull = allocate(/obj/docking_port/mobile, zone_corner)
+	hull.width = 2
+	hull.height = 2
+	hull.register()
+	TEST_ASSERT_EQUAL(zone.get_occupant(), hull, "The fixture hull should occupy the zone.")
+
+	fabricator.built_shuttle_ref = WEAKREF(hull)
+	fabricator.state = "paused"
+	TEST_ASSERT(!fabricator.blocking_occupant(zone), "A paused build should not be blocked by the hull it registered itself.")
+
+	fabricator.state = "fault"
+	TEST_ASSERT(!fabricator.blocking_occupant(zone), "A faulted build should not be blocked by its own hull either.")
+
+	fabricator.state = "complete"
+	TEST_ASSERT_EQUAL(fabricator.blocking_occupant(zone), hull, "A finished ship still parked on the pad should block the next print.")
+
+	fabricator.built_shuttle_ref = null
+	fabricator.state = "paused"
+	TEST_ASSERT_EQUAL(fabricator.blocking_occupant(zone), hull, "A ship the fabricator does not own should block a resume.")
 

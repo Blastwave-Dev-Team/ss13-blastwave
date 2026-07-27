@@ -1,0 +1,824 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aa" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"ab" = (
+/obj/effect/spawner/structure/window,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ac" = (
+/obj/effect/spawner/structure/window/reinforced,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ad" = (
+/obj/effect/spawner/structure/window/reinforced/tinted,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ae" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"af" = (
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ag" = (
+/obj/effect/spawner/structure/window/plasma,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ah" = (
+/obj/effect/spawner/structure/window/hollow,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ai" = (
+/obj/effect/spawner/structure/window/bronze,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aj" = (
+/obj/effect/spawner/structure/window/ice,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ak" = (
+/obj/effect/spawner/structure/window/survival_pod,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"al" = (
+/obj/structure/window/reinforced/shuttle,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"am" = (
+/obj/structure/window/reinforced/spawner/directional/west,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"an" = (
+/obj/structure/grille,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ao" = (
+/obj/structure/window/fulltile,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ap" = (
+/obj/structure/window/reinforced/fulltile,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aq" = (
+/obj/structure/grille,
+/obj/structure/window/reinforced/spawner/directional/east,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ar" = (
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"as" = (
+/turf/closed/wall/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"at" = (
+/turf/closed/wall/r_wall,
+/area/shuttle/overmap/frigate)
+"au" = (
+/turf/closed/wall,
+/area/shuttle/overmap/frigate)
+"av" = (
+/obj/machinery/door/airlock/shuttle,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aw" = (
+/obj/machinery/door/airlock/external,
+/obj/effect/mapping_helpers/airlock/access/all/engineering/general,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ax" = (
+/obj/machinery/door/airlock/maintenance,
+/obj/effect/mapping_helpers/airlock/cyclelink_helper,
+/obj/effect/mapping_helpers/airlock/unres,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ay" = (
+/obj/machinery/door/firedoor,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"az" = (
+/obj/machinery/door/poddoor/shutters,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aA" = (
+/obj/machinery/power/apc,
+/obj/effect/mapping_helpers/apc/cell_5k,
+/obj/structure/cable,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aB" = (
+/obj/machinery/power/apc/auto_name/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aC" = (
+/obj/machinery/power/apc/auto_name/directional/south,
+/obj/machinery/power/terminal,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aD" = (
+/obj/machinery/power/terminal,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aE" = (
+/obj/machinery/power/smes,
+/obj/structure/cable,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aF" = (
+/obj/machinery/power/megacell_charger,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aG" = (
+/obj/machinery/cell_charger_multi/wall_mounted,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aH" = (
+/obj/structure/cable,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aI" = (
+/obj/machinery/atmospherics/pipe/smart/simple/general/visible,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aJ" = (
+/obj/machinery/atmospherics/pipe/smart/simple/general/hidden,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aK" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/general/visible,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aL" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/general/visible,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aM" = (
+/obj/machinery/atmospherics/pipe/layer_manifold,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aN" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aO" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aP" = (
+/obj/machinery/atmospherics/components/unary/portables_connector,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aQ" = (
+/obj/machinery/atmospherics/components/binary/volume_pump,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aR" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aS" = (
+/obj/machinery/atmospherics/components/trinary/filter,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aT" = (
+/obj/machinery/atmospherics/components/trinary/mixer,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aU" = (
+/obj/machinery/atmospherics/components/unary/thermomachine/freezer,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aV" = (
+/obj/machinery/airalarm/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aW" = (
+/obj/machinery/air_sensor,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aX" = (
+/obj/machinery/portable_atmospherics/canister/air,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aY" = (
+/obj/machinery/portable_atmospherics/canister/oxygen,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"aZ" = (
+/obj/structure/disposalpipe/segment,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"ba" = (
+/obj/structure/disposalpipe/junction,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bb" = (
+/obj/structure/disposalpipe/trunk,
+/obj/machinery/disposal/bin,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bc" = (
+/obj/structure/disposaloutlet,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bd" = (
+/obj/machinery/computer/helm,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"be" = (
+/obj/machinery/autolathe,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bf" = (
+/obj/machinery/vending/cigarette,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bg" = (
+/obj/machinery/light/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bh" = (
+/obj/machinery/light/small/directional/south,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bi" = (
+/obj/machinery/light_switch/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bj" = (
+/obj/machinery/firealarm/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bk" = (
+/obj/machinery/computer/security/telescreen,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bl" = (
+/obj/machinery/suit_storage_unit,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bm" = (
+/obj/structure/chair,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bn" = (
+/obj/structure/chair/comfy/shuttle,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bo" = (
+/obj/structure/chair/office,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bp" = (
+/obj/structure/chair/stool,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bq" = (
+/obj/structure/chair/plastic,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"br" = (
+/obj/structure/table,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bs" = (
+/obj/structure/table/reinforced,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bt" = (
+/obj/structure/table/glass,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bu" = (
+/obj/structure/closet,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bv" = (
+/obj/structure/closet/secure_closet/engineering_electrical,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bw" = (
+/obj/structure/rack,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bx" = (
+/obj/structure/fans/tiny,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"by" = (
+/obj/structure/deployable_barricade/metal,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bz" = (
+/obj/structure/deployable_barricade/metal/plasteel,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bA" = (
+/obj/structure/railing,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bB" = (
+/obj/structure/sink/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bC" = (
+/obj/structure/mirror/directional/north,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bD" = (
+/obj/structure/table/wood,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bE" = (
+/obj/structure/chair/wood,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bF" = (
+/obj/structure/chair/sofa/bamboo,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bG" = (
+/obj/structure/table/greyscale,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bH" = (
+/obj/structure/chair/greyscale,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bI" = (
+/obj/structure/chair/e_chair,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bJ" = (
+/obj/structure/chair/mime,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bK" = (
+/obj/structure/chair/pillow_small,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bL" = (
+/obj/structure/chair/comfy/carp,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bM" = (
+/obj/spacepod,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bN" = (
+/obj/vehicle/ridden/wheelchair,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bO" = (
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bP" = (
+/obj/effect/landmark/start/assistant,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bQ" = (
+/obj/effect/spawner/random/food_or_drink/donkpockets,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bR" = (
+/obj/item/wrench,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bS" = (
+/obj/effect/turf_decal/tile/blue,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bT" = (
+/obj/effect/turf_decal/stripes/line{
+	dir = 4
+	},
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bU" = (
+/obj/effect/turf_decal/bot,
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bV" = (
+/obj/effect/turf_decal/stripes/line{
+	color = "#ff5555";
+	dir = 8
+	},
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bW" = (
+/turf/open/space/basic,
+/area/shuttle/overmap/frigate)
+"bX" = (
+/obj/docking_port/mobile{
+	name = "shipyard validation hull";
+	shuttle_id = "shipyard_validation"
+	},
+/turf/open/floor/iron,
+/area/shuttle/overmap/frigate)
+"bY" = (
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+
+(1,1,1) = {"
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+"}
+(2,1,1) = {"
+aa
+ab
+ar
+av
+ar
+aA
+ar
+aI
+ar
+aZ
+ar
+bd
+bm
+ar
+bD
+bO
+ar
+aa
+"}
+(3,1,1) = {"
+aa
+ac
+ar
+aw
+ar
+aB
+ar
+aJ
+ar
+ba
+ar
+be
+bn
+ar
+bE
+bP
+ar
+aa
+"}
+(4,1,1) = {"
+aa
+ad
+ar
+ax
+ar
+aC
+ar
+aK
+ar
+bb
+ar
+bf
+bo
+ar
+bF
+bQ
+ar
+aa
+"}
+(5,1,1) = {"
+aa
+ae
+ar
+ay
+ar
+aD
+ar
+aL
+ar
+bc
+ar
+bg
+bp
+ar
+bG
+bR
+ar
+aa
+"}
+(6,1,1) = {"
+aa
+af
+ar
+az
+ar
+aE
+ar
+aM
+ar
+ar
+ar
+bh
+bq
+ar
+bH
+bS
+ar
+aa
+"}
+(7,1,1) = {"
+aa
+ag
+ar
+ar
+ar
+aF
+ar
+aN
+ar
+ar
+ar
+bi
+br
+ar
+bI
+bT
+ar
+aa
+"}
+(8,1,1) = {"
+aa
+ah
+ar
+ar
+ar
+aG
+ar
+aO
+ar
+ar
+ar
+bj
+bs
+ar
+bJ
+bU
+ar
+aa
+"}
+(9,1,1) = {"
+aa
+ai
+ar
+ar
+ar
+aH
+ar
+aP
+ar
+ar
+ar
+bk
+bt
+ar
+bK
+bV
+ar
+aa
+"}
+(10,1,1) = {"
+aa
+aj
+ar
+ar
+ar
+aH
+ar
+aQ
+ar
+ar
+ar
+bl
+bu
+ar
+bL
+ar
+bX
+aa
+"}
+(11,1,1) = {"
+aa
+ak
+ar
+ar
+ar
+aH
+ar
+aR
+ar
+ar
+ar
+ar
+bv
+ar
+bM
+ar
+ar
+aa
+"}
+(12,1,1) = {"
+aa
+al
+ar
+ar
+ar
+aH
+ar
+aS
+ar
+ar
+ar
+ar
+bw
+ar
+bN
+ar
+ar
+aa
+"}
+(13,1,1) = {"
+aa
+am
+ar
+ar
+ar
+ar
+ar
+aT
+ar
+ar
+ar
+ar
+bx
+ar
+ar
+ar
+ar
+aa
+"}
+(14,1,1) = {"
+aa
+an
+ar
+ar
+ar
+ar
+ar
+aU
+ar
+ar
+ar
+ar
+by
+ar
+ar
+ar
+ar
+aa
+"}
+(15,1,1) = {"
+aa
+ao
+ar
+ar
+ar
+ar
+ar
+aV
+ar
+ar
+ar
+ar
+bz
+ar
+ar
+ar
+ar
+aa
+"}
+(16,1,1) = {"
+aa
+ap
+as
+ar
+ar
+ar
+ar
+aW
+ar
+ar
+ar
+ar
+bA
+ar
+ar
+ar
+ar
+aa
+"}
+(17,1,1) = {"
+aa
+aq
+as
+ar
+ar
+ar
+ar
+aX
+ar
+ar
+ar
+ar
+bB
+ar
+ar
+ar
+ar
+aa
+"}
+(18,1,1) = {"
+aa
+ar
+at
+ar
+ar
+ar
+ar
+aY
+ar
+ar
+ar
+ar
+bC
+ar
+ar
+ar
+bY
+aa
+"}
+(19,1,1) = {"
+aa
+ar
+au
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+ar
+bW
+bY
+aa
+"}
+(20,1,1) = {"
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+"}

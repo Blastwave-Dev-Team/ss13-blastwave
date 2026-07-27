@@ -97,6 +97,28 @@ GLOBAL_LIST_INIT(shipyard_pipe_fittings, build_shipyard_pipe_fitting_registry())
 		fitting_costs[fitting_path] = cost
 	return cost.Copy()
 
+/// Wall-mounted machinery path to the frame item that becomes it.
+GLOBAL_LIST_INIT(shipyard_wallframes, build_shipyard_wallframe_registry())
+
+/proc/build_shipyard_wallframe_registry()
+	var/list/registry = list()
+	for(var/obj/item/wallframe/frame_type as anything in typesof(/obj/item/wallframe))
+		var/mounted_path = initial(frame_type.result_path)
+		if(!mounted_path || registry[mounted_path])
+			continue
+		registry[mounted_path] = frame_type
+	return registry
+
+/**
+ * The frame a mapped wall fixture is mounted from.
+ *
+ * Wall equipment is built by making its frame and applying it to a wall, so the
+ * frame is both the construction route and the thing that costs anything. Only
+ * an exact match counts: subtypes of a mounted machine ship their own frames.
+ */
+/proc/get_shipyard_wallframe(machinery_type)
+	return GLOB.shipyard_wallframes[machinery_type]
+
 /// Cached decomposition of a machine board into silo materials, printed
 /// components the fabricator makes itself, and finished RPED stock parts.
 GLOBAL_LIST_EMPTY(shipyard_board_requirements)
@@ -223,7 +245,9 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		var/obj/machinery/power/powered = target
 		if(istype(powered))
 			powered.connect_to_network()
-	if(wall_mounted)
+	// Anything built from a mount frame belongs on a wall by definition, so the
+	// frame registry saves every such family from declaring it again.
+	if(wall_mounted || get_shipyard_wallframe(target.type))
 		var/obj/mountable = target
 		if(isobj(mountable))
 			mountable.find_and_mount_on_atom()
@@ -232,7 +256,7 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 /datum/shipyard_route/proc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
 	var/list/resolved = plan.resolve_construction_cost(produced_type, desired, src)
 	for(var/input_path in component_inputs)
-		plan.merge_material_cost(resolved, plan.printable_material_cost(input_path))
+		plan.merge_material_cost(resolved, shipyard_printed_component_cost(input_path, 1))
 	return resolved
 
 /// Emit the operations that reproduce one mapped instance of this family.
@@ -249,6 +273,8 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 )
 	var/route_strategy = get_strategy(produced_type)
 	switch(route_strategy)
+		if(SHIPYARD_ROUTE_OMIT)
+			return
 		if(SHIPYARD_ROUTE_SKIP)
 			plan.record_skipped(produced_type, rel_x, rel_y, skip_reason, skip_category)
 			return
@@ -346,9 +372,11 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	target_type = /mob
 	skip_reason = "living occupant"
 
-/datum/shipyard_route/ignored/docking_port
+/// Registering the finished hull is what creates its docking port, so the
+/// mapped one is neither built nor missing and has nothing to report.
+/datum/shipyard_route/docking_port
 	target_type = /obj/docking_port
-	skip_reason = "docking metadata"
+	strategy = SHIPYARD_ROUTE_OMIT
 
 // --- Structure spawners -----------------------------------------------------
 //
@@ -433,17 +461,34 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	skip_category = SHIPYARD_SKIP_BLACKLISTED
 	skip_reason = "vehicles are assembled at a vehicle fabricator"
 
-/// Machines split by whether they have a constructible board.
+/// Machines split by whether they have a constructible board. A machine
+/// without one is not unbuildable, it is simply not built from a frame: wall
+/// equipment mounts from a frame item, so it is generated whole and priced from
+/// that stock instead.
 /datum/shipyard_route/machinery
 	target_type = /obj/machinery
+	/// Strategy for members that do have a board to assemble around.
+	var/board_strategy = SHIPYARD_ROUTE_MACHINE
 
 /datum/shipyard_route/machinery/get_strategy(produced_type)
 	var/obj/machinery/machine_type = produced_type
-	return ispath(initial(machine_type.circuit), /obj/item/circuitboard) ? SHIPYARD_ROUTE_MACHINE : SHIPYARD_ROUTE_GENERATE
+	return ispath(initial(machine_type.circuit), /obj/item/circuitboard) ? board_strategy : SHIPYARD_ROUTE_GENERATE
 
-/datum/shipyard_route/computer
+/datum/shipyard_route/machinery/computer
 	target_type = /obj/machinery/computer
-	strategy = SHIPYARD_ROUTE_COMPUTER
+	board_strategy = SHIPYARD_ROUTE_COMPUTER
+
+/// Wrenched down from a hand-held sensor, so the sensor is the whole cost.
+/datum/shipyard_route/machinery/air_sensor
+	target_type = /obj/machinery/air_sensor
+	component_inputs = list(/obj/item/air_sensor)
+
+/// Bins and chutes are welded from the same construct stock as the pipes they
+/// terminate, at the scale of a fixture rather than a segment.
+/datum/shipyard_route/machinery/disposal_fixture
+	target_type = /obj/machinery/disposal
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 4)
+	phase = SHIPYARD_PHASE_NETWORKS
 
 // --- Networks ---------------------------------------------------------------
 
@@ -498,10 +543,12 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	strategy = SHIPYARD_ROUTE_PLACE
 	phase = SHIPYARD_PHASE_STRUCTURE
 
+/// A grille frames its window the way a girder frames a wall, so it goes down
+/// with the rest of the framing and is standing before anything is glazed.
 /datum/shipyard_route/grille
 	target_type = /obj/structure/grille
 	strategy = SHIPYARD_ROUTE_PLACE
-	phase = SHIPYARD_PHASE_STRUCTURE
+	phase = SHIPYARD_PHASE_FRAMES
 
 // --- Fixtures and furniture -------------------------------------------------
 

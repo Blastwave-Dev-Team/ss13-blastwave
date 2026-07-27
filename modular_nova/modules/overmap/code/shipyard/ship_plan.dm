@@ -258,7 +258,10 @@
 
 /// A plan derived from a parsed shuttle DMM without loading it into the world.
 /datum/ship_plan/template
-	var/datum/map_template/shuttle/source_template
+	/// Blueprint this plan was parsed from. Held weakly: the shuttle template
+	/// registry owns the template, and a plan long outlives the single parse it
+	/// needed the template for.
+	var/datum/weakref/source_template_ref
 	/// Every distinct mapped path seen, mapped to the route that claimed it.
 	/// Populated during classification so a blueprint can be validated in one
 	/// pass instead of discovering one unsupported path per build attempt.
@@ -268,17 +271,14 @@
 	. = ..()
 	if(!istype(template))
 		return
-	source_template = template
+	source_template_ref = WEAKREF(template)
 	name = template.name
 	width = template.width
 	height = template.height
 	build_manifest()
 
-/datum/ship_plan/template/Destroy()
-	QDEL_NULL(source_template)
-	return ..()
-
 /datum/ship_plan/template/proc/build_manifest()
+	var/datum/map_template/shuttle/source_template = source_template_ref?.resolve()
 	if(!source_template?.mappath)
 		return FALSE
 	if(!source_template.cached_map)
@@ -357,8 +357,9 @@
  *   2. exact printable design
  *   3. construction stack recipe
  *   4. declared material composition
- *   5. machine board decomposition
- *   6. fail closed with an empty cost
+ *   5. wall mount frame composition
+ *   6. machine board decomposition
+ *   7. fail closed with an empty cost
  */
 /datum/ship_plan/template/proc/resolve_construction_cost(produced_type, list/desired, datum/shipyard_route/route)
 	if(length(route?.materials))
@@ -375,6 +376,12 @@
 	resolved = declared_material_cost(produced_type)
 	if(length(resolved))
 		return resolved
+
+	var/frame_path = get_shipyard_wallframe(produced_type)
+	if(frame_path)
+		resolved = shipyard_printed_component_cost(frame_path, 1)
+		if(length(resolved))
+			return resolved
 
 	var/board_path = route?.board_path
 	if(!board_path && ispath(produced_type, /obj/machinery))

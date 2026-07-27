@@ -20,6 +20,13 @@
 
 	src.port = port
 
+// BLASTWAVE EDIT ADDITION START - the port half of this cycle is dropped in
+// /obj/docking_port/mobile/Destroy(); this is the other half.
+/datum/shuttle_event/Destroy(force)
+	port = null
+	return ..()
+// BLASTWAVE EDIT ADDITION END
+
 /datum/shuttle_event/proc/start_up_event(evacuation_duration)
 	if(port.launch_status == ENDGAME_LAUNCHED)
 		active = TRUE //if added during endgame, instant activate

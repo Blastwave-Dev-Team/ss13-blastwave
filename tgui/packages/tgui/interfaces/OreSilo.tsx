@@ -49,7 +49,22 @@ type Log = {
   amount: number;
   time: string;
   noun: string;
-  user_data: UserData;
+  user_data: UserData | null;
+};
+
+// A machine can draw from the silo with nobody logged in to bill, and the log
+// entry it writes carries no ID record at all.
+const UNATTRIBUTED_USER: UserData = {
+  name: 'AUTOMATED',
+  age: 0,
+  assignment: 'NO OPERATOR',
+  account_id: 0,
+  account_holder: 'NO ACCOUNT.',
+  account_assignment: 'NO ACCOUNT.',
+  accesses: [],
+  chamelon_override: null,
+  silicon_override: null,
+  id_read_failure: 'id_read_failure',
 };
 
 enum Tab {
@@ -261,8 +276,8 @@ const LogsList = (props: LogsListProps) => {
     log,
     searchString: [
       log.action.toLowerCase(),
-      log.user_data.name.toLowerCase(),
-      log.user_data.assignment.toLowerCase(),
+      (log.user_data ?? UNATTRIBUTED_USER).name.toLowerCase(),
+      (log.user_data ?? UNATTRIBUTED_USER).assignment.toLowerCase(),
       log.raw_materials.toLowerCase(),
       log.machine_name.toLowerCase(),
       log.area_name.toLowerCase(),
@@ -370,16 +385,9 @@ const formatAmount = (action: string, amount: number) => {
 };
 
 const LogEntry = (props: Log) => {
-  const {
-    raw_materials,
-    machine_name,
-    area_name,
-    action,
-    amount,
-    time,
-    noun,
-    user_data,
-  } = props;
+  const { raw_materials, machine_name, area_name, action, amount, time, noun } =
+    props;
+  const user_data = props.user_data ?? UNATTRIBUTED_USER;
   const [expanded, setExpanded] = useState(false);
 
   return (

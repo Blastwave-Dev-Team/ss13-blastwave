@@ -99,3 +99,42 @@ ADMIN_VERB(overmap_all_stop, R_DEBUG, "Overmap All Stop", "All-stop the shuttle 
 
 ADMIN_VERB(landing_zone_panel, R_ADMIN, "Landing Zone Manipulator", "Opens the landing zone manipulator UI.", ADMIN_CATEGORY_SHUTTLE)
 	SSovermap.ui_interact(user.mob)
+
+/// Sheets of every storable material a stocked silo arrives with. A frigate
+/// hull alone runs into the hundreds of iron sheets before the multiplier.
+#define STOCKED_SILO_SHEETS 2000
+
+/// Silo that arrives loaded, for exercising silo-fed machinery such as the
+/// shipyard fabricator without hand-feeding it stacks first.
+/obj/machinery/ore_silo/stocked
+	name = "stocked ore silo"
+	desc = "An all-in-one bluespace storage and transmission system, delivered with a survey's worth of every material it can hold."
+
+/obj/machinery/ore_silo/stocked/Initialize(mapload)
+	. = ..()
+	stock_every_material()
+
+/**
+ * Loads every material the silo accepts.
+ *
+ * A silo's container is unbounded, so there is no capacity to fill; this stocks
+ * a deep enough pile of each material that a build runs out of patience before
+ * it runs out of stock.
+ */
+/obj/machinery/ore_silo/stocked/proc/stock_every_material(sheets = STOCKED_SILO_SHEETS)
+	var/datum/material_container/container = materials
+	for(var/datum/material/material as anything in container.materials)
+		container.insert_amount_mat(SHEET_MATERIAL_AMOUNT * sheets, material)
+
+ADMIN_VERB(spawn_stocked_ore_silo, R_SPAWN, "Spawn Stocked Ore Silo", "Place an ore silo loaded with every material it can hold.", ADMIN_CATEGORY_DEBUG)
+	var/turf/spawn_turf = get_turf(user.mob)
+	if(!spawn_turf)
+		to_chat(user, span_warning("You need a valid turf to place an ore silo."))
+		return
+
+	var/obj/machinery/ore_silo/stocked/silo = new(spawn_turf)
+	to_chat(user, span_notice("Placed [silo] holding [STOCKED_SILO_SHEETS] sheets of each material. Multitool it, then the machine you want fed."))
+	message_admins("[key_name_admin(user)] spawned a stocked ore silo at [ADMIN_VERBOSEJMP(silo)].")
+	log_admin("[key_name(user)] spawned a stocked ore silo at [AREACOORD(silo)].")
+
+#undef STOCKED_SILO_SHEETS

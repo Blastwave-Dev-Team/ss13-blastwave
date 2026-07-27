@@ -497,12 +497,12 @@
 	render_map = TRUE
 
 /obj/structure/overmap/level/Initialize(mapload, _id, list/_zs)
+	. = ..()
 	if(_zs)
 		LAZYADD(linked_levels, _zs)
 	else if(!linked_levels)
 		WARNING("Overmap level [src.type] initialized with no linked Z, deleting.")
 		return INITIALIZE_HINT_QDEL
-	. = ..()
 
 // MAIN STATION POI
 

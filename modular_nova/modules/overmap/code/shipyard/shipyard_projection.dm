@@ -10,13 +10,15 @@
 	flags_1 = HOLOGRAM_1
 	layer = ABOVE_MOB_LAYER
 	var/datum/ship_plan_op/source_operation
+	/// Tint of the projection. Null leaves the default holographic blue.
+	var/holo_color
 
 /obj/effect/overlay/shipyard_projection/Initialize(mapload, datum/ship_plan_op/operation)
 	. = ..()
 	if(!operation || !configure_appearance(operation))
 		return INITIALIZE_HINT_QDEL
 	source_operation = operation
-	makeHologram()
+	makeHologram(color_override = holo_color)
 
 /obj/effect/overlay/shipyard_projection/proc/configure_appearance(datum/ship_plan_op/operation)
 	var/appearance_path
@@ -46,4 +48,18 @@
 		return FALSE
 	if("dir" in operation.desired_vars)
 		setDir(operation.desired_vars["dir"])
+	return TRUE
+
+/// Marks the tile a build stalled on, and outlives the phase that created it.
+/obj/effect/overlay/shipyard_projection/fault
+	name = "shipyard fault marker"
+	desc = "A stuttering red projection marking the tile the shipyard fabricator could not build on."
+	holo_color = COLOR_RED
+
+/obj/effect/overlay/shipyard_projection/fault/configure_appearance(datum/ship_plan_op/operation)
+	if(..())
+		return TRUE
+	// Nothing to preview for this kind of operation, so mark the tile itself.
+	icon = 'icons/effects/alphacolors.dmi'
+	icon_state = "red"
 	return TRUE

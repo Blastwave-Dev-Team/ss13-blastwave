@@ -107,6 +107,13 @@
 
 /obj/docking_port/mobile/Destroy(force)
 	unregister()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - break the reference cycles that hold us.
+	// A shuttle event and the overmap ship icon both point back at their port, and
+	// BYOND refcounts, so a cycle broken from only one side is a guaranteed hard
+	// delete whenever the port is the first of the pair to go.
+	QDEL_LIST(event_list)
+	QDEL_NULL(current_ship)
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
 	destination = null
 	previous = null
 	for(var/obj/machinery/power/shuttle_engine/engine as anything in engine_list)

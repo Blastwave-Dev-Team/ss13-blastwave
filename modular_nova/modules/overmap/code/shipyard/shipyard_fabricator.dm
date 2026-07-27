@@ -7,6 +7,15 @@
 #define SHIPYARD_STATE_FAULT "fault"
 #define SHIPYARD_STATE_COMPLETE "complete"
 
+/// The step ran a placement, so the fabricator owes its placement delay.
+#define SHIPYARD_STEP_PLACED "placed"
+/// The step only confirmed work already standing, so the next one can run now.
+#define SHIPYARD_STEP_CONFIRMED "confirmed"
+/// The build stopped, whether finished, paused, or faulted.
+#define SHIPYARD_STEP_HALT "halt"
+/// Operations confirmed in a single tick while catching up to a resumed build.
+#define SHIPYARD_CONFIRMS_PER_TICK 100
+
 #define SHIPYARD_OP_DELAY (1 SECONDS)
 #define SHIPYARD_DEPLOY_TIME (1 SECONDS)
 #define SHIPYARD_BEAM_TIME (0.5 SECONDS)
@@ -17,6 +26,12 @@
 #define SHIPYARD_DISH_ERROR "shuttle_printer-dish_error"
 #define SHIPYARD_RPED "shuttle_printer-rped"
 #define SHIPYARD_RPED_BLUESPACE "shuttle_printer-rped_bluespace"
+#define SHIPYARD_RPED_LIGHT "shuttle_printer-rped_slot_light"
+#define SHIPYARD_SCREEN_IDLE "shuttle_printer-screen_idle"
+#define SHIPYARD_SCREEN_WORKING "shuttle_printer-screen_working"
+#define SHIPYARD_SCREEN_ERROR "shuttle_printer-screen_error"
+#define SHIPYARD_PANEL "shuttle_printer-maintenance_panel"
+#define SHIPYARD_DISK "shuttle_printer-computer_disk"
 
 /// Landing-zone claim held while a shipyard build is active.
 /obj/effect/landmark/overmap_landing_zone
@@ -53,11 +68,21 @@
 	var/list/faults = list()
 	var/paused_reason
 	var/datum/weakref/claimed_zone
-	var/obj/docking_port/mobile/built_shuttle
+	/// The hull this run registered as a shuttle once its plating was finished.
+	/// Held weakly: the fabricator does not own the ship it printed and outlives
+	/// it by an entire round, so a hard reference here would keep a scuttled
+	/// vessel alive forever.
+	var/datum/weakref/built_shuttle_ref
 	var/rotated_plan = FALSE
 	var/datum/weakref/last_operator
+	/// Whether an operator holds a console session.
+	var/authenticated = FALSE
+	/// ID record captured at login. Every silo draw is billed against it.
+	var/alist/operator_id_data
 	/// Current-phase holograms keyed by their source operation ref.
 	var/list/phase_projections = list()
+	/// Red hologram left on the tile a faulted build could not finish.
+	var/obj/effect/overlay/shipyard_projection/fault/fault_marker
 	/// Material multiplier: T1 matter bins cost 150% of hand construction;
 	/// T4 reaches parity at 100%.
 	var/material_cost_multiplier = 1.5
@@ -143,14 +168,39 @@
 
 /obj/machinery/shipyard_fabricator/update_overlays()
 	. = ..()
+	var/lit = !(machine_stat & (NOPOWER | BROKEN))
+	if(panel_open)
+		. += mutable_appearance(icon, SHIPYARD_PANEL, layer + 0.05)
+	if(blueprint_disk)
+		. += mutable_appearance(icon, SHIPYARD_DISK, layer + 0.1)
 	if(docked_rped)
 		var/rped_icon_state = istype(docked_rped, /obj/item/storage/part_replacer/bluespace) ? SHIPYARD_RPED_BLUESPACE : SHIPYARD_RPED
 		. += mutable_appearance(icon, rped_icon_state, layer + 0.1)
+		if(lit)
+			. += mutable_appearance(icon, SHIPYARD_RPED_LIGHT, layer + 0.15)
+	if(lit)
+		. += mutable_appearance(icon, screen_icon_state(), layer + 0.1)
 	if(!printer_deployed)
 		return
 	var/mutable_appearance/dish = mutable_appearance(icon, dish_icon_state, layer + 0.2)
 	dish.dir = dish_direction
 	. += dish
+
+/// Console face for the build the machine is currently sitting on.
+/obj/machinery/shipyard_fabricator/proc/screen_icon_state()
+	switch(state)
+		if(SHIPYARD_STATE_BUILDING)
+			return SHIPYARD_SCREEN_WORKING
+		if(SHIPYARD_STATE_FAULT)
+			return SHIPYARD_SCREEN_ERROR
+	return SHIPYARD_SCREEN_IDLE
+
+/// Assigns the build state and keeps the console screen in step with it.
+/obj/machinery/shipyard_fabricator/proc/set_build_state(new_state)
+	if(state == new_state)
+		return
+	state = new_state
+	update_appearance()
 
 /obj/machinery/shipyard_fabricator/proc/deploy_printer()
 	if(printer_deployed)
@@ -238,6 +288,24 @@
 	eject_all()
 	return ..()
 
+/// The assembled machine spans two turfs, so it has to hand back a frame for
+/// each half it was paired from rather than the single frame machines assume.
+/obj/machinery/shipyard_fabricator/spawn_frame(disassembled)
+	. = ..()
+	var/turf/east_turf = get_step(src, EAST)
+	if(!east_turf)
+		return
+	var/obj/structure/frame/machine/east_frame = new(east_turf)
+	east_frame.state = FRAME_STATE_WIRED
+	if(east_turf.is_blocked_turf(TRUE, source_atom = east_frame, ignore_atoms = list(src)))
+		east_frame.deconstruct(disassembled)
+		return
+	east_frame.update_appearance(UPDATE_ICON_STATE)
+	east_frame.set_anchored(anchored)
+	if(!disassembled)
+		east_frame.update_integrity(east_frame.max_integrity * 0.5)
+	transfer_fingerprints_to(east_frame)
+
 /obj/machinery/shipyard_fabricator/proc/eject_all()
 	var/atom/drop = drop_location()
 	blueprint_disk?.forceMove(drop)
@@ -291,6 +359,7 @@
 		if(!user.transferItemToLoc(tool, src))
 			return ITEM_INTERACT_BLOCKING
 		blueprint_disk = disk
+		update_appearance()
 		balloon_alert(user, "blueprint loaded")
 		return ITEM_INTERACT_SUCCESS
 	if(istype(tool, /obj/item/storage/part_replacer))
@@ -305,6 +374,18 @@
 		balloon_alert(user, "blueprints loaded")
 		return ITEM_INTERACT_SUCCESS
 	return ..()
+
+/obj/machinery/shipyard_fabricator/screwdriver_act(mob/living/user, obj/item/tool)
+	if(state == SHIPYARD_STATE_BUILDING)
+		balloon_alert(user, "build in progress")
+		return ITEM_INTERACT_BLOCKING
+	return default_deconstruction_screwdriver(user, tool)
+
+/obj/machinery/shipyard_fabricator/crowbar_act(mob/living/user, obj/item/tool)
+	if(state == SHIPYARD_STATE_BUILDING)
+		balloon_alert(user, "build in progress")
+		return ITEM_INTERACT_BLOCKING
+	return default_deconstruction_crowbar(user, tool)
 
 /obj/machinery/shipyard_fabricator/multitool_act(mob/living/user, obj/item/multitool/tool)
 	if(istype(tool.buffer, /obj/machinery/computer/landing_controller))
@@ -332,8 +413,31 @@
 	ui = new(user, src, "ShipyardFabricator", name)
 	ui.open()
 
+/// Secure login mirroring the landing zone controller: checks reach + access.
+/obj/machinery/shipyard_fabricator/proc/secure_login(mob/user)
+	if(!user.can_perform_action(src, ALLOW_SILICON_REACH) || !is_operational)
+		return FALSE
+	if(!allowed(user))
+		balloon_alert(user, "access denied")
+		playsound(src, 'sound/machines/terminal/terminal_error.ogg', 70, TRUE)
+		return FALSE
+	balloon_alert(user, "logged in")
+	playsound(src, 'sound/machines/terminal/terminal_on.ogg', 70, TRUE)
+	return TRUE
+
+/// Identity the ore silo bills for this fabricator's draws. Never null: the
+/// silo logs and access checks both read fields straight off this record.
+/obj/machinery/shipyard_fabricator/proc/consumer_id_data()
+	return operator_id_data || ID_DATA(null)
+
 /obj/machinery/shipyard_fabricator/ui_data(mob/user)
 	var/list/data = list()
+	var/has_session = (authenticated && isliving(user)) || isAdminGhostAI(user)
+	data["authenticated"] = has_session
+	data["operatorName"] = operator_id_data?["name"]
+	if(!has_session)
+		return data
+
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
 	var/obj/effect/landmark/overmap_landing_zone/zone = controller?.active_zone
@@ -363,7 +467,7 @@
 	data["zoneName"] = zone?.zone_name
 	data["zoneWidth"] = zone?.zone_width || 0
 	data["zoneHeight"] = zone?.zone_height || 0
-	data["zoneOccupied"] = !!zone?.get_occupant()
+	data["zoneOccupied"] = !!blocking_occupant(zone)
 	data["materials"] = material_summary(plan)
 	data["parts"] = part_summary(plan)
 	return data
@@ -404,6 +508,29 @@
 	if(.)
 		return
 	var/mob/living/user = usr
+	var/admin_ghost = isAdminGhostAI(user)
+
+	switch(action)
+		if("login")
+			if(admin_ghost)
+				authenticated = TRUE
+				return TRUE
+			authenticated = secure_login(user)
+			if(authenticated)
+				operator_id_data = ID_DATA(user)
+				last_operator = WEAKREF(user)
+			return TRUE
+		if("logout")
+			authenticated = FALSE
+			operator_id_data = null
+			balloon_alert(user, "logged out")
+			playsound(src, 'sound/machines/terminal/terminal_off.ogg', 70, TRUE)
+			return TRUE
+
+	// Mirror ui_data: admin ghosts can act without a living login session.
+	if(!((authenticated && isliving(user)) || admin_ghost))
+		return FALSE
+
 	switch(action)
 		if("start")
 			. = start_build(user)
@@ -420,6 +547,7 @@
 				return FALSE
 			blueprint_disk?.forceMove(drop_location())
 			blueprint_disk = null
+			update_appearance()
 			. = TRUE
 		if("eject_rped")
 			if(state == SHIPYARD_STATE_BUILDING)
@@ -433,6 +561,22 @@
 			intake_blueprints = null
 			. = TRUE
 
+/**
+ * The zone occupant that stands in this fabricator's way, or null when the pad
+ * is clear enough to work on.
+ *
+ * A hull is registered as a real shuttle the moment its plating is finished, so
+ * from that phase onward the zone is legitimately occupied by the ship being
+ * printed. A run that is still going may disregard its own hull; a fresh print
+ * may not, because the reference still names the last ship built here until the
+ * new run replaces it.
+ */
+/obj/machinery/shipyard_fabricator/proc/blocking_occupant(obj/effect/landmark/overmap_landing_zone/zone)
+	if(!zone)
+		return null
+	var/continuing = (state in list(SHIPYARD_STATE_BUILDING, SHIPYARD_STATE_PAUSED, SHIPYARD_STATE_FAULT))
+	return zone.get_occupant(continuing ? built_shuttle_ref?.resolve() : null)
+
 /obj/machinery/shipyard_fabricator/proc/start_build(mob/living/user)
 	if(state == SHIPYARD_STATE_BUILDING)
 		return FALSE
@@ -443,7 +587,7 @@
 	if(!docked_rped)
 		paused_reason = "Dock an RPED containing required boards and stock parts."
 		return FALSE
-	if(!materials?.silo || !materials.can_use_resource())
+	if(!materials?.silo || !materials.can_use_resource(user_data = consumer_id_data()))
 		paused_reason = "A live ore silo connection is required."
 		return FALSE
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
@@ -451,7 +595,7 @@
 	if(!zone)
 		paused_reason = "Link a controller with an active landing zone."
 		return FALSE
-	if(zone.get_occupant())
+	if(blocking_occupant(zone))
 		paused_reason = "The linked landing zone is occupied."
 		return FALSE
 	if(zone.shipyard_claim?.resolve() != src && zone.shipyard_claim?.resolve())
@@ -473,12 +617,13 @@
 		operation_index = 1
 		current_phase = 0
 		faults = list()
-		built_shuttle = null
+		built_shuttle_ref = null
 	last_operator = WEAKREF(user)
 	paused_reason = null
+	clear_fault_marker()
 	var/was_deployed = printer_deployed
 	deploy_printer()
-	state = SHIPYARD_STATE_BUILDING
+	set_build_state(SHIPYARD_STATE_BUILDING)
 	if(current_phase && !length(phase_projections))
 		project_phase(current_phase)
 	next_operation_at = world.time + (was_deployed ? 0 : SHIPYARD_DEPLOY_TIME)
@@ -493,7 +638,7 @@
 
 /obj/machinery/shipyard_fabricator/proc/pause_build(reason)
 	paused_reason = reason
-	state = SHIPYARD_STATE_PAUSED
+	set_build_state(SHIPYARD_STATE_PAUSED)
 	set_dish_state(SHIPYARD_DISH_IDLE)
 	update_use_power(IDLE_POWER_USE)
 	STOP_PROCESSING(SSmachines, src)
@@ -507,17 +652,45 @@
 		"y" = target?.y || 0,
 		"phase" = operation?.phase || current_phase,
 		"reason" = reason,
+		"step" = operation_index,
 	))
-	state = SHIPYARD_STATE_FAULT
+	mark_fault_tile(operation, target)
+	set_build_state(SHIPYARD_STATE_FAULT)
 	set_dish_state(SHIPYARD_DISH_ERROR)
 	update_use_power(IDLE_POWER_USE)
 	STOP_PROCESSING(SSmachines, src)
+
+/**
+ * Drops the faults the build has since worked past.
+ *
+ * A fault is a standing request for someone to go fix something, so resuming
+ * does not retire it: the step that failed has to actually land. Phase
+ * completion faults are recorded against the step they stalled on too, so they
+ * clear the same way once that step gets through.
+ */
+/obj/machinery/shipyard_fabricator/proc/retire_resolved_faults()
+	for(var/list/fault in faults.Copy())
+		if(fault["step"] >= operation_index)
+			continue
+		faults -= list(fault)
+
+/// Paints the offending tile red so the fault report has somewhere to point.
+/obj/machinery/shipyard_fabricator/proc/mark_fault_tile(datum/ship_plan_op/operation, turf/target)
+	clear_fault_marker()
+	if(!operation || !target)
+		return
+	fault_marker = new(target, operation)
+	if(QDELETED(fault_marker))
+		fault_marker = null
+
+/obj/machinery/shipyard_fabricator/proc/clear_fault_marker()
+	QDEL_NULL(fault_marker)
 
 /obj/machinery/shipyard_fabricator/proc/abort_build()
 	STOP_PROCESSING(SSmachines, src)
 	clear_phase_projections()
 	release_zone()
-	state = SHIPYARD_STATE_IDLE
+	set_build_state(SHIPYARD_STATE_IDLE)
 	operation_index = 1
 	current_phase = 0
 	paused_reason = null
@@ -533,6 +706,7 @@
 /obj/machinery/shipyard_fabricator/proc/clear_phase_projections()
 	QDEL_LIST_ASSOC_VAL(phase_projections)
 	phase_projections = list()
+	clear_fault_marker()
 
 /obj/machinery/shipyard_fabricator/proc/clear_operation_projection(datum/ship_plan_op/operation)
 	var/ref = REF(operation)
@@ -567,31 +741,56 @@
 		return PROCESS_KILL
 	if(world.time < next_operation_at)
 		return
+	// Confirming work that already stands costs nothing to place, so a resumed
+	// build races back to where it left off instead of paying placement time per
+	// tile all over again.
+	for(var/step in 1 to SHIPYARD_CONFIRMS_PER_TICK)
+		var/outcome = advance_operation()
+		if(outcome == SHIPYARD_STEP_HALT)
+			return PROCESS_KILL
+		if(outcome == SHIPYARD_STEP_PLACED)
+			return
+
+/**
+ * Runs the operation the build index points at and moves the index along.
+ *
+ * Returns SHIPYARD_STEP_PLACED when something was built and the placement delay
+ * applies, SHIPYARD_STEP_CONFIRMED when the tile already held the work and the
+ * next operation can run immediately, or SHIPYARD_STEP_HALT when the build
+ * finished, paused, or faulted.
+ */
+/obj/machinery/shipyard_fabricator/proc/advance_operation()
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	if(!plan || operation_index > length(plan.manifest))
 		finish_build()
-		return PROCESS_KILL
+		return SHIPYARD_STEP_HALT
 	var/datum/ship_plan_op/operation = plan.manifest[operation_index]
 	if(operation.phase != current_phase)
 		if(current_phase && !complete_phase(current_phase))
-			return PROCESS_KILL
+			return SHIPYARD_STEP_HALT
 		current_phase = operation.phase
 		project_phase(current_phase)
+	var/confirming = operation.needs_no_work(src)
 	var/result = operation.execute(src)
 	if(result != TRUE)
 		if(istext(result))
 			fault_build(operation, result)
 		else
 			pause_build("Waiting for materials or parts.")
-		return PROCESS_KILL
+		return SHIPYARD_STEP_HALT
 	clear_operation_projection(operation)
 	operation_index++
-	next_operation_at = world.time + fabrication_delay
+	if(length(faults))
+		retire_resolved_faults()
 	if(operation_index > length(plan.manifest))
 		if(!complete_phase(current_phase))
-			return PROCESS_KILL
+			return SHIPYARD_STEP_HALT
 		finish_build()
-		return PROCESS_KILL
+		return SHIPYARD_STEP_HALT
+	if(confirming)
+		return SHIPYARD_STEP_CONFIRMED
+	next_operation_at = world.time + fabrication_delay
+	return SHIPYARD_STEP_PLACED
 
 /obj/machinery/shipyard_fabricator/proc/get_operation_turf(datum/ship_plan_op/operation, obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve())
 	if(!operation || !zone)
@@ -602,7 +801,7 @@
 	return locate(zone.x + operation.rel_x, zone.y + operation.rel_y, zone.z)
 
 /obj/machinery/shipyard_fabricator/proc/complete_phase(phase)
-	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle)
+	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
 		return TRUE
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
@@ -619,7 +818,7 @@
 	var/turf/origin = hull_turfs[1]
 	var/mob/living/operator = last_operator?.resolve()
 	var/shuttle_id = "shipyard_[REF(src)]_[world.time]"
-	built_shuttle = create_shuttle(
+	var/obj/docking_port/mobile/registered = create_shuttle(
 		operator,
 		origin,
 		hull_turfs,
@@ -632,22 +831,28 @@
 		id = shuttle_id,
 		custom = blueprint_disk.registration_is_custom,
 	)
-	if(!built_shuttle)
+	if(!registered)
 		fault_build(null, "Shuttle registration failed after plating.")
 		return FALSE
-	if(istype(built_shuttle, /obj/docking_port/mobile/custom))
+	built_shuttle_ref = WEAKREF(registered)
+	if(istype(registered, /obj/docking_port/mobile/custom))
 		var/obj/item/shuttle_blueprints/master = new(drop_location())
-		master.link_to_shuttle(built_shuttle, TRUE)
+		master.link_to_shuttle(registered, TRUE)
 	return TRUE
 
 /obj/machinery/shipyard_fabricator/proc/finish_build()
 	clear_phase_projections()
-	state = SHIPYARD_STATE_COMPLETE
+	set_build_state(SHIPYARD_STATE_COMPLETE)
 	paused_reason = "Construction complete. Frames listed as incomplete require manual RPED finishing."
 	retract_printer()
 	update_use_power(IDLE_POWER_USE)
 	release_zone()
 	playsound(src, 'sound/machines/ping.ogg', 50, TRUE)
+
+#undef SHIPYARD_STEP_PLACED
+#undef SHIPYARD_STEP_CONFIRMED
+#undef SHIPYARD_STEP_HALT
+#undef SHIPYARD_CONFIRMS_PER_TICK
 
 #undef SHIPYARD_OP_DELAY
 #undef SHIPYARD_DEPLOY_TIME
@@ -657,4 +862,11 @@
 #undef SHIPYARD_DISH_IDLE
 #undef SHIPYARD_DISH_ACTIVE
 #undef SHIPYARD_DISH_ERROR
+
+#undef SHIPYARD_RPED_LIGHT
+#undef SHIPYARD_SCREEN_IDLE
+#undef SHIPYARD_SCREEN_WORKING
+#undef SHIPYARD_SCREEN_ERROR
+#undef SHIPYARD_PANEL
+#undef SHIPYARD_DISK
 
