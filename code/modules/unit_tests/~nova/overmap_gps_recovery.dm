@@ -75,6 +75,9 @@
 	TEST_ASSERT_EQUAL(first, second, "One shared open-space site should own an overmap tile.")
 	qdel(first)
 
+TEST_FOCUS(/datum/unit_test/overmap_open_space_site)
+TEST_FOCUS(/datum/unit_test/create_and_destroy)
+
 /datum/unit_test/overmap_emergency_brake
 
 /datum/unit_test/overmap_emergency_brake/Run()
