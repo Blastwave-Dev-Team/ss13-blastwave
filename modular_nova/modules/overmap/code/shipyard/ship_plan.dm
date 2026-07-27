@@ -330,6 +330,27 @@
 		record_skipped(turf_path, null, null, rejection, SHIPYARD_SKIP_UNSUPPORTED)
 	return normalized
 
+/**
+ * Resolve one tile's worth of the deck a blueprint asked for.
+ *
+ * Floors name the stack they are laid from and pry back up into, which prices a
+ * titanium deck as titanium and a wooden one as wood without either needing an
+ * entry of its own. An unpayable deck is skipped rather than faulted, unlike a
+ * wall: an untiled tile is bare hull plating, where an unbuilt wall is a hole.
+ */
+/datum/ship_plan/template/proc/floor_material_cost(turf_path, rel_x, rel_y)
+	var/turf/open/floor/floor_type = turf_path
+	var/tile_amount = 1
+	// A reinforced deck is rodded rather than tiled, and the count it comes back
+	// up as lives on a var its own family declares.
+	if(ispath(turf_path, /turf/open/floor/engine))
+		var/turf/open/floor/engine/reinforced_type = turf_path
+		tile_amount = initial(reinforced_type.floor_tile_amount)
+	var/list/declared_materials = stack_material_cost(initial(floor_type.floor_tile), tile_amount)
+	if(!length(declared_materials))
+		declared_materials = initial(floor_type.custom_materials)
+	return apply_material_policy(declared_materials, turf_path, rel_x, rel_y)
+
 /// Resolve the material content of a number of stack units.
 /datum/ship_plan/template/proc/stack_material_cost(stack_path, amount)
 	return shipyard_stack_material_cost(stack_path, amount)
@@ -487,6 +508,33 @@
 	))
 	add_commission_operation(target_path, rel_x, rel_y, desired)
 
+/**
+ * Tile the deck a blueprint asked for over the hull.
+ *
+ * The plating phase lays every tile as bare hull plating, so a deck is only worth
+ * an operation where the blueprint wants something else on top of it. Emitted
+ * here rather than from content classification so that it sorts ahead of the
+ * decals for the same tile, which the turf change underneath them would wipe.
+ */
+/datum/ship_plan/template/proc/add_deck_operation(turf_path, rel_x, rel_y, list/desired)
+	// Plating in the blueprint is the hull layer the plating phase already laid.
+	// Its subtypes vary by starting gas mix, which a built tile does not inherit
+	// anyway, so they are the same tile as far as construction is concerned.
+	if(!ispath(turf_path, /turf/open/floor) || ispath(turf_path, /turf/open/floor/plating))
+		return
+	var/list/cost = floor_material_cost(turf_path, rel_x, rel_y)
+	if(!length(cost))
+		return
+	add_operation(new /datum/ship_plan_op(
+		SHIPYARD_PHASE_STRUCTURE,
+		rel_x,
+		rel_y,
+		SHIPYARD_OP_TURF,
+		turf_path,
+		cost,
+		desired,
+	))
+
 /// Add a turf decal. Paint carries no material cost and leaves no object
 /// behind, so it is neither billed nor commissioned.
 /datum/ship_plan/template/proc/add_paint_operation(target_path, rel_x, rel_y, list/desired, phase = SHIPYARD_PHASE_STRUCTURE)
@@ -505,11 +553,13 @@
 	var/list/members = model[1]
 	var/list/member_attributes = model[2]
 	var/turf_path
+	var/list/turf_attributes
 	var/has_apc = FALSE
 	for(var/member_index in 1 to length(members))
 		var/member_path = members[member_index]
 		if(ispath(member_path, /turf))
 			turf_path = member_path
+			turf_attributes = member_attributes[member_index]
 		else if(ispath(member_path, /obj/machinery/power/apc))
 			has_apc = TRUE
 	if(!turf_path || ispath(turf_path, /turf/open/space) || ispath(turf_path, /turf/template_noop))
@@ -549,6 +599,8 @@
 			turf_path,
 			wall_material_cost(turf_path),
 		))
+	else
+		add_deck_operation(turf_path, rel_x, rel_y, sanitize_desired_vars(turf_attributes))
 
 	for(var/member_index in 1 to length(members))
 		var/member_path = members[member_index]
@@ -723,6 +775,11 @@
 		"pipe_color",
 		"pipe_flags",
 		"piping_layer",
+		// A wall fixture whose family has no directional subtypes is hung by
+		// shifting it off the tile centre by hand, so the shift is the only record
+		// of which wall the blueprint meant it to be on.
+		"pixel_x",
+		"pixel_y",
 		"req_access",
 		"req_one_access",
 		"start_charge",

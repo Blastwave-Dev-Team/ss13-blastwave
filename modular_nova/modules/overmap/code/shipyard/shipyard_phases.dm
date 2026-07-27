@@ -1,27 +1,50 @@
 // MODULE ID: OVERMAP
 // Execution and verification for declarative ship-plan operations.
 
+/**
+ * Whether a tile belongs to a hull, framed or finished.
+ *
+ * Frame membership is a trait until the hull is registered as a ship, at which
+ * point the construction element hands the tile over to the shuttle and drops
+ * the trait, so the trait alone stops answering this question partway through a
+ * build - the plating phase is what registers, and every phase after it runs on
+ * tiles that are no longer loose frame. Registration stacks a skipover under the
+ * hull layer to mark what it took, and that survives everything laid on top.
+ */
+/proc/shipyard_hull_turf(turf/work_turf)
+	if(!work_turf)
+		return FALSE
+	if(HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
+		return TRUE
+	return !!work_turf.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle)
+
 /datum/ship_plan_op/proc/satisfied(turf/work_turf)
 	if(!work_turf)
 		return FALSE
 	switch(op_type)
 		if(SHIPYARD_OP_RODS)
-			// Frame membership from any source means the rod stage is behind
-			// us, including tiles already plated over, which drop the rod
-			// source but stay in the frame.
-			return HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF)
+			// Hull membership means the rod stage is behind us, including tiles
+			// already plated over, which drop the rod source but stay in the hull.
+			return shipyard_hull_turf(work_turf)
 		if(SHIPYARD_OP_PLATING)
 			// Rods do not change the turf's own type, so a pad that was already
 			// plating still owes a hull layer. Plating is only done once that
 			// layer has covered the exposed rods.
-			return HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF) \
+			return shipyard_hull_turf(work_turf) \
 				&& !HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
 		if(SHIPYARD_OP_GIRDER)
 			return !!(locate(/obj/structure/girder) in work_turf)
+		// Matched on our own stamp rather than on any frame at all, so a tile
+		// stacking two machines still owes a second frame after the first goes
+		// down. A finished machine has consumed its frame and owes nothing.
 		if(SHIPYARD_OP_MACHINE_FRAME)
-			return !!(locate(/obj/structure/frame/machine) in work_turf)
+			if(locate(target_path) in work_turf)
+				return TRUE
+			return !!stamped_frame(work_turf, /obj/structure/frame/machine)
 		if(SHIPYARD_OP_COMPUTER_FRAME)
-			return !!(locate(/obj/structure/frame/computer) in work_turf)
+			if(locate(target_path) in work_turf)
+				return TRUE
+			return !!stamped_frame(work_turf, /obj/structure/frame/computer)
 		if(SHIPYARD_OP_TURF)
 			return istype(work_turf, target_path)
 		if(SHIPYARD_OP_OBJECT, SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER, SHIPYARD_OP_COMMISSION)
@@ -125,7 +148,7 @@
 /datum/ship_plan_op/proc/execute_rods(turf/open/work_turf)
 	if(!istype(work_turf) || !isfloorturf(work_turf))
 		return "Hull rods require an open floor."
-	if(HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
+	if(shipyard_hull_turf(work_turf))
 		return TRUE
 	var/obj/item/stack/rods/shuttle/rods = new(work_turf, 1)
 	var/handled = work_turf.build_shuttle_frame_with_rods(rods, null)
@@ -152,27 +175,68 @@
 	new /obj/structure/girder(work_turf)
 	return TRUE
 
+/// The machine a printed frame is bound to become.
+///
+/// One bare frame looks exactly like another, and a blueprint may stack two
+/// machines on a single tile - a power connector and its portable SMES, for one -
+/// so without this the second frame operation mistakes the first one's frame for
+/// its own, lays nothing, and leaves its machine with no frame to be built in.
+/obj/structure/frame/var/shipyard_target
+
+/// The frame on this tile that this operation laid.
+/datum/ship_plan_op/proc/stamped_frame(turf/work_turf, frame_type)
+	for(var/obj/structure/frame/candidate in work_turf)
+		if(istype(candidate, frame_type) && candidate.shipyard_target == target_path)
+			return candidate
+	return null
+
+/**
+ * The frame on this tile this operation should be working in.
+ *
+ * Its own by preference. Failing that it adopts an unstamped one of the right
+ * type, which is either the crew lending a hand or a build that started before
+ * frames carried a stamp; either way the tile wants a frame here, so adopting one
+ * beats stacking a second on top of it.
+ */
+/datum/ship_plan_op/proc/claim_frame(turf/work_turf, frame_type)
+	var/obj/structure/frame/claimed = stamped_frame(work_turf, frame_type)
+	if(claimed)
+		return claimed
+	for(var/obj/structure/frame/candidate in work_turf)
+		if(istype(candidate, frame_type) && isnull(candidate.shipyard_target))
+			return candidate
+	return null
+
 /datum/ship_plan_op/proc/execute_machine_frame(turf/work_turf)
 	if(!isfloorturf(work_turf))
 		return "Machine frame placement requires shuttle plating."
-	if(locate(/obj/structure/frame) in work_turf)
-		return "Another construction frame occupies this tile."
-	var/obj/structure/frame/machine/secured/frame = new(work_turf)
+	var/obj/structure/frame/machine/frame = claim_frame(work_turf, /obj/structure/frame/machine)
+	if(!frame)
+		frame = new /obj/structure/frame/machine/secured(work_turf)
 	frame.set_anchored(TRUE)
+	frame.shipyard_target = target_path
 	return TRUE
 
 /datum/ship_plan_op/proc/execute_computer_frame(turf/work_turf)
 	if(!isfloorturf(work_turf))
 		return "Computer frame placement requires shuttle plating."
-	if(locate(/obj/structure/frame) in work_turf)
-		return "Another construction frame occupies this tile."
-	var/obj/structure/frame/computer/frame = new(work_turf)
+	var/obj/structure/frame/computer/frame = claim_frame(work_turf, /obj/structure/frame/computer)
+	if(!frame)
+		frame = new /obj/structure/frame/computer(work_turf)
 	frame.set_anchored(TRUE)
+	frame.shipyard_target = target_path
 	if(desired_vars["dir"])
 		frame.setDir(desired_vars["dir"])
 	return TRUE
 
+/// A blueprint's turf is either a wall raised on a girder or a deck tiled over
+/// the hull, which share nothing but the operation kind.
 /datum/ship_plan_op/proc/execute_turf(turf/work_turf)
+	if(ispath(target_path, /turf/closed))
+		return execute_wall(work_turf)
+	return execute_deck(work_turf)
+
+/datum/ship_plan_op/proc/execute_wall(turf/work_turf)
 	var/obj/structure/girder/girder = locate() in work_turf
 	if(!girder)
 		return "Wall construction requires a girder."
@@ -180,14 +244,51 @@
 	work_turf.ChangeTurf(target_path, null, CHANGETURF_INHERIT_AIR)
 	return istype(get_turf(work_turf), target_path) ? TRUE : "Wall construction failed."
 
+/**
+ * Tile the blueprint's deck over the hull plating.
+ *
+ * Stacked on top rather than changed into, the way a crew-laid tile is: the hull
+ * layer stays in the baseturf stack, so prying a deck back up exposes plating
+ * rather than the landing pad, and the marker registration stacked under the hull
+ * stays where it is - which is what keeps a finished deck legible as hull to a
+ * build that is resumed over it.
+ */
+/datum/ship_plan_op/proc/execute_deck(turf/work_turf)
+	if(!isfloorturf(work_turf))
+		return "Deck tiling requires shuttle plating."
+	if(!shipyard_hull_turf(work_turf))
+		return "Deck tiling requires a shuttle hull tile."
+	if(HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+		return "Hull plating is missing beneath this deck tile."
+	var/turf/decked = work_turf.place_on_top(target_path, flags = CHANGETURF_INHERIT_AIR)
+	if(!istype(decked, target_path))
+		return "Deck tiling failed."
+	if(desired_vars["dir"])
+		decked.setDir(desired_vars["dir"])
+	return TRUE
+
+/**
+ * Place a mapped object straight onto the deck.
+ *
+ * The blueprint's vars go in through the map loader's preloader so that they are
+ * set before `Initialize()` runs, which is the only point some of them are read.
+ * Pipes derive their connection directions from `dir` there and never revisit the
+ * question, and a unary device draws its pipe cap from that result, so a dir
+ * applied afterwards leaves a vent both hunting for its pipe and drawing its cap
+ * on the wrong side.
+ */
 /datum/ship_plan_op/proc/execute_object(turf/work_turf)
 	if(locate(target_path) in work_turf)
 		return TRUE
+	if(length(desired_vars))
+		world.preloader_setup(desired_vars, target_path)
 	var/atom/movable/created = new target_path(work_turf)
 	if(!created)
+		GLOB.use_preloader = FALSE
 		return "Failed to construct [target_path]."
-	if(desired_vars["dir"])
-		created.setDir(desired_vars["dir"])
+	if(GLOB.use_preloader)
+		world.preloader_load(created)
+	created.shipyard_placed()
 	return TRUE
 
 /**
@@ -295,7 +396,7 @@
 /datum/ship_plan_op/proc/execute_machine(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
-	var/obj/structure/frame/machine/frame = locate() in work_turf
+	var/obj/structure/frame/machine/frame = claim_frame(work_turf, /obj/structure/frame/machine)
 	if(!frame)
 		return "Machine frame is missing."
 	if(!frame.circuit)
@@ -320,7 +421,7 @@
 /datum/ship_plan_op/proc/execute_computer(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
-	var/obj/structure/frame/computer/frame = locate() in work_turf
+	var/obj/structure/frame/computer/frame = claim_frame(work_turf, /obj/structure/frame/computer)
 	if(!frame)
 		return "Computer frame is missing."
 	if(!frame.circuit)
@@ -376,10 +477,19 @@
 		setDir(desired_vars["dir"])
 	if("anchored" in desired_vars)
 		set_anchored(desired_vars["anchored"])
-	for(var/var_name in list("color", "initialize_directions", "pipe_color", "piping_layer"))
+	// After setDir(), which derives a wall fixture's offset from the wall it faces:
+	// a blueprint that states the offset outright is hanging something its family
+	// has no directional subtype for, and means the number it gave.
+	for(var/var_name in list("color", "initialize_directions", "pipe_color", "piping_layer", "pixel_x", "pixel_y"))
 		if((var_name in desired_vars) && (var_name in vars))
 			vars[var_name] = desired_vars[var_name]
 	update_appearance()
+
+/// Activation hook for the direct-placement path, which has no nullspace stage:
+/// the blueprint's vars arrive through the preloader before `Initialize()`, so all
+/// that is left is whatever the object needs to learn from its surroundings.
+/atom/movable/proc/shipyard_placed()
+	return
 
 /obj/machinery/light/shipyard_prepare(list/desired_vars)
 	. = ..()
@@ -399,6 +509,35 @@
 	for(var/atom/movable/content as anything in contents.Copy())
 		qdel(content)
 	return TRUE
+
+/// Initialize() never goes looking for neighbouring pipes. That is SSair's job
+/// during mapload and on_construction()'s when a player lays a pipe by hand, and
+/// neither of them runs for a printed one, so an unconnected pipe would sit there
+/// as a stub forever. This is on_construction()'s handshake without the colour and
+/// layer handling, which would trample what the blueprint asked for.
+/obj/machinery/atmospherics/shipyard_placed()
+	. = ..()
+	atmos_init()
+	for(var/obj/machinery/atmospherics/neighbour in pipeline_expansion())
+		neighbour.atmos_init()
+		neighbour.add_member(src)
+	SSair.add_to_rebuild_queue(src)
+
+/**
+ * A cable's Initialize() only sets the bitflags driving its icon and its links to
+ * its neighbours. The powernet is somebody else's job: SSmachines builds them for
+ * mapped cable once at roundstart, and the coil builds them for cable laid by
+ * hand. Neither runs for a printed one, so the grid would come out fully linked
+ * and completely dead, with every machine on it finding a cable to sit on and no
+ * network to draw from. This is the coil's handshake.
+ */
+/obj/structure/cable/shipyard_placed()
+	. = ..()
+	var/datum/powernet/grid = new()
+	grid.add_cable(src)
+	for(var/direction in GLOB.cardinals)
+		mergeConnectedNetworks(direction)
+	mergeConnectedNetworksOnTurf()
 
 /obj/machinery/portable_atmospherics/canister/shipyard_prepare(list/desired_vars)
 	. = ..()
@@ -480,4 +619,58 @@
 	exhaust_connector?.disconnect_connector()
 	exhaust_connector?.reconnect_connector()
 	update_linked_engines()
+
+/**
+ * Re-establish the link this machine needs on top of a powernet.
+ *
+ * A terminal to draw through, a master to draw for, a connector to stand on: the
+ * vars naming those are declared per family rather than on a shared ancestor, and
+ * each family binds them either during mapload or by hand, neither of which
+ * happens to a printed machine. Run late in the build, once everything the link
+ * could point at exists. Only the families that have such a link implement it.
+ */
+/obj/machinery/proc/shipyard_pair()
+	return
+
+// make_terminal() adopts a terminal already standing on the tile rather than
+// building a second one, and a printed terminal gives up its master on
+// commissioning so that whichever machine needs it can claim it - so this repairs
+// a terminal printed after the machine that draws through it just as well as a
+// missing one.
+/obj/machinery/power/apc/shipyard_pair()
+	if(isnull(terminal) || terminal.master != src)
+		make_terminal()
+
+/obj/machinery/power/megacell_charger/shipyard_pair()
+	if(isnull(terminal) || terminal.master != src)
+		make_terminal()
+
+/// A wall SMES draws through a terminal on an adjacent tile that faces it, and
+/// breaks itself on finding none, which is the state a printed one starts in. This
+/// is the search its mapload path runs.
+/obj/machinery/power/smes/shipyard_pair()
+	if(terminal)
+		return
+	for(var/direction in GLOB.cardinals)
+		for(var/obj/machinery/power/terminal/candidate in get_step(src, direction))
+			if(candidate.dir != REVERSE_DIR(direction) || candidate.master)
+				continue
+			terminal = candidate
+			terminal.master = src
+			set_machine_stat(machine_stat & ~BROKEN)
+			update_appearance(UPDATE_OVERLAYS)
+			return
+
+/// A portable SMES is only wired while it stands on a connector, and printing one
+/// leaves it loose: its construction hook drops the anchor deliberately, and the
+/// pairing mapload does runs from post_machine_initialize(), which a machine built
+/// out of a frame never reaches.
+/obj/machinery/smesbank/shipyard_pair()
+	if(connected_port)
+		return
+	var/obj/machinery/power/smes/connector/port = locate() in loc
+	if(!connect_port(port))
+		return
+	connected_port.input_attempt = TRUE
+	connected_port.output_attempt = TRUE
 

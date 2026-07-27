@@ -16,6 +16,11 @@
 /// Operations confirmed in a single tick while catching up to a resumed build.
 #define SHIPYARD_CONFIRMS_PER_TICK 100
 
+/// Active draw with the crudest stock parts the board accepts.
+#define SHIPYARD_ACTIVE_POWER_TIER_ONE (600 KILO WATTS)
+/// Active draw once every stock part is tier four.
+#define SHIPYARD_ACTIVE_POWER_TIER_FOUR (200 KILO WATTS)
+
 #define SHIPYARD_OP_DELAY (1 SECONDS)
 #define SHIPYARD_DEPLOY_TIME (1 SECONDS)
 #define SHIPYARD_BEAM_TIME (0.5 SECONDS)
@@ -49,7 +54,7 @@
 	anchored = TRUE
 	use_power = IDLE_POWER_USE
 	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION * 2
-	active_power_usage = BASE_MACHINE_ACTIVE_CONSUMPTION * 5
+	active_power_usage = SHIPYARD_ACTIVE_POWER_TIER_ONE
 	circuit = null
 	/// Hard-required remote ore-silo connection.
 	var/datum/remote_materials/materials
@@ -116,8 +121,28 @@
 
 /obj/machinery/shipyard_fabricator_frame_half/Initialize(mapload)
 	. = ..()
+	// The printer's art is a single 64x64 state spanning both tiles of the
+	// finished machine, and the DMI carries no half-width state, so a half
+	// wearing it looks exactly like a working fabricator. Cut the western column
+	// out of the base state once and share it, so an assembly that still owes a
+	// partner reads as unfinished.
+	var/static/icon/half_icon
+	if(!half_icon)
+		half_icon = icon(icon, base_icon_state)
+		half_icon.Crop(1, 1, ICON_SIZE_X, ICON_SIZE_Y * 2)
+	icon = half_icon
+	icon_state = ""
 	if(!mapload)
 		addtimer(CALLBACK(src, PROC_REF(try_complete_pair)), 1)
+
+/// A half whose partner never gets built is still a machine bolted to the deck,
+/// so it has to come apart the same way the assembled fabricator does. Without
+/// these a misplaced assembly is permanent.
+/obj/machinery/shipyard_fabricator_frame_half/screwdriver_act(mob/living/user, obj/item/tool)
+	return default_deconstruction_screwdriver(user, tool)
+
+/obj/machinery/shipyard_fabricator_frame_half/crowbar_act(mob/living/user, obj/item/tool)
+	return default_deconstruction_crowbar(user, tool)
 
 /obj/machinery/shipyard_fabricator_frame_half/proc/try_complete_pair()
 	if(QDELETED(src) || !anchored)
@@ -274,6 +299,20 @@
 	material_cost_multiplier = 1.5 - ((bin_rating - 1) / 6)
 	fabrication_delay = (1 SECONDS) / placement_rating
 	max_print_range = max(1, round(CONFIG_GET(number/max_overmap_landing_zone_dimension) * scanner_rating / 4))
+
+	// The parent scales draw up with the summed energy rating of every part, and
+	// this machine is paired from two boards, so it carries twelve of them: on
+	// tier-four stock that reached 605 kW, far past what an APC can feed it.
+	// Draw is taken from the average tier instead, so the part count stops
+	// mattering, and better hardware spends less rather than more. Idle draw is
+	// left at the declared trickle: a parked printer costs nothing to own.
+	var/part_total = bin_total + placement_total + scanner_total
+	var/part_count = bin_count + placement_count + scanner_count
+	var/power_rating = part_count ? clamp(part_total / part_count, 1, 4) : 1
+	var/tier_saving = (SHIPYARD_ACTIVE_POWER_TIER_ONE - SHIPYARD_ACTIVE_POWER_TIER_FOUR) / 3
+	idle_power_usage = initial(idle_power_usage)
+	active_power_usage = round(SHIPYARD_ACTIVE_POWER_TIER_ONE - ((power_rating - 1) * tier_saving), 1)
+	update_current_power_usage()
 
 /obj/machinery/shipyard_fabricator/Destroy()
 	STOP_PROCESSING(SSmachines, src)
@@ -800,18 +839,27 @@
 		return locate(zone.x + operation.rel_y, zone.y + plan.width - 1 - operation.rel_x, zone.z)
 	return locate(zone.x + operation.rel_x, zone.y + operation.rel_y, zone.z)
 
-/obj/machinery/shipyard_fabricator/proc/complete_phase(phase)
-	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
-		return TRUE
+/// Every tile the manifest lays hull plating on.
+/obj/machinery/shipyard_fabricator/proc/hull_turfs()
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
+	if(!plan)
+		return list()
 	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
-	var/list/hull_turfs = list()
+	var/list/turfs = list()
 	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
 		if(operation.op_type != SHIPYARD_OP_PLATING)
 			continue
 		var/turf/hull = get_operation_turf(operation, zone)
 		if(hull)
-			hull_turfs |= hull
+			turfs |= hull
+	return turfs
+
+/obj/machinery/shipyard_fabricator/proc/complete_phase(phase)
+	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
+		return TRUE
+	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
+	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
+	var/list/hull_turfs = hull_turfs()
 	if(!length(hull_turfs))
 		fault_build(null, "No hull plating exists for shuttle registration.")
 		return FALSE
@@ -840,7 +888,37 @@
 		master.link_to_shuttle(registered, TRUE)
 	return TRUE
 
+/**
+ * Bring the finished ship's power grid up.
+ *
+ * Printed cable goes live as it is laid, but a build has several ways to leave a
+ * hole in that. A power machine that landed on its tile before the cable did found
+ * nothing to join and is never asked a second time. The terminals that APCs and
+ * chargers draw through are not built until their own commissioning step, later
+ * than the cable that would have connected them. A portable SMES is printed loose
+ * on the deck rather than on its connector. Repairing all of it once here, in
+ * dependency order - the links, then the grid, then everything drawing off it -
+ * settles those without the manifest having to run in any particular order.
+ */
+/obj/machinery/shipyard_fabricator/proc/energize_hull()
+	var/list/hull = hull_turfs()
+	for(var/turf/deck as anything in hull)
+		for(var/obj/machinery/machine in deck)
+			// Wide machines list themselves in every turf they overlap.
+			if(machine.loc == deck)
+				machine.shipyard_pair()
+	for(var/turf/deck as anything in hull)
+		for(var/obj/structure/cable/cable in deck)
+			cable.propagate_if_no_network()
+	for(var/turf/deck as anything in hull)
+		for(var/obj/machinery/power/machine in deck)
+			if(machine.loc == deck)
+				machine.connect_to_network()
+
 /obj/machinery/shipyard_fabricator/proc/finish_build()
+	// Before the zone is released: the hull is located through the zone it was
+	// built in.
+	energize_hull()
 	clear_phase_projections()
 	set_build_state(SHIPYARD_STATE_COMPLETE)
 	paused_reason = "Construction complete. Frames listed as incomplete require manual RPED finishing."
@@ -853,6 +931,9 @@
 #undef SHIPYARD_STEP_CONFIRMED
 #undef SHIPYARD_STEP_HALT
 #undef SHIPYARD_CONFIRMS_PER_TICK
+
+#undef SHIPYARD_ACTIVE_POWER_TIER_ONE
+#undef SHIPYARD_ACTIVE_POWER_TIER_FOUR
 
 #undef SHIPYARD_OP_DELAY
 #undef SHIPYARD_DEPLOY_TIME

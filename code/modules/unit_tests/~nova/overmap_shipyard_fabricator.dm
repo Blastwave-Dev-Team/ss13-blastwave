@@ -11,6 +11,13 @@
 		states += istext(overlay) ? overlay : overlay.icon_state
 	return states
 
+/// Stands an assembly half up the way a completed machine frame hands it over,
+/// with its board listed as a component part rather than loose in its contents.
+/datum/unit_test/overmap_shipyard_fabricator/proc/build_assembly_half(turf/target)
+	var/obj/machinery/shipyard_fabricator_frame_half/half = allocate(/obj/machinery/shipyard_fabricator_frame_half, target)
+	half.component_parts = list(half.circuit)
+	return half
+
 /datum/unit_test/overmap_shipyard_fabricator/manifest
 
 /datum/unit_test/overmap_shipyard_fabricator/manifest/Run()
@@ -666,6 +673,8 @@
 	var/tier_one_range = fabricator.max_print_range
 	var/tier_one_delay = fabricator.fabrication_delay
 	TEST_ASSERT_EQUAL(fabricator.material_cost_multiplier, 1.5, "Tier-one matter bins should cost 150% of hand construction.")
+	TEST_ASSERT_EQUAL(fabricator.active_power_usage, 600 KILO WATTS, "Tier-one stock should draw the projector's full ceiling.")
+	TEST_ASSERT_EQUAL(fabricator.idle_power_usage, initial(fabricator.idle_power_usage), "A parked printer should idle at its declared trickle whatever it is stocked with.")
 
 	fabricator.component_parts = list(
 		GLOB.stock_part_datums[/datum/stock_part/matter_bin/tier4],
@@ -678,6 +687,18 @@
 	TEST_ASSERT(fabricator.fabrication_delay < tier_one_delay, "Tier-four lasers and servos should place faster than tier one.")
 	TEST_ASSERT(fabricator.max_print_range > tier_one_range, "Tier-four scanners should print farther than tier one.")
 	TEST_ASSERT_EQUAL(fabricator.max_print_range, CONFIG_GET(number/max_overmap_landing_zone_dimension), "Tier-four scanner range should equal the maximum landing-zone dimension.")
+	TEST_ASSERT_EQUAL(fabricator.active_power_usage, 200 KILO WATTS, "Tier-four stock should spend less on the projector, not more.")
+	TEST_ASSERT_EQUAL(fabricator.idle_power_usage, initial(fabricator.idle_power_usage), "Upgrades should not inflate the idle draw either.")
+
+	// The machine is paired from two boards, so it holds two of every part. Draw
+	// has to come off the average tier, or the assembly costs double to run.
+	var/list/doubled_parts = list()
+	for(var/datum/stock_part/part as anything in fabricator.component_parts)
+		doubled_parts += part
+		doubled_parts += part
+	fabricator.component_parts = doubled_parts
+	fabricator.RefreshParts()
+	TEST_ASSERT_EQUAL(fabricator.active_power_usage, 200 KILO WATTS, "Twice the parts at the same tier should draw the same power.")
 
 /datum/unit_test/overmap_shipyard_fabricator/paired_frames
 
@@ -721,6 +742,64 @@
 	TEST_ASSERT_EQUAL(east_frame.state, FRAME_STATE_WIRED, "The second frame should come back wired like the first.")
 	TEST_ASSERT(east_frame.anchored, "The second frame should come back anchored like the first.")
 
+/// The machine assembles from two frames in whichever order the builder works,
+/// so the eastern half going up first has to reach the same finished machine on
+/// the same tile as the western one does.
+/datum/unit_test/overmap_shipyard_fabricator/assembly_order
+
+/datum/unit_test/overmap_shipyard_fabricator/assembly_order/Run()
+	var/turf/west = run_loc_floor_bottom_left
+	var/turf/east = get_step(west, EAST)
+	TEST_ASSERT(east, "Assembly order test requires an eastern tile.")
+
+	var/obj/machinery/shipyard_fabricator_frame_half/east_half = build_assembly_half(east)
+	TEST_ASSERT(!east_half.try_complete_pair(), "A half with no partner should not complete anything.")
+	var/obj/machinery/shipyard_fabricator_frame_half/west_half = build_assembly_half(west)
+	TEST_ASSERT(west_half.try_complete_pair(), "The half built second should complete the pair regardless of side.")
+
+	// The machine is two tiles wide, so both tiles list it: what the pairing owes is
+	// one machine rather than one per half, anchored on the western tile whichever
+	// half went up first.
+	var/list/built = list()
+	for(var/turf/tile as anything in list(west, east))
+		for(var/obj/machinery/shipyard_fabricator/found in tile)
+			built |= found
+	TEST_ASSERT_EQUAL(length(built), 1, "The pair should produce one machine, not one per tile.")
+	var/obj/machinery/shipyard_fabricator/fabricator = built[1]
+	TEST_ASSERT_EQUAL(fabricator.loc, west, "An east-first assembly should still leave the machine on the western tile.")
+	TEST_ASSERT(QDELETED(east_half) && QDELETED(west_half), "Both halves should be consumed by the pairing.")
+	TEST_ASSERT(fabricator.circuit, "The finished machine should hold a board to be taken apart by.")
+
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, get_step(west, SOUTH))
+	var/obj/item/crowbar/lever = allocate(/obj/item/crowbar)
+	fabricator.set_panel_open(TRUE)
+	TEST_ASSERT_EQUAL(fabricator.crowbar_act(user, lever), ITEM_INTERACT_SUCCESS, "An east-first fabricator should come apart under a crowbar.")
+	TEST_ASSERT(QDELETED(fabricator), "Deconstruction should consume the machine.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in west, "Deconstruction should hand back the western frame.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in east, "Deconstruction should hand back the eastern frame.")
+
+/// An assembly whose partner never arrives has to be both recognisable as
+/// unfinished and removable, or a frame built on the wrong tile is permanent.
+/datum/unit_test/overmap_shipyard_fabricator/unpaired_half
+
+/datum/unit_test/overmap_shipyard_fabricator/unpaired_half/Run()
+	var/turf/target = run_loc_floor_bottom_left
+	var/obj/machinery/shipyard_fabricator_frame_half/half = build_assembly_half(target)
+	var/icon/worn = icon(half.icon)
+	TEST_ASSERT_EQUAL(worn.Width(), ICON_SIZE_X, "An unpaired half should be cropped to its own tile rather than wearing the whole machine.")
+	TEST_ASSERT_EQUAL(worn.Height(), ICON_SIZE_Y * 2, "Cropping a half should keep the printer's full height.")
+
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, get_step(target, SOUTH))
+	var/obj/item/crowbar/lever = allocate(/obj/item/crowbar)
+	var/obj/item/screwdriver/driver = allocate(/obj/item/screwdriver)
+	TEST_ASSERT_EQUAL(half.crowbar_act(user, lever), ITEM_INTERACT_BLOCKING, "A sealed half should refuse to come apart.")
+	TEST_ASSERT(!QDELETED(half), "A sealed half should survive a crowbar.")
+	TEST_ASSERT_EQUAL(half.screwdriver_act(user, driver), ITEM_INTERACT_SUCCESS, "A screwdriver should open a half's maintenance hatch.")
+	TEST_ASSERT(half.panel_open, "Opening the hatch should leave the panel open.")
+	TEST_ASSERT_EQUAL(half.crowbar_act(user, lever), ITEM_INTERACT_SUCCESS, "An open half should come apart under a crowbar.")
+	TEST_ASSERT(QDELETED(half), "Deconstructing a half should consume it.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in target, "Deconstructing a half should hand back its machine frame.")
+
 /datum/unit_test/overmap_shipyard_fabricator/rped_docking
 
 /datum/unit_test/overmap_shipyard_fabricator/rped_docking/Run()
@@ -755,6 +834,39 @@
 			found_bluespace_overlay = TRUE
 			break
 	TEST_ASSERT(found_bluespace_overlay, "A docked bluespace RPED should use its matching dock overlay.")
+
+/// A projection with no configured appearance deletes itself the moment it is
+/// created, so an operation kind left out of the preview switch shows nothing at
+/// all rather than complaining. Every kind a real blueprint emits has to preview.
+/datum/unit_test/overmap_shipyard_fabricator/projection_coverage
+
+/datum/unit_test/overmap_shipyard_fabricator/projection_coverage/Run()
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/shipyard_validation)
+	disk.load_ship_plan()
+	var/datum/ship_plan/plan = disk.ship_plan
+	TEST_ASSERT(istype(plan), "Projection coverage requires the validation fixture plan.")
+
+	var/turf/target = run_loc_floor_bottom_left
+	var/list/failures = list()
+	var/list/previewed = list()
+	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
+		// Commissioning is bookkeeping. It has nothing to stand on a tile.
+		if(operation.op_type == SHIPYARD_OP_COMMISSION)
+			continue
+		var/signature = "[operation.op_type] [operation.target_path]"
+		if(previewed[signature])
+			continue
+		previewed[signature] = TRUE
+		var/obj/effect/overlay/shipyard_projection/projection = new(target, operation)
+		if(QDELETED(projection))
+			failures += "[signature] has no preview appearance"
+			continue
+		qdel(projection)
+
+	if(!length(previewed))
+		failures += "the fixture blueprint produced nothing previewable"
+	if(length(failures))
+		TEST_FAIL("Construction preview coverage found [length(failures)] gap(s):\n[jointext(failures, "\n")]")
 
 /datum/unit_test/overmap_shipyard_fabricator/phase_projections
 
@@ -1054,4 +1166,170 @@
 	fabricator.built_shuttle_ref = null
 	fabricator.state = "paused"
 	TEST_ASSERT_EQUAL(fabricator.blocking_occupant(zone), hull, "A ship the fabricator does not own should block a resume.")
+
+/// A deck is tiled onto the finished hull rather than being what the hull is made
+/// of, and the hull has to stay legible underneath it: a resumed build walks the
+/// rod and plating steps again before it ever reaches the structure pass.
+/datum/unit_test/overmap_shipyard_fabricator/deck_tiling
+
+/datum/unit_test/overmap_shipyard_fabricator/deck_tiling/Run()
+	// Tests share one room and only their contents are swept between runs, so a
+	// tile an earlier phase test finished as hull stays hull. This one needs a bare
+	// pad, since rods on a tile that already counts as hull are a no-op that would
+	// quietly skip the exposed-rod case below.
+	var/turf/pad = run_loc_floor_top_right
+	TEST_ASSERT(!shipyard_hull_turf(pad), "Deck tiling test requires a pad no earlier test built a hull on.")
+	var/datum/ship_plan_op/rods = new(SHIPYARD_PHASE_RODS, 0, 0, SHIPYARD_OP_RODS, /turf/open/floor/plating)
+	var/datum/ship_plan_op/plating = new(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating)
+	var/datum/ship_plan_op/deck = new(
+		SHIPYARD_PHASE_STRUCTURE,
+		0,
+		0,
+		SHIPYARD_OP_TURF,
+		/turf/open/floor/mineral/titanium/tiled,
+		null,
+		list("dir" = EAST),
+	)
+
+	TEST_ASSERT_EQUAL(rods.execute_rods(pad), TRUE, "Frame rods should anchor on the landing pad.")
+	TEST_ASSERT_EQUAL(deck.execute_deck(pad), "Hull plating is missing beneath this deck tile.", "A deck should not be tiled straight onto exposed rods.")
+	TEST_ASSERT_EQUAL(plating.execute_plating(pad), TRUE, "Hull plating should cover the rods.")
+	TEST_ASSERT(isplatingturf(pad), "The plating phase should leave the tile as bare hull plating.")
+	TEST_ASSERT(!deck.satisfied(pad), "Bare hull plating should not pass for a tiled deck.")
+
+	// What registration does to a hull tile, which the plating phase triggers: the
+	// tile joins the ship and the construction element gives up its trait. Every
+	// phase after plating therefore works on tiles that are no longer loose frame.
+	var/obj/docking_port/mobile/hull = allocate(/obj/docking_port/mobile, pad)
+	insert_shuttle_skipover(pad)
+	SEND_SIGNAL(pad, COMSIG_TURF_ADDED_TO_SHUTTLE, hull)
+	TEST_ASSERT(!HAS_TRAIT(pad, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Registration should hand the tile over to the ship.")
+	TEST_ASSERT(rods.satisfied(pad), "A registered hull tile should still count as rodded.")
+	TEST_ASSERT(plating.satisfied(pad), "A registered hull tile should still count as plated.")
+
+	TEST_ASSERT_EQUAL(deck.execute_deck(pad), TRUE, "The deck should tile over the hull plating.")
+	var/turf/decked = get_turf(pad)
+	TEST_ASSERT(istype(decked, /turf/open/floor/mineral/titanium/tiled), "The deck should be the floor the blueprint mapped, got [decked.type].")
+	TEST_ASSERT_EQUAL(decked.dir, EAST, "The deck should keep the direction it was mapped with.")
+	var/list/beneath = islist(decked.baseturfs) ? decked.baseturfs : list(decked.baseturfs)
+	TEST_ASSERT(/turf/open/floor/plating in beneath, "Prying a deck back up should expose hull plating.")
+
+	TEST_ASSERT(rods.satisfied(decked), "A resumed build should still find its rods under a finished deck.")
+	TEST_ASSERT(plating.satisfied(decked), "A resumed build should still find its hull under a finished deck.")
+	TEST_ASSERT(deck.satisfied(decked), "A finished deck should not be tiled a second time.")
+
+/// Decks are billed for the tile they are laid with, the hull layer is never
+/// tiled over itself, and paint is applied after the floor it sits on.
+/datum/unit_test/overmap_shipyard_fabricator/deck_manifest
+
+/datum/unit_test/overmap_shipyard_fabricator/deck_manifest/Run()
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/shipyard_validation)
+	disk.load_ship_plan()
+	var/datum/ship_plan/template/plan = disk.ship_plan
+	TEST_ASSERT(istype(plan), "The validation fixture should parse into a plan.")
+
+	var/list/iron_deck = plan.floor_material_cost(/turf/open/floor/iron, 0, 0)
+	TEST_ASSERT(iron_deck[/datum/material/iron] > 0, "An iron deck should be billed as iron.")
+	var/list/titanium_deck = plan.floor_material_cost(/turf/open/floor/mineral/titanium/tiled, 0, 0)
+	TEST_ASSERT(titanium_deck[/datum/material/titanium] > 0, "A titanium deck should be billed as titanium.")
+	var/list/reinforced_deck = plan.floor_material_cost(/turf/open/floor/engine, 0, 0)
+	TEST_ASSERT(length(reinforced_deck), "A reinforced deck should be billed for the rods it is built from.")
+	var/list/catwalk_deck = plan.floor_material_cost(/turf/open/floor/catwalk_floor/iron_smooth, 0, 0)
+	TEST_ASSERT(length(catwalk_deck), "A catwalk deck should be billed for its plating tile.")
+	var/list/wooden_deck = plan.floor_material_cost(/turf/open/floor/wood, 0, 0)
+	TEST_ASSERT(!length(wooden_deck), "A wooden deck should be refused rather than priced.")
+
+	var/list/failures = list()
+	var/list/deck_at = list()
+	var/list/paint_at = list()
+	for(var/index in 1 to length(plan.manifest))
+		var/datum/ship_plan_op/operation = plan.manifest[index]
+		var/tile = "[operation.rel_x],[operation.rel_y]"
+		if(operation.op_type == SHIPYARD_OP_DECAL)
+			if(isnull(paint_at[tile]))
+				paint_at[tile] = index
+			continue
+		if(operation.op_type != SHIPYARD_OP_TURF || ispath(operation.target_path, /turf/closed))
+			continue
+		if(isnull(deck_at[tile]))
+			deck_at[tile] = index
+		if(ispath(operation.target_path, /turf/open/floor/plating))
+			failures += "[operation.target_path] is the hull layer and should not be tiled over itself"
+		if(!length(operation.material_cost))
+			failures += "[operation.target_path] is tiled without being billed"
+		if(operation.phase != SHIPYARD_PHASE_STRUCTURE)
+			failures += "[operation.target_path] is tiled in phase [operation.phase] instead of the structure pass"
+	if(!length(deck_at))
+		failures += "the fixture's mapped floors are never tiled at all"
+	for(var/tile in paint_at)
+		if(isnull(deck_at[tile]))
+			continue
+		if(deck_at[tile] > paint_at[tile])
+			failures += "paint at ([tile]) is applied before the deck under it, which the turf change would wipe"
+	if(length(failures))
+		TEST_FAIL("Deck tiling found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
+
+/// A printed grid has to come up live. A cable's own Initialize() wires up nothing
+/// but its links to its neighbours, leaving the powernet to a roundstart sweep that
+/// never runs again and to the coil a crew member lays cable with, so a printed
+/// grid would be fully linked and completely dead.
+/datum/unit_test/overmap_shipyard_fabricator/powernet_continuity
+
+/datum/unit_test/overmap_shipyard_fabricator/powernet_continuity/Run()
+	var/turf/west = run_loc_floor_bottom_left
+	var/turf/east = get_step(west, EAST)
+	TEST_ASSERT(isfloorturf(east), "Powernet test requires an eastern tile.")
+
+	var/datum/ship_plan_op/west_run = new(SHIPYARD_PHASE_NETWORKS, 0, 0, SHIPYARD_OP_OBJECT, /obj/structure/cable)
+	TEST_ASSERT_EQUAL(west_run.execute_object(west), TRUE, "A cable should place on the deck.")
+	var/obj/structure/cable/west_cable = locate() in west
+	TEST_ASSERT(west_cable?.powernet, "A printed cable should come up on a powernet rather than dead.")
+
+	var/datum/ship_plan_op/east_run = new(SHIPYARD_PHASE_NETWORKS, 1, 0, SHIPYARD_OP_OBJECT, /obj/structure/cable)
+	TEST_ASSERT_EQUAL(east_run.execute_object(east), TRUE, "The neighbouring cable should place too.")
+	var/obj/structure/cable/east_cable = locate() in east
+	TEST_ASSERT_EQUAL(east_cable.powernet, west_cable.powernet, "Cable laid alongside live cable should join its powernet.")
+
+	// The hull the sweep works over, standing in for the one the plating phase
+	// registers: two tiles wide, starting at the zone corner.
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, west)
+	zone.zone_width = 2
+	zone.zone_height = 1
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, get_step(west, SOUTH))
+	fabricator.claimed_zone = WEAKREF(zone)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new()
+	plan.manifest = list(
+		new /datum/ship_plan_op(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating),
+		new /datum/ship_plan_op(SHIPYARD_PHASE_PLATING, 1, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating),
+	)
+	disk.ship_plan = plan
+	fabricator.blueprint_disk = disk
+	TEST_ASSERT_EQUAL(length(fabricator.hull_turfs()), 2, "The fixture plan should describe a two tile hull.")
+
+	// An APC comes off the printer the way one comes out of a frame: with no
+	// terminal, because the terminal it draws through is printed by a later step.
+	var/obj/machinery/power/apc/apc = allocate(/obj/machinery/power/apc, east)
+	TEST_ASSERT(!apc.terminal, "A built APC starts without the terminal a mapped one is given.")
+	fabricator.energize_hull()
+	TEST_ASSERT(apc.terminal, "The sweep should give the APC the terminal it draws through.")
+	TEST_ASSERT_EQUAL(apc.terminal.master, apc, "The terminal should answer to the APC that claimed it.")
+	TEST_ASSERT_EQUAL(apc.terminal.powernet, east_cable.powernet, "The APC's terminal should end up on the hull's grid.")
+
+/// A wall fixture whose family has no directional subtypes is hung by shifting it
+/// off the tile centre by hand, which makes the shift the blueprint's only record
+/// of which wall it belongs on.
+/datum/unit_test/overmap_shipyard_fabricator/wall_offsets
+
+/datum/unit_test/overmap_shipyard_fabricator/wall_offsets/Run()
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/solfed_cutter)
+	disk.load_ship_plan()
+	var/datum/ship_plan/plan = disk.ship_plan
+	var/charger_operations = 0
+	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
+		if(!ispath(operation.target_path, /obj/machinery/power/megacell_charger))
+			continue
+		charger_operations++
+		TEST_ASSERT_EQUAL(operation.desired_vars["pixel_y"], 26, "The cutter's wall charger should keep the shift that hangs it on its wall.")
+	TEST_ASSERT(charger_operations, "The cutter blueprint should carry a wall mounted megacell charger.")
 

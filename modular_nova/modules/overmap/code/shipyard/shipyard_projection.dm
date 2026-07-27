@@ -34,7 +34,10 @@
 			appearance_path = /obj/structure/frame/machine
 		if(SHIPYARD_OP_COMPUTER_FRAME)
 			appearance_path = /obj/structure/frame/computer
-		if(SHIPYARD_OP_TURF, SHIPYARD_OP_OBJECT, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER)
+		// Everything that ends up as the mapped atom itself previews as that atom,
+		// however it gets built. Leaving an operation kind out of this list is
+		// silent: the projection finds no icon and deletes itself on the spot.
+		if(SHIPYARD_OP_TURF, SHIPYARD_OP_OBJECT, SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER, SHIPYARD_OP_DECAL)
 			appearance_path = operation.target_path
 		if(SHIPYARD_OP_COMMISSION)
 			return FALSE
@@ -44,7 +47,12 @@
 		var/atom/appearance_source = appearance_path
 		icon = initial(appearance_source.icon)
 		icon_state = initial(appearance_source.icon_state)
-	if(!icon)
+		// Plenty of types leave icon_state empty and compose it in
+		// update_icon_state() from base_icon_state, which never runs for a
+		// preview that is only ever an appearance.
+		if(!icon_state)
+			icon_state = initial(appearance_source.base_icon_state)
+	if(!icon || !icon_state)
 		return FALSE
 	if("dir" in operation.desired_vars)
 		setDir(operation.desired_vars["dir"])
