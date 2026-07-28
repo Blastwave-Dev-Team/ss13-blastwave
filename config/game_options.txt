@@ -522,7 +522,10 @@ ICEMOON_BUDGET 90
 OCEAN_BUDGET 60
 
 ## Space Ruin Budget
-Space_Budget 0
+## When overmap_space_ruins is enabled, this budget controls how many
+## additional random space ruins are placed as named overmap site POIs
+## (after always_place ruins like DS2/Tarkon/Anchor Buoy).
+Space_Budget 16
 
 ## Time in ds from when a player latejoins till the arrival shuttle docks at the station
 ## Must be at least 30. At least 55 recommended to be visually/aurally appropriate
@@ -645,3 +648,23 @@ SPY_HARD_REWARD_TC_THRESHOLD 15
 
 ## Minimum time before a heretic can ascend, in minutes
 # MINIMUM_ASCENSION_TIME 3
+
+## --- Overmap Configuration ---
+## Generator type: "Random" (default) or "Solar" (orbital rings around star).
+OVERMAP_GENERATOR_TYPE Solar
+## Maximum total overmap event tiles (debris, nebulae, etc).
+MAX_OVERMAP_EVENTS 12
+## Maximum event clusters spawned (each cluster spreads outward from a seed).
+MAX_OVERMAP_EVENT_CLUSTERS 3
+## Maximum dynamic encounter objects (dockable ruins/anomalies).
+MAX_OVERMAP_DYNAMIC_EVENTS 4
+## Maximum named ruin templates placed as overmap sites (budget-fill cap after always_place).
+## Real Z count is solos + ceil(smalls / OVERMAP_CLUSTER_CAPACITY), not this number.
+MAX_OVERMAP_NAMED_SITES 10
+## Small ruins (≤30 on a side) packed per shared cluster Z-level.
+OVERMAP_CLUSTER_CAPACITY 4
+## Landing zones per named site Z (supports multi-ship docking; uncontrolled sites
+## expose one random LZ per approaching ship).
+OVERMAP_SITE_LZ_COUNT 3
+## Maximum per-side dimension (tiles) for a player-constructed landing zone (sized to the largest evac shuttle).
+MAX_OVERMAP_LANDING_ZONE_DIMENSION 80

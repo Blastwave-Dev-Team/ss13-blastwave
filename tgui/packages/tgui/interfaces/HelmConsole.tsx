@@ -1,0 +1,754 @@
+// THIS IS A NOVA SECTOR UI FILE
+import { useEffect, useState } from 'react';
+import { ByondUi, NoticeBox, ProgressBar } from 'tgui-core/components';
+import type { BooleanLike } from 'tgui-core/react';
+
+import { useBackend } from '../backend';
+import { Window } from '../layouts';
+import { ContactIndicator } from './HelmConsole/ContactIndicator';
+import { NavBall } from './HelmConsole/NavBall';
+import './HelmConsole/helm-console.scss';
+
+type ShipInfo = {
+  name: string;
+  class: string;
+  integrity: number;
+  sensor_range: number;
+  ref: string;
+  mass?: number;
+  est_thrust?: number;
+  disabled?: BooleanLike;
+};
+
+type LandingZone = {
+  name: string;
+  ref: string;
+  width: number;
+  height: number;
+};
+
+type OtherShip = {
+  name: string;
+  integrity: number;
+  ref: string;
+  bearing?: number;
+  distance?: number;
+  adjacent?: BooleanLike;
+  type?: 'level' | 'dynamic' | 'ship' | 'event' | 'unknown';
+  landingZones?: LandingZone[];
+};
+
+type EngineInfo = {
+  name: string;
+  fuel: number;
+  maxFuel: number;
+  enabled: BooleanLike;
+  broken?: BooleanLike;
+  ref: string;
+  fuelSource?: 'injector' | 'hall-only' | 'none';
+  pressure?: number;
+  temperature?: number;
+  feedPressure?: number;
+};
+
+export type GpsContact = {
+  name: string;
+  ref: string;
+  tags: string[];
+  bearing: number;
+  distance: number;
+  x: number;
+  y: number;
+  offsetX: number;
+  offsetY: number;
+  local: BooleanLike;
+};
+
+export type MapView = {
+  minX: number;
+  minY: number;
+  sizeX: number;
+  sizeY: number;
+};
+
+type OpenSpaceData = {
+  x: number;
+  y: number;
+  available: BooleanLike;
+  siteRef?: string;
+  landingZones: LandingZone[];
+};
+
+type Data = {
+  canFly: BooleanLike;
+  isViewer: BooleanLike;
+  mapRef: string;
+  shipInfo: ShipInfo;
+  otherInfo: OtherShip[];
+  engineInfo?: EngineInfo[];
+  speed?: number;
+  maxSpeed?: number;
+  heading?: number;
+  actual_angle?: number;
+  actual_speed?: number;
+  desired_angle?: number;
+  desired_throttle?: number;
+  station_keeping?: BooleanLike;
+  target_mol_s?: number;
+  delivered_mol_s?: number;
+  spool_pct?: number;
+  x: number;
+  y: number;
+  offsetX?: number;
+  offsetY?: number;
+  gpsContacts?: GpsContact[];
+  mapView?: MapView;
+  openSpace?: OpenSpaceData;
+  state?: 'idle' | 'flying' | 'docking' | 'undocking';
+  stopped?: BooleanLike;
+  docked?: BooleanLike;
+  scanReady?: BooleanLike;
+  consoleControl?: BooleanLike;
+  gpsBeacon?: BooleanLike;
+  gpsBeaconPref?: BooleanLike;
+  gpsBeaconLanded?: BooleanLike;
+  emergencyBraking?: BooleanLike;
+};
+
+export const HelmConsole = () => {
+  const { act, data } = useBackend<Data>();
+  const { canFly, isViewer, mapRef } = data;
+  const [activeTab, setActiveTab] = useState<'status' | 'engines' | 'radar'>(
+    'status',
+  );
+  const [selectedGpsRef, setSelectedGpsRef] = useState<string>();
+  const selectedGps = data.gpsContacts?.find(
+    (contact) => contact.ref === selectedGpsRef,
+  );
+
+  useEffect(() => {
+    if (selectedGpsRef && !selectedGps) {
+      setSelectedGpsRef(undefined);
+    }
+  }, [selectedGps, selectedGpsRef]);
+
+  return (
+    <Window width={900} height={720}>
+      <Window.Content className="HelmConsole">
+        <div className="HelmConsole__viewscreen">
+          {mapRef ? (
+            <ByondUi
+              height="100%"
+              width="100%"
+              params={{ id: mapRef, type: 'map' }}
+            />
+          ) : (
+            <NoticeBox>
+              Helm not bound to any starmap object. Move it to a shuttle, or
+              set its target via VV.
+            </NoticeBox>
+          )}
+          {selectedGps && data.mapView && (
+            <ContactIndicator
+              contact={selectedGps}
+              heading={data.heading ?? 0}
+              mapView={data.mapView}
+              shipX={data.x}
+              shipY={data.y}
+              shipOffsetX={data.offsetX ?? 0}
+              shipOffsetY={data.offsetY ?? 0}
+            />
+          )}
+        </div>
+        <div className="HelmConsole__console">
+          {!!canFly && !isViewer && (
+            <NavBall
+              actualAngle={data.actual_angle ?? 0}
+              actualSpeed={data.actual_speed ?? 0}
+              desiredAngle={data.desired_angle ?? 0}
+              desiredThrottle={data.desired_throttle ?? 0}
+              locked={!!data.station_keeping}
+              disabled={data.state !== 'flying'}
+              onSetDesired={(angle, throttle) =>
+                act('set_desired', { angle, throttle })
+              }
+              onAllStop={() => act('all_stop')}
+              onToggleLock={() => act('toggle_lock')}
+            />
+          )}
+          <div className="HelmConsole__panel">
+            <div className="HelmConsole__tabs">
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'status' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('status')}
+              >
+                Status
+              </button>
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'engines' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('engines')}
+              >
+                Engines
+              </button>
+              <button
+                className={
+                  'HelmConsole__tab' +
+                  (activeTab === 'radar' ? ' HelmConsole__tab--active' : '')
+                }
+                onClick={() => setActiveTab('radar')}
+              >
+                Radar
+              </button>
+            </div>
+            <div className="HelmConsole__tab-content">
+              {activeTab === 'status' && <StatusTab />}
+              {activeTab === 'engines' && <EnginesTab />}
+              {activeTab === 'radar' && (
+                <RadarTab
+                  selectedGpsRef={selectedGpsRef}
+                  onSelectGps={setSelectedGpsRef}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </Window.Content>
+    </Window>
+  );
+};
+
+const StatusTab = () => {
+  const { act, data } = useBackend<Data>();
+  const {
+    shipInfo,
+    state,
+    docked,
+    x,
+    y,
+    isViewer,
+    gpsBeacon,
+    gpsBeaconLanded,
+    emergencyBraking,
+    target_mol_s = 0,
+    delivered_mol_s = 0,
+    spool_pct = 0,
+  } = data;
+  if (!shipInfo) return null;
+
+  const stateColor: Record<string, string> = {
+    idle: '#8cf',
+    flying: '#3dbc6a',
+    docking: '#e8b830',
+    undocking: '#e8b830',
+  };
+
+  return (
+    <>
+      <div className="HelmPanel__section">
+        <div className="HelmPanel__section-title">Ship Info</div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Name</span>
+          <span className="HelmPanel__value">{shipInfo.name}</span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Class</span>
+          <span className="HelmPanel__value">{shipInfo.class}</span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Integrity</span>
+          <span className="HelmPanel__value">
+            <ProgressBar
+              ranges={{
+                good: [51, 100],
+                average: [26, 50],
+                bad: [0, 25],
+              }}
+              maxValue={100}
+              value={shipInfo.integrity}
+            >
+              {Math.round(shipInfo.integrity)}%
+            </ProgressBar>
+          </span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Sensor Range</span>
+          <span className="HelmPanel__value">{shipInfo.sensor_range}</span>
+        </div>
+        {shipInfo.mass !== undefined && (
+          <div className="HelmPanel__row">
+            <span className="HelmPanel__label">Mass</span>
+            <span className="HelmPanel__value">{shipInfo.mass} tonnes</span>
+          </div>
+        )}
+        {shipInfo.est_thrust !== undefined && (
+          <div className="HelmPanel__row">
+            <span className="HelmPanel__label">Est. Thrust</span>
+            <span className="HelmPanel__value">{shipInfo.est_thrust}</span>
+          </div>
+        )}
+      </div>
+      <div className="HelmPanel__section">
+        <div className="HelmPanel__section-title">Flight</div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">State</span>
+          <span
+            className="HelmPanel__value"
+            style={{ color: stateColor[state ?? 'idle'] }}
+          >
+            {state ?? 'idle'}
+          </span>
+        </div>
+        <div className="HelmPanel__row">
+          <span className="HelmPanel__label">Position</span>
+          <span className="HelmPanel__value">
+            X{x} / Y{y}
+          </span>
+        </div>
+        {(target_mol_s > 0 || delivered_mol_s > 0) && (
+          <>
+            <div className="HelmPanel__row">
+              <span className="HelmPanel__label">Mass flow</span>
+              <span className="HelmPanel__value">
+                {delivered_mol_s.toFixed(2)} / {target_mol_s.toFixed(2)} mol/s
+              </span>
+            </div>
+            <div className="HelmPanel__row">
+              <span className="HelmPanel__label">Spool</span>
+              <span className="HelmPanel__value">
+                <ProgressBar
+                  ranges={{
+                    good: [0.85, 1],
+                    average: [0.4, 0.85],
+                    bad: [0, 0.4],
+                  }}
+                  maxValue={1}
+                  value={spool_pct}
+                >
+                  {Math.round(spool_pct * 100)}%
+                </ProgressBar>
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+      {!isViewer && state === 'flying' && (
+        <div className="HelmPanel__section">
+          <button
+            className="HelmPanel__btn HelmPanel__btn--danger"
+            style={{ width: '100%' }}
+            disabled={!!emergencyBraking}
+            onClick={() => act('emergency_brake')}
+          >
+            {emergencyBraking
+              ? 'Emergency Brake Active'
+              : 'Engage Emergency Brake'}
+          </button>
+        </div>
+      )}
+      {!!docked && state === 'idle' && (
+        <div className="HelmPanel__section">
+          <button
+            className="HelmPanel__btn HelmPanel__btn--danger"
+            style={{ width: '100%' }}
+            onClick={() => act('undock')}
+          >
+            Undock
+          </button>
+        </div>
+      )}
+      {!isViewer && (
+        <div className="HelmPanel__section">
+          <div className="HelmPanel__section-title">Surface GPS</div>
+          <button
+            className={
+              'HelmPanel__btn' +
+              (gpsBeacon ? ' HelmPanel__btn--active' : '')
+            }
+            style={{ width: '100%' }}
+            disabled={!gpsBeaconLanded}
+            title={
+              gpsBeaconLanded
+                ? 'Toggle surface GPS beacon'
+                : 'No valid coordinate fix while in transit'
+            }
+            onClick={() => act('toggle_gps')}
+          >
+            {gpsBeaconLanded
+              ? gpsBeacon
+                ? 'GPS Beacon: On'
+                : 'GPS Beacon: Off'
+              : 'GPS: No coordinate fix (in transit)'}
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
+
+const tempColor = (kelvin: number) => {
+  if (kelvin >= 373) {
+    return kelvin > 1643 ? '#e8b830' : '#3dbc6a';
+  }
+  return '#8cf';
+};
+
+const pressureColor = (kpa: number) => {
+  if (kpa > 2000) {
+    return '#e84a4a';
+  }
+  if (kpa > 500) {
+    return '#e8b830';
+  }
+  return '#8cf';
+};
+
+const EnginesTab = () => {
+  const { act, data } = useBackend<Data>();
+  const { isViewer, engineInfo = [] } = data;
+
+  return (
+    <div className="HelmPanel__section">
+      <div className="HelmPanel__section-title">Engines</div>
+      {engineInfo.length === 0 ? (
+        <div className="HelmPanel__radar-empty">No engines connected.</div>
+      ) : (
+        engineInfo.map((engine) => (
+          <div className="HelmPanel__engine-row" key={engine.ref}>
+            <div className="HelmPanel__engine-main">
+              <button
+                className={
+                  'HelmPanel__engine-toggle' +
+                  (engine.enabled && !engine.broken
+                    ? ' HelmPanel__engine-toggle--on'
+                    : '')
+                }
+                disabled={!!isViewer || !!engine.broken}
+                onClick={() => act('toggle_engine', { engine: engine.ref })}
+              >
+                <span
+                  className={
+                    'HelmPanel__engine-indicator' +
+                    (engine.enabled && !engine.broken
+                      ? ' HelmPanel__engine-indicator--on'
+                      : '')
+                  }
+                />
+                {engine.name}
+                {engine.broken ? ' [BROKEN]' : ''}
+              </button>
+              <div className="HelmPanel__engine-fuel">
+                {engine.maxFuel > 0 && (
+                  <div className="HelmPanel__bar">
+                    <div
+                      className={
+                        'HelmPanel__bar-fill ' +
+                        (engine.fuel / engine.maxFuel > 0.5
+                          ? 'HelmPanel__bar-fill--good'
+                          : engine.fuel / engine.maxFuel > 0.25
+                            ? 'HelmPanel__bar-fill--average'
+                            : 'HelmPanel__bar-fill--bad')
+                      }
+                      style={{
+                        width: `${Math.min(100, (engine.fuel / engine.maxFuel) * 100)}%`,
+                      }}
+                    />
+                    <div className="HelmPanel__bar-text">
+                      {Math.min(
+                        100,
+                        Math.round((engine.fuel / engine.maxFuel) * 100),
+                      )}
+                      %
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            {engine.fuelSource === 'injector' &&
+              engine.temperature !== undefined &&
+              engine.pressure !== undefined && (
+                <div className="HelmPanel__engine-telemetry">
+                  <span style={{ color: tempColor(engine.temperature) }}>
+                    {Math.round(engine.temperature)} K
+                  </span>
+                  <span className="HelmPanel__engine-telemetry-sep">·</span>
+                  <span style={{ color: pressureColor(engine.pressure) }}>
+                    {Math.round(engine.pressure)} kPa
+                  </span>
+                  {engine.feedPressure !== undefined && (
+                    <>
+                      <span className="HelmPanel__engine-telemetry-sep">·</span>
+                      <span style={{ color: pressureColor(engine.feedPressure) }}>
+                        rail {Math.round(engine.feedPressure)} kPa
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+            {engine.fuelSource !== 'injector' && (
+              <div className="HelmPanel__engine-telemetry HelmPanel__engine-telemetry--muted">
+                {engine.fuelSource === 'hall-only'
+                  ? 'hall-only (emergency)'
+                  : 'no fuel source'}
+              </div>
+            )}
+          </div>
+        ))
+      )}
+      <button
+        className="HelmPanel__btn"
+        style={{ width: '100%', marginTop: '8px' }}
+        disabled={!!isViewer}
+        onClick={() => act('reload_engines')}
+      >
+        Refresh Engines
+      </button>
+    </div>
+  );
+};
+
+const contactTypeLabel = (type?: string) => {
+  switch (type) {
+    case 'level':
+      return 'POI';
+    case 'dynamic':
+      return 'SIG';
+    case 'ship':
+      return 'SHIP';
+    case 'event':
+      return 'HAZ';
+    default:
+      return '???';
+  }
+};
+
+type RadarTabProps = {
+  selectedGpsRef?: string;
+  onSelectGps: (ref?: string) => void;
+};
+
+const RadarTab = ({ selectedGpsRef, onSelectGps }: RadarTabProps) => {
+  const { act, data } = useBackend<Data>();
+  const {
+    gpsContacts = [],
+    isViewer,
+    openSpace,
+    otherInfo = [],
+    state,
+    stopped,
+    scanReady,
+  } = data;
+  const canDock = !isViewer && state === 'flying' && !!stopped && !data.docked;
+
+  return (
+    <div className="HelmPanel__section">
+      <div
+        className="HelmPanel__section-title"
+        style={{ display: 'flex', justifyContent: 'space-between' }}
+      >
+        <span>Contacts</span>
+        <button
+          className="HelmPanel__btn"
+          disabled={!!isViewer || !scanReady}
+          onClick={() => act('scan')}
+          style={{ fontSize: '10px', padding: '2px 8px' }}
+        >
+          {scanReady ? 'Scan' : 'Scanning...'}
+        </button>
+      </div>
+      {otherInfo.length === 0 ? (
+        <div className="HelmPanel__radar-empty">
+          No contacts detected. Use Scan to sweep sensor range.
+        </div>
+      ) : (
+        otherInfo.map((contact) => (
+          <div key={contact.ref}>
+            <div className="HelmPanel__radar-item">
+              <div style={{ flex: 1 }}>
+                <div className="HelmPanel__radar-name">
+                  <span
+                    style={{
+                      opacity: 0.6,
+                      fontSize: '10px',
+                      marginRight: '4px',
+                    }}
+                  >
+                    [{contactTypeLabel(contact.type)}]
+                  </span>
+                  {contact.name}
+                </div>
+                <div
+                  style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+                >
+                  {contact.adjacent
+                    ? 'Adjacent'
+                    : `${String(contact.bearing ?? 0).padStart(3, '0')}° / ${contact.distance ?? '?'} tile${(contact.distance ?? 0) !== 1 ? 's' : ''}`}
+                </div>
+              </div>
+              <div className="HelmPanel__radar-actions">
+                {contact.adjacent && contact.type !== 'event' ? (
+                  <button
+                    className="HelmPanel__btn"
+                    disabled={!canDock}
+                    onClick={() => act('dock', { target: contact.ref })}
+                  >
+                    {contact.type === 'dynamic' ? 'Explore' : 'Dock'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {contact.adjacent && (contact.landingZones?.length ?? 0) > 0 ? (
+              <div style={{ marginLeft: '16px' }}>
+                {contact.landingZones!.map((zone) => (
+                  <div className="HelmPanel__radar-item" key={zone.ref}>
+                    <div style={{ flex: 1 }}>
+                      <div
+                        className="HelmPanel__radar-name"
+                        style={{ fontSize: '11px' }}
+                      >
+                        <span
+                          style={{
+                            opacity: 0.6,
+                            fontSize: '10px',
+                            marginRight: '4px',
+                          }}
+                        >
+                          [LZ]
+                        </span>
+                        {zone.name}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '10px',
+                          opacity: 0.7,
+                          marginTop: '2px',
+                        }}
+                      >
+                        {zone.width}x{zone.height} tiles
+                      </div>
+                    </div>
+                    <div className="HelmPanel__radar-actions">
+                      <button
+                        className="HelmPanel__btn"
+                        disabled={!canDock}
+                        onClick={() =>
+                          act('dock', { target: contact.ref, lz: zone.ref })
+                        }
+                      >
+                        Land
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))
+      )}
+      <div className="HelmPanel__section-title HelmPanel__section-title--spaced">
+        GPS Transponders
+      </div>
+      {gpsContacts.length === 0 ? (
+        <div className="HelmPanel__radar-empty">
+          No active transponders resolved.
+        </div>
+      ) : (
+        gpsContacts.map((contact) => (
+          <div className="HelmPanel__radar-item" key={contact.ref}>
+            <div style={{ flex: 1 }}>
+              <div className="HelmPanel__radar-name">
+                [{contact.local ? 'LOCAL' : 'GPS'}] {contact.name}
+              </div>
+              <div
+                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+              >
+                {contact.tags.join(', ')}
+                {!contact.local &&
+                  ` · ${String(contact.bearing).padStart(3, '0')}° / ${contact.distance} tiles`}
+              </div>
+            </div>
+            {!contact.local && (
+              <button
+                className={
+                  'HelmPanel__btn' +
+                  (selectedGpsRef === contact.ref
+                    ? ' HelmPanel__btn--active'
+                    : '')
+                }
+                onClick={() =>
+                  onSelectGps(
+                    selectedGpsRef === contact.ref ? undefined : contact.ref,
+                  )
+                }
+              >
+                {selectedGpsRef === contact.ref ? 'Tracking' : 'Track'}
+              </button>
+            )}
+          </div>
+        ))
+      )}
+      {!isViewer && state === 'flying' && openSpace && (
+        <>
+          <div className="HelmPanel__section-title HelmPanel__section-title--spaced">
+            Open-Space Landing
+          </div>
+          <div className="HelmPanel__radar-item">
+            <div style={{ flex: 1 }}>
+              <div className="HelmPanel__radar-name">
+                Coordinate {openSpace.x}, {openSpace.y}
+              </div>
+              <div
+                style={{ fontSize: '10px', opacity: 0.7, marginTop: '2px' }}
+              >
+                {stopped
+                  ? 'Ready to stabilize landing site'
+                  : 'Residual drift detected — all stop required'}
+              </div>
+            </div>
+            <button
+              className="HelmPanel__btn"
+              onClick={() => act('land_open_space')}
+            >
+              Dock in Space
+            </button>
+          </div>
+          {(openSpace.landingZones?.length ?? 0) > 0 && (
+            <div style={{ marginLeft: '16px' }}>
+              {openSpace.landingZones.map((zone) => (
+                <div className="HelmPanel__radar-item" key={zone.ref}>
+                  <div style={{ flex: 1 }}>
+                    <div className="HelmPanel__radar-name">{zone.name}</div>
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        opacity: 0.7,
+                        marginTop: '2px',
+                      }}
+                    >
+                      {zone.width}x{zone.height} tiles
+                    </div>
+                  </div>
+                  <button
+                    className="HelmPanel__btn"
+                    onClick={() =>
+                      act('land_open_space', {
+                        lz: zone.ref,
+                      })
+                    }
+                  >
+                    Land
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};

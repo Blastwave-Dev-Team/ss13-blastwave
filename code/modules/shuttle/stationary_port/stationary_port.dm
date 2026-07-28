@@ -46,7 +46,7 @@
 #endif
 
 /obj/docking_port/stationary/Destroy(force)
-	if(force)
+	if(force && registered) // BLASTWAVE EDIT - delete_after ports are pre-unregistered; don't warn on cleanup. ORIGINAL: if(force)
 		unregister()
 	return ..()
 

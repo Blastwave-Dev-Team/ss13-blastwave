@@ -99,7 +99,7 @@
 
 	if(!mapload) //sync up nightshift lighting for player made lights
 		var/area/our_area = get_room_area()
-		var/obj/machinery/power/apc/temp_apc = our_area.apc
+		var/obj/machinery/power/apc/temp_apc = our_area?.apc // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/obj/machinery/power/apc/temp_apc = our_area.apc
 		nightshift_enabled = temp_apc?.nightshift_lights
 
 	if(!start_with_cell || no_low_power)
@@ -537,6 +537,10 @@
 // if a light is turned off, it won't activate emergency power
 /obj/machinery/light/proc/turned_off()
 	var/area/local_area = get_room_area()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - permit nullspace shipyard preparation
+	if(isnull(local_area))
+		return FALSE
+	// BLASTWAVE EDIT ADDITION END
 	return !local_area.lightswitch && local_area.power_light || flickering || constant_flickering //NOVA EDIT CHANGE - ORIGINAL : return !local_area.lightswitch && local_area.power_light || flickering
 
 // returns whether this light has power
@@ -759,6 +763,11 @@
 /obj/machinery/light/power_change()
 	SHOULD_CALL_PARENT(FALSE)
 	var/area/local_area = get_room_area()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - permit nullspace shipyard preparation
+	if(isnull(local_area))
+		set_on(FALSE)
+		return
+	// BLASTWAVE EDIT ADDITION END
 	set_on(local_area.lightswitch && local_area.power_light)
 
 // called when heated

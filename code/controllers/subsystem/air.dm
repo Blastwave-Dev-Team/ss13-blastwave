@@ -61,6 +61,11 @@ SUBSYSTEM_DEF(air)
 	var/list/reaction_handbook
 	var/list/gas_handbook
 
+	/// BLASTWAVE EDIT ADDITION START - OVERMAP - Zs soft-clearing; add_to_active rejects these
+	/// Assoc of stringified z ("14") -> TRUE. Numeric keys are list indexes in BYOND.
+	var/list/ejected_zs
+	/// BLASTWAVE EDIT ADDITION END
+
 
 /datum/controller/subsystem/air/stat_entry(msg)
 	msg += "\n  Cost:{"
@@ -496,6 +501,10 @@ SUBSYSTEM_DEF(air)
 
 ///Adds a turf to active processing, handles duplicates. Call this with blockchanges == TRUE if you want to nuke the assoc excited group
 /datum/controller/subsystem/air/proc/add_to_active(turf/open/activate, blockchanges = FALSE)
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - skip turfs on Zs being soft-cleared
+	if(activate && ejected_zs?["[activate.z]"])
+		return
+	// BLASTWAVE EDIT ADDITION END
 	if(istype(activate) && activate.air)
 		activate.significant_share_ticker = 0
 		if(blockchanges && activate.excited_group) //This is used almost exclusivly for shuttles, so the excited group doesn't stay behind
@@ -515,6 +524,91 @@ SUBSYSTEM_DEF(air)
 			queued_for_activation[activate] = activate
 	else
 		activate.requires_activation = TRUE
+
+// BLASTWAVE EDIT ADDITION START - OVERMAP - eject a Z from SSair lists without walking Z_TURFS
+/// Mark [z] as ejected and purge it from atmos processing lists (O(active), not O(Z)).
+/datum/controller/subsystem/air/proc/begin_z_eject(z)
+	if(!z)
+		return
+	LAZYSET(ejected_zs, "[z]", TRUE)
+	eject_z_from_lists(z)
+
+/// Purge stragglers from [z] and allow activation again (after soft-clear).
+/datum/controller/subsystem/air/proc/end_z_eject(z)
+	if(!z)
+		return
+	eject_z_from_lists(z)
+	LAZYREMOVE(ejected_zs, "[z]")
+
+/// Remove every atmos-processing entry whose turf/atom lives on [z].
+/// Yields via CHECK_TICK so a large global active_turfs list cannot hitch the MC.
+/// Caller must keep [z] in ejected_zs for the whole scrub so add_to_active stays gated across sleeps.
+/datum/controller/subsystem/air/proc/eject_z_from_lists(z)
+	if(!z)
+		return
+
+	for(var/turf/open/active as anything in active_turfs.Copy())
+		if(active?.z == z)
+			remove_from_active(active)
+		CHECK_TICK
+
+	for(var/turf/rebuild_turf as anything in adjacent_rebuild.Copy())
+		if(rebuild_turf?.z == z)
+			adjacent_rebuild -= rebuild_turf
+		CHECK_TICK
+
+	for(var/obj/effect/hotspot/spot as anything in hotspots.Copy())
+		if(spot?.z == z)
+			qdel(spot)
+		CHECK_TICK
+
+	for(var/turf/open/pressured as anything in high_pressure_delta.Copy())
+		if(pressured?.z == z)
+			high_pressure_delta -= pressured
+		CHECK_TICK
+
+	for(var/turf/conducting as anything in active_super_conductivity.Copy())
+		if(conducting?.z == z)
+			active_super_conductivity -= conducting
+		CHECK_TICK
+
+	for(var/atom/sensitive as anything in atom_process.Copy())
+		if(sensitive?.z == z)
+			atom_process -= sensitive
+		CHECK_TICK
+
+	for(var/datum/excited_group/group as anything in excited_groups.Copy())
+		for(var/turf/open/member as anything in group.turf_list)
+			if(member?.z == z)
+				group.garbage_collect()
+				break
+		CHECK_TICK
+
+	if(islist(currentrun) && length(currentrun))
+		for(var/entry in currentrun.Copy())
+			if(istype(entry, /turf))
+				var/turf/entry_turf = entry
+				if(entry_turf.z == z)
+					currentrun -= entry
+			else if(istype(entry, /obj/effect/hotspot))
+				var/obj/effect/hotspot/entry_spot = entry
+				if(entry_spot.z == z)
+					currentrun -= entry
+			else if(istype(entry, /datum/excited_group))
+				if(!(entry in excited_groups))
+					currentrun -= entry
+			else if(isatom(entry))
+				var/atom/entry_atom = entry
+				if(entry_atom.z == z)
+					currentrun -= entry
+			CHECK_TICK
+
+	if(queued_for_activation)
+		for(var/turf/queued as anything in queued_for_activation.Copy())
+			if(queued?.z == z)
+				queued_for_activation -= queued
+			CHECK_TICK
+// BLASTWAVE EDIT ADDITION END
 
 /datum/controller/subsystem/air/StartLoadingMap()
 	LAZYINITLIST(queued_for_activation)

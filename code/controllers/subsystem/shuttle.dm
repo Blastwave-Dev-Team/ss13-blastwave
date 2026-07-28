@@ -311,11 +311,14 @@ SUBSYSTEM_DEF(shuttle)
 		return
 	emergency_no_recall = FALSE
 
-/datum/controller/subsystem/shuttle/proc/getShuttle(id)
+/datum/controller/subsystem/shuttle/proc/getShuttle(id, quiet = FALSE) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/controller/subsystem/shuttle/proc/getShuttle(id)
 	for(var/obj/docking_port/mobile/M in mobile_docking_ports)
 		if(M.shuttle_id == id)
 			return M
-	WARNING("couldn't find shuttle with id: [id]")
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - suppress warnings when shuttle may not exist yet
+	if(!quiet)
+		WARNING("couldn't find shuttle with id: [id]")
+	// BLASTWAVE EDIT ADDITION END
 
 /datum/controller/subsystem/shuttle/proc/getDock(id)
 	for(var/obj/docking_port/stationary/S in stationary_docking_ports)
@@ -935,7 +938,8 @@ SUBSYSTEM_DEF(shuttle)
 		QDEL_NULL(preview_reservation)
 
 	if(!preview_shuttle)
-		load_template(loading_template)
+		// BLASTWAVE EDIT CHANGE - defer post_load until action_load registers the shuttle. ORIGINAL: load_template(loading_template)
+		load_template(loading_template, call_post_load = FALSE)
 		preview_template = loading_template
 
 	// get the existing shuttle information, if any
@@ -967,6 +971,9 @@ SUBSYSTEM_DEF(shuttle)
 		existing_shuttle.jumpToNullSpace()
 
 	preview_shuttle.register(replace)
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - run template post_load after shuttle registration
+	preview_template.post_load(preview_shuttle)
+	// BLASTWAVE EDIT ADDITION END
 	var/list/force_memory = preview_shuttle.movement_force
 	preview_shuttle.movement_force = list("KNOCKDOWN" = 0, "THROW" = 0)
 	preview_shuttle.mode = SHUTTLE_PREARRIVAL//No idle shuttle moving. Transit dock get removed if shuttle moves too long.
@@ -997,7 +1004,7 @@ SUBSYSTEM_DEF(shuttle)
  * Arguments:
  * * loading_template - The shuttle template to load
  */
-/datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template)
+/datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template, call_post_load = TRUE) // BLASTWAVE EDIT CHANGE - ORIGINAL: /datum/controller/subsystem/shuttle/proc/load_template(datum/map_template/shuttle/loading_template)
 	. = FALSE
 	// Load shuttle template to a fresh block reservation.
 	preview_reservation = SSmapping.request_turf_block_reservation(
@@ -1040,7 +1047,10 @@ SUBSYSTEM_DEF(shuttle)
 		WARNING(msg)
 		return
 	//Everything fine
-	loading_template.post_load(preview_shuttle)
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION - optional post_load for preview vs action_load flows
+	if(call_post_load)
+		loading_template.post_load(preview_shuttle)
+	// BLASTWAVE EDIT ADDITION END
 	return TRUE
 
 /**
@@ -1096,6 +1106,9 @@ SUBSYSTEM_DEF(shuttle)
 	data["templates_tabs"] = sort_list(data["templates_tabs"])
 
 	data["existing_shuttle"] = null
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - data-driven faction options
+	data["overmap_factions"] = get_overmap_faction_ui_options()
+	// BLASTWAVE EDIT ADDITION END
 
 	// Status panel
 	data["shuttles"] = list()
@@ -1118,6 +1131,13 @@ SUBSYSTEM_DEF(shuttle)
 		if (M.mode != SHUTTLE_IDLE)
 			L["mode"] = capitalize(M.mode)
 		L["status"] = M.getDbgStatusText()
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - faction dropdown for bound ships
+		if(istype(M.current_ship, /obj/structure/overmap/ship/simulated))
+			L["is_overmap"] = TRUE
+			L["faction"] = SSovermap.get_affiliation(M.current_ship)
+		else
+			L["is_overmap"] = FALSE
+		// BLASTWAVE EDIT ADDITION END
 		if(M == existing_shuttle)
 			data["existing_shuttle"] = L
 
@@ -1169,6 +1189,25 @@ SUBSYSTEM_DEF(shuttle)
 					log_admin("[key_name(usr)] fast travelled [M]")
 					SSblackbox.record_feedback("text", "shuttle_manipulator", 1, "[M.name]")
 					break
+
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - admin set ship home affiliation
+		if("set_overmap_faction")
+			for(var/i in mobile_docking_ports)
+				var/obj/docking_port/mobile/M = i
+				if(M.shuttle_id != params["id"])
+					continue
+				var/obj/structure/overmap/ship/simulated/ship = M.current_ship
+				if(!istype(ship))
+					return FALSE
+				var/faction = params["faction"]
+				if(!SSovermap.apply_ship_affiliation(ship, faction))
+					return FALSE
+				. = TRUE
+				message_admins("[key_name_admin(usr)] set overmap faction of [M] ([M.shuttle_id]) to [faction].")
+				log_admin("[key_name(usr)] set overmap faction of [M] ([M.shuttle_id]) to [faction].")
+				SSblackbox.record_feedback("text", "shuttle_manipulator", 1, "[M.name] faction=[faction]")
+				break
+		// BLASTWAVE EDIT ADDITION END
 
 		if("load")
 			if(S && !shuttle_loading)

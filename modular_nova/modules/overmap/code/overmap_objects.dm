@@ -1,0 +1,651 @@
+// MODULE ID: OVERMAP
+// Turfs, area, and base structure types living on the dedicated overmap Z.
+// Concrete level subtypes (main, mining variants), ship subtypes, and event
+// subtypes live in neighboring files.
+
+/* OVERMAP TURFS */
+
+/turf/open/overmap
+	icon = 'modular_nova/modules/overmap/icons/overmap_turf.dmi'
+	icon_state = "overmap"
+	initial_gas_mix = AIRLESS_ATMOS
+	baseturfs = /turf/open/overmap
+
+/turf/open/overmap/edge
+	opacity = TRUE
+	density = TRUE
+	baseturfs = /turf/open/overmap/edge
+
+/// Decorative coordinate overlays at the grid's edge, ported from WS.
+/turf/open/overmap/Initialize(mapload)
+	. = ..()
+	name = "[x]-[y]"
+	if(!SSovermap)
+		return
+	var/list/numbers = list()
+	if(x == 1 || x == SSovermap.size)
+		numbers += list("[round(y/10)]","[round(y%10)]")
+		if(y == 1 || y == SSovermap.size)
+			numbers += "-"
+	if(y == 1 || y == SSovermap.size)
+		numbers += list("[round(x/10)]","[round(x%10)]")
+
+	for(var/i in 1 to numbers.len)
+		var/image/I = image('modular_nova/modules/overmap/icons/overmap_numbers.dmi', numbers[i])
+		I.pixel_x = 5*i - 2
+		I.pixel_y = world.icon_size/2 - 3
+		if(y == 1)
+			I.pixel_y = 3
+			I.pixel_x = 5*i + 4
+		if(y == SSovermap.size)
+			I.pixel_y = world.icon_size - 9
+			I.pixel_x = 5*i + 4
+		if(x == 1)
+			I.pixel_x = 5*i - 2
+		if(x == SSovermap.size)
+			I.pixel_x = 5*i + 2
+		overlays += I
+
+/* OVERMAP AREA */
+
+/area/overmap
+	name = "Starmap"
+	icon_state = "yellow"
+	requires_power = FALSE
+	static_lighting = FALSE
+	base_lighting_alpha = 255
+	area_flags = NOTELEPORT
+	flags_1 = NONE
+
+/* OVERMAP STRUCTURES */
+
+/// # Overmap objects
+///
+/// Everything visible on the overmap: stations, ships, and (post-prototype)
+/// ruins, events, and dynamic encounters. Adjacency tracking uses
+/// `on_overmap_crossed` / `on_overmap_uncrossed`; the same-tile list
+/// close_overmap_objects is what helms surface in their radar and what
+/// enables docking via act_overmap.
+/obj/structure/overmap
+	name = "celestial object"
+	desc = "An unknown celestial object."
+	icon = 'modular_nova/modules/overmap/icons/overmap.dmi'
+	icon_state = "object"
+	anchored = TRUE
+	density = FALSE
+	animate_movement = NO_STEPS
+	/// Identifier - used to resolve docks and look the object up.
+	var/id
+	/// Whether this object should render a viewscreen-style camera surface.
+	/// Levels and ships set this; events and decorations don't.
+	var/render_map = FALSE
+	/// Range of the view shown to helms / viewscreens of this object.
+	var/sensor_range = 4
+	/// Integrity percent. Use `receive_damage()` to mutate.
+	var/integrity = 100
+	/// Armor reduces integrity damage taken.
+	var/overmap_armor = 1
+	/// Other overmap objects sharing the same turf.
+	var/list/close_overmap_objects
+	/// Velocity X component in tiles/second (positive = east).
+	var/vel_x = 0
+	/// Velocity Y component in tiles/second (positive = north).
+	var/vel_y = 0
+	/// Earliest world.time we may rebuild cam_screen without `force`.
+	var/next_screen_update = 0
+	/// Last live-camera turf bounds, exposed to TGUI for contact projection.
+	var/camera_min_x
+	var/camera_min_y
+	var/camera_size_x
+	var/camera_size_y
+	/// Admin diag: stay on SSfastprocess while stationary (no icon motion).
+	var/diag_hold_physics = FALSE
+	/// Fractional-tile position (tile units). Reconciled via Move(); rendered with pixel_x/y + animate.
+	var/offset_x = 0
+	var/offset_y = 0
+	/// Offset at the start of the current physics tick (for animate interpolation).
+	var/motion_last_offset_x = 0
+	var/motion_last_offset_y = 0
+
+	// Camera-surface plumbing. Initialized only if `render_map` is TRUE.
+	// Modern Nova replaced WS' manual plane_master + background plumbing with
+	// the `map_view/camera`-style subtype below: it carries its own
+	// `cam_background` plane that `fill_rect`s the BYOND map widget so the
+	// client knows how much screen real-estate to allocate. Without that
+	// background the widget renders at minimum size (~2-3px); see CameraConsole
+	// for the canonical reference of the same pattern.
+	var/map_name
+	var/atom/movable/screen/map_view/overmap/cam_screen
+
+/obj/structure/overmap/Initialize(mapload, _id)
+	. = ..()
+	LAZYADD(SSovermap.overmap_objects, src)
+	if(_id)
+		id = _id
+	if(!id)
+		id = "overmap_object_[length(SSovermap.overmap_objects) + 1]"
+	if(render_map)
+		map_name = "overmap_[id]_map"
+		cam_screen = new
+		cam_screen.generate_view(map_name)
+		update_screen(TRUE)
+	refresh_close_overmap_objects()
+
+/obj/structure/overmap/Destroy()
+	for(var/obj/structure/overmap/peer as anything in close_overmap_objects)
+		LAZYREMOVE(peer.close_overmap_objects, src)
+	close_overmap_objects = null
+	LAZYREMOVE(SSovermap.overmap_objects, src)
+	STOP_PROCESSING(SSfastprocess, src)
+	QDEL_NULL(cam_screen)
+	return ..()
+
+/obj/structure/overmap/process(seconds_per_tick)
+	physics_tick(seconds_per_tick)
+
+/obj/structure/overmap/Move(atom/newloc, direction, glide_size_override, update_dir)
+	if(!newloc || newloc == loc)
+		return FALSE
+	if(!direction)
+		direction = get_dir(src, newloc)
+	if(!newloc.Enter(src))
+		Bump(newloc)
+		return FALSE
+	var/atom/oldloc = loc
+	loc = newloc
+	oldloc.Exited(src, direction)
+	newloc.Entered(src, oldloc)
+	Moved(oldloc, direction)
+	return TRUE
+
+/obj/structure/overmap/Moved(atom/old_loc, direction, forced, list/old_locs, momentum_change)
+	. = ..()
+	if(loc == old_loc)
+		return
+	if(isturf(old_loc))
+		for(var/obj/structure/overmap/peer in old_loc)
+			if(peer == src)
+				continue
+			peer.on_overmap_uncrossed(src, loc)
+	if(isturf(loc))
+		for(var/obj/structure/overmap/peer in loc)
+			if(peer == src)
+				continue
+			peer.on_overmap_crossed(src, old_loc)
+	refresh_close_overmap_objects()
+
+/// Absolute pixel X on the overmap grid (tile anchor + fractional offset).
+/obj/structure/overmap/proc/get_overmap_abs_px()
+	return (x - 1) * ICON_SIZE_ALL + round(offset_x * ICON_SIZE_ALL)
+
+/// Absolute pixel Y on the overmap grid (tile anchor + fractional offset).
+/obj/structure/overmap/proc/get_overmap_abs_py()
+	return (y - 1) * ICON_SIZE_ALL + round(offset_y * ICON_SIZE_ALL)
+
+/// Zero fractional offset and snap visuals to the tile anchor (post-teleport / stop).
+/obj/structure/overmap/proc/overmap_reset_visual_offset()
+	offset_x = 0
+	offset_y = 0
+	step_x = 0
+	step_y = 0
+	motion_last_offset_x = 0
+	motion_last_offset_y = 0
+	pixel_x = 0
+	pixel_y = 0
+	animate(src, pixel_x = 0, pixel_y = 0, time = 0, flags = ANIMATION_END_NOW)
+
+/// When nearly still, Move() to the nearest turf under the visible sprite.
+/// Spacepod-style: |offset| > 0.5 crosses a tile boundary; otherwise stay.
+/// Failed Moves clear that axis offset so map edges cannot soft-lock.
+/obj/structure/overmap/proc/settle_overmap_rest_offsets()
+	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_x > 0.5)
+			if(Move(get_step(src, EAST)))
+				offset_x -= 1
+				motion_last_offset_x -= 1
+			else
+				offset_x = 0
+		if(offset_x < -0.5)
+			if(Move(get_step(src, WEST)))
+				offset_x += 1
+				motion_last_offset_x += 1
+			else
+				offset_x = 0
+	if(abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
+		if(offset_y > 0.5)
+			if(Move(get_step(src, NORTH)))
+				offset_y -= 1
+				motion_last_offset_y -= 1
+			else
+				offset_y = 0
+		if(offset_y < -0.5)
+			if(Move(get_step(src, SOUTH)))
+				offset_y += 1
+				motion_last_offset_y += 1
+			else
+				offset_y = 0
+
+/// Reconcile fractional offsets with tile coordinates via Move(), spacepod-style.
+/obj/structure/overmap/proc/reconcile_overmap_offsets()
+	while((offset_x > 0 && vel_x > 0) || (offset_y > 0 && vel_y > 0) || (offset_x < 0 && vel_x < 0) || (offset_y < 0 && vel_y < 0))
+		var/failed_x = FALSE
+		var/failed_y = FALSE
+		if(offset_x > 0 && vel_x > 0)
+			if(!Move(get_step(src, EAST)))
+				offset_x = 0
+				failed_x = TRUE
+				on_axis_blocked(EAST)
+			else
+				offset_x -= 1
+				motion_last_offset_x -= 1
+		else if(offset_x < 0 && vel_x < 0)
+			if(!Move(get_step(src, WEST)))
+				offset_x = 0
+				failed_x = TRUE
+				on_axis_blocked(WEST)
+			else
+				offset_x += 1
+				motion_last_offset_x += 1
+		else
+			failed_x = TRUE
+		if(offset_y > 0 && vel_y > 0)
+			if(!Move(get_step(src, NORTH)))
+				offset_y = 0
+				failed_y = TRUE
+				on_axis_blocked(NORTH)
+			else
+				offset_y -= 1
+				motion_last_offset_y -= 1
+		else if(offset_y < 0 && vel_y < 0)
+			if(!Move(get_step(src, SOUTH)))
+				offset_y = 0
+				failed_y = TRUE
+				on_axis_blocked(SOUTH)
+			else
+				offset_y += 1
+				motion_last_offset_y += 1
+		else
+			failed_y = TRUE
+		if(failed_x && failed_y)
+			break
+	settle_overmap_rest_offsets()
+
+/// Client-side glide for fractional motion; does not touch step_x/step_y.
+/obj/structure/overmap/proc/apply_overmap_visual(dt)
+	var/anim_time = max(dt * 10, 1)
+	pixel_x = motion_last_offset_x * ICON_SIZE_ALL
+	pixel_y = motion_last_offset_y * ICON_SIZE_ALL
+	animate(src, transform = transform, pixel_x = offset_x * ICON_SIZE_ALL, pixel_y = offset_y * ICON_SIZE_ALL, time = anim_time, flags = ANIMATION_END_NOW)
+
+/// Called when Move() fails along an axis during offset reconciliation.
+/obj/structure/overmap/proc/on_axis_blocked(direction)
+	return
+
+/obj/structure/overmap/set_glide_size(target)
+	return
+
+/obj/structure/overmap/newtonian_move(inertia_angle, instant, start_delay, drift_force, controlled_cap, force_loop)
+	return FALSE
+
+/obj/structure/overmap/proc/cam_has_viewers()
+	return cam_screen && length(cam_screen.viewers_to_huds)
+
+/obj/structure/overmap/proc/update_screen(force = FALSE)
+	if(!render_map || !cam_screen)
+		return
+	if(!force && !cam_has_viewers())
+		return
+	if(!force && world.time < next_screen_update)
+		return
+	next_screen_update = world.time + OVERMAP_SCREEN_UPDATE_INTERVAL
+	var/list/visible_turfs = list()
+	for(var/turf/T in view(sensor_range, src))
+		visible_turfs += T
+	if(!length(visible_turfs))
+		// Off-grid (e.g. ship in CentCom-tier nullspace). Show static so the
+		// widget still has visible dimensions instead of collapsing to ~0px.
+		camera_min_x = null
+		camera_min_y = null
+		camera_size_x = null
+		camera_size_y = null
+		cam_screen.show_camera_static()
+		return TRUE
+	var/list/bbox = get_bbox_of_atoms(visible_turfs)
+	var/size_x = bbox[3] - bbox[1] + 1
+	var/size_y = bbox[4] - bbox[2] + 1
+	camera_min_x = bbox[1]
+	camera_min_y = bbox[2]
+	camera_size_x = size_x
+	camera_size_y = size_y
+	cam_screen.show_camera(visible_turfs, size_x, size_y)
+	return TRUE
+
+/// Overmap map_view subtype, mirroring `/atom/movable/screen/map_view/camera`.
+///
+/// `cam_background` sits BELOW the turf vis_contents on the animated
+/// `scanline2` state. Anywhere the visible turfs don't reach within the bbox
+/// (opacity blockers, edge clipping, off-grid float) the CRT static shows
+/// through - that's the WS-style "edge static" sensor fuzz, free of charge.
+///
+/// The sensor_range coupling is implicit: `update_screen()` sources its bbox
+/// from `view(sensor_range, ...)`, so a smaller sensor produces a tighter
+/// "clear" zone with proportionally more static visible at the edges.
+///
+/// Stale plane-group guard: if a previous helm open's `hide_from` cleanup
+/// was bypassed (e.g. user briefly disconnected so `user.client` was null
+/// when `ui_close` ran, skipping `cam_screen.hide_from(user)`), the popup
+/// plane group can survive on the user's hud. The next open's parent
+/// `attach_to()` would then fire a `Hey brother, our key ... is already in
+/// use` runtime. We sniff for that case at the top of `display_to_client`
+/// and reuse the existing group instead.
+/atom/movable/screen/map_view/overmap
+	var/atom/movable/screen/background/cam_background
+
+/atom/movable/screen/map_view/overmap/Destroy()
+	QDEL_NULL(cam_background)
+	return ..()
+
+/atom/movable/screen/map_view/overmap/generate_view(map_key)
+	. = ..()
+	cam_background = new
+	cam_background.del_on_map_removal = FALSE
+	cam_background.assigned_map = assigned_map
+
+/atom/movable/screen/map_view/overmap/display_to_client(client/show_to)
+	var/datum/hud/current_hud = show_to?.mob?.hud_used
+	var/key = PLANE_GROUP_POPUP_WINDOW(src)
+	if(current_hud?.master_groups[key])
+		var/datum/plane_master_group/popup/existing = current_hud.master_groups[key]
+		viewers_to_huds[WEAKREF(show_to)] = WEAKREF(current_hud)
+		show_to.register_map_obj(cam_background)
+		show_to.register_map_obj(src)
+		return existing
+	show_to.register_map_obj(cam_background)
+	var/datum/plane_master_group/popup/pop_planes = ..()
+	// Neutralize the lighting rendering plate on this popup so the
+	// overmap renders fullbright. The area's base_lighting_alpha only
+	// applies to the main hud's planes; popup plane groups don't
+	// inherit it. Setting alpha=0 on the BLEND_MULTIPLY lighting plate
+	// makes it transparent = no darkening.
+	var/atom/movable/screen/plane_master/lighting_pm = pop_planes?.get_plane(RENDER_PLANE_LIGHTING)
+	if(lighting_pm)
+		lighting_pm.alpha = 0
+	return pop_planes
+
+/atom/movable/screen/map_view/overmap/hide_from(mob/hide_from)
+	. = ..()
+
+/// Render the live view: turfs in vis_contents, transparent background
+/// just defines the popup widget bounds (turfs paint on FLOOR_PLANE which
+/// is below GAME_PLANE — an opaque background would cover them).
+/atom/movable/screen/map_view/overmap/proc/show_camera(list/visible_turfs, size_x, size_y)
+	vis_contents = visible_turfs
+	cam_background.icon_state = "clear"
+	cam_background.fill_rect(1, 1, size_x, size_y)
+
+/// Sized fallback rect of static when there's nothing visible (off-grid
+/// ship). cam_background's `scanline2` state shows through wherever
+/// vis_contents doesn't paint, giving us a visible widget instead of a
+/// collapsed 0px popup.
+/atom/movable/screen/map_view/overmap/proc/show_camera_static()
+	vis_contents.Cut()
+	cam_background.icon_state = "scanline2"
+	cam_background.fill_rect(1, 1, 9, 9)
+
+/// Proximity tracking for helm actions. Crossing callbacks seed exact-tile
+/// peers; refresh_close_overmap_objects() extends this to interaction range.
+/// Uses custom procs because `/atom/movable/Crossed` is not overridable.
+/obj/structure/overmap/proc/on_overmap_crossed(obj/structure/overmap/other, atom/oldloc)
+	if(!istype(loc, /turf) || !istype(other))
+		return
+	if(other == src)
+		return
+	if(other in close_overmap_objects)
+		return
+	LAZYADD(other.close_overmap_objects, src)
+	LAZYADD(close_overmap_objects, other)
+
+/obj/structure/overmap/proc/on_overmap_uncrossed(obj/structure/overmap/other, atom/newloc)
+	if(!istype(loc, /turf) || !istype(other))
+		return
+	if(other == src)
+		return
+	LAZYREMOVE(other.close_overmap_objects, src)
+	LAZYREMOVE(close_overmap_objects, other)
+
+/obj/structure/overmap/proc/is_in_overmap_interaction_range(obj/structure/overmap/other)
+	return other && other != src && z == other.z && get_dist(src, other) <= OVERMAP_INTERACTION_RANGE
+
+/obj/structure/overmap/proc/refresh_close_overmap_objects()
+	for(var/obj/structure/overmap/peer as anything in close_overmap_objects?.Copy())
+		if(is_in_overmap_interaction_range(peer))
+			// Normalize any duplicates accumulated by older append-based refreshes.
+			LAZYREMOVE(peer.close_overmap_objects, src)
+			LAZYOR(peer.close_overmap_objects, src)
+			LAZYREMOVE(close_overmap_objects, peer)
+			LAZYOR(close_overmap_objects, peer)
+			continue
+		LAZYREMOVE(peer.close_overmap_objects, src)
+		LAZYREMOVE(close_overmap_objects, peer)
+	for(var/obj/structure/overmap/peer as anything in SSovermap.overmap_objects)
+		if(!is_in_overmap_interaction_range(peer))
+			continue
+		LAZYOR(peer.close_overmap_objects, src)
+		LAZYOR(close_overmap_objects, peer)
+
+/obj/structure/overmap/proc/receive_damage(amount)
+	integrity = max(integrity - (amount / overmap_armor), 0)
+	update_appearance()
+
+/// Integrates velocity into pixel displacement. Ticked by SSfastprocess via `process()`.
+/obj/structure/overmap/proc/physics_tick(dt)
+	var/atom/start_loc = loc
+	if(abs(vel_x) < OVERMAP_VELOCITY_EPSILON && abs(vel_y) < OVERMAP_VELOCITY_EPSILON)
+		if(!diag_hold_physics)
+			deactivate_physics()
+		return
+	var/dx_tiles = vel_x * dt
+	var/dy_tiles = vel_y * dt
+	var/max_tile_delta = OVERMAP_INTERPOLATE_LIMIT / ICON_SIZE_ALL
+	dx_tiles = clamp(dx_tiles, -max_tile_delta, max_tile_delta)
+	dy_tiles = clamp(dy_tiles, -max_tile_delta, max_tile_delta)
+	motion_last_offset_x = offset_x
+	motion_last_offset_y = offset_y
+	offset_x += dx_tiles
+	offset_y += dy_tiles
+	reconcile_overmap_offsets()
+	if(loc != start_loc && cam_has_viewers())
+		update_screen()
+
+/// Begin SSfastprocess physics ticks for this entity.
+/obj/structure/overmap/proc/activate_physics()
+	if(render_map && cam_screen && cam_has_viewers())
+		cam_screen.show_camera_static()
+	START_PROCESSING(SSfastprocess, src)
+
+/// Stop physics ticks and zero velocity.
+/// Settles to the nearest turf under the visible sprite before clearing
+/// fractional offsets so parking does not jump +1 in the travel direction.
+/obj/structure/overmap/proc/deactivate_physics()
+	diag_hold_physics = FALSE
+	vel_x = 0
+	vel_y = 0
+	settle_overmap_rest_offsets()
+	overmap_reset_visual_offset()
+	if(render_map && cam_screen && cam_has_viewers())
+		update_screen(TRUE)
+	STOP_PROCESSING(SSfastprocess, src)
+
+/* STAR — now defined in overmap_celestial.dm as /obj/structure/overmap/celestial/star */
+
+// LEVELS (Z-linked, dockable). Concrete subtypes live in this same file.
+
+/// Z-level linked overmap objects. Stations and mining sites are level
+/// objects; ships dock at them via SSshuttle. The base type carries the
+/// shared linkage machinery so M2's concrete subtypes (main, mining/lavaland,
+/// mining/ice) can stay declarative.
+/obj/structure/overmap/level
+	/// Z-values this overmap tile maps to. Multi-Z mining maps populate
+	/// this with all `ZTRAIT_MINING` levels so a single icon represents the
+	/// entire body (Snowglobe, Icebox, etc).
+	var/list/linked_levels
+	/// If the shuttle nav console can change the docking location.
+	var/custom_docking = TRUE
+	/// When TRUE, visibility to other ships is filtered via
+	/// SSovermap.can_view_installation(). Only main + des_two use this.
+	var/installation_stealth = FALSE
+	render_map = TRUE
+
+/obj/structure/overmap/level/Initialize(mapload, _id, list/_zs)
+	. = ..()
+	if(_zs)
+		LAZYADD(linked_levels, _zs)
+	else if(!linked_levels)
+		WARNING("Overmap level [src.type] initialized with no linked Z, deleting.")
+		return INITIALIZE_HINT_QDEL
+
+// MAIN STATION POI
+
+/// The station-bound overmap object. Created once per round, named after the
+/// station, and tracked on `SSovermap.main` so name changes can be mirrored.
+/obj/structure/overmap/level/main
+	name = "Space Station 13"
+	desc = "The local Nanotrasen-operated frontier station."
+	icon_state = "station"
+	id = MAIN_OVERMAP_OBJECT_ID
+	sensor_range = 6
+	installation_stealth = TRUE
+
+/obj/structure/overmap/level/main/Initialize(mapload, _id, list/_zs)
+	if(SSovermap.main)
+		WARNING("Multiple overmap /level/main spawned; deleting the duplicate.")
+		return INITIALIZE_HINT_QDEL
+	. = ..()
+	SSovermap.main = src
+	if(GLOB.station_name)
+		name = GLOB.station_name
+
+// MINING POI
+
+/// Base mining body. Lavaland and Icebox subclasses only override flavor.
+/// Multi-Z mining (Snowglobe) is collapsed via `linked_levels` so the
+/// overmap shows one icon for the whole body.
+/obj/structure/overmap/level/mining
+	id = AWAY_OVERMAP_OBJECT_ID_MINING
+	icon_state = "globe"
+	sensor_range = 5
+
+/obj/structure/overmap/level/mining/lavaland
+	name = "Lavaland"
+	desc = "A lava-covered planet known for its plentiful natural resources among dangerous fauna."
+	color = COLOR_ORANGE
+
+/obj/structure/overmap/level/mining/ice
+	name = "Icemoon"
+	desc = "A frozen planet, well known for its deep chasms and rivers of plasma."
+	color = COLOR_BLUE_LIGHT
+
+// ORBITAL STRUCTURE POIs
+
+/// Medium orbital structure (mini-station). Intended to be subclassed per
+/// installation. Its loaded map uses /area/overmap_structure/installation.
+/obj/structure/overmap/level/installation
+	name = "Orbital Installation"
+	desc = "A mid-sized orbital facility."
+	icon_state = "station"
+	sensor_range = 5
+
+/// Small orbital structure. Its loaded map uses /area/overmap_structure/depot.
+/obj/structure/overmap/level/depot
+	name = "Orbital Depot"
+	desc = "A small orbital supply structure."
+	icon_state = "object"
+	sensor_range = 4
+
+// NAMED RUIN SITES — created by SSovermap.seed_space_sites()
+
+/// A named space ruin POI placed on the overmap at roundstart. Unlike
+/// `/dynamic` encounters (lazy-loaded on player Act), sites are preloaded
+/// onto dedicated full Z-levels (solo or multi-ruin cluster) so they always
+/// exist and cannot be EVA'd to from the station Z.
+/obj/structure/overmap/level/site
+	name = "Unknown Signal"
+	desc = "A point of interest in deep space."
+	icon_state = "object"
+	sensor_range = 4
+	/// Primary ruin template when this is a solo site; null for anonymous clusters.
+	var/datum/map_template/ruin/ruin_template
+	/// All ruin templates loaded onto this site's Z (solo = one entry).
+	var/list/datum/map_template/ruin/member_templates
+	/// Template ids for every ruin on this Z (for exclusion / UI).
+	var/list/member_template_ids
+	/// Additional templates chained via always_spawn_with PLACE_SAME_Z.
+	var/list/datum/map_template/ruin/chained_templates
+	/// Legacy reservation backing (unused for full-Z sites; kept null).
+	var/datum/turf_reservation/reserve
+	/// If TRUE, the level persists for the round (not cleaned up).
+	var/preserve_level = TRUE
+	/// Whether the level has been loaded yet.
+	var/preloaded = FALSE
+	/// When TRUE, approaching ships may pick any free LZ. When FALSE
+	/// (uncontrolled space), each ship is assigned one random free LZ and
+	/// the astrogation camera only shows that zone.
+	var/controlled = FALSE
+
+/obj/structure/overmap/level/site/Initialize(mapload, _id, list/_zs, datum/map_template/ruin/_template)
+	. = ..()
+	if(_template)
+		ruin_template = _template
+		name = _template.name || name
+
+/obj/structure/overmap/level/site/Destroy()
+	if(reserve && !preserve_level)
+		QDEL_NULL(reserve)
+	reserve = null
+	ruin_template = null
+	member_templates = null
+	member_template_ids = null
+	chained_templates = null
+	return ..()
+
+/// A lazily-created shared EVA space for ships landed on an otherwise empty
+/// overmap tile. It persists while ships or minded crew remain.
+/obj/structure/overmap/level/site/open_space
+	name = "Open Space"
+	desc = "A locally stabilized patch of open space suitable for EVA and boarding."
+	id = null
+	preloaded = TRUE
+	preserve_level = FALSE
+	controlled = TRUE
+
+/// Hand the content Z back on a timer rather than with INVOKE_ASYNC.
+///
+/// INVOKE_ASYNC is spawn(), and a spawn inherits the enclosing proc's src. The
+/// recycle walks every turf on the Z, so spawning it from here would keep this
+/// object referenced for the whole sweep - long past the point the collector
+/// gives up and hard deletes us. The reference lives in an execution context
+/// rather than a variable, so ref tracking cannot see it either. A timer hands
+/// the work to SStimer, which only needs the Z number.
+/obj/structure/overmap/level/site/open_space/Destroy()
+	if(length(linked_levels))
+		for(var/z_value in linked_levels)
+			addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), z_value), 0)
+	linked_levels = null
+	return ..()
+
+/obj/structure/overmap/level/site/open_space/proc/try_cleanup()
+	if(!length(linked_levels))
+		return
+	var/content_z = linked_levels[1]
+	for(var/obj/docking_port/mobile/port as anything in SSshuttle.mobile_docking_ports)
+		if(port.z == content_z)
+			return
+	for(var/mob/living/living_mob as anything in GLOB.mob_living_list)
+		if(living_mob.z == content_z && living_mob.mind)
+			return
+	linked_levels = null
+	// Timer rather than INVOKE_ASYNC for the same reason as Destroy(): a spawn
+	// started here would inherit src and outlive the qdel below.
+	addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), content_z), 0)
+	qdel(src)
+

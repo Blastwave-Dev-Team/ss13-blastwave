@@ -4,6 +4,9 @@
 	"map_path": "map_files/NSVBlueshift",
 	"map_file": "Blueshift.dmm",
 	"exclude_from_ci": false,
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"shuttles": {
 		"cargo": "cargo_nova",
 		"ferry": "ferry_nova",
@@ -22,7 +25,9 @@
 	"orbit_shift_replacement": "Attention crew, it appears that someone has shifted your ship into more dangerous territory.",
 	"job_changes": {
 		"Cook": {
-			"additional_cqc_areas": ["/area/station/service/kitchen/diner"]
+			"additional_cqc_areas": [
+				"/area/station/service/kitchen/diner"
+			]
 		},
 		"Captain": {
 			"special_charter": "ship"

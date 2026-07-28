@@ -21,13 +21,13 @@
 	anchored = TRUE
 
 /obj/structure/closet/emcloset/Initialize(mapload)
-	if(HAS_TRAIT(SSstation, STATION_TRAIT_RADIOACTIVE_NEBULA) && prob(30))
+	if(mapload && HAS_TRAIT(SSstation, STATION_TRAIT_RADIOACTIVE_NEBULA) && prob(30)) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: if(HAS_TRAIT(SSstation, STATION_TRAIT_RADIOACTIVE_NEBULA) && prob(30))
 		new /obj/structure/closet/radiation(loc)
 		return INITIALIZE_HINT_QDEL
 
 	. = ..()
 
-	if (prob(1))
+	if(mapload && prob(1)) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: if (prob(1))
 		return INITIALIZE_HINT_QDEL
 
 /obj/structure/closet/emcloset/PopulateContents()

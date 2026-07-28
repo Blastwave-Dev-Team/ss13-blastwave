@@ -44,8 +44,10 @@
 
 ///unregister from SSshuttles
 /obj/docking_port/proc/unregister()
+	// Idempotent: soft-qdel returns LETMELIVE after unregistering, and a later
+	// force-qdel (unit tests, turf sweeps) calls Destroy → unregister again.
 	if(!registered)
-		WARNING("docking_port unregistered multiple times")
+		return
 	registered = FALSE
 	return
 

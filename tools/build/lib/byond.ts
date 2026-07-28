@@ -232,9 +232,18 @@ export async function DreamDaemon(
 ): Promise<Juke.ExecReturn> {
   const dmPath = await getDmPath(options.namedDmVersion);
   const baseDir = path.dirname(dmPath);
-  const ddExeName =
-    process.platform === 'win32' ? 'dreamdaemon.exe' : 'DreamDaemon';
-  const ddExePath = baseDir === '.' ? ddExeName : path.join(baseDir, ddExeName);
+  const resolve = (exeName: string) =>
+    baseDir === '.' ? exeName : path.join(baseDir, exeName);
+
+  let ddExePath = resolve('DreamDaemon');
+  if (process.platform === 'win32') {
+    // The GUI launcher silently drops -trusted and hosts in Ultrasafe, so the
+    // console daemon is preferred wherever BYOND ships it.
+    const consoleDaemon = resolve('dd.exe');
+    ddExePath = fs.existsSync(consoleDaemon)
+      ? consoleDaemon
+      : resolve('dreamdaemon.exe');
+  }
 
   return Juke.exec(ddExePath, [options.dmbFile, ...args]);
 }

@@ -342,8 +342,20 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 		var/turf/checked_turf = pick(turfs)
 		var/area/checked_area = checked_turf.loc
 		var/list/area_turfs = checked_area.get_turfs_by_zlevel(z)
+		// BLASTWAVE EDIT CHANGE START - ORIGINAL: if(!checked_area.allow_shuttle_docking)
+		// Frame turfs inside a registered overmap landing zone get implicit docking
+		// permission, so shuttle blueprints work there without station blueprints.
 		if(!checked_area.allow_shuttle_docking)
-			. |= INTERSECTS_NON_WHITELISTED_AREA
+			var/frame_turfs_all_in_landing_zone = TRUE
+			for(var/turf/frame_turf as anything in turfs)
+				if(frame_turf.loc != checked_area)
+					continue
+				if(!turf_in_overmap_landing_zone(frame_turf))
+					frame_turfs_all_in_landing_zone = FALSE
+					break
+			if(!frame_turfs_all_in_landing_zone)
+				. |= INTERSECTS_NON_WHITELISTED_AREA
+		// BLASTWAVE EDIT CHANGE END
 		if(checked_area.apc)
 			var/obj/machinery/power/apc/apc = checked_area.apc
 			if(turfs[get_turf(apc)])
@@ -368,6 +380,54 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 			firelock.CalculateAffectingAreas()
 		if(!area.has_contained_turfs())
 			qdel(area)
+
+// BLASTWAVE EDIT ADDITION START - Shuttle construction: re-bake wallmounts when an area becomes a shuttle area.
+/**
+ * Wallmounts (APCs, light fixtures, intercoms...) built while the frame was still part
+ * of a station area mounted without the shuttle-move hooks: atom_mounted gates
+ * COMSIG_ATOM_BEFORE_SHUTTLE_MOVE/AFTER_SHUTTLE_MOVE registration on is_area_shuttle()
+ * at mount time. Without those hooks the shuttle's first move trips the component's
+ * MOVABLE_MOVED handler and the mount "falls apart". Re-mounting after area conversion
+ * re-evaluates the gate, so the mounts detach and remount cleanly across transit.
+ */
+/proc/remount_shuttle_wallmounts(list/turfs)
+	for(var/turf/turf as anything in turfs)
+		for(var/obj/mounted in turf)
+			var/datum/component/atom_mounted/mount = mounted.GetComponent(/datum/component/atom_mounted)
+			if(!mount)
+				continue
+			qdel(mount)
+			mounted.find_and_mount_on_atom()
+// BLASTWAVE EDIT ADDITION END
+
+// BLASTWAVE EDIT ADDITION START - Shuttle construction: landing-pad-safe skipover placement.
+/**
+ * Insert the shuttle boundary directly beneath the player-built hull layer,
+ * preserving any pre-existing station turfs below (landing-pad construction).
+ *
+ * stack_below_baseturf() searches baseturfs bottom-up, so a shuttle built on
+ * station floors got its skipover under the *station's* plating - launch then
+ * scraped the landing pad away with the shuttle, leaving open space.
+ */
+/proc/insert_shuttle_skipover(turf/turf)
+	if(turf.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle))
+		return // already marked (built inside a shuttle area, or expansion re-run)
+	// Hull plating as the top turf: the shuttle layer is the turf itself.
+	if(isplatingturf(turf))
+		turf.insert_baseturf(turf_type = /turf/baseturf_skipover/shuttle)
+		return
+	// Otherwise (tiled hull floor, wall over hull plating) the hull plating is
+	// the TOP-MOST plating in baseturfs - search from the top down.
+	if(!islist(turf.baseturfs))
+		turf.baseturfs = list(turf.baseturfs)
+	var/list/stack = turf.baseturfs
+	for(var/i in length(stack) to 1 step -1)
+		if(stack[i] == /turf/open/floor/plating)
+			turf.insert_baseturf(i, /turf/baseturf_skipover/shuttle)
+			return
+	// No plating anywhere: take only the top layer, leave everything else.
+	turf.insert_baseturf(turf_type = /turf/baseturf_skipover/shuttle)
+// BLASTWAVE EDIT ADDITION END
 
 /proc/create_shuttle(mob/user, turf/origin, list/turfs, list/areas, shuttle_dir, port_dir = NORTH, area_type = /area/shuttle/custom, docking_port_type = /obj/docking_port/mobile/custom, obj/docking_port/stationary/dock_at, name, id, replace, custom = TRUE, force)
 	if(!ispath(docking_port_type, /obj/docking_port/mobile))
@@ -407,17 +467,24 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 			qdel(merged_area)
 	shuttle_areas.Insert(1, default_area)
 
+	remount_shuttle_wallmounts(turfs) // BLASTWAVE EDIT ADDITION - re-bake wallmounts now that their area is a shuttle area
+
 	var/obj/docking_port/mobile/mobile_port = new docking_port_type(origin, shuttle_areas)
 	mobile_port.underlying_areas_by_turf += underlying_areas
 	mobile_port.name = name
 	mobile_port.shuttle_id = id
-	mobile_port.port_direction = REVERSE_DIR(shuttle_dir)
+	// port_direction must satisfy generate_transit_dock()'s dock_angle math so the
+	// designated front ends up pointing at preferred_direction in transit. Working
+	// through that math gives an angle *mirror*, not a reverse: REVERSE_DIR agrees
+	// for N/S fronts but flips E/W fronts 180 degrees. BLASTWAVE EDIT - was REVERSE_DIR(shuttle_dir)
+	mobile_port.port_direction = angle2dir_cardinal(dir2angle(port_dir) + 180 - dir2angle(shuttle_dir))
 	mobile_port.dir = port_dir
+	mobile_port.preferred_direction = shuttle_dir // BLASTWAVE EDIT ADDITION - shuttle front drives transit travel dir
 	mobile_port.calculate_docking_port_information()
 	mobile_port.turf_count = length(turfs)
 
 	for(var/turf/turf as anything in turfs)
-		turf.stack_below_baseturf(/turf/open/floor/plating, /turf/baseturf_skipover/shuttle)
+		insert_shuttle_skipover(turf) // BLASTWAVE EDIT CHANGE - preserve landing-pad turfs. ORIGINAL: turf.stack_below_baseturf(/turf/open/floor/plating, /turf/baseturf_skipover/shuttle)
 		SEND_SIGNAL(turf, COMSIG_TURF_ADDED_TO_SHUTTLE, mobile_port)
 		if(!turf.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle))
 			continue
@@ -439,6 +506,47 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 	log_shuttle("[key_name(user)] has created a shuttle at [get_area(origin)].")
 
 	return mobile_port
+
+/**
+ * Redesignate a custom shuttle's docking/front orientation without rotating
+ * hull atoms in place. Physical rotation (if any) happens on the next transit
+ * launch via initiate_docking. Returns TRUE on success.
+ */
+/proc/reorient_custom_shuttle(obj/docking_port/mobile/custom/shuttle, new_dir)
+	if(!istype(shuttle))
+		return FALSE
+	if(!(new_dir in GLOB.cardinals))
+		return FALSE
+	if(shuttle.mode != SHUTTLE_IDLE)
+		return FALSE
+	if(shuttle.dir == new_dir && shuttle.preferred_direction == new_dir)
+		return TRUE
+
+	// Same formula as create_shuttle when port_dir == shuttle_dir: relative
+	// port_direction collapses to SOUTH and preferred_direction is the front.
+	shuttle.dir = new_dir
+	shuttle.preferred_direction = new_dir
+	shuttle.port_direction = angle2dir_cardinal(dir2angle(new_dir) + 180 - dir2angle(new_dir))
+	QDEL_NULL(shuttle.assigned_transit)
+	shuttle.calculate_docking_port_information()
+
+	var/obj/docking_port/stationary/docked = shuttle.get_docked()
+	if(istype(docked))
+		docked.dir = shuttle.dir
+		docked.width = shuttle.width
+		docked.height = shuttle.height
+		docked.dwidth = shuttle.dwidth
+		docked.dheight = shuttle.dheight
+
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - invalidate hull token so front angle regenerates
+	var/obj/structure/overmap/ship/simulated/overmap_ship = shuttle.current_ship
+	if(overmap_ship)
+		overmap_ship.cached_hull_icon = null
+		overmap_ship.cached_minimap_icon = null
+		overmap_ship.update_icon_state()
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
+	return TRUE
 
 /proc/expand_shuttle(mob/user, obj/docking_port/mobile/shuttle, list/turfs, list/areas)
 	var/list/default_area_turfs = turfs.Copy()
@@ -464,6 +572,8 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 	for(var/area/shuttle_area as anything in shuttle_areas)
 		shuttle.shuttle_areas[shuttle_area] = TRUE
 
+	remount_shuttle_wallmounts(turfs) // BLASTWAVE EDIT ADDITION - must precede the forced initiate_docking() below, which is itself a shuttle move
+
 	var/list/bounds = shuttle.return_coords()
 	var/x0 = bounds[1]
 	var/y0 = bounds[2]
@@ -471,7 +581,7 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 	var/y1 = bounds[4]
 	var/bounds_need_recalculation
 	for(var/turf/turf as anything in turfs)
-		turf.stack_below_baseturf(/turf/open/floor/plating, /turf/baseturf_skipover/shuttle)
+		insert_shuttle_skipover(turf) // BLASTWAVE EDIT CHANGE - preserve landing-pad turfs. ORIGINAL: turf.stack_below_baseturf(/turf/open/floor/plating, /turf/baseturf_skipover/shuttle)
 		SEND_SIGNAL(turf, COMSIG_TURF_ADDED_TO_SHUTTLE, shuttle)
 		if(turf.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle))
 			var/turf/new_ceiling = get_step_multiz(turf, UP) // check if a ceiling is needed

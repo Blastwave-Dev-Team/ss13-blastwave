@@ -62,6 +62,10 @@
 	///How many turfs this shuttle has. Used to check against max shuttle size when expanding expandable shuttles.
 	var/turf_count = 0
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - back-reference to the overmap ship icon
+	var/obj/structure/overmap/ship/simulated/current_ship
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
 /obj/docking_port/mobile/Initialize(mapload, list/areas)
 	. = ..()
 
@@ -93,8 +97,23 @@
 	highlight("#0f0")
 #endif
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - bind a ship icon for ports created after SSovermap init.
+	// Round-start ports are handled by SSovermap.bind_existing_shuttles(); after the subsystem
+	// finishes initializing, *any* new port (mapload or not - shuttle templates load with
+	// mapload=TRUE via InitializeAtoms) needs to register with the overmap.
+	if(SSovermap?.initialized)
+		SSovermap.setup_shuttle_ship(src)
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
 /obj/docking_port/mobile/Destroy(force)
 	unregister()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - break the reference cycles that hold us.
+	// A shuttle event and the overmap ship icon both point back at their port, and
+	// BYOND refcounts, so a cycle broken from only one side is a guaranteed hard
+	// delete whenever the port is the first of the pair to go.
+	QDEL_LIST(event_list)
+	QDEL_NULL(current_ship)
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
 	destination = null
 	previous = null
 	for(var/obj/machinery/power/shuttle_engine/engine as anything in engine_list)
@@ -229,6 +248,14 @@
 		place.connect_to_shuttle(TRUE, src, dock)
 		for(var/atom/individual_atoms in place)
 			individual_atoms.connect_to_shuttle(TRUE, src, dock)
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - re-prep the bound ship now that
+	// engine_list has been populated by connect_to_shuttle above. Setup-time
+	// prepare_for_flight ran with an empty engine_list (linkup happens
+	// after); without this hook, est_thrust / avg_fuel_amnt stay zero and
+	// helm thrust buttons silently no-op until something else triggers
+	// refresh_engines.
+	current_ship?.prepare_for_flight()
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
 
 //this is a hook for custom behaviour. Maybe at some point we could add checks to see if engines are intact
 /obj/docking_port/mobile/proc/canMove()

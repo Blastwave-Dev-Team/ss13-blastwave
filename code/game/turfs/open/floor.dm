@@ -131,6 +131,14 @@
 	. = ..()
 	if(.)
 		return .
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+	if(istype(object, /obj/item/stack/rods/shuttle))
+		if(build_shuttle_frame_with_rods(object, user))
+			return TRUE
+	if(istype(object, /obj/item/stack/tile))
+		if(shuttle_frame_build_plating_with_tile(object, user))
+			return TRUE
+	// BLASTWAVE EDIT ADDITION END
 	if(overfloor_placed && istype(object, /obj/item/stack/tile))
 		try_replace_tile(object, user, modifiers)
 		return TRUE
@@ -142,6 +150,13 @@
 /turf/open/floor/crowbar_act(mob/living/user, obj/item/I)
 	if(overfloor_placed && pry_tile(I, user))
 		return TRUE
+
+// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+/turf/open/floor/wirecutter_act(mob/living/user, obj/item/tool)
+	if(cut_shuttle_frame_rods(user, tool))
+		return ITEM_INTERACT_SUCCESS
+	return ..()
+// BLASTWAVE EDIT ADDITION END
 
 /turf/open/floor/proc/try_replace_tile(obj/item/stack/tile/T, mob/user, list/modifiers)
 	if(T.turf_type == type && T.turf_dir == dir)
@@ -219,9 +234,21 @@
 /turf/open/floor/acid_melt()
 	ScrapeAway(flags = CHANGETURF_INHERIT_AIR)
 
+// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+/turf/open/floor/examine(mob/user)
+	. = ..()
+	if(HAS_TRAIT_FROM(src, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+		. += span_notice("Shuttle frame rods are anchored here. Use a floor <i>tile</i> or <i>RCD</i> to lay plating, or <i>wirecutters</i> / jaws (cutter mode) to remove the rods.")
+// BLASTWAVE EDIT ADDITION END
+
 /turf/open/floor/rcd_vals(mob/user, obj/item/construction/rcd/the_rcd)
 	switch(the_rcd.mode)
 		if(RCD_TURF)
+			// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+			var/list/frame_vals = shuttle_frame_rcd_vals(the_rcd)
+			if(frame_vals)
+				return frame_vals
+			// BLASTWAVE EDIT ADDITION END
 			var/obj/structure/girder/girder = locate() in src
 			if(girder)
 				return girder.rcd_vals(user, the_rcd)
@@ -284,6 +311,10 @@
 /turf/open/floor/rcd_act(mob/user, obj/item/construction/rcd/the_rcd, list/rcd_data)
 	switch(rcd_data[RCD_DESIGN_MODE])
 		if(RCD_TURF)
+			// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+			if(shuttle_frame_rcd_act(rcd_data))
+				return TRUE
+			// BLASTWAVE EDIT ADDITION END
 			var/obj/structure/girder/girder = locate() in src
 			if(girder)
 				return girder.rcd_act(user, the_rcd, rcd_data)

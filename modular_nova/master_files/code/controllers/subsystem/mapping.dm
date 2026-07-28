@@ -6,8 +6,19 @@
 /datum/map_config
 	/// Are we allowing space even if we're planetary?
 	var/allow_space_when_planetary = FALSE
+	/// When TRUE, SSovermap owns space ruin spawning instead of SSmapping.
+	/// Set via map JSON ("overmap_space_ruins": true). Defaults FALSE so
+	/// non-overmap stations keep normal behavior.
+	var/overmap_space_ruins = FALSE
 
 /datum/controller/subsystem/mapping/setup_ruins()
+	// Skip space ruin seeding when the overmap subsystem handles it.
+	if(!current_map.overmap_space_ruins)
+		var/list/space_ruins = levels_by_trait(ZTRAIT_SPACE_RUINS)
+		if(space_ruins.len)
+			var/proportional_budget = round(CONFIG_GET(number/space_budget) * (space_ruins.len / DEFAULT_SPACE_RUIN_LEVELS))
+			seedRuins(space_ruins, proportional_budget, list(/area/space), themed_ruins[ZTRAIT_SPACE_RUINS], mineral_budget = 0, ruins_type = ZTRAIT_SPACE_RUINS)
+
 	// Jungle Ruins, Serenity
 	var/list/jungle_ruins = levels_by_trait(ZTRAIT_JUNGLE_RUINS)
 	if(jungle_ruins.len)

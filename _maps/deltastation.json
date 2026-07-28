@@ -3,6 +3,9 @@
 	"map_name": "Delta Station",
 	"map_path": "map_files/Deltastation",
 	"map_file": "DeltaStation2.dmm",
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"shuttles": {
 		"emergency": "emergency_delta",
 		"ferry": "ferry_fancy",
@@ -12,7 +15,9 @@
 	"exclude_from_ci": true,
 	"job_changes": {
 		"Cook": {
-			"additional_cqc_areas": ["/area/station/service/cafeteria"]
+			"additional_cqc_areas": [
+				"/area/station/service/cafeteria"
+			]
 		}
 	},
 	"bonus_weakpoints": 2

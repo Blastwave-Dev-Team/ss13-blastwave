@@ -6,58 +6,58 @@
 /obj/structure/lattice/catwalk,
 /obj/item/storage/toolbox/electrical,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "c" = (
 /obj/structure/lattice,
 /mob/living/basic/carp,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "e" = (
 /obj/machinery/power/tracker,
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "t" = (
 /obj/structure/lattice,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "w" = (
 /obj/structure/lattice/catwalk,
 /obj/item/stack/cable_coil/five,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "x" = (
 /obj/structure/lattice/catwalk,
 /obj/structure/cable,
 /obj/item/stack/cable_coil/five,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "A" = (
 /obj/structure/lattice/catwalk,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "C" = (
 /obj/structure/lattice/catwalk,
 /obj/item/stack/tile/iron/solarpanel{
 	amount = 56
 	},
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "G" = (
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "H" = (
 /obj/structure/lattice/catwalk,
 /obj/item/stack/cable_coil/five,
 /obj/structure/cable,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "N" = (
 /obj/structure/cable,
 /obj/machinery/power/solar,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "Q" = (
 /obj/modular_map_connector,
 /turf/template_noop,
@@ -66,12 +66,12 @@
 /obj/structure/lattice/catwalk,
 /obj/structure/cable,
 /turf/template_noop,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 "Z" = (
 /obj/item/solar_assembly,
 /obj/structure/cable,
 /turf/open/floor/iron/solarpanel/airless,
-/area/solars/tarkon)
+/area/ruin/space/solars/tarkon)
 
 (1,1,1) = {"
 a

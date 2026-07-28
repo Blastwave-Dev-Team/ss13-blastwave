@@ -931,7 +931,12 @@ ADMIN_VERB(cmd_controller_view_ui, R_SERVER|R_DEBUG, "Controller Overview", "Vie
 				queue_node = queue_node.queue_next
 				continue
 
-			queue_node.ticks = MC_AVERAGE(queue_node.ticks, queue_node.paused_ticks)
+			// BLASTWAVE EDIT ADDITION START - OVERMAP - avoid averaging paused_ticks of 0 into MC tick budget
+			if (queue_node.paused_ticks > 0)
+				queue_node.ticks = MC_AVERAGE(queue_node.ticks, queue_node.paused_ticks)
+			else
+				queue_node.ticks = 1
+			// BLASTWAVE EDIT ADDITION END
 			tick_usage += queue_node.paused_tick_usage
 
 			queue_node.tick_usage = MC_AVERAGE_FAST(queue_node.tick_usage, tick_usage)

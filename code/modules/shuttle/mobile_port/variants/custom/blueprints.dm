@@ -101,7 +101,7 @@
 	var/area/turf_area = target.loc
 	if(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF))
 		holder.image_state = "green"
-		if(turf_area.allow_shuttle_docking)
+		if(turf_area.allow_shuttle_docking || turf_in_overmap_landing_zone(target)) // BLASTWAVE EDIT CHANGE - ORIGINAL: if(turf_area.allow_shuttle_docking)
 			if(!GLOB.custom_areas[turf_area] && turf_area.apc)
 				var/obj/machinery/power/apc/apc = turf_area.apc
 				var/turf/apc_turf = get_turf(apc)
@@ -283,8 +283,13 @@
 		)
 		user.do_attack_animation(attacked, used_item = bottle)
 		bottle.smash(attacked, user)
+		/* // BLASTWAVE EDIT REMOVAL START - OVERMAP - sync overmap/GPS on christen
 		shuttle.name = new_name
 		rename_area(shuttle.default_area, new_name)
+		*/ // BLASTWAVE EDIT REMOVAL END
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - sync overmap/GPS on christen
+		sync_shuttle_display_name(shuttle, new_name)
+		// BLASTWAVE EDIT ADDITION END
 
 /obj/item/shuttle_blueprints/proc/start_visualizing(mob/user)
 	visualize_frame_turfs = TRUE
@@ -361,6 +366,7 @@
 		var/area/default_area = linked_shuttle.default_area
 		data["onShuttle"] = linked_shuttle.shuttle_areas[current_area]
 		data["inDefaultArea"] = default_area == current_area
+		data["shuttleName"] = linked_shuttle.name // BLASTWAVE EDIT ADDITION - OVERMAP - blueprints TGUI rename
 		data["currentArea"] = list(name = current_area.name, ref = REF(current_area))
 		data["defaultApc"] = !!default_area.apc
 		var/list/apcs = list()
@@ -368,6 +374,7 @@
 			apcs[REF(area)] = !!area.apc
 		data["apcs"] = apcs
 		data["idle"] = linked_shuttle.mode == SHUTTLE_IDLE
+		data["shuttleDir"] = linked_shuttle.dir
 		if(on_shuttle_frame)
 			data["size"] = length(frame.turfs) - length(frame.shuttle_covered_turfs) + linked_shuttle.turf_count
 			data["problems"] = shuttle_expand_check(current_turf, linked_shuttle)
@@ -517,6 +524,7 @@
 				shuttle_turfs,
 				shuttle_areas,
 				shuttle_dir,
+				shuttle_dir,
 				name = "\improper Unnamed Shuttle",
 				id = "custom_[length(SSshuttle.custom_shuttles)+1]"
 			)
@@ -654,6 +662,25 @@
 				return TRUE
 			rename_area(current_area, new_name)
 			return TRUE
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - blueprints TGUI shuttle rename
+		if("renameShuttle")
+			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
+			if(!shuttle)
+				balloon_alert(usr, "not linked!")
+				return TRUE
+			var/obj/item/shuttle_blueprints/master = shuttle.master_blueprint?.resolve()
+			if(master != src)
+				balloon_alert(usr, "not master blueprints!")
+				return TRUE
+			var/new_name = reject_bad_name(params["name"], allow_numbers = TRUE, strict = TRUE, cap_after_symbols = FALSE)
+			if(!new_name)
+				balloon_alert(usr, "invalid name!")
+				return TRUE
+			new_name = apply_text_macros(new_name)
+			sync_shuttle_display_name(shuttle, new_name)
+			balloon_alert(usr, "shuttle renamed")
+			return TRUE
+		// BLASTWAVE EDIT ADDITION END
 		if("expandWithFrame")
 			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
 			if(!shuttle)
@@ -692,6 +719,40 @@
 			if(master && master != src)
 				balloon_alert(usr, "not master blueprints!")
 			clear_empty_shuttle_turfs(shuttle)
+			return TRUE
+		if("setShuttleDirection")
+			var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
+			if(!shuttle)
+				balloon_alert(usr, "not linked!")
+				return TRUE
+			var/obj/item/shuttle_blueprints/master = shuttle.master_blueprint?.resolve()
+			if(master != src)
+				balloon_alert(usr, "not master blueprints!")
+				return TRUE
+			if(shuttle.mode != SHUTTLE_IDLE)
+				balloon_alert(usr, "shuttle must be idle!")
+				return TRUE
+			var/area/current_area = get_area(usr)
+			if(!shuttle.shuttle_areas[current_area])
+				balloon_alert(usr, "not on shuttle!")
+				return TRUE
+			var/new_dir = params["dir"]
+			if(!(new_dir in GLOB.cardinals))
+				return TRUE
+			if(shuttle.dir == new_dir && shuttle.preferred_direction == new_dir)
+				balloon_alert(usr, "already facing that way!")
+				return TRUE
+			balloon_alert(usr, "updating orientation...")
+			if(!do_after(usr, 3 SECONDS, src))
+				return TRUE
+			if(QDELETED(shuttle) || shuttle.mode != SHUTTLE_IDLE)
+				balloon_alert(usr, "shuttle no longer idle!")
+				return TRUE
+			if(!reorient_custom_shuttle(shuttle, new_dir))
+				balloon_alert(usr, "orientation update failed!")
+				return TRUE
+			balloon_alert(usr, "orientation set — applies on next launch")
+			return TRUE
 
 /obj/item/shuttle_blueprints/crude
 	name = "crude shuttle blueprints"

@@ -28,6 +28,8 @@
 	set_nightshift(!nightshift_lights)
 
 /obj/machinery/power/apc/proc/update()
+	if(area?.apc != src) // BLASTWAVE EDIT ADDITION - unregistered APCs (deferred shuttle-frame builds) must not drive the host area's power
+		return
 	if(operating && !shorted && !failure_timer)
 		area.power_light = (lighting > APC_CHANNEL_AUTO_OFF)
 		area.power_equip = (equipment > APC_CHANNEL_AUTO_OFF)

@@ -263,6 +263,8 @@ define_sanity_output.txt
 tgstation.json
 rust_g64.dll
 
+!overmap-render.dll
+!libovermap_render.so
 # BLASTWAVE EDIT - ignore our automagic build tools tmpdir
 
 /buildtmp/

@@ -733,9 +733,15 @@
 		machine.connect_to_shuttle(TRUE, shuttle)
 
 /obj/item/circuitboard/computer/shuttle/flight_control
-	name = "Shuttle Flight Control"
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - distinguish legacy flight console from overmap helm
+	name = "Shuttle Flight Console"
+	desc = "A computer board. Legacy shuttle flight controls - moves a shuttle between its fixed, predefined docking routes."
+	// BLASTWAVE EDIT CHANGE END
 	build_path = /obj/machinery/computer/shuttle/custom_shuttle
 
 /obj/item/circuitboard/computer/shuttle/docker
-	name = "Shuttle Navigation Computer"
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - distinguish legacy docker from overmap nav computer
+	name = "Shuttle Docker Console"
+	desc = "A computer board. Legacy shuttle docking - designates landing at fixed stationary ports."
+	// BLASTWAVE EDIT CHANGE END
 	build_path = /obj/machinery/computer/camera_advanced/shuttle_docker/custom

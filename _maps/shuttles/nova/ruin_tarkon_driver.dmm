@@ -4,19 +4,19 @@
 	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "bF" = (
 /obj/machinery/light/directional/east,
 /obj/structure/table/reinforced,
 /obj/effect/spawner/random/food_or_drink/snack,
 /obj/item/crowbar/red,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "cP" = (
 /obj/machinery/door/airlock/titanium/glass,
 /obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "cS" = (
 /obj/machinery/door/airlock/titanium,
 /obj/docking_port/mobile{
@@ -28,62 +28,62 @@
 /obj/structure/fans/tiny/invisible,
 /obj/structure/cable,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "ef" = (
 /turf/open/floor/iron/recharge_floor,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "eP" = (
 /obj/machinery/power/smes/tarkon_driver,
 /obj/structure/cable,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "fg" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 4
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "fy" = (
 /obj/effect/spawner/structure/window/reinforced/shuttle,
 /obj/machinery/door/poddoor{
 	id = "driverwindows"
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "fE" = (
 /obj/machinery/light/directional/west,
 /obj/structure/table/reinforced,
 /obj/item/clothing/mask/gas,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "gu" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "hH" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/closed/wall/mineral/titanium/spaceship,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "hT" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 1
 	},
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "hW" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "if" = (
 /obj/machinery/door/airlock/titanium,
 /obj/structure/fans/tiny/invisible,
 /obj/structure/cable,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "ik" = (
 /obj/structure/cable,
 /obj/machinery/power/terminal{
@@ -91,16 +91,16 @@
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "io" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "iF" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "jG" = (
 /obj/structure/cable,
 /obj/machinery/power/terminal{
@@ -109,12 +109,12 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "ni" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "nn" = (
 /obj/structure/rack/shelf,
 /obj/effect/spawner/random/medical/medkit,
@@ -122,14 +122,14 @@
 /obj/machinery/airalarm/directional/east,
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "nz" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/door/airlock/titanium/glass,
 /obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "oz" = (
 /obj/machinery/airalarm/directional/south,
 /obj/effect/mapping_helpers/airalarm/all_access,
@@ -138,17 +138,17 @@
 	},
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "pi" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "rr" = (
 /obj/machinery/light/directional/north,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "st" = (
 /obj/machinery/light/directional/south,
 /obj/machinery/atmospherics/components/unary/portables_connector/layer4{
@@ -156,34 +156,34 @@
 	},
 /obj/machinery/portable_atmospherics/canister/air,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "tV" = (
 /turf/closed/wall/mineral/titanium/nodiagonal,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "uk" = (
 /obj/machinery/door/airlock/titanium,
 /obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
 /obj/structure/fans/tiny/invisible,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "vo" = (
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "zo" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "zL" = (
 /obj/machinery/power/shuttle_engine/propulsion/burst,
 /obj/machinery/atmospherics/components/unary/passive_vent/layer2{
 	dir = 1
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Al" = (
 /obj/machinery/computer/camera_advanced/shuttle_docker/tarkon_driver,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ap" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 4
@@ -191,16 +191,16 @@
 /obj/machinery/airalarm/directional/north,
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "AX" = (
 /obj/machinery/light/directional/north,
 /obj/structure/tank_dispenser,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "BH" = (
 /obj/machinery/recharge_station,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "BS" = (
 /obj/machinery/airalarm/directional/east,
 /obj/effect/mapping_helpers/airalarm/all_access,
@@ -208,7 +208,7 @@
 	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Cf" = (
 /obj/structure/rack/shelf,
 /obj/item/flashlight/flare,
@@ -216,7 +216,7 @@
 /obj/item/flashlight/flare,
 /obj/machinery/door/window/brigdoor/tarkon/right/directional/west,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Cn" = (
 /obj/structure/rack/shelf,
 /obj/item/tank/internals/emergency_oxygen,
@@ -226,17 +226,17 @@
 /obj/machinery/light/directional/south,
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Cv" = (
 /obj/machinery/power/shuttle_engine/propulsion/burst,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "DF" = (
 /obj/machinery/mech_bay_recharge_port{
 	dir = 2
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Em" = (
 /turf/template_noop,
 /area/template_noop)
@@ -246,28 +246,28 @@
 /obj/machinery/airalarm/directional/west,
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Fp" = (
 /obj/machinery/computer/camera_advanced/tarkon_cam,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "GN" = (
 /turf/closed/wall/mineral/titanium/spaceship,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "GX" = (
 /obj/machinery/light/directional/north,
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "HI" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "HY" = (
 /obj/machinery/door/airlock/titanium,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "IP" = (
 /obj/structure/closet/crate/internals,
 /obj/item/clothing/head/helmet/space/eva,
@@ -282,16 +282,16 @@
 /obj/machinery/light/directional/south,
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Jo" = (
 /obj/structure/table/reinforced,
 /obj/machinery/light/directional/south,
 /obj/item/pickaxe/drill,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "JF" = (
 /turf/closed/wall/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "JS" = (
 /obj/structure/table/reinforced,
 /obj/machinery/button/door{
@@ -300,30 +300,30 @@
 	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "JY" = (
 /obj/machinery/computer/shuttle/tarkon_driver,
 /obj/item/shuttle_remote/tarkon,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Kv" = (
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "LG" = (
 /turf/closed/wall/mineral/titanium/spaceship/nodiagonal,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Mh" = (
 /obj/machinery/door/airlock/titanium,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ml" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Nj" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 8
@@ -331,35 +331,35 @@
 /obj/machinery/airalarm/directional/north,
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ow" = (
 /obj/structure/cable,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "OJ" = (
 /obj/machinery/suit_storage_unit/industrial/tarkon,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Qe" = (
 /obj/structure/rack/shelf,
 /obj/effect/spawner/random/engineering/material,
 /obj/effect/spawner/random/engineering/material,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Rg" = (
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Rn" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/airalarm/directional/north,
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Sd" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "St" = (
 /obj/structure/closet/crate/internals,
 /obj/item/clothing/head/helmet/space/eva,
@@ -372,7 +372,7 @@
 /obj/item/clothing/mask/breath,
 /obj/machinery/door/window/brigdoor/tarkon/right/directional/east,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Tp" = (
 /obj/structure/rack/shelf,
 /obj/item/oxygen_candle,
@@ -380,38 +380,38 @@
 /obj/item/oxygen_candle,
 /obj/machinery/door/window/brigdoor/tarkon/right/directional/west,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "TS" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 4
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ue" = (
 /obj/structure/table/reinforced,
 /obj/machinery/cell_charger,
 /obj/machinery/light_switch/directional/east,
 /obj/machinery/camera/autoname/tarkon/directional/east,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ut" = (
 /obj/effect/spawner/structure/window/reinforced/shuttle,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Uu" = (
 /obj/machinery/door/airlock/titanium/glass,
 /obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Vp" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/computer/mech_bay_power_console{
 	dir = 4
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Vt" = (
 /obj/machinery/power/apc/auto_name/directional/east,
 /obj/structure/cable,
@@ -420,44 +420,44 @@
 /obj/structure/table/reinforced,
 /obj/item/storage/toolbox/emergency,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "VM" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /turf/open/floor/catwalk_floor/iron,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ww" = (
 /obj/structure/rack/shelf,
 /obj/effect/spawner/random/maintenance/three,
 /obj/machinery/light/directional/north,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Xb" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
 	dir = 1
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "XN" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Ye" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Zm" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 1
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 "Zo" = (
 /obj/machinery/power/shuttle_engine/propulsion/burst{
 	dir = 1
 	},
 /turf/open/floor/mineral/titanium,
-/area/shuttle/tarkon_driver)
+/area/shuttle/ruin/tarkon_driver)
 
 (1,1,1) = {"
 Zo

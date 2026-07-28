@@ -1,0 +1,588 @@
+.HelmConsole {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0a0c12;
+  color: #c8d0e0;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.HelmConsole__viewscreen {
+  height: calc(100% - 310px);
+  flex: none;
+  background: #06080e;
+  border: 1px solid rgba(80, 160, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.HelmConsole__viewscreen > * {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.HelmConsole__contact-overlay {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.HelmConsole__contact-reticle,
+.HelmConsole__contact-arrow {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  color: #8cf;
+  text-shadow: 0 0 5px rgba(80, 180, 255, 0.8);
+}
+
+.HelmConsole__contact-reticle-ring {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #8cf;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 8px rgba(80, 180, 255, 0.35),
+    0 0 8px rgba(80, 180, 255, 0.35);
+}
+
+.HelmConsole__contact-reticle-ring::before,
+.HelmConsole__contact-reticle-ring::after {
+  position: absolute;
+  content: '';
+  background: #8cf;
+}
+
+.HelmConsole__contact-reticle-ring::before {
+  top: 14px;
+  left: 4px;
+  width: 20px;
+  height: 1px;
+}
+
+.HelmConsole__contact-reticle-ring::after {
+  top: 4px;
+  left: 14px;
+  width: 1px;
+  height: 20px;
+}
+
+.HelmConsole__contact-arrow {
+  max-width: 300px;
+}
+
+.HelmConsole__contact-arrow-glyph {
+  display: inline-block;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.HelmConsole__contact-label {
+  padding: 2px 5px;
+  background: rgba(4, 10, 18, 0.82);
+  border: 1px solid rgba(80, 180, 255, 0.45);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.HelmConsole__console {
+  flex: 0 0 310px;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(10, 12, 18, 0.97);
+  border-top: 1px solid rgba(80, 160, 255, 0.3);
+}
+
+.HelmConsole__navball-container {
+  // NavBall palette, derived from the standard tgui theme variables so the
+  // component tracks themes like the rest of tgui instead of hardcoded hexes.
+  --helm-accent: hsl(from var(--color-teal) h s calc(l + 25)); // desired vector / focus
+  --helm-actual: var(--color-average); // actual velocity marker
+  --helm-frame: hsl(from var(--color-primary) h calc(s + 40) calc(l + 20)); // frame lines
+  --helm-navball-bg: hsl(from var(--color-base) h s calc(l - 9)); // ball face
+
+  flex: 0 0 290px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.HelmConsole__navball-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.HelmConsole__navball-wrapper {
+  position: relative;
+  width: 240px;
+  height: 240px;
+}
+
+.HelmConsole__navball-btn {
+  position: absolute;
+  bottom: 2px;
+  width: 34px;
+  height: 34px;
+  background: var(--color-section);
+  border: var(--border-thickness-tiny) solid
+    hsl(from var(--helm-frame) h s l / 0.2);
+  color: var(--color-text-translucent);
+  font-family: inherit;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  cursor: var(--cursor-pointer);
+  transition: all var(--transition-time-fast);
+  z-index: 1;
+
+  &:hover {
+    background: var(--color-hover);
+    border-color: hsl(from var(--helm-frame) h s l / 0.4);
+    color: var(--color-text);
+  }
+
+  &--stop {
+    left: 2px;
+    border-radius: var(--border-radius-medium) var(--border-radius-large)
+      var(--border-radius-medium) var(--border-radius-medium);
+
+    &:hover {
+      border-color: hsl(from var(--color-bad) h s l / 0.5);
+      color: hsl(from var(--color-bad) h s calc(l + 15));
+    }
+  }
+
+  &--lock {
+    right: 2px;
+    border-radius: var(--border-radius-large) var(--border-radius-medium)
+      var(--border-radius-medium) var(--border-radius-medium);
+
+    &:hover {
+      border-color: hsl(from var(--helm-accent) h s l / 0.5);
+      color: var(--helm-accent);
+    }
+  }
+
+  &--active {
+    background: hsl(from var(--helm-accent) h s l / 0.12);
+    border-color: hsl(from var(--helm-accent) h s l / 0.5);
+    color: var(--helm-accent);
+    box-shadow: var(--shadow-glow-small) hsl(from var(--helm-accent) h s l / 0.2);
+  }
+}
+
+.HelmConsole__navball-btn-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.HelmConsole__navball-btn-key {
+  font-size: 8px;
+  opacity: 0.5;
+  letter-spacing: 0.5px;
+}
+
+.HelmConsole__throttle {
+  width: 28px;
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.HelmConsole__throttle-track {
+  width: 12px;
+  height: 200px;
+  background: var(--color-section);
+  border: var(--border-thickness-tiny) solid
+    hsl(from var(--helm-frame) h s l / 0.2);
+  border-radius: var(--border-radius-large);
+  position: relative;
+  overflow: hidden;
+  cursor: var(--cursor-pointer);
+}
+
+.HelmConsole__throttle-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(
+    0deg,
+    hsl(from var(--helm-accent) h s l / 0.15),
+    hsl(from var(--helm-accent) h s l / 0.4)
+  );
+  border-radius: 0 0 var(--border-radius-medium) var(--border-radius-medium);
+  transition: height 0.05s;
+}
+
+.HelmConsole__throttle-marker {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 3px;
+  background: var(--helm-accent);
+  box-shadow: var(--shadow-glow-small) hsl(from var(--helm-accent) h s l / 0.6);
+  border-radius: var(--border-radius-tiny);
+  transition: bottom 0.05s;
+}
+
+.HelmConsole__throttle-actual {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  height: 2px;
+  background: var(--helm-actual);
+  box-shadow: var(--shadow-glow-small) hsl(from var(--helm-actual) h s l / 0.5);
+  border-radius: var(--border-radius-tiny);
+}
+
+.HelmConsole__throttle-ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.HelmConsole__throttle-tick {
+  position: absolute;
+  right: -6px;
+  width: 4px;
+  height: 1px;
+  background: hsl(from var(--helm-frame) h s l / 0.2);
+}
+
+.HelmConsole__throttle-key-hints {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.HelmConsole__throttle-key-hint {
+  font-size: 9px;
+  color: hsl(from var(--color-label) h s l / 0.5);
+}
+
+.HelmConsole__navball-canvas {
+  cursor: crosshair;
+  border-radius: var(--border-radius-circular);
+  display: block;
+  // Read by NavBall.tsx for canvas text rendering.
+  font-family: var(--font-family-mono);
+
+  &--focused {
+    box-shadow:
+      var(--shadow-glow-medium) hsl(from var(--helm-accent) h s l / 0.3),
+      var(--shadow-glow-small) hsl(from var(--helm-accent) h s l / 0.15);
+  }
+}
+
+.HelmConsole__navball-label {
+  text-align: center;
+  font-size: 11px;
+  color: var(--color-label);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.HelmConsole__readout {
+  display: flex;
+  gap: 16px;
+  font-size: var(--font-size);
+  font-family: var(--font-family-mono);
+  color: var(--color-label);
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.HelmConsole__readout-item {
+  display: flex;
+  gap: 4px;
+}
+
+.HelmConsole__readout-label {
+  color: hsl(from var(--color-label) h s l / 0.6);
+}
+
+.HelmConsole__readout-value {
+  color: var(--color-text);
+  min-width: 50px;
+}
+
+.HelmConsole__focus-hint {
+  font-size: 10px;
+  color: var(--color-text-translucent);
+  text-align: center;
+}
+
+.HelmConsole__panel {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(16, 20, 30, 0.8);
+  border: 1px solid rgba(80, 160, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.HelmConsole__tabs {
+  display: flex;
+  flex: 0 0 auto;
+  border-bottom: 1px solid rgba(80, 160, 255, 0.2);
+}
+
+.HelmConsole__tab {
+  flex: 1;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(136, 204, 255, 0.5);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+
+  &:hover {
+    color: rgba(136, 204, 255, 0.8);
+    background: rgba(80, 160, 255, 0.05);
+  }
+
+  &--active {
+    color: #8cf;
+    border-bottom-color: #4af;
+    background: rgba(80, 160, 255, 0.08);
+  }
+}
+
+.HelmConsole__tab-content {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(80, 160, 255, 0.2);
+    border-radius: 2px;
+  }
+}
+
+.HelmPanel__section {
+  margin-bottom: 12px;
+}
+
+.HelmPanel__section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: rgba(136, 204, 255, 0.4);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(80, 160, 255, 0.1);
+
+  &--spaced {
+    margin-top: 10px;
+  }
+}
+
+.HelmPanel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+}
+
+.HelmPanel__label {
+  color: rgba(200, 208, 224, 0.6);
+  font-size: 12px;
+}
+
+.HelmPanel__value {
+  color: #c8d0e0;
+  font-size: 12px;
+  text-align: right;
+}
+
+.HelmPanel__bar {
+  height: 16px;
+  background: rgba(40, 50, 70, 0.6);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  min-width: 120px;
+}
+
+.HelmPanel__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+
+  &--good {
+    background: linear-gradient(90deg, #2d8a4e, #3dbc6a);
+  }
+  &--average {
+    background: linear-gradient(90deg, #c49a2a, #e8b830);
+  }
+  &--bad {
+    background: linear-gradient(90deg, #c43030, #e84040);
+  }
+}
+
+.HelmPanel__bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.HelmPanel__engine-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.HelmPanel__engine-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.HelmPanel__engine-telemetry {
+  font-size: 10px;
+  font-family: inherit;
+  padding-left: 2px;
+  letter-spacing: 0.02em;
+
+  &--muted {
+    color: rgba(200, 208, 224, 0.45);
+  }
+}
+
+.HelmPanel__engine-telemetry-sep {
+  color: rgba(200, 208, 224, 0.35);
+  margin: 0 4px;
+}
+
+.HelmPanel__engine-toggle {
+  background: rgba(30, 40, 55, 0.8);
+  border: 1px solid rgba(80, 160, 255, 0.2);
+  border-radius: 3px;
+  color: rgba(200, 208, 224, 0.7);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(40, 55, 75, 0.8);
+    border-color: rgba(80, 160, 255, 0.4);
+  }
+
+  &--on {
+    color: #3dbc6a;
+    border-color: rgba(61, 188, 106, 0.3);
+  }
+}
+
+.HelmPanel__engine-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(100, 110, 130, 0.5);
+
+  &--on {
+    background: #3dbc6a;
+    box-shadow: 0 0 4px rgba(61, 188, 106, 0.5);
+  }
+}
+
+.HelmPanel__engine-fuel {
+  flex: 1;
+  min-width: 0;
+}
+
+.HelmPanel__radar-empty {
+  color: rgba(200, 208, 224, 0.3);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.HelmPanel__radar-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(80, 160, 255, 0.06);
+}
+
+.HelmPanel__radar-name {
+  color: #c8d0e0;
+  font-size: 12px;
+}
+
+.HelmPanel__radar-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.HelmPanel__btn {
+  background: rgba(30, 40, 55, 0.8);
+  border: 1px solid rgba(80, 160, 255, 0.2);
+  border-radius: 3px;
+  color: rgba(200, 208, 224, 0.7);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(40, 55, 75, 0.8);
+    border-color: rgba(80, 160, 255, 0.4);
+    color: #c8d0e0;
+  }
+
+  &--danger {
+    border-color: rgba(200, 60, 60, 0.3);
+    color: rgba(230, 100, 100, 0.8);
+
+    &:hover {
+      border-color: rgba(200, 60, 60, 0.5);
+      color: #e86464;
+    }
+  }
+}

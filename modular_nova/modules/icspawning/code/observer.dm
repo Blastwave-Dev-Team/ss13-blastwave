@@ -1,5 +1,27 @@
 // NOVA MODULE IC-SPAWNING https://github.com/Skyrat-SS13/Skyrat-tg/pull/104
 
+ADMIN_VERB(spawn_bluespace_tech, R_SPAWN, "Spawn as Bluespace Tech", "Replace your current mob with a consistent human wearing the Bluespace Tech outfit.", ADMIN_CATEGORY_DEBUG)
+	var/mob/previous_mob = user.mob
+	var/turf/spawn_turf = get_turf(previous_mob)
+	if(!spawn_turf)
+		to_chat(user, span_warning("You need a valid turf to spawn a Bluespace Tech."))
+		return
+
+	var/mob/living/carbon/human/consistent/bluespace_tech = new(spawn_turf)
+	bluespace_tech.equipOutfit(/datum/outfit/debug/bst)
+	if(previous_mob.mind)
+		previous_mob.mind.transfer_to(bluespace_tech, TRUE)
+	else
+		bluespace_tech.PossessByPlayer(user.key)
+	if(user.mob != bluespace_tech)
+		qdel(bluespace_tech)
+		to_chat(user, span_warning("Unable to transfer control to the Bluespace Tech."))
+		return
+
+	QDEL_IN(previous_mob, 1)
+	message_admins("[key_name_admin(user)] spawned and assumed control of a Bluespace Tech at [ADMIN_VERBOSEJMP(bluespace_tech)].")
+	log_admin("[key_name(user)] spawned and assumed control of a Bluespace Tech at [AREACOORD(bluespace_tech)].")
+
 /mob/dead/observer/CtrlClickOn(mob/user)
 	quickicspawn(user)
 

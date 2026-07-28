@@ -91,6 +91,10 @@
 	var/list/books_in_area = SSlibrary.books_by_area[area_type]
 	for(var/obj/item/book/book in contents)
 		var/datum/book_info/info = book.book_data
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - skip books missing book_data during ruin map init
+		if(!info)
+			continue
+		// BLASTWAVE EDIT ADDITION END
 		books_in_area += info.return_copy()
 
 /obj/structure/bookcase/examine(mob/user)

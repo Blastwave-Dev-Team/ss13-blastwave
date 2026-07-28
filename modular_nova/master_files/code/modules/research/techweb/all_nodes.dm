@@ -41,6 +41,17 @@
 	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_2_POINTS)
 	announce_channels = list(RADIO_CHANNEL_SECURITY)
 
+/datum/techweb_node/overmap_landing_programmable
+	id = TECHWEB_NODE_OVERMAP_LANDING_PROGRAMMABLE
+	display_name = "Programmable Landing Authority"
+	description = "ID-programmable landing zone controllers for docking pads."
+	hidden = TRUE
+	prereq_ids = list(TECHWEB_NODE_SHUTTLE_ENG)
+	design_ids = list(
+		"overmap_landing_controller_programmable",
+	)
+	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_1_POINTS)
+
 /datum/techweb_node/adv_vision
 	id = TECHWEB_NODE_ADVANCED_VISION
 	display_name = "Combat Cybernetic Eyes"

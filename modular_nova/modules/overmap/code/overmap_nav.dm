@@ -1,0 +1,253 @@
+// MODULE ID: OVERMAP
+// Nav console - shuttle docker subtype that reads its Z-lock from the
+// bound ship's pending docking state. The helm writes that state via
+// `ship.set_nav_target()` when no automatic dock is found; the nav
+// picks it up lazily when the player opens the console.
+//
+// On LZ-backed site Zs the remote eye is confined to landing-zone bboxes
+// so designating a pad cannot free-cam the whole ruin layout.
+
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav
+	name = "astrogation landing console"
+	desc = "Designates a landing pad on whatever astrogation body the bound shuttle is currently next to."
+	circuit = /obj/item/circuitboard/computer/shuttle/overmap_nav
+	whitelist_turfs = list(
+		/turf/open/space,
+		/turf/open/floor/plating,
+		/turf/open/lava,
+		/turf/open/openspace,
+		/turf/open/misc,
+	)
+	locked_traits = list(ZTRAIT_RESERVED, ZTRAIT_CENTCOM)
+	/// The mobile docking port this nav is bound to. Set by `link_shuttle()`.
+	var/obj/docking_port/mobile/linked_port
+	/// Cached landing zones valid for the current target. Rebuilt on sync.
+	var/list/obj/effect/landmark/overmap_landing_zone/target_zones
+
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/Initialize(mapload)
+	. = ..()
+	LAZYADD(SSovermap.navs, src)
+	actions += new /datum/action/innate/camera_jump/landing_zone(src)
+	if(SSovermap.initialized)
+		link_shuttle()
+
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/Destroy()
+	LAZYREMOVE(SSovermap.navs, src)
+	linked_port = null
+	target_zones = null
+	return ..()
+
+/// Bind this nav to the shuttle that contains it.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/link_shuttle()
+	linked_port = SSshuttle.get_containing_shuttle(src)
+	if(!linked_port)
+		return
+	shuttleId = linked_port.shuttle_id
+	// Mirror connect_to_shuttle(): without this the designated port registers
+	// with the fallback id "dock" and the helm's "[shuttle_id]_custom" lookup
+	// can never find it.
+	shuttlePortId = "[linked_port.shuttle_id]_custom"
+	shuttlePortName = "[linked_port.name] landing pad"
+
+/// Before opening the camera eye, pull the current nav-docking state from
+/// the bound ship and apply it to `z_lock` / `jump_to_ports`. This replaces
+/// the old push-based `set_target_level()` cross-machine call.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/attack_hand(mob/user, list/modifiers)
+	if(!linked_port)
+		link_shuttle()
+	var/obj/structure/overmap/ship/simulated/ship = linked_port?.current_ship
+	if(ship)
+		sync_from_ship(ship)
+	. = ..()
+	if(eyeobj && length(target_zones))
+		var/turf/center = target_zones[1].get_center_turf()
+		if(center)
+			eyeobj.setLoc(center, TRUE)
+
+/// Read the ship's pending docking state and configure this console's
+/// z_lock, jump_to_ports, and landing zone cache accordingly.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/sync_from_ship(obj/structure/overmap/ship/simulated/ship)
+	if(!length(ship.nav_dock_zs))
+		// Adjacent LZ-backed body: allow surveying / designating a pad without
+		// a prior failed automatic-dock attempt.
+		for(var/obj/structure/overmap/other as anything in ship.close_overmap_objects)
+			if(!istype(other, /obj/structure/overmap/level) && !istype(other, /obj/structure/overmap/dynamic))
+				continue
+			var/list/zs = ship.resolve_nav_target_zs(other)
+			if(!length(zs) || !length(ship.get_landing_zones_for(other)))
+				continue
+			ship.set_nav_target(other, zs, list())
+			break
+	if(!length(ship.nav_dock_zs))
+		z_lock = list()
+		target_zones = null
+		return
+	z_lock = ship.nav_dock_zs.Copy()
+	for(var/port_id in jump_to_ports.Copy())
+		remove_jumpable_port(port_id)
+	for(var/dock_id in ship.nav_dock_ids)
+		add_jumpable_port(dock_id)
+	discover_landing_zones(ship)
+
+/// Find landing zones on the target Zs that the bound shuttle can fit within.
+/// Prefers the ship's `get_landing_zones_for` so uncontrolled sites expose a
+/// single pinned LZ to both the helm and this camera.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/discover_landing_zones(obj/structure/overmap/ship/simulated/ship)
+	target_zones = list()
+	if(!shuttle_port && shuttleId)
+		shuttle_port = SSshuttle.getShuttle(shuttleId)
+	if(!shuttle_port)
+		return
+	if(ship?.nav_dock_target)
+		target_zones = ship.get_landing_zones_for(ship.nav_dock_target)
+		return
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
+		if(!(zone.z in z_lock))
+			continue
+		if(!zone.can_fit_shuttle(shuttle_port.width, shuttle_port.height))
+			continue
+		// Skip zones already occupied by another shuttle so we never route onto
+		// an occupied pad; passing shuttle_port excludes the navigating shuttle.
+		if(zone.get_occupant(shuttle_port))
+			continue
+		target_zones += zone
+
+/// Override checkLandingSpot to additionally validate that the shuttle bbox
+/// is entirely within a landing zone (if zones exist on the target Z).
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/checkLandingSpot()
+	. = ..()
+	if(. != SHUTTLE_DOCKER_LANDING_CLEAR)
+		return
+	if(!length(target_zones))
+		return
+	var/mob/eye/camera/remote/shuttle_docker/the_eye = eyeobj
+	var/turf/eyeturf = get_turf(the_eye)
+	if(!eyeturf)
+		return SHUTTLE_DOCKER_BLOCKED
+	var/list/bounds = shuttle_port.return_coords(eyeturf.x - x_offset, eyeturf.y - y_offset, the_eye.dir)
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in target_zones)
+		if(zone.contains_bbox(bounds[1], bounds[2], bounds[3], bounds[4], eyeturf.z))
+			return SHUTTLE_DOCKER_LANDING_CLEAR
+	return SHUTTLE_DOCKER_BLOCKED
+
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/CreateEye()
+	shuttle_port = SSshuttle.getShuttle(shuttleId)
+	if(QDELETED(shuttle_port))
+		shuttle_port = null
+		return
+
+	eyeobj = new /mob/eye/camera/remote/shuttle_docker/overmap_nav(null, src)
+	var/mob/eye/camera/remote/shuttle_docker/the_eye = eyeobj
+	the_eye.setDir(shuttle_port.dir)
+	var/turf/origin = locate(shuttle_port.x + x_offset, shuttle_port.y + y_offset, shuttle_port.z)
+	for(var/area/shuttle_area as anything in shuttle_port.shuttle_areas)
+		for(var/list/zlevel_turfs as anything in shuttle_area.get_zlevel_turf_lists())
+			for(var/turf/shuttle_turf as anything in zlevel_turfs)
+				if(shuttle_turf.z != origin.z)
+					continue
+				var/image/I = image('icons/effects/alphacolors.dmi', origin, "red")
+				var/x_off = shuttle_turf.x - origin.x
+				var/y_off = shuttle_turf.y - origin.y
+				I.loc = locate(origin.x + x_off, origin.y + y_off, origin.z)
+				I.layer = ABOVE_NORMAL_TURF_LAYER
+				SET_PLANE(I, ABOVE_GAME_PLANE, shuttle_turf)
+				I.mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+				the_eye.placement_images[I] = list(x_off, y_off)
+	gatherNavComputerIcons()
+	return TRUE
+
+/// Returns TRUE if `checked` lies inside any target zone (with camera margin).
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/turf_in_camera_bounds(turf/checked)
+	if(!checked || !length(target_zones))
+		return TRUE
+	var/margin = OVERMAP_SITE_CAMERA_MARGIN
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in target_zones)
+		if(checked.z != zone.z)
+			continue
+		if(checked.x < zone.x - margin || checked.y < zone.y - margin)
+			continue
+		if(checked.x > zone.x + zone.zone_width - 1 + margin)
+			continue
+		if(checked.y > zone.y + zone.zone_height - 1 + margin)
+			continue
+		return TRUE
+	return FALSE
+
+/// Nearest turf inside the allowed LZ union for a rejected eye move.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/clamp_eye_turf(turf/destination)
+	if(!destination || !length(target_zones))
+		return destination
+	if(turf_in_camera_bounds(destination))
+		return destination
+	var/best
+	var/best_dist = INFINITY
+	var/margin = OVERMAP_SITE_CAMERA_MARGIN
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in target_zones)
+		if(destination.z != zone.z)
+			continue
+		var/cx = clamp(destination.x, zone.x - margin, zone.x + zone.zone_width - 1 + margin)
+		var/cy = clamp(destination.y, zone.y - margin, zone.y + zone.zone_height - 1 + margin)
+		var/turf/candidate = locate(cx, cy, zone.z)
+		if(!candidate)
+			continue
+		var/dist = get_dist(destination, candidate)
+		if(dist < best_dist)
+			best_dist = dist
+			best = candidate
+	return best || target_zones[1].get_center_turf() || destination
+
+// --- LZ-clamped shuttle docker eye ---
+
+/mob/eye/camera/remote/shuttle_docker/overmap_nav
+
+/mob/eye/camera/remote/shuttle_docker/overmap_nav/setLoc(turf/destination, force_update = FALSE)
+	var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/console = origin_ref?.resolve()
+	if(istype(console) && length(console.target_zones))
+		destination = console.clamp_eye_turf(destination)
+	return ..()
+
+// --- Landing Zone Jump Action ---
+
+/datum/action/innate/camera_jump/landing_zone
+	name = "Jump to Landing Zone"
+	button_icon_state = "camera_jump"
+
+/datum/action/innate/camera_jump/landing_zone/Activate()
+	if(QDELETED(owner) || !isliving(owner))
+		return
+	var/mob/eye/camera/remote/remote_eye = owner.remote_control
+	if(!remote_eye)
+		return
+	var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/console = remote_eye.origin_ref?.resolve()
+	if(!istype(console))
+		return
+
+	if(!length(console.target_zones))
+		to_chat(owner, span_warning("No landing zones detected on the target body."))
+		playsound(console, 'sound/machines/terminal/terminal_prompt_deny.ogg', 25, FALSE)
+		return
+
+	playsound(console, 'sound/machines/terminal/terminal_prompt.ogg', 25, FALSE)
+	var/list/choices = list()
+	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in console.target_zones)
+		choices["[zone.zone_name] ([zone.zone_width]x[zone.zone_height])"] = zone
+
+	var/selected = tgui_input_list(owner, "Choose a landing zone", "Landing Zones", choices)
+	if(isnull(selected))
+		playsound(console, 'sound/machines/terminal/terminal_prompt_deny.ogg', 25, FALSE)
+		return
+	if(QDELETED(src) || QDELETED(owner) || !isliving(owner))
+		return
+
+	var/obj/effect/landmark/overmap_landing_zone/chosen = choices[selected]
+	if(!chosen)
+		return
+	var/turf/center = chosen.get_center_turf()
+	if(!center)
+		return
+
+	playsound(console, 'sound/machines/terminal/terminal_prompt_confirm.ogg', 25, FALSE)
+	remote_eye.setLoc(center)
+	to_chat(owner, span_notice("Jumped to [chosen.zone_name]."))
+	owner.overlay_fullscreen("flash", /atom/movable/screen/fullscreen/flash/static)
+	owner.clear_fullscreen("flash", 3)

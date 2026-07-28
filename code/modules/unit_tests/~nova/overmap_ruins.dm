@@ -1,0 +1,172 @@
+// MODULE ID: OVERMAP
+// Unit tests for the overmap-controlled space ruin spawning system.
+
+/// Verify that no crosslinked space ruin Z-levels exist when overmap_space_ruins is TRUE.
+/datum/unit_test/overmap_no_crosslinked_space_ruins
+
+/datum/unit_test/overmap_no_crosslinked_space_ruins/Run()
+	if(!SSmapping.current_map.overmap_space_ruins)
+		return
+	var/list/space_ruin_zs = SSmapping.levels_by_trait(ZTRAIT_SPACE_RUINS)
+	TEST_ASSERT_EQUAL(length(space_ruin_zs), 0, "Found [length(space_ruin_zs)] crosslinked space ruin Z-levels when overmap_space_ruins is enabled.")
+
+/// Verify that named site POIs are created when overmap_space_ruins is TRUE.
+/datum/unit_test/overmap_sites_exist
+
+/datum/unit_test/overmap_sites_exist/Run()
+	if(!SSmapping.current_map.overmap_space_ruins)
+		return
+	var/found_sites = 0
+	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
+		found_sites++
+		TEST_ASSERT(length(site.linked_levels), "Site [site.id] has no linked_levels.")
+		TEST_ASSERT(site.preloaded, "Site [site.id] was not preloaded.")
+	TEST_ASSERT(found_sites > 0, "No overmap site POIs found despite overmap_space_ruins being enabled.")
+
+/// Verify each named site owns a unique full Z-level (no shared reservations).
+/datum/unit_test/overmap_site_footprints_disjoint
+
+/datum/unit_test/overmap_site_footprints_disjoint/Run()
+	if(!SSmapping.current_map.overmap_space_ruins)
+		return
+
+	var/list/sites = list()
+	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
+		sites += site
+
+	TEST_ASSERT(length(sites) > 0, "No overmap sites found.")
+
+	var/list/seen_zs = list()
+	for(var/obj/structure/overmap/level/site/site as anything in sites)
+		TEST_ASSERT(length(site.linked_levels), "Site [site.id] has no linked_levels.")
+		var/site_z = site.linked_levels[1]
+		TEST_ASSERT(!(site_z in seen_zs), "Site [site.id] shares Z[site_z] with another site POI.")
+		seen_zs += site_z
+		TEST_ASSERT(length(site.member_templates), "Site [site.id] has no member_templates.")
+
+/**
+ * A corpse spawner in an airless ruin should not read as a mapping error.
+ *
+ * The spawner builds its mob alive and kills it on the next line, so for that one
+ * line there is something breathing in whatever the ruin has - vacuum, for the
+ * airless ones. A ruin loaded before SSair comes up never shows this, because the
+ * maploaded-environment assertions wait for the subsystem and find a corpse by the
+ * time they run. Sites and encounters load long after that and are checked inline,
+ * which turned a stock space ruin into a failed CI round.
+ */
+/datum/unit_test/overmap_site_corpse_atmos
+
+/datum/unit_test/overmap_site_corpse_atmos/Run()
+	var/turf/open/pad = run_loc_floor_bottom_left
+	TEST_ASSERT(istype(pad), "Corpse atmos test requires an open floor.")
+
+	// The airless ruins this reproduces, on the mob the one that broke CI ships.
+	var/datum/gas_mixture/breathable = pad.air.copy()
+	var/datum/gas_mixture/vacuum = new()
+	vacuum.temperature = TCMB
+	pad.air.copy_from(vacuum)
+
+	var/mob/living/basic/headslug/beakless/subject = allocate(/mob/living/basic/headslug/beakless)
+	var/datum/element/atmos_requirements/requirement = SSdcs.GetElement(list(
+		/datum/element/atmos_requirements,
+		subject.habitable_atmos,
+		subject.unsuitable_atmos_damage,
+	))
+	TEST_ASSERT(istype(requirement), "The test mob should carry the atmos requirements element.")
+	// Otherwise a tile that turned out to be survivable would pass this for the
+	// wrong reason, and the assertion below would be measuring nothing.
+	TEST_ASSERT(!requirement.is_breathable_atmos(subject), "The test tile should be genuinely unbreathable.")
+
+	// Standing where a corpse spawner is working is the whole of the exemption: the
+	// spawner does not leave its tile until the mob it made is dead.
+	allocate(/obj/effect/mob_spawn/corpse/headcrab, pad, TRUE)
+	var/runtimes_before = GLOB.total_runtimes
+	requirement.check_safe_environment(subject)
+	var/runtimes_after = GLOB.total_runtimes
+
+	pad.air.copy_from(breathable)
+
+	TEST_ASSERT_EQUAL(runtimes_after, runtimes_before, "A mob a corpse spawner is in the middle of making was reported as mapped somewhere it cannot survive.")
+
+/// Verify that installation_stealth is correctly set on main and des_two.
+/datum/unit_test/overmap_stealth_flags
+
+/datum/unit_test/overmap_stealth_flags/Run()
+	if(!SSovermap.main)
+		return
+	TEST_ASSERT(SSovermap.main.installation_stealth, "Main station POI lacks installation_stealth.")
+	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
+		if(site.id == DES_TWO_OVERMAP_OBJECT_ID)
+			TEST_ASSERT(site.installation_stealth, "DS2 site lacks installation_stealth.")
+			return
+
+/// Verify can_view_installation blocks cross-faction pairs correctly.
+/datum/unit_test/overmap_stealth_gating
+
+/datum/unit_test/overmap_stealth_gating/Run()
+	if(!SSovermap.main)
+		return
+	// NT ship should always see main
+	var/obj/structure/overmap/level/main/main_poi = SSovermap.main
+	TEST_ASSERT(SSovermap.can_view_installation(main_poi, main_poi), "NT POI cannot see itself.")
+
+	// Find DS2 site for cross-faction testing
+	var/obj/structure/overmap/level/site/ds2_site
+	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
+		if(site.id == DES_TWO_OVERMAP_OBJECT_ID)
+			ds2_site = site
+			break
+	if(!ds2_site)
+		return
+
+	// NT should never see DS2 in v1
+	TEST_ASSERT(!SSovermap.can_view_installation(main_poi, ds2_site), "NT POI can see DS2 (should be blocked in v1).")
+
+	// DS2 should not see NT before reveal
+	SSovermap.station_revealed_to_ds2 = FALSE
+	TEST_ASSERT(!SSovermap.can_view_installation(ds2_site, main_poi), "DS2 can see NT before syndicate reveal.")
+
+	// After reveal, DS2 should see NT
+	SSovermap.station_revealed_to_ds2 = TRUE
+	TEST_ASSERT(SSovermap.can_view_installation(ds2_site, main_poi), "DS2 cannot see NT after syndicate reveal.")
+	SSovermap.station_revealed_to_ds2 = FALSE
+
+/// Verify the distress beacon can be instantiated and has correct TGUI interface.
+/datum/unit_test/overmap_distress_beacon
+
+/datum/unit_test/overmap_distress_beacon/Run()
+	var/obj/machinery/distress_beacon/beacon = allocate(/obj/machinery/distress_beacon)
+	TEST_ASSERT_EQUAL(beacon.transmitting, FALSE, "Beacon should start not transmitting.")
+
+/// Verify that ship.set_nav_target propagates to the nav console's z_lock on open.
+/datum/unit_test/overmap_nav_camera_targeting
+
+/datum/unit_test/overmap_nav_camera_targeting/Run()
+	if(!SSovermap.initialized)
+		return
+
+	var/obj/structure/overmap/ship/simulated/ship = locate() in SSovermap.overmap_objects
+	if(!ship?.shuttle)
+		return
+
+	var/target_z = 1
+	var/list/station_zs = SSmapping.levels_by_trait(ZTRAIT_STATION)
+	if(length(station_zs))
+		target_z = station_zs[1]
+
+	var/list/test_dock_ids = list("test_dock_alpha", "test_dock_beta")
+	ship.set_nav_target(SSovermap.main, list(target_z), test_dock_ids)
+
+	TEST_ASSERT_EQUAL(ship.nav_dock_zs[1], target_z, "Ship nav_dock_zs[1] should equal target Z after set_nav_target.")
+
+	var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav = locate() in SSovermap.navs
+	if(!nav)
+		return
+	if(!nav.linked_port)
+		nav.link_shuttle()
+	if(nav.linked_port?.current_ship != ship)
+		return
+
+	nav.sync_from_ship(ship)
+	TEST_ASSERT_EQUAL(length(nav.z_lock), 1, "Nav z_lock should have 1 entry after sync.")
+	TEST_ASSERT_EQUAL(nav.z_lock[1], target_z, "Nav z_lock[1] should equal target body's Z, not shuttle's transit Z.")

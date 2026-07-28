@@ -655,6 +655,19 @@ ADMIN_VERB(load_away_mission, R_FUN, "Load Away Mission", "Load a specific away 
 				return reserve
 	QDEL_NULL(reserve)
 
+// BLASTWAVE EDIT ADDITION START - OVERMAP - claim ruin turfs after template load without re-emptying
+/// Mark turfs as belonging to an existing reservation after map load.
+/// Does not re-empty turfs or change turf flags.
+/datum/controller/subsystem/mapping/proc/claim_turfs_for_reservation(datum/turf_reservation/reserve, list/turfs)
+	if(!reserve || !length(turfs))
+		return
+	for(var/turf/T as anything in turfs)
+		if(!isturf(T))
+			continue
+		unused_turfs["[T.z]"] -= T
+		used_turfs[T] = reserve
+// BLASTWAVE EDIT ADDITION END
+
 ///Sets up a z level as reserved
 ///This is not for wiping reserved levels, use wipe_reservations() for that.
 ///If this is called after SSatom init, it will call Initialize on all turfs on the passed z, as its name promises

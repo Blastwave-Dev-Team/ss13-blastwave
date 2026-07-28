@@ -3,6 +3,9 @@
 	"map_name": "Wawastation",
 	"map_path": "map_files/wawastation",
 	"map_file": "wawastation.dmm",
+	"space_ruin_levels": 0,
+	"space_empty_levels": 0,
+	"overmap_space_ruins": true,
 	"give_players_hooks": 1,
 	"shuttles": {
 		"cargo": "cargo_box",

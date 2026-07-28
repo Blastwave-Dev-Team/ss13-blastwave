@@ -45,6 +45,14 @@
 /turf/open/floor/plating/attackby(obj/item/C, mob/user, list/modifiers)
 	if(..())
 		return
+	// BLASTWAVE EDIT ADDITION START - SHUTTLE_CONSTRUCTION
+	if(istype(C, /obj/item/stack/rods/shuttle))
+		if(build_shuttle_frame_with_rods(C, user))
+			return
+	if(istype(C, /obj/item/stack/tile))
+		if(shuttle_frame_build_plating_with_tile(C, user))
+			return
+	// BLASTWAVE EDIT ADDITION END
 	if(istype(C, /obj/item/stack/rods) && attachment_holes)
 		if(broken || burnt)
 			if(!iscyborg(user))
