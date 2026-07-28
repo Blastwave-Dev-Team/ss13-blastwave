@@ -1,0 +1,13 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Overmap starmap, fly shuttles between station, mining, named ruin sites, and dynamic encounters from the helm console"
+  - rscadd: "Rust `overmap_render` module for live shuttle hull sprites on the overmap"
+  - rscadd: "Helm console UI rewrite with sub-tile movement, radar, and EVE-style heading/throttle controls"
+  - rscadd: "Fuel injector machinery and propellant chamber for overmap thrust / ISP gameplay"
+  - rscadd: "Player-built landing zones via corner beacons and landing controller console"
+  - rscadd: "NT distress beacon and deployable syndicate station beacon (reveals NT to DS-2 when activated)"
+  - rscadd: "Shuttle frame rods can be anchored on station floors to construct shuttles indoors, while preserving landing pads after departure"
+  - image: "Ported Whitesands overmap icons and added fuel/landing beacon sprites"
+  - map: "Enabled overmap space ruin mode on MetaStation, Delta, Tramstation, and Blueshift map configs"
+  - config: "Overmap generator, named-site budget, and `overmap_space_ruins` map JSON settings"
