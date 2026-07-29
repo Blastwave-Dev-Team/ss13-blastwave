@@ -165,6 +165,31 @@ CREATE TABLE `whitelist` (
 
 
 --
+-- Table structure for table `player_ships`.
+--
+DROP TABLE IF EXISTS `player_ships`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `player_ships` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ckey` VARCHAR(32) NOT NULL,
+  `ship_name` VARCHAR(64) NOT NULL,
+  `map_path` VARCHAR(255) NOT NULL DEFAULT '',
+  `tile_count` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `lockbox` JSON NULL,
+  `checked_out` BOOLEAN NOT NULL DEFAULT FALSE,
+  `filed_round_id` INT(11) UNSIGNED NULL,
+  `retrieved_round_id` INT(11) UNSIGNED NULL,
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_modified` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (`id`),
+  KEY `idx_player_ships_ckey_deleted` (`ckey`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
 -- Procedure to update player ckeys in the database.
 --
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

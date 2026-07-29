@@ -208,6 +208,10 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	var/board_path
 	/// Mapping-helper family delegated to the completed target.
 	var/helper_type
+	/// Boolean var on the finished target to the mapping helper that sets it.
+	/// Read in reverse by `describe()` to re-emit helpers a teardown cannot
+	/// otherwise recover, since a helper deletes itself once it has fired.
+	var/list/helper_reversal
 	/// Construction phase for direct generation and placement.
 	var/phase = SHIPYARD_PHASE_FINAL
 	/// Suppress a standalone terminal when its tile already contains an APC.
@@ -329,6 +333,79 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		resolved_materials,
 		required_parts,
 	)
+
+/**
+ * Reverse of `add_to_plan()`: describe one live atom as a map cell member.
+ *
+ * Returns `list("path", "vars", "helpers")`, or null when the family leaves
+ * nothing behind for a saved hull to carry. The strategies divide the same way
+ * they do on the way in, with one exception: `SHIPYARD_ROUTE_EXPAND` has no
+ * reversal here because a spawner is gone by the time anything is standing.
+ * Collapsing an expansion back into its spawner is a decision about a whole
+ * tile rather than one atom, so `shipyard_collapse_spawners()` owns it.
+ */
+/datum/shipyard_route/proc/describe(atom/target)
+	var/route_strategy = get_strategy(target.type)
+	// Skipped content was never built, and omitted content is re-derived by
+	// registration. Either way, writing it into the map would be inventing it.
+	if(route_strategy == SHIPYARD_ROUTE_SKIP || route_strategy == SHIPYARD_ROUTE_OMIT)
+		return null
+
+	var/list/described_vars = list()
+	var/list/described_helpers = list()
+	for(var/var_name in helper_reversal)
+		if(!(var_name in target.vars) || !target.vars[var_name])
+			continue
+		described_helpers += list(list("path" = helper_reversal[var_name], "vars" = list()))
+	target.shipyard_describe(described_vars, described_helpers)
+	return list(
+		"path" = target.type,
+		"vars" = described_vars,
+		"helpers" = described_helpers,
+	)
+
+/// Expansion signature to the spawner path that produces it, for collapsing a
+/// standing set of structures back into the single entry a mapper wrote.
+GLOBAL_LIST_INIT(shipyard_spawner_signatures, build_shipyard_spawner_signatures())
+
+/proc/build_shipyard_spawner_signatures()
+	var/list/signatures = list()
+	for(var/target_type in GLOB.shipyard_routes)
+		var/datum/shipyard_route/route = GLOB.shipyard_routes[target_type]
+		if(route.strategy != SHIPYARD_ROUTE_EXPAND || !length(route.expansion))
+			continue
+		signatures[target_type] = route.expansion.Copy()
+	return signatures
+
+/**
+ * Collapse described cell members back into the spawners they came from.
+ *
+ * A window is a grille plus a pane on the way out and a single spawner entry on
+ * the way in, and only an exact match collapses: a grille standing on its own
+ * is a hull someone has not finished glazing, and must survive as one.
+ */
+/proc/shipyard_collapse_spawners(list/members)
+	var/list/signatures = GLOB.shipyard_spawner_signatures
+	for(var/spawner_path in signatures)
+		var/list/expansion = signatures[spawner_path]
+		var/list/matched = list()
+		for(var/expanded_path in expansion)
+			var/found = null
+			for(var/list/member as anything in members)
+				if(member["path"] != expanded_path || (member in matched))
+					continue
+				found = member
+				break
+			if(!found)
+				matched = null
+				break
+			matched += list(found)
+		if(!length(matched))
+			continue
+		for(var/list/member as anything in matched)
+			members -= list(member)
+		members += list(list("path" = spawner_path, "vars" = list(), "helpers" = list()))
+	return members
 
 // --- Map-only and cosmetic content -----------------------------------------
 
@@ -467,6 +544,7 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 /// that stock instead.
 /datum/shipyard_route/machinery
 	target_type = /obj/machinery
+	helper_type = /obj/effect/mapping_helpers/machine_parts
 	/// Strategy for members that do have a board to assemble around.
 	var/board_strategy = SHIPYARD_ROUTE_MACHINE
 
@@ -549,6 +627,27 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	target_type = /obj/structure/grille
 	strategy = SHIPYARD_ROUTE_PLACE
 	phase = SHIPYARD_PHASE_FRAMES
+
+// --- Intermediate construction ----------------------------------------------
+//
+// A girder without a wall or a frame without a board is a hull someone has not
+// finished, which is a valid thing to save and reprint. These land in the
+// framing pass so a partial hull comes back up in the same dependency order the
+// finished article is built in.
+
+/datum/shipyard_route/girder
+	target_type = /obj/structure/girder
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2)
+	phase = SHIPYARD_PHASE_FRAMES
+
+/// Covers computer frames as well as machine ones: both are welded from the
+/// same stock, and neither has been billed for the glass or the board a
+/// finished unit would carry.
+/datum/shipyard_route/frame
+	target_type = /obj/structure/frame
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT * 5)
+	phase = SHIPYARD_PHASE_FRAMES
+	helper_type = /obj/effect/mapping_helpers/frame_state
 
 // --- Fixtures and furniture -------------------------------------------------
 
@@ -641,6 +740,18 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	component_inputs = list(/obj/item/electronics/apc)
 	helper_type = /obj/effect/mapping_helpers/apc
 	wall_mounted = TRUE
+	// Every apc helper is a one-shot switch that leaves its flag set on the
+	// unit, so the flag is a faithful record of the helper that threw it.
+	helper_reversal = list(
+		"away_general_access" = /obj/effect/mapping_helpers/apc/away_general_access,
+		"cell_10k" = /obj/effect/mapping_helpers/apc/cell_10k,
+		"cell_5k" = /obj/effect/mapping_helpers/apc/cell_5k,
+		"cut_AI_wire" = /obj/effect/mapping_helpers/apc/cut_AI_wire,
+		"full_charge" = /obj/effect/mapping_helpers/apc/full_charge,
+		"no_charge" = /obj/effect/mapping_helpers/apc/no_charge,
+		"syndicate_access" = /obj/effect/mapping_helpers/apc/syndicate_access,
+		"unlocked" = /obj/effect/mapping_helpers/apc/unlocked,
+	)
 
 /datum/shipyard_route/apc/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
 	. = ..()

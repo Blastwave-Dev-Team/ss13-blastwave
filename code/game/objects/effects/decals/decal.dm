@@ -78,6 +78,7 @@
 	var/turf/T = loc
 	if(!istype(T)) //you know this will happen somehow
 		CRASH("Turf decal initialized in an object/nullspace")
+	shipyard_note_turf_decal(src) // BLASTWAVE EDIT ADDITION - OVERMAP - index this appearance so a saved hull can name it again
 	T.AddElement(/datum/element/decal, icon, icon_state, dir, null, layer, alpha, color, null, FALSE, null)
 	return INITIALIZE_HINT_QDEL
 

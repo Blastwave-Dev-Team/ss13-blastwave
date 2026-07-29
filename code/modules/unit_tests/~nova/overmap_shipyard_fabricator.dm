@@ -1316,6 +1316,186 @@
 	TEST_ASSERT_EQUAL(apc.terminal.master, apc, "The terminal should answer to the APC that claimed it.")
 	TEST_ASSERT_EQUAL(apc.terminal.powernet, east_cable.powernet, "The APC's terminal should end up on the hull's grid.")
 
+/**
+ * A hull walked back into a map has to describe the ship that was standing.
+ *
+ * Two properties matter, and byte equality against the source blueprint is
+ * neither of them: a printed hull filters its variables through what the
+ * printer can read back, and orders its key dictionary by where things ended up
+ * rather than where a mapper wrote them. What has to hold is that the manifest
+ * parsed back out builds the same ship, and that the export is a fixed point -
+ * a generation that drifts drifts every time the ship is filed away.
+ */
+/datum/unit_test/overmap_shipyard_roundtrip
+	priority = TEST_LONGER
+	var/datum/turf_reservation/roundtrip_reservation
+	var/obj/docking_port/mobile/registered_port
+	var/export_path
+
+/datum/unit_test/overmap_shipyard_roundtrip/Destroy()
+	if(export_path)
+		fdel(file(export_path))
+	// Hand the hull turfs back to the area they came from before releasing the
+	// reservation. Dropping the port on its own leaves them owned by a shuttle
+	// area that nothing is holding open any more.
+	if(!QDELETED(registered_port))
+		registered_port.jumpToNullSpace()
+	registered_port = null
+	QDEL_NULL(roundtrip_reservation)
+	return ..()
+
+/// What the walk found on one tile, for a failure message to point at.
+/datum/unit_test/overmap_shipyard_roundtrip/proc/describe_cell(datum/ship_teardown/teardown, rel_x, rel_y)
+	var/list/cell = teardown.cells["[rel_x],[rel_y]"]
+	if(!cell)
+		return "no cell at all"
+	var/list/described = list("[cell["turf_path"]]")
+	for(var/list/member as anything in cell["objects"])
+		described += "[member["path"]]"
+	return jointext(described, " + ")
+
+/datum/unit_test/overmap_shipyard_roundtrip/Run()
+	roundtrip_reservation = SSmapping.request_turf_block_reservation(
+		5,
+		5,
+		1,
+		reservation_type = /datum/turf_reservation/transit,
+	)
+	TEST_ASSERT(roundtrip_reservation, "Round-trip test should reserve an isolated turf block.")
+	var/turf/origin = roundtrip_reservation.bottom_left_turfs[1]
+	TEST_ASSERT(origin, "Round-trip reservation should provide an origin turf.")
+	var/origin_x = origin.x
+	var/origin_y = origin.y
+	var/origin_z = origin.z
+
+	var/list/hull = list()
+	for(var/offset_x in 0 to 2)
+		for(var/offset_y in 0 to 2)
+			// Coordinates rather than the turf itself: ChangeTurf leaves the
+			// reference it was called on pointing at a turf that is gone.
+			var/turf/tile = locate(origin_x + offset_x, origin_y + offset_y, origin_z)
+			hull += tile.ChangeTurf(/turf/open/floor/plating)
+	registered_port = create_shuttle(
+		null,
+		hull[1],
+		hull,
+		list(),
+		NORTH,
+		NORTH,
+		area_type = /area/shuttle/custom,
+		name = "Roundtrip Test Hull",
+		id = "roundtrip_test_[REF(src)]",
+	)
+	TEST_ASSERT(registered_port, "The fixture hull should register as a shuttle.")
+
+	// One of each thing the walk has to recognise: a deck laid over the hull, an
+	// object carrying a mapped variable, a marking that exists only as an
+	// appearance on its turf, and the one container whose contents come back.
+	var/turf/deck_tile = locate(origin_x + 1, origin_y + 1, origin_z)
+	deck_tile.place_on_top(/turf/open/floor/mineral/titanium/tiled, flags = CHANGETURF_INHERIT_AIR)
+	var/turf/chair_tile = locate(origin_x + 1, origin_y, origin_z)
+	var/obj/structure/chair/comfy/shuttle/chair = allocate(/obj/structure/chair/comfy/shuttle, chair_tile)
+	chair.setDir(EAST)
+	var/turf/paint_tile = locate(origin_x + 2, origin_y, origin_z)
+	new /obj/effect/turf_decal/stripes/line(paint_tile)
+	var/turf/oven_tile = locate(origin_x + 2, origin_y + 2, origin_z)
+	var/obj/machinery/microwave/oven = allocate(/obj/machinery/microwave, oven_tile)
+	var/upgraded_bin = FALSE
+	for(var/index in 1 to length(oven.component_parts))
+		if(!istype(oven.component_parts[index], /datum/stock_part/matter_bin))
+			continue
+		oven.component_parts[index] = GLOB.stock_part_datums[/datum/stock_part/matter_bin/tier2]
+		upgraded_bin = TRUE
+	TEST_ASSERT(upgraded_bin, "The fixture machine should have a matter bin to upgrade.")
+	oven.RefreshParts()
+	var/turf/lockbox_tile = locate(origin_x, origin_y + 2, origin_z)
+	var/obj/structure/closet/secure_closet/ship_lockbox/lockbox = allocate(/obj/structure/closet/secure_closet/ship_lockbox, lockbox_tile)
+	var/obj/item/stack/sheet/iron/payload = allocate(/obj/item/stack/sheet/iron, lockbox)
+	TEST_ASSERT_EQUAL(lockbox.loc, lockbox_tile, "The fixture lockbox should be standing on the hull.")
+	TEST_ASSERT_EQUAL(payload.loc, lockbox, "The fixture payload should be inside the lockbox.")
+	TEST_ASSERT(lockbox_tile in registered_port.return_turfs(), "The fixture lockbox should stand on a tile the hull owns.")
+
+	var/datum/ship_teardown/teardown = new(registered_port)
+	TEST_ASSERT(!teardown.refusal, "Teardown should accept a registered hull, got '[teardown.refusal]'.")
+	TEST_ASSERT_EQUAL(length(teardown.cells), 9, "Teardown should describe every tile of the fixture hull.")
+	TEST_ASSERT_EQUAL(length(teardown.stored_contents), 1, "A lockbox's contents are the only payload a teardown keeps. The lockbox held [length(lockbox.contents)] thing(s), and its tile described [describe_cell(teardown, 1, 3)].")
+	TEST_ASSERT(!length(teardown.lost_detail), "Teardown reported lost detail: [jointext(teardown.lost_detail, "; ")]")
+
+	// A decal is recovered by appearance, and appearances are not unique to a
+	// path - several decal types inherit the same icon state and draw exactly
+	// the same thing. What has to come back is the marking, not the name the
+	// mapper happened to reach for.
+	var/list/paint_cell = teardown.cells["3,1"]
+	var/list/paint_member = length(paint_cell?["objects"]) ? paint_cell["objects"][1] : null
+	var/obj/effect/turf_decal/painted = paint_member?["path"]
+	var/obj/effect/turf_decal/stripes/line/as_painted = /obj/effect/turf_decal/stripes/line
+	TEST_ASSERT(ispath(painted, /obj/effect/turf_decal), "The walk should resolve the deck marking back to a decal path, but its tile described [describe_cell(teardown, 3, 1)].")
+	TEST_ASSERT_EQUAL(initial(painted.icon_state), initial(as_painted.icon_state), "The recovered decal should draw what was painted.")
+
+	var/first_export = teardown.write_ship_tgm()
+	TEST_ASSERT(first_export, "A hull that tore down cleanly should render to TGM.")
+	TEST_ASSERT(findtext(first_export, "[/obj/structure/chair/comfy/shuttle]"), "The export should name the chair the walk found, but its tile described [describe_cell(teardown, 2, 1)].")
+	TEST_ASSERT(findtext(first_export, "[painted]"), "The export should carry the deck marking the walk recovered.")
+	TEST_ASSERT(findtext(first_export, "[/obj/structure/closet/secure_closet/ship_lockbox]"), "The export should keep the lockbox itself, not just its contents.")
+	// Part tiers are objects, and a map holds constants, so an upgraded
+	// assembly only survives as a helper carrying what it was closed around.
+	TEST_ASSERT(findtext(first_export, "[/datum/stock_part/matter_bin/tier2]"), "The export should record the tier of an upgraded machine's parts, but its tile described [describe_cell(teardown, 3, 3)].")
+
+	export_path = "data/unit_test_ship_roundtrip_[REF(src)].dmm"
+	TEST_ASSERT(shipyard_write_ship_file(first_export, export_path), "The rendered ship should write to disk.")
+	var/datum/parsed_map/parsed = new(file(export_path))
+	TEST_ASSERT(parsed?.bounds, "An exported ship should parse as a map.")
+	var/datum/ship_teardown/reparsed = shipyard_teardown_from_parsed(parsed)
+	TEST_ASSERT(!reparsed.refusal, "A saved ship should read back into cells, got '[reparsed.refusal]'.")
+	TEST_ASSERT_EQUAL(reparsed.write_ship_tgm(), first_export, "Re-exporting a saved ship should be a fixed point.")
+
+	// The point of the whole exercise: what came back has to be buildable.
+	var/datum/map_template/shuttle/runtime/template = new(export_path)
+	TEST_ASSERT_EQUAL(template.mappath, export_path, "A runtime template should keep the path it was handed.")
+	var/datum/ship_plan/template/plan = new(template)
+	var/plating_operations = 0
+	var/found_deck = FALSE
+	var/found_chair = FALSE
+	var/found_paint = FALSE
+	var/found_lockbox = FALSE
+	var/found_oven = FALSE
+	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
+		switch(operation.op_type)
+			if(SHIPYARD_OP_PLATING)
+				plating_operations++
+			if(SHIPYARD_OP_TURF)
+				if(ispath(operation.target_path, /turf/open/floor/mineral/titanium/tiled))
+					found_deck = TRUE
+			if(SHIPYARD_OP_DECAL)
+				if(operation.target_path == painted)
+					found_paint = TRUE
+			if(SHIPYARD_OP_MACHINE)
+				if(ispath(operation.target_path, /obj/machinery/microwave))
+					found_oven = TRUE
+			if(SHIPYARD_OP_GENERATED)
+				if(ispath(operation.target_path, /obj/structure/chair/comfy/shuttle))
+					found_chair = TRUE
+					TEST_ASSERT_EQUAL(operation.desired_vars["dir"], EAST, "A saved chair should come back facing the way it was parked.")
+				else if(ispath(operation.target_path, /obj/structure/closet/secure_closet/ship_lockbox))
+					found_lockbox = TRUE
+	TEST_ASSERT_EQUAL(plating_operations, 9, "Every saved tile should be plated again on the way back in.")
+
+	var/list/missing = list()
+	if(!found_deck)
+		missing += "the titanium deck"
+	if(!found_chair)
+		missing += "the chair"
+	if(!found_paint)
+		missing += "the deck marking"
+	if(!found_lockbox)
+		missing += "the lockbox"
+	if(!found_oven)
+		missing += "the machine"
+	if(length(missing))
+		TEST_FAIL("A saved ship's manifest omitted [jointext(missing, ", ")]. Skipped entries: [jointext(plan.skipped_report(TRUE), "; ")]")
+	qdel(plan)
+	qdel(template)
+
 /// A wall fixture whose family has no directional subtypes is hung by shifting it
 /// off the tile centre by hand, which makes the shift the blueprint's only record
 /// of which wall it belongs on.

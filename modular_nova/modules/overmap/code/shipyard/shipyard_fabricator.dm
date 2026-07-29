@@ -728,6 +728,7 @@
 /obj/machinery/shipyard_fabricator/proc/abort_build()
 	STOP_PROCESSING(SSmachines, src)
 	clear_phase_projections()
+	release_build_claim()
 	release_zone()
 	set_build_state(SHIPYARD_STATE_IDLE)
 	operation_index = 1
@@ -735,6 +736,14 @@
 	paused_reason = null
 	retract_printer()
 	update_use_power(IDLE_POWER_USE)
+
+/// Let go of the hull this run registered, so it can be filed away or scuttled.
+/// A hull still under the printer refuses teardown: its claim and operation
+/// index would go stale the moment anything was taken off it.
+/obj/machinery/shipyard_fabricator/proc/release_build_claim()
+	var/obj/docking_port/mobile/registered = built_shuttle_ref?.resolve()
+	if(registered?.shipyard_build_claim?.resolve() == src)
+		registered.shipyard_build_claim = null
 
 /obj/machinery/shipyard_fabricator/proc/release_zone()
 	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
@@ -883,10 +892,60 @@
 		fault_build(null, "Shuttle registration failed after plating.")
 		return FALSE
 	built_shuttle_ref = WEAKREF(registered)
+	registered.shipyard_build_claim = WEAKREF(src)
+	assign_mapped_areas(registered, zone)
 	if(istype(registered, /obj/docking_port/mobile/custom))
 		var/obj/item/shuttle_blueprints/master = new(drop_location())
 		master.link_to_shuttle(registered, TRUE)
 	return TRUE
+
+/**
+ * Divide the registered hull up the way the blueprint divided it.
+ *
+ * `create_shuttle()` merges every tile it is handed into one area, which is
+ * wrong for any hull the blueprint drew more than one room on: `area.apc` is a
+ * single slot, so a ship with two APCs has them overwriting each other. The
+ * largest mapped area stays as the registration area the ship is docked and
+ * named by, and each of the others becomes an instance of its own mapped type -
+ * a type rather than a rename, so that exporting and reloading the hull
+ * reproduces the same division instead of collapsing it again.
+ */
+/obj/machinery/shipyard_fabricator/proc/assign_mapped_areas(obj/docking_port/mobile/registered, obj/effect/landmark/overmap_landing_zone/zone)
+	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
+	if(!length(plan?.tile_areas))
+		return
+	var/list/grouped = list()
+	for(var/datum/ship_plan_op/operation as anything in plan.manifest)
+		if(operation.op_type != SHIPYARD_OP_PLATING)
+			continue
+		var/area_type = plan.tile_areas["[operation.rel_x],[operation.rel_y]"]
+		if(!ispath(area_type, /area/shuttle))
+			continue
+		var/turf/hull = get_operation_turf(operation, zone)
+		if(!hull)
+			continue
+		var/list/tiles = grouped[area_type]
+		if(!tiles)
+			tiles = list()
+			grouped[area_type] = tiles
+		tiles += hull
+	if(length(grouped) < 2)
+		return
+
+	var/dominant
+	for(var/area_type in grouped)
+		if(!dominant || length(grouped[area_type]) > length(grouped[dominant]))
+			dominant = area_type
+	for(var/area_type in grouped)
+		if(area_type == dominant)
+			continue
+		var/area/carved = new area_type()
+		carved.setup(initial(carved.name))
+		registered.shuttle_areas[carved] = TRUE
+		set_turfs_to_area(grouped[area_type], carved)
+		carved.reg_in_areas_in_z()
+		carved.create_area_lighting_objects()
+		carved.power_change()
 
 /**
  * Bring the finished ship's power grid up.
@@ -920,6 +979,7 @@
 	// built in.
 	energize_hull()
 	clear_phase_projections()
+	release_build_claim()
 	set_build_state(SHIPYARD_STATE_COMPLETE)
 	paused_reason = "Construction complete. Frames listed as incomplete require manual RPED finishing."
 	retract_printer()

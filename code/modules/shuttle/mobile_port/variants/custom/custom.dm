@@ -9,6 +9,16 @@
 
 /obj/docking_port/mobile/custom/Initialize(mapload, list/areas)
 	. = ..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - persistent ships load player-built
+	// hulls from saved maps, where nothing is around to hand over an areas list.
+	// The frame area is then simply the one the port is standing in, which is what
+	// create_shuttle() merges the port's own tile into anyway. Shuttle areas carry
+	// area_flags = NONE, so a loaded hull owns its instance rather than sharing it.
+	// ORIGINAL: default_area = areas[1]
+	if(!length(areas))
+		default_area = get_area(src)
+		return
+	// BLASTWAVE EDIT ADDITION END
 	default_area = areas[1]
 
 /obj/docking_port/mobile/custom/Destroy(force)
