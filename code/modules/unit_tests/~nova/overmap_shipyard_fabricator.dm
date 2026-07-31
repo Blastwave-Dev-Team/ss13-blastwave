@@ -715,6 +715,22 @@
 	TEST_ASSERT(QDELETED(left) || left != fabricator, "Assembly half should be consumed.")
 	TEST_ASSERT(QDELETED(right) || right != fabricator, "Partner assembly half should be consumed.")
 
+	// The machine is two tiles wide; loc-only reach treats the eastern half as
+	// two tiles away. Standing east of it (the approach along a north wall) has
+	// to still count as interactive.
+	var/turf/east_of_east = get_step(east, EAST)
+	TEST_ASSERT(east_of_east, "Reachability check needs a tile east of the eastern half.")
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, east_of_east)
+	TEST_ASSERT(fabricator.footprint_adjacent(user), "A user east of the eastern half should be footprint-adjacent.")
+	TEST_ASSERT(fabricator.can_interact(user), "A user east of the eastern half should pass can_interact.")
+
+	// Footprint reach only ever upgrades a reading the state took on distance.
+	// Every other reason to close a UI - being mindless, as this dummy is until
+	// it is granted the trait - has nothing to do with which half you stand by.
+	TEST_ASSERT_EQUAL(fabricator.ui_status(user, GLOB.default_state), UI_CLOSE, "Footprint reach should not reopen a UI the state closed on its own terms.")
+	ADD_TRAIT(user, TRAIT_PRESERVE_UI_WITHOUT_CLIENT, TRAIT_SOURCE_UNIT_TESTS)
+	TEST_ASSERT_EQUAL(fabricator.ui_status(user, GLOB.default_state), UI_INTERACTIVE, "A user east of the eastern half should get an interactive UI.")
+
 /datum/unit_test/overmap_shipyard_fabricator/paired_deconstruct
 
 /datum/unit_test/overmap_shipyard_fabricator/paired_deconstruct/Run()
@@ -1268,6 +1284,52 @@
 			failures += "paint at ([tile]) is applied before the deck under it, which the turf change would wipe"
 	if(length(failures))
 		TEST_FAIL("Deck tiling found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
+
+/// Pipes and cable run under the deck, never over it. What hides an underfloor
+/// object is the turf change that covers it, and nothing re-checks afterwards, so
+/// anything printed onto a finished deck sits on top of it for the rest of the
+/// round. The networks pass has to be done before the first tile goes down.
+/datum/unit_test/overmap_shipyard_fabricator/networks_before_decking
+
+/datum/unit_test/overmap_shipyard_fabricator/networks_before_decking/Run()
+	var/datum/shipyard_route/cable_route = get_shipyard_route(/obj/structure/cable)
+	var/datum/shipyard_route/pipe_route = get_shipyard_route(/obj/machinery/atmospherics)
+	TEST_ASSERT(cable_route && pipe_route, "Cable and pipe should both have construction routes.")
+	TEST_ASSERT_EQUAL(cable_route.phase, SHIPYARD_PHASE_NETWORKS, "Cable should be laid in the networks pass.")
+	TEST_ASSERT_EQUAL(pipe_route.phase, SHIPYARD_PHASE_NETWORKS, "Pipes should be laid in the networks pass.")
+
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk/solfed_cutter)
+	disk.load_ship_plan()
+	var/datum/ship_plan/plan = disk.ship_plan
+	TEST_ASSERT(istype(plan), "Network ordering test requires the Cutter template plan.")
+
+	var/list/network_at = list()
+	var/list/deck_at = list()
+	for(var/index in 1 to length(plan.manifest))
+		var/datum/ship_plan_op/operation = plan.manifest[index]
+		var/tile = "[operation.rel_x],[operation.rel_y]"
+		if(operation.phase == SHIPYARD_PHASE_NETWORKS)
+			if(isnull(network_at[tile]))
+				network_at[tile] = index
+			continue
+		// Walls are the other half of the turf pass and are never tiled over.
+		if(operation.op_type != SHIPYARD_OP_TURF || ispath(operation.target_path, /turf/closed))
+			continue
+		if(isnull(deck_at[tile]))
+			deck_at[tile] = index
+	TEST_ASSERT(length(network_at), "The Cutter blueprint should lay pipes and cable.")
+
+	var/list/failures = list()
+	var/decked_networks = 0
+	for(var/tile in network_at)
+		if(isnull(deck_at[tile]))
+			continue
+		decked_networks++
+		if(network_at[tile] > deck_at[tile])
+			failures += "networks at ([tile]) are printed onto the deck instead of under it"
+	TEST_ASSERT(decked_networks, "The Cutter blueprint should tile a deck over wired tiles.")
+	if(length(failures))
+		TEST_FAIL("Network ordering found [length(failures)] issue(s):\n[jointext(unique_list(failures), "\n")]")
 
 /// A printed grid has to come up live. A cable's own Initialize() wires up nothing
 /// but its links to its neighbours, leaving the powernet to a roundstart sweep that

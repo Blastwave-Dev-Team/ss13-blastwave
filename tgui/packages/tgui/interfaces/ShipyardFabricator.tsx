@@ -73,8 +73,8 @@ const PHASE_NAMES = [
   'Frame rods',
   'Hull plating',
   'Frames and girders',
-  'Walls and windows',
   'Pipes and wiring',
+  'Walls and decking',
   'Machines and airlocks',
   'Commissioning',
 ];

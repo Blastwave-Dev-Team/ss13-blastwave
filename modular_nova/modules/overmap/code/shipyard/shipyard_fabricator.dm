@@ -187,6 +187,92 @@
 	materials = new(src, mapload, allow_standalone = FALSE)
 	register_context()
 
+/**
+ * Whether `neighbor` is next to either tile this machine occupies.
+ *
+ * Parent adjacency and TGUI distance both key off `loc`, which for a
+ * `bound_width = 64` machine is only the western turf. Standing by the eastern
+ * half - the natural approach when the machine sits against a north wall - then
+ * fails interact/UI reach even though you are clearly next to it.
+ */
+/obj/machinery/shipyard_fabricator/proc/footprint_adjacent(atom/neighbor)
+	if(neighbor == loc || neighbor?.loc == src)
+		return TRUE
+	var/turf/neighbor_turf = get_turf(neighbor)
+	if(!neighbor_turf)
+		return FALSE
+	var/atom/movable/mover = ismovable(neighbor) ? neighbor : null
+	for(var/turf/our_turf as anything in locs)
+		if(our_turf == neighbor_turf || our_turf.Adjacent(neighbor, target = src, mover = mover))
+			return TRUE
+	return FALSE
+
+/obj/machinery/shipyard_fabricator/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
+	return footprint_adjacent(neighbor)
+
+/obj/machinery/shipyard_fabricator/CheckReachableAdjacency(atom/movable/reacher, reacher_range)
+	if(footprint_adjacent(reacher))
+		return TRUE
+	return ..()
+
+/obj/machinery/shipyard_fabricator/can_interact(mob/user)
+	// user.can_interact_with() uses user.Adjacent(src), which only sees loc. When
+	// the caller is next to our eastern tile, treat that as sufficient reach and
+	// run the ordinary machinery gates ourselves.
+	if(!footprint_adjacent(user))
+		return ..()
+	return fabricator_can_interact_nearby(user)
+
+/// Machinery interaction gates with adjacency already established via footprint.
+/obj/machinery/shipyard_fabricator/proc/fabricator_can_interact_nearby(mob/user)
+	if(QDELETED(user))
+		return FALSE
+	if((machine_stat & (NOPOWER | BROKEN)) && !(interaction_flags_machine & INTERACT_MACHINE_OFFLINE))
+		return FALSE
+	var/try_use_signal = SEND_SIGNAL(user, COMSIG_TRY_USE_MACHINE, src) | SEND_SIGNAL(src, COMSIG_TRY_USE_MACHINE, user)
+	if(try_use_signal & COMPONENT_CANT_USE_MACHINE_INTERACT)
+		return FALSE
+	if(isAdminGhostAI(user))
+		return TRUE
+	if(!isliving(user))
+		return FALSE
+	if(!HAS_SILICON_ACCESS(user) && !user.can_hold_items())
+		return FALSE
+	if(HAS_SILICON_ACCESS(user))
+		if(!(interaction_flags_machine & INTERACT_MACHINE_ALLOW_SILICON))
+			return FALSE
+		if(panel_open && !(interaction_flags_machine & INTERACT_MACHINE_OPEN) && !(interaction_flags_machine & INTERACT_MACHINE_OPEN_SILICON))
+			return FALSE
+		return TRUE
+	if((interaction_flags_atom & INTERACT_ATOM_REQUIRES_DEXTERITY) && !ISADVANCEDTOOLUSER(user))
+		to_chat(user, span_warning("You don't have the dexterity to do this!"))
+		return FALSE
+	if(!(interaction_flags_atom & INTERACT_ATOM_IGNORE_INCAPACITATED))
+		var/ignore_flags = NONE
+		if(interaction_flags_atom & INTERACT_ATOM_IGNORE_RESTRAINED)
+			ignore_flags |= INCAPABLE_RESTRAINTS
+		if(!(interaction_flags_atom & INTERACT_ATOM_CHECK_GRAB))
+			ignore_flags |= INCAPABLE_GRAB
+		if(INCAPACITATED_IGNORING(user, ignore_flags))
+			return FALSE
+	if(panel_open && !(interaction_flags_machine & INTERACT_MACHINE_OPEN))
+		return FALSE
+	if(interaction_flags_machine & INTERACT_MACHINE_REQUIRES_SILICON)
+		return FALSE
+	if(interaction_flags_machine & INTERACT_MACHINE_REQUIRES_STANDING)
+		var/mob/living/living_user = user
+		if(!(living_user.mobility_flags & MOBILITY_MOVE))
+			return FALSE
+	return TRUE
+
+/obj/machinery/shipyard_fabricator/ui_status(mob/user, datum/ui_state/state)
+	. = ..()
+	// shared_living_ui_distance uses get_dist against loc, so a user next to the
+	// eastern half reads as two tiles away and only gets UI_UPDATE.
+	if(. < UI_INTERACTIVE && . > UI_CLOSE && footprint_adjacent(user))
+		return UI_INTERACTIVE
+	return .
+
 /obj/machinery/shipyard_fabricator/update_icon_state()
 	icon_state = printer_deployed ? "shuttle_printer-base" : "shuttle_printer"
 	return ..()
@@ -369,7 +455,7 @@
 	if(docked_rped)
 		balloon_alert(user, "rped dock occupied")
 		return FALSE
-	if(!user.Adjacent(src))
+	if(!footprint_adjacent(user))
 		balloon_alert(user, "too far away")
 		return FALSE
 	if(!user.transferItemToLoc(replacer, src))

@@ -94,6 +94,106 @@
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 
+/// Shipyard landing zones are often bare space; frame rods have to anchor there
+/// so the plating phase can turn the framed void into a hull tile. This is the
+/// direct construction path the fabricator uses - space attackby still builds a
+/// lattice via build_with_rods, which is covered separately.
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_space
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_space/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
+
+	target.ChangeTurf(/turf/open/space, /turf/open/space)
+	TEST_ASSERT(istype(target, /turf/open/space), "Test turf should be space")
+
+	var/rod_count = rods.get_amount()
+	apply_shuttle_rods(target, rods, user)
+	TEST_ASSERT_EQUAL(rods.get_amount(), rod_count - 1, "Shuttle frame rods on space should be consumed")
+	TEST_ASSERT(istype(target, /turf/open/space), "Anchoring rods on space should leave the turf as space")
+	TEST_ASSERT(!locate(/obj/structure/lattice) in target, "Frame rods on space should not spawn a lattice object")
+	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Space should carry the shuttle rod trait source")
+	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target], "Space should be registered to a shuttle frame")
+
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Tile on space frame rods should produce plating")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Plating over space frame rods should yield plating, got [target?.type]")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should clear after plating space")
+
+	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
+	target.assemble_baseturfs(initial(target.baseturfs))
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_space/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/// A planetary landing zone is bare ground rather than plating, so the same frame has
+/// to anchor into the dirt, sand, snow, ice and shallow water the shipyard maps put
+/// under a pad - but not into water deep enough to swim in.
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_planet_ground
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_planet_ground/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/fifty)
+	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
+
+	// One per ground family the shipyard maps put under a pad: Serenity's forest
+	// dirt, sandy dirt and ponds, Ocean Pubby's beach sand, Icebox's snow and ice,
+	// and the grass patch all three share.
+	var/static/list/ground_types = list(
+		/turf/open/misc/dirt/station,
+		/turf/open/misc/sandy_dirt,
+		/turf/open/misc/beach/sand,
+		/turf/open/misc/asteroid/snow/standard_air,
+		/turf/open/misc/ice/coldroom,
+		/turf/open/floor/grass,
+		/turf/open/water/no_planet_atmos,
+	)
+	for(var/turf/open/ground_type as anything in ground_types)
+		target.ChangeTurf(ground_type, ground_type)
+		target = get_turf(target)
+		TEST_ASSERT(istype(target, ground_type), "Test turf should be [ground_type], got [target?.type]")
+		TEST_ASSERT(target.can_anchor_shuttle_frame_rods(), "[ground_type] should accept shuttle frame rods")
+
+		apply_shuttle_rods(target, rods, user)
+		TEST_ASSERT(istype(target, ground_type), "Anchoring rods should leave [ground_type] unchanged, got [target?.type]")
+		TEST_ASSERT(!locate(/obj/structure/lattice) in target, "Frame rods on [ground_type] should not spawn a lattice object")
+		TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "[ground_type] should carry the shuttle rod trait source")
+		TEST_ASSERT(GLOB.shuttle_frames_by_turf[target], "[ground_type] should be registered to a shuttle frame")
+
+		reset_shuttle_frame_turf(target)
+		target = get_turf(target)
+
+	// Wading depth is ground; anything you swim and drown in is not.
+	target.ChangeTurf(/turf/open/water/no_planet_atmos/deep, /turf/open/water/no_planet_atmos/deep)
+	target = get_turf(target)
+	TEST_ASSERT(!target.can_anchor_shuttle_frame_rods(), "Deep water should refuse shuttle frame rods")
+	TEST_ASSERT(!target.build_shuttle_frame_with_rods(rods, user), "Deep water should fall through to ordinary rod behavior")
+	reset_shuttle_frame_turf(target)
+	target = get_turf(target)
+
+	// Plating a framed patch of ground is what makes it hull, checked once rather
+	// than per family: the plating path keys off the rod trait, not the ground type.
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	target.ChangeTurf(/turf/open/misc/dirt/station, /turf/open/misc/dirt/station)
+	target = get_turf(target)
+	apply_shuttle_rods(target, rods, user)
+	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Tile on ground frame rods should produce plating")
+	target = get_turf(target)
+	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Plating over ground frame rods should yield plating, got [target?.type]")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should clear after plating ground")
+
+	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
+	target.assemble_baseturfs(initial(target.baseturfs))
+
+/datum/unit_test/shuttle_construction/shuttle_frame_rods_on_planet_ground/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
 /datum/unit_test/shuttle_construction/shuttle_frame_trait_survives_tiling
 
 /datum/unit_test/shuttle_construction/shuttle_frame_trait_survives_tiling/Run()

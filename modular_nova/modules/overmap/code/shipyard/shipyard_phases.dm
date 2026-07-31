@@ -146,8 +146,10 @@
 	return TRUE
 
 /datum/ship_plan_op/proc/execute_rods(turf/open/work_turf)
-	if(!istype(work_turf) || !isfloorturf(work_turf))
-		return "Hull rods require an open floor."
+	if(!istype(work_turf))
+		return "Hull rods require an open turf."
+	if(!work_turf.can_anchor_shuttle_frame_rods())
+		return "Hull rods cannot anchor into the [work_turf.name]."
 	if(shipyard_hull_turf(work_turf))
 		return TRUE
 	var/obj/item/stack/rods/shuttle/rods = new(work_turf, 1)
