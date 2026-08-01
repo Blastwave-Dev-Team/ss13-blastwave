@@ -12,20 +12,39 @@ import { useBackend } from '../backend';
 import { Window } from '../layouts';
 
 type Data = {
+  // BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+  account_name: string;
+  // BLASTWAVE EDIT ADDITION END
   current_balance: number;
+  // BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+  session_credits: number;
+  siphon_rate: number;
+  // BLASTWAVE EDIT ADDITION END
   siphoning: BooleanLike;
   station_name: string;
 };
 
 export const BankMachine = (props) => {
   const { act, data } = useBackend<Data>();
-  const { current_balance, siphoning, station_name } = data;
+  // BLASTWAVE EDIT CHANGE START - STATION_TREASURY - ORIGINAL: const { current_balance, siphoning, station_name } = data;
+  const {
+    account_name,
+    current_balance,
+    session_credits,
+    siphon_rate,
+    siphoning,
+    station_name,
+  } = data;
+  // BLASTWAVE EDIT CHANGE END
 
   return (
-    <Window width={350} height={155}>
+    /* BLASTWAVE EDIT CHANGE START - STATION_TREASURY - reserve identity, theft warning, and session details */
+    <Window width={390} height={205}>
       <Window.Content>
-        <NoticeBox danger>Authorized personnel only</NoticeBox>
-        <Section title={`${station_name} Vault`}>
+        <NoticeBox danger>
+          Extraction is theft from {station_name} and will be reported
+        </NoticeBox>
+        <Section title={account_name}>
           <LabeledList>
             <LabeledList.Item
               label="Current Balance"
@@ -44,9 +63,20 @@ export const BankMachine = (props) => {
               />
               {' cr'}
             </LabeledList.Item>
+            <LabeledList.Item label="Extraction Rate">
+              {formatMoney(siphon_rate)} cr/second
+            </LabeledList.Item>
+            <LabeledList.Item label="Current Session">
+              <AnimatedNumber
+                value={session_credits}
+                format={(value) => formatMoney(value)}
+              />{' '}
+              cr
+            </LabeledList.Item>
           </LabeledList>
         </Section>
       </Window.Content>
     </Window>
+    /* BLASTWAVE EDIT CHANGE END */
   );
 };

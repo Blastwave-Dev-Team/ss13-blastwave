@@ -224,9 +224,10 @@
 	if(amount_of_paychecks <= 0)
 		return FALSE
 
+	/* // BLASTWAVE EDIT REMOVAL START - STATION_TREASURY
 	var/money_to_transfer = round(account_job.paycheck * payday_modifier * amount_of_paychecks)
 	if(amount_of_paychecks == 1)
-		money_to_transfer = clamp(money_to_transfer, 0, PAYCHECK_CREW) //We want to limit single, passive paychecks to regular crew income.
+		money_to_transfer = clamp(money_to_transfer, 0, PAYCHECK_CREW)
 	if(free)
 		adjust_money(money_to_transfer, "Nanotrasen: Shift Payment")
 		SSblackbox.record_feedback("amount", "free_income", money_to_transfer)
@@ -242,6 +243,53 @@
 		return FALSE
 	bank_card_talk("[event] processed, account now holds [account_balance] [MONEY_SYMBOL].")
 	return TRUE
+	*/ // BLASTWAVE EDIT REMOVAL END
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	if(free)
+		var/money_to_transfer = round(account_job.paycheck * payday_modifier * amount_of_paychecks)
+		adjust_money(money_to_transfer, "Nanotrasen: Shift Payment")
+		SSblackbox.record_feedback("amount", "free_income", money_to_transfer)
+		SSeconomy.station_target += money_to_transfer
+		log_econ("[money_to_transfer] [MONEY_NAME] were given to [src.account_holder]'s account from income.")
+		return TRUE
+
+	var/paycheck_amount = get_recurring_paycheck()
+	var/list/station_department_accounts = SSeconomy.station_department_accounts
+	var/is_station_payroll = (account_job.paycheck_department in station_department_accounts)
+	var/department_amount = (is_station_payroll ? min(paycheck_amount, PAYCHECK_CREW) : paycheck_amount) * amount_of_paychecks
+	var/uplift_amount = (is_station_payroll ? max(paycheck_amount - PAYCHECK_CREW, 0) : 0) * amount_of_paychecks
+	var/datum/bank_account/department_account = SSeconomy.get_dep_account(account_job.paycheck_department)
+	if(isnull(department_account))
+		bank_card_talk("ERROR: [event] aborted, unable to contact departmental account.")
+		return FALSE
+	if(!department_account.has_money(department_amount))
+		bank_card_talk("ERROR: [event] aborted, departmental funds insufficient.")
+		return FALSE
+
+	last_payday_uplift_missed = FALSE
+	var/uplift_paid = uplift_amount
+	var/datum/bank_account/station_reserve/reserve_account = SSeconomy.get_station_reserve()
+	if(uplift_amount && !reserve_account?.has_money(uplift_amount))
+		uplift_paid = 0
+		last_payday_uplift_missed = TRUE
+
+	department_account.adjust_money(-department_amount, "Payroll: Base salary for [account_holder]")
+	if(uplift_paid)
+		reserve_account.adjust_money(-uplift_paid, "Payroll: Salary uplift for [account_holder]")
+	adjust_money(department_amount + uplift_paid, "Nanotrasen: Salary")
+
+	SSblackbox.record_feedback("amount", "department_payroll_paid", department_amount)
+	if(uplift_paid)
+		SSblackbox.record_feedback("amount", "station_reserve_uplift_paid", uplift_paid)
+	if(last_payday_uplift_missed)
+		SSblackbox.record_feedback("amount", "station_reserve_uplift_missed", uplift_amount)
+		log_econ("Station reserve could not fund [uplift_amount] [MONEY_NAME] in salary uplift for [account_holder].")
+		bank_card_talk("[event] partially processed: [department_amount] [MONEY_SYMBOL] base paid; [uplift_amount] [MONEY_SYMBOL] reserve uplift unavailable.")
+	else
+		bank_card_talk("[event] processed for [department_amount + uplift_paid] [MONEY_SYMBOL]; account now holds [account_balance] [MONEY_SYMBOL].")
+	log_econ("[department_amount] base [MONEY_NAME] and [uplift_paid] uplift [MONEY_NAME] were paid to [account_holder].")
+	return TRUE
+	// BLASTWAVE EDIT ADDITION END
 
 /**
  * This sends a local chat message to the owner of a bank account, on all ID cards registered to the bank_account.
