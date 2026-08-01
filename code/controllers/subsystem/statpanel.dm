@@ -45,6 +45,10 @@ SUBSYSTEM_DEF(statpanels)
 		*/ // NOVA EDIT REMOVAL END
 		// NOVA EDIT ADDITION START
 		var/real_round_time = world.timeofday - SSticker.real_round_start_time
+		// BLASTWAVE EDIT START
+		var/active_players = get_active_player_count(alive_check = FALSE, afk_check = TRUE, human_check = FALSE) //This is a list of all active players, including players who are dead
+		var/observing_players = length(GLOB.current_observers_list) //This is a list of all players that started as an observer-- dead and lobby players are not included.
+		// BLASTWAVE EDIT END
 		global_data = list(
 			"Time Dilation: [round(SStime_track.time_dilation_current,1)]% AVG:([round(SStime_track.time_dilation_avg_fast,1)]%, [round(SStime_track.time_dilation_avg,1)]%, [round(SStime_track.time_dilation_avg_slow,1)]%)",
 		)
@@ -61,7 +65,7 @@ SUBSYSTEM_DEF(statpanels)
 		global_data += list(
 			cached ? "Next Map: [cached.map_name]" : null,
 			"Round ID: [GLOB.round_id ? GLOB.round_id : "NULL"]",
-			"Connected Players: [GLOB.clients.len]",
+			"Connected: [GLOB.clients.len] | Active: [active_players] | Observing: [observing_players]", // BLASTWAVE EDIT
 			" ",
 			"OOC: [GLOB.ooc_allowed ? "Enabled" : "Disabled"]",
 			" ",
