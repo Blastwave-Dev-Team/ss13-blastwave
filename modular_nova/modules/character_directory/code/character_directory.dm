@@ -11,6 +11,16 @@ GLOBAL_LIST_EMPTY(name_to_appearance)
 	savefile_key = "show_in_directory"
 	savefile_identifier = PREFERENCE_PLAYER
 
+/datum/preference/toggle/show_in_directory/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/toggle/show_in_directory/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
 // The advertisement that you show to people looking through the directory
 /datum/preference/text/character_ad
 	savefile_key = "character_ad"
@@ -21,6 +31,16 @@ GLOBAL_LIST_EMPTY(name_to_appearance)
 // TGUI gets angry if you don't define a default on text preferences
 /datum/preference/text/character_ad/create_default_value()
 	return ""
+
+/datum/preference/text/character_ad/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/text/character_ad/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return ""
+	return ..()
 
 // Any text preference needs this for some reason
 /datum/preference/text/character_ad/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
@@ -37,6 +57,16 @@ GLOBAL_LIST_EMPTY(name_to_appearance)
 /datum/preference/choiced/attraction/create_default_value()
 	return "Unset"
 
+/datum/preference/choiced/attraction/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/choiced/attraction/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return "Unset"
+	return ..()
+
 /datum/preference/choiced/attraction/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
 	return FALSE
 
@@ -51,6 +81,16 @@ GLOBAL_LIST_EMPTY(name_to_appearance)
 /datum/preference/choiced/display_gender/create_default_value()
 	return "Unset"
 
+/datum/preference/choiced/display_gender/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/choiced/display_gender/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return "Unset"
+	return ..()
+
 /datum/preference/choiced/display_gender/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
 	return FALSE
 
@@ -63,6 +103,10 @@ GLOBAL_LIST_EMPTY(name_to_appearance)
 	set name = "Character Directory"
 	set category = "OOC"
 	set desc = "Shows a listing of all active characters, along with their associated OOC notes, flavor text, and more."
+
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		to_chat(src, span_warning("The character directory is disabled on this server."))
+		return
 
 	if(is_character_directory_on_cooldown())
 		return

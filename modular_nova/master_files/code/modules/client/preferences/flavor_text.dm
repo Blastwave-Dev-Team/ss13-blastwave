@@ -13,6 +13,16 @@
 	savefile_key = "flavor_text_nsfw"
 	maximum_value_length = MAX_FLAVOR_LEN
 
+/datum/preference/text/flavor_text_nsfw/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/text/flavor_text_nsfw/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return ""
+	return ..()
+
 /datum/preference/text/flavor_text_nsfw/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
 	target.dna.features[EXAMINE_DNA_FLAVOR_TEXT_NSFW] = value
 
@@ -35,6 +45,16 @@
 	savefile_key = "silicon_flavor_text_nsfw"
 	maximum_value_length = MAX_FLAVOR_LEN
 
+/datum/preference/text/silicon_flavor_text_nsfw/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/text/silicon_flavor_text_nsfw/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return ""
+	return ..()
+
 /datum/preference/text/silicon_flavor_text_nsfw/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
 	return FALSE // To prevent the not-implemented runtime
 
@@ -52,6 +72,16 @@
 	savefile_identifier = PREFERENCE_CHARACTER
 	savefile_key = "ooc_notes_nsfw"
 	maximum_value_length = MAX_FLAVOR_LEN
+
+/datum/preference/text/ooc_notes_nsfw/is_accessible(datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return FALSE
+	return ..()
+
+/datum/preference/text/ooc_notes_nsfw/deserialize(input, datum/preferences/preferences)
+	if(CONFIG_GET(flag/disable_erp_preferences))
+		return ""
+	return ..()
 
 /datum/preference/text/ooc_notes_nsfw/apply_to_human(mob/living/carbon/human/target, value, datum/preferences/preferences)
 	target.dna.features[EXAMINE_DNA_OOC_NOTES_NSFW] = value
