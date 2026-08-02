@@ -1,0 +1,5 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "NSFW preferences and UI now respect the ERP preferences config."
+  - code_imp: "Disables the Character Directory when ERP preferences are disabled."
