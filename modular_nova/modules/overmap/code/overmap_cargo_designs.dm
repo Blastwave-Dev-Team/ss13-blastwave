@@ -105,7 +105,7 @@
 
 /datum/design/ship_blueprint_disk
 	name = "NT Personal Blueprint Disk"
-	desc = "A production manifest for fabricating the NanoTrasen personal transport frigate."
+	desc = "A production manifest for fabricating the Nanotrasen personal transport frigate."
 	id = "ship_blueprint_disk"
 	build_path = /obj/item/ship_blueprint_disk/personal_shuttle/typed
 	build_type = PROTOLATHE
