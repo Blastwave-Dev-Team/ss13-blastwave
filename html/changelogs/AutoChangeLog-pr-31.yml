@@ -1,0 +1,4 @@
+author: "ReturnToZender, Shadow_Quill"
+delete-after: True
+changes:
+  - rscadd: "added active and observing player counts to statpanel"
