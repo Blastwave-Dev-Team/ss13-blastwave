@@ -805,4 +805,3 @@
 		'sound/ambience/misc/ambimystery.ogg',
 		)
 	flags_1 = NONE // Not dirty
-	skip_minimap_rendering = FALSE
