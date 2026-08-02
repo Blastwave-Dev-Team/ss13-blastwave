@@ -372,7 +372,7 @@
 #include "~nova\overmap_site_seeding.dm"
 #include "~nova\overmap_stop_settle.dm"
 #include "~nova\shuttle.dm"
-#include "~nova\station_treasury.dm" // BLASTWAVE EDIT ADDITION - STATION_TREASURY
+#include "~nova\station_treasury.dm"
 // NOVA EDIT END
 // END_INCLUDE
 #ifdef REFERENCE_TRACKING_DEBUG //Don't try and parse this file if ref tracking isn't turned on. IE: don't parse ref tracking please mr linter
