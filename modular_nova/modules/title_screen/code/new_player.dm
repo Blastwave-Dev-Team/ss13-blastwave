@@ -28,6 +28,8 @@
 		return
 
 	if(href_list["view_directory"])
+		if(CONFIG_GET(flag/disable_erp_preferences))
+			return
 		play_lobby_button_sound()
 		client?.show_character_directory()
 		return

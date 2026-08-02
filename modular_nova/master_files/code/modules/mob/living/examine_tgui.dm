@@ -49,6 +49,7 @@
 /datum/examine_panel/ui_data(mob/user)
 
 	var/datum/preferences/preferences = holder.client?.prefs
+	var/erp_preferences_enabled = !CONFIG_GET(flag/disable_erp_preferences)
 
 	var/flavor_text
 	var/flavor_text_nsfw
@@ -63,7 +64,7 @@
 
 	// OOC notes go first
 	if(preferences)
-		if(user.client?.prefs?.read_preference(/datum/preference/toggle/master_erp_preferences))
+		if(erp_preferences_enabled && user.client?.prefs?.read_preference(/datum/preference/toggle/master_erp_preferences))
 			var/e_prefs = preferences.read_preference(/datum/preference/choiced/erp_status)
 			var/e_prefs_hypno = preferences.read_preference(/datum/preference/choiced/erp_status_hypno)
 			var/e_prefs_v = preferences.read_preference(/datum/preference/choiced/erp_status_v)
@@ -91,9 +92,10 @@
 		custom_species_lore = "A silicon unit, like a cyborg or pAI."
 		if(preferences)
 			flavor_text = preferences.read_preference(/datum/preference/text/silicon_flavor_text)
-			flavor_text_nsfw = preferences.read_preference(/datum/preference/text/silicon_flavor_text_nsfw)
 			ooc_notes += preferences.read_preference(/datum/preference/text/ooc_notes)
-			ooc_notes_nsfw += preferences.read_preference(/datum/preference/text/ooc_notes_nsfw)
+			if(erp_preferences_enabled)
+				flavor_text_nsfw = preferences.read_preference(/datum/preference/text/silicon_flavor_text_nsfw)
+				ooc_notes_nsfw += preferences.read_preference(/datum/preference/text/ooc_notes_nsfw)
 			headshot += preferences.read_preference(/datum/preference/text/headshot/silicon)
 
 	if(ishuman(holder))
@@ -102,10 +104,11 @@
 		obscured = !can_bypass_obscure && ((holder_human.wear_mask && (holder_human.wear_mask.flags_inv & HIDEFACE)) || (holder_human.head && (holder_human.head.flags_inv & HIDEFACE)))
 		custom_species = obscured ? "Obscured" : holder_human.dna.species.lore_protected ? holder_human.dna.species.name : holder_human.dna.features["custom_species"]
 		flavor_text = obscured ? "Obscured" : holder_human.dna.features[EXAMINE_DNA_FLAVOR_TEXT]
-		flavor_text_nsfw = obscured ? "Obscured" : holder_human.dna.features[EXAMINE_DNA_FLAVOR_TEXT_NSFW]
 		custom_species_lore = obscured ? "Obscured" : holder_human.dna.species.lore_protected ? holder_human.dna.species.get_species_lore().Join("\n") : holder_human.dna.features["custom_species_lore"]
 		ooc_notes += holder_human.dna.features[EXAMINE_DNA_OOC_NOTES]
-		ooc_notes_nsfw += holder_human.dna.features[EXAMINE_DNA_OOC_NOTES_NSFW]
+		if(erp_preferences_enabled)
+			flavor_text_nsfw = obscured ? "Obscured" : holder_human.dna.features[EXAMINE_DNA_FLAVOR_TEXT_NSFW]
+			ooc_notes_nsfw += holder_human.dna.features[EXAMINE_DNA_OOC_NOTES_NSFW]
 		if(!obscured)
 			headshot += holder_human.dna.features[EXAMINE_DNA_HEADSHOT]
 
@@ -122,6 +125,7 @@
 		"custom_species" = custom_species,
 		"custom_species_lore" = custom_species_lore,
 		// Descriptions, but requiring manual input to see
+		"erp_preferences_enabled" = erp_preferences_enabled,
 		"flavor_text_nsfw" = flavor_text_nsfw,
 		"ooc_notes_nsfw" = ooc_notes_nsfw,
 		// Antaggery
