@@ -54,8 +54,16 @@
 	. += span_notice("Manifest: [length(ship_plan.manifest)] operations; [length(ship_plan.skipped_contents)] skipped map entries.")
 
 /obj/item/ship_blueprint_disk/personal_shuttle
-	name = "personal travel shuttle blueprint disk"
-	template_type = /datum/map_template/shuttle/whiteship/personalshuttle
+	name = "NT Personal custom-registration blueprint disk"
+	template_type = /datum/map_template/shuttle/overmap/frigate/nt_personal
+	registration_label = "custom registration"
+
+/obj/item/ship_blueprint_disk/personal_shuttle/typed
+	name = "NT Personal frigate-registration blueprint disk"
+	registration_area_type = /area/shuttle/overmap/frigate
+	registration_port_type = /obj/docking_port/mobile/overmap/frigate/nt_personal
+	registration_is_custom = FALSE
+	registration_label = "frigate registration"
 
 /obj/item/ship_blueprint_disk/solfed_cutter
 	name = "SolFed Cutter custom-registration blueprint disk"

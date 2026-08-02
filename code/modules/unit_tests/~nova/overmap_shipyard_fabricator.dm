@@ -21,9 +21,9 @@
 /datum/unit_test/overmap_shipyard_fabricator/manifest
 
 /datum/unit_test/overmap_shipyard_fabricator/manifest/Run()
-	var/datum/map_template/shuttle/template = new /datum/map_template/shuttle/whiteship/personalshuttle()
+	var/datum/map_template/shuttle/template = new /datum/map_template/shuttle/overmap/frigate/nt_personal()
 	var/datum/ship_plan/template/plan = new(template)
-	TEST_ASSERT(length(plan.manifest), "Personal shuttle template should produce a shipyard manifest.")
+	TEST_ASSERT(length(plan.manifest), "NT Personal template should produce a shipyard manifest.")
 	TEST_ASSERT(plan.width > 0 && plan.height > 0, "Manifest should retain parsed template dimensions.")
 	TEST_ASSERT(plan.material_cost[/datum/material/iron] > 0, "Manifest should aggregate iron costs.")
 	var/list/counts = plan.phase_counts()

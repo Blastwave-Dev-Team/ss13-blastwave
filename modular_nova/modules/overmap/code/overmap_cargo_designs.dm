@@ -104,10 +104,10 @@
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
 /datum/design/ship_blueprint_disk
-	name = "Personal Travel Shuttle Blueprint Disk"
-	desc = "A production manifest for fabricating a personal travel shuttle."
+	name = "NT Personal Blueprint Disk"
+	desc = "A production manifest for fabricating the NanoTrasen personal transport frigate."
 	id = "ship_blueprint_disk"
-	build_path = /obj/item/ship_blueprint_disk/personal_shuttle
+	build_path = /obj/item/ship_blueprint_disk/personal_shuttle/typed
 	build_type = PROTOLATHE
 	materials = list(
 		/datum/material/iron = HALF_SHEET_MATERIAL_AMOUNT,
@@ -118,11 +118,11 @@
 
 /datum/supply_pack/engineering/shipyard_fabricator
 	name = "Shipyard Fabricator Starter Kit"
-	desc = "Two fabricator assembly boards, a basic ship blueprint disk, and a rapid part exchange device."
+	desc = "Two fabricator assembly boards, an NT Personal frigate blueprint disk, and a rapid part exchange device."
 	cost = CARGO_CRATE_VALUE * 8
 	contains = list(
 		/obj/item/circuitboard/machine/shipyard_fabricator = 2,
-		/obj/item/ship_blueprint_disk/personal_shuttle,
+		/obj/item/ship_blueprint_disk/personal_shuttle/typed,
 		/obj/item/storage/part_replacer,
 	)
 	crate_name = "shipyard fabricator kit crate"

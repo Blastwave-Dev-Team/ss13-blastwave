@@ -801,7 +801,7 @@
 /// Catalog v1: explicit opt-in shuttle templates only.
 /proc/get_fabricable_ship_plans()
 	var/static/list/fabricable_template_types = list(
-		/datum/map_template/shuttle/whiteship/personalshuttle,
+		/datum/map_template/shuttle/overmap/frigate/nt_personal,
 	)
 	var/list/plans = list()
 	for(var/template_type in fabricable_template_types)
