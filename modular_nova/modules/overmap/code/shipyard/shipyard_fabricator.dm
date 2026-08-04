@@ -38,6 +38,12 @@
 #define SHIPYARD_PANEL "shuttle_printer-maintenance_panel"
 #define SHIPYARD_DISK "shuttle_printer-computer_disk"
 
+/// Private research snapshot owned by a player-built shipyard fabricator.
+/datum/techweb/shipyard
+	id = "SHIPYARD"
+	organization = "Independent Shipyard"
+	should_generate_points = FALSE
+
 /// Landing-zone claim held while a shipyard build is active.
 /obj/effect/landmark/overmap_landing_zone
 	var/datum/weakref/shipyard_claim
@@ -62,6 +68,8 @@
 	var/datum/weakref/linked_controller
 	/// Inserted recipe disk.
 	var/obj/item/ship_blueprint_disk/blueprint_disk
+	/// Technology disk waiting to be imported into a private research snapshot.
+	var/obj/item/disk/tech_disk/research_disk
 	/// Docked parts inventory.
 	var/obj/item/storage/part_replacer/docked_rped
 	/// Optional linked shuttle blueprints accepted for future serialization.
@@ -101,6 +109,25 @@
 	var/dish_icon_state = SHIPYARD_DISH_IDLE
 	/// Direction of the directional dish overlay.
 	var/dish_direction = SOUTH
+	/// Research designs this machine may use to synthesize ship dependencies.
+	var/datum/techweb/stored_research
+	/// Player-built machines own their isolated web; mapped variants borrow one.
+	var/owns_techweb = TRUE
+	/// Exact shared techweb type used by mapped station/faction variants.
+	var/shared_techweb_type
+
+/// Mappers opt into a shared web explicitly; no proximity fallback is allowed.
+/obj/machinery/shipyard_fabricator/mapped
+	owns_techweb = FALSE
+	shared_techweb_type = /datum/techweb/science
+
+/obj/machinery/shipyard_fabricator/mapped/station
+
+/obj/machinery/shipyard_fabricator/mapped/oldstation
+	shared_techweb_type = /datum/techweb/oldstation
+
+/obj/machinery/shipyard_fabricator/mapped/tarkon
+	shared_techweb_type = /datum/techweb/tarkon
 
 /// One constructible half of the two-frame shipyard fabricator.
 /// Completing two horizontally adjacent halves consumes both and creates the
@@ -185,6 +212,13 @@
 /obj/machinery/shipyard_fabricator/Initialize(mapload)
 	. = ..()
 	materials = new(src, mapload, allow_standalone = FALSE)
+	if(owns_techweb)
+		stored_research = new /datum/techweb/shipyard
+	else
+		for(var/datum/techweb/candidate as anything in SSresearch.techwebs)
+			if(candidate.type == shared_techweb_type)
+				stored_research = candidate
+				break
 	register_context()
 
 /**
@@ -406,6 +440,10 @@
 	release_zone()
 	QDEL_NULL(materials)
 	eject_all()
+	if(owns_techweb)
+		QDEL_NULL(stored_research)
+	else
+		stored_research = null
 	return ..()
 
 /obj/machinery/shipyard_fabricator/on_deconstruction(disassembled)
@@ -434,9 +472,11 @@
 /obj/machinery/shipyard_fabricator/proc/eject_all()
 	var/atom/drop = drop_location()
 	blueprint_disk?.forceMove(drop)
+	research_disk?.forceMove(drop)
 	docked_rped?.forceMove(drop)
 	intake_blueprints?.forceMove(drop)
 	blueprint_disk = null
+	research_disk = null
 	docked_rped = null
 	intake_blueprints = null
 	if(!QDELETED(src))
@@ -473,6 +513,9 @@
 	return ..()
 
 /obj/machinery/shipyard_fabricator/item_interaction(mob/living/user, obj/item/tool, list/modifiers)
+	if(state == SHIPYARD_STATE_BUILDING)
+		balloon_alert(user, "build in progress")
+		return ITEM_INTERACT_BLOCKING
 	if(istype(tool, /obj/item/ship_blueprint_disk))
 		if(blueprint_disk)
 			balloon_alert(user, "disk slot occupied")
@@ -486,6 +529,18 @@
 		blueprint_disk = disk
 		update_appearance()
 		balloon_alert(user, "blueprint loaded")
+		return ITEM_INTERACT_SUCCESS
+	if(istype(tool, /obj/item/disk/tech_disk))
+		if(!owns_techweb)
+			balloon_alert(user, "shared research is read-only")
+			return ITEM_INTERACT_BLOCKING
+		if(research_disk)
+			balloon_alert(user, "research slot occupied")
+			return ITEM_INTERACT_BLOCKING
+		if(!user.transferItemToLoc(tool, src))
+			return ITEM_INTERACT_BLOCKING
+		research_disk = tool
+		balloon_alert(user, "technology disk loaded")
 		return ITEM_INTERACT_SUCCESS
 	if(istype(tool, /obj/item/storage/part_replacer))
 		return dock_rped(user, tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
@@ -528,6 +583,7 @@
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
 	. += span_notice("Landing zone: [controller ? controller.zone_label : "unlinked"].")
 	. += span_notice("Silo: [materials?.silo ? "linked" : "unlinked"]; RPED: [docked_rped ? "docked" : "missing"]; disk: [blueprint_disk ? blueprint_disk.ship_plan?.name : "missing"].")
+	. += span_notice("Research: [owns_techweb ? "private snapshot" : (stored_research?.organization || "shared link unavailable")].")
 	if(paused_reason)
 		. += span_warning(paused_reason)
 
@@ -583,6 +639,10 @@
 	data["siloOnHold"] = materials?.on_hold()
 	data["rpedDocked"] = !!docked_rped
 	data["diskLoaded"] = !!blueprint_disk
+	data["researchDiskLoaded"] = !!research_disk
+	data["researchSource"] = owns_techweb ? "Private snapshot" : (stored_research?.organization || "Unavailable shared web")
+	data["researchDesignCount"] = length(stored_research?.researched_designs)
+	data["canImportResearch"] = owns_techweb
 	data["blueprintsLoaded"] = !!intake_blueprints
 	data["materialMultiplier"] = material_cost_multiplier
 	data["placementDelay"] = fabrication_delay
@@ -593,20 +653,104 @@
 	data["zoneWidth"] = zone?.zone_width || 0
 	data["zoneHeight"] = zone?.zone_height || 0
 	data["zoneOccupied"] = !!blocking_occupant(zone)
+	data["dependenciesReady"] = !dependency_preflight_issue(plan)
 	data["materials"] = material_summary(plan)
 	data["parts"] = part_summary(plan)
 	return data
+
+/obj/machinery/shipyard_fabricator/proc/import_research_disk()
+	if(!owns_techweb || !research_disk?.stored_research || !stored_research)
+		return FALSE
+	research_disk.stored_research.copy_research_to(stored_research)
+	return TRUE
+
+/// Highest-rated compatible design authorized by imported or blueprint research.
+/obj/machinery/shipyard_fabricator/proc/authorized_dependency_design(requirement)
+	var/datum/design/best_design
+	var/best_rating = -INFINITY
+	for(var/datum/design/design as anything in shipyard_dependency_designs(requirement))
+		if(!stored_research?.researched_designs[design.id] && !blueprint_disk?.embedded_design_ids[design.id])
+			continue
+		var/rating = shipyard_dependency_design_rating(design)
+		if(!best_design || rating > best_rating)
+			best_design = design
+			best_rating = rating
+	return best_design
+
+/obj/machinery/shipyard_fabricator/proc/dependency_design_authorized(requirement)
+	return !!authorized_dependency_design(requirement)
+
+/obj/machinery/shipyard_fabricator/proc/physical_dependency_count(requirement)
+	var/item_path = shipyard_part_item_type(requirement)
+	var/count = 0
+	for(var/obj/item/part in docked_rped?.contents)
+		if(istype(part, item_path))
+			count++
+	return count
+
+/// First dependency the RPED and active licenses cannot supply.
+/obj/machinery/shipyard_fabricator/proc/dependency_preflight_issue(datum/ship_plan/plan)
+	if(!plan)
+		return "No ship plan is loaded."
+	for(var/requirement in plan.required_parts)
+		var/missing = plan.required_parts[requirement] - physical_dependency_count(requirement)
+		if(missing <= 0)
+			continue
+		if(!length(shipyard_dependency_designs(requirement)))
+			return "No printable design exists for [requirement]; supply it through an RPED."
+		var/datum/design/design = authorized_dependency_design(requirement)
+		if(!design)
+			return "No researched design for [requirement] is included in the imported or blueprint disk."
+		if(!length(shipyard_design_material_cost(design)))
+			return "[design.name] cannot be billed to the ore silo."
+	return null
+
+/obj/machinery/shipyard_fabricator/proc/dependency_material_cost(datum/ship_plan/plan)
+	var/list/result = list()
+	if(!plan)
+		return result
+	for(var/requirement in plan.required_parts)
+		var/missing = max(0, plan.required_parts[requirement] - physical_dependency_count(requirement))
+		if(!missing)
+			continue
+		var/datum/design/design = authorized_dependency_design(requirement)
+		var/list/cost = shipyard_design_material_cost(design, missing)
+		for(var/material_path in cost)
+			result[material_path] = (result[material_path] || 0) + cost[material_path]
+	return result
+
+/// Create and bill one dependency that the active research sources authorize.
+/obj/machinery/shipyard_fabricator/proc/fabricate_dependency(requirement, atom/destination)
+	var/datum/design/design = authorized_dependency_design(requirement)
+	var/list/cost = shipyard_design_material_cost(design)
+	if(!design || !length(cost) || !materials?.mat_container?.has_materials(cost, material_cost_multiplier))
+		return null
+	var/obj/item/created = new design.build_path(destination)
+	if(!created || QDELETED(created))
+		return null
+	materials.use_materials(
+		cost,
+		coefficient = material_cost_multiplier,
+		action = "fabricate dependency",
+		name = blueprint_disk?.ship_plan?.name || "ship",
+		user_data = consumer_id_data(),
+	)
+	return created
 
 /obj/machinery/shipyard_fabricator/proc/material_summary(datum/ship_plan/plan)
 	var/list/result = list()
 	if(!plan)
 		return result
-	for(var/material_path in plan.material_cost)
+	var/list/combined_cost = plan.material_cost.Copy()
+	var/list/dependency_cost = dependency_material_cost(plan)
+	for(var/material_path in dependency_cost)
+		combined_cost[material_path] = (combined_cost[material_path] || 0) + dependency_cost[material_path]
+	for(var/material_path in combined_cost)
 		var/datum/material/material = SSmaterials.get_material(material_path)
 		var/available = materials?.mat_container?.get_material_amount(material_path) || 0
 		result += list(list(
 			"name" = material?.name || "[material_path]",
-			"required" = round(plan.material_cost[material_path] * material_cost_multiplier / SHEET_MATERIAL_AMOUNT, 0.1),
+			"required" = round(combined_cost[material_path] * material_cost_multiplier / SHEET_MATERIAL_AMOUNT, 0.1),
 			"available" = round(available / SHEET_MATERIAL_AMOUNT, 0.1),
 		))
 	return result
@@ -617,14 +761,14 @@
 		return result
 	for(var/part_path in plan.required_parts)
 		var/obj/item/item_path = shipyard_part_item_type(part_path)
-		var/count = 0
-		for(var/obj/item/part in docked_rped?.contents)
-			if(istype(part, item_path))
-				count++
+		var/count = physical_dependency_count(part_path)
+		var/datum/design/design = authorized_dependency_design(part_path)
 		result += list(list(
 			"name" = initial(item_path.name),
 			"required" = plan.required_parts[part_path],
 			"available" = count,
+			"fabricable" = !!design,
+			"fabricated" = design?.name,
 		))
 	return result
 
@@ -681,7 +825,20 @@
 			docked_rped = null
 			update_appearance()
 			. = TRUE
+		if("import_research")
+			if(state == SHIPYARD_STATE_BUILDING || !import_research_disk())
+				return FALSE
+			balloon_alert(user, "research imported")
+			. = TRUE
+		if("eject_research_disk")
+			if(state == SHIPYARD_STATE_BUILDING)
+				return FALSE
+			research_disk?.forceMove(drop_location())
+			research_disk = null
+			. = TRUE
 		if("eject_blueprints")
+			if(state == SHIPYARD_STATE_BUILDING)
+				return FALSE
 			intake_blueprints?.forceMove(drop_location())
 			intake_blueprints = null
 			. = TRUE
@@ -709,8 +866,9 @@
 	if(!plan || !length(plan.manifest))
 		paused_reason = "Insert a valid ship blueprint disk."
 		return FALSE
-	if(!docked_rped)
-		paused_reason = "Dock an RPED containing required boards and stock parts."
+	var/dependency_issue = dependency_preflight_issue(plan)
+	if(dependency_issue)
+		paused_reason = dependency_issue
 		return FALSE
 	if(!materials?.silo || !materials.can_use_resource(user_data = consumer_id_data()))
 		paused_reason = "A live ore silo connection is required."

@@ -19,6 +19,8 @@ type SupplyEntry = {
   name: string;
   required: number;
   available: number;
+  fabricable?: BooleanLike;
+  fabricated?: string;
 };
 
 type Fault = {
@@ -54,6 +56,11 @@ type Data = {
   siloOnHold: BooleanLike;
   rpedDocked: BooleanLike;
   diskLoaded: BooleanLike;
+  researchDiskLoaded: BooleanLike;
+  researchSource: string;
+  researchDesignCount: number;
+  canImportResearch: BooleanLike;
+  dependenciesReady: BooleanLike;
   blueprintsLoaded: BooleanLike;
   zoneLinked: BooleanLike;
   zoneActive: BooleanLike;
@@ -145,7 +152,7 @@ const FabricatorView = () => {
   const resumable = data.state === 'paused' || data.state === 'fault';
   const canStart =
     !!data.diskLoaded &&
-    !!data.rpedDocked &&
+    !!data.dependenciesReady &&
     !!data.siloLinked &&
     !data.siloOnHold &&
     !!data.zoneActive &&
@@ -282,8 +289,52 @@ const FabricatorView = () => {
         )}
       </Section>
 
+      <Section
+        title="Research Authorization"
+        buttons={
+          <>
+            <Button
+              icon="download"
+              disabled={
+                !data.canImportResearch ||
+                !data.researchDiskLoaded ||
+                running
+              }
+              onClick={() => act('import_research')}
+            >
+              Import
+            </Button>
+            <Button
+              ml={1}
+              icon="eject"
+              disabled={!data.researchDiskLoaded || running}
+              onClick={() => act('eject_research_disk')}
+            >
+              Eject
+            </Button>
+          </>
+        }
+      >
+        <LabeledList>
+          <LabeledList.Item label="Source">
+            {data.researchSource}
+          </LabeledList.Item>
+          <LabeledList.Item label="Known designs">
+            {data.researchDesignCount}
+          </LabeledList.Item>
+          <LabeledList.Item label="Technology disk">
+            {data.researchDiskLoaded ? 'Loaded' : 'Empty'}
+          </LabeledList.Item>
+        </LabeledList>
+        {!data.canImportResearch && (
+          <Box mt={1} color="label">
+            Shared station and faction research is read-only at this terminal.
+          </Box>
+        )}
+      </Section>
+
       <SupplyTable title="Silo Materials (sheets)" entries={data.materials} />
-      <SupplyTable title="RPED Boards and Parts" entries={data.parts} />
+      <SupplyTable title="Dependency Boards and Parts" entries={data.parts} />
 
       <Section
         title="Docked RPED"
@@ -297,7 +348,9 @@ const FabricatorView = () => {
           </Button>
         }
       >
-        {data.rpedDocked ? 'Parts inventory available.' : 'Dock an RPED.'}
+        {data.rpedDocked
+          ? 'Physical parts are preferred over licensed fabrication.'
+          : 'Optional: dock an RPED to supply upgraded or unlicensed parts.'}
       </Section>
 
       {!!data.faults.length && (
@@ -340,9 +393,16 @@ const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
             <Table.Cell>{entry.name}</Table.Cell>
             <Table.Cell
               textAlign="right"
-              color={entry.available >= entry.required ? 'good' : 'bad'}
+              color={
+                entry.available >= entry.required || entry.fabricable
+                  ? 'good'
+                  : 'bad'
+              }
             >
               {entry.available}
+              {entry.fabricable && entry.available < entry.required
+                ? ` + ${entry.fabricated || 'licensed fabrication'}`
+                : ''}
             </Table.Cell>
             <Table.Cell textAlign="right">{entry.required}</Table.Cell>
           </Table.Row>

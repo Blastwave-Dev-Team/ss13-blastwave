@@ -9501,6 +9501,7 @@
 #include "modular_nova\modules\shuttle_construction\code\frame_construction.dm"
 #include "modular_nova\modules\shuttle_construction\code\frame_overlays.dm"
 #include "modular_nova\modules\shuttle_construction\code\frame_rods.dm"
+#include "modular_nova\modules\shuttle_construction\code\visuals.dm"
 #include "modular_nova\modules\SiliconQoL\code\_onclick.dm"
 #include "modular_nova\modules\SiliconQoL\code\countdown.dm"
 #include "modular_nova\modules\SiliconQoL\code\door_request.dm"

@@ -299,13 +299,81 @@
 	TEST_ASSERT_EQUAL(rods.get_amount(), rod_count - 1, "Space should still consume a rod to build a lattice")
 	var/obj/structure/lattice/lattice = locate(/obj/structure/lattice) in target
 	TEST_ASSERT(lattice, "Shuttle rods on space should still create a lattice")
+	TEST_ASSERT_EQUAL(lattice.type, /obj/structure/lattice/ship, "Shuttle rods on space should create the ship lattice visual subtype")
 	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Lattice path should mark turf as shuttle construction")
+	TEST_ASSERT_EQUAL(lattice.build_material, /obj/item/stack/rods, "Cutting ship lattice should still return ordinary rods")
 
-	qdel(lattice)
+	rods.moveToNullspace()
+	lattice.deconstruct()
+	var/obj/item/stack/rods/dropped_rods = locate(/obj/item/stack/rods) in target
+	TEST_ASSERT(dropped_rods, "Deconstructing ship lattice should return rods")
+	TEST_ASSERT_EQUAL(dropped_rods.type, /obj/item/stack/rods, "Deconstructing ship lattice should return the same ordinary rod type as standard lattice")
+	TEST_ASSERT_EQUAL(dropped_rods.get_amount(), 1, "Deconstructing ship lattice should return one rod")
+	qdel(dropped_rods)
 	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
 	target.assemble_baseturfs(initial(target.baseturfs))
 
 /datum/unit_test/shuttle_construction/shuttle_frame_space_lattice_unchanged/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/ship_regular_space_construction_unchanged
+
+/datum/unit_test/shuttle_construction/ship_regular_space_construction_unchanged/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/rods = allocate(/obj/item/stack/rods/ten)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
+
+	target.ChangeTurf(/turf/open/space, /turf/open/space)
+	var/rod_count = rods.get_amount()
+	target.build_with_rods(rods, user)
+	TEST_ASSERT_EQUAL(rods.get_amount(), rod_count - 1, "Ordinary space lattice should still cost one rod")
+	var/obj/structure/lattice/lattice = locate(/obj/structure/lattice) in target
+	TEST_ASSERT(lattice, "Ordinary rods should create a lattice")
+	TEST_ASSERT_EQUAL(lattice.type, /obj/structure/lattice, "Ordinary rods should keep creating ordinary lattice")
+
+	var/tile_count = tiles.get_amount()
+	target.build_with_floor_tiles(tiles, user)
+	target = get_turf(target)
+	TEST_ASSERT_EQUAL(tiles.get_amount(), tile_count - 1, "Ordinary lattice plating should still cost one tile")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating, "Ordinary lattice should keep producing ordinary plating")
+
+	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
+	target.assemble_baseturfs(initial(target.baseturfs))
+
+/datum/unit_test/shuttle_construction/ship_regular_space_construction_unchanged/Destroy()
+	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
+	return ..()
+
+/datum/unit_test/shuttle_construction/ship_space_lattice_rcd_builds_plating
+
+/datum/unit_test/shuttle_construction/ship_space_lattice_rcd_builds_plating/Run()
+	var/turf/open/target = run_loc_floor_bottom_left
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/construction/rcd/rcd = allocate(/obj/item/construction/rcd)
+	var/original_baseturfs = islist(target.baseturfs) ? target.baseturfs.Copy() : target.baseturfs
+
+	target.ChangeTurf(/turf/open/space, /turf/open/space)
+	target.build_with_rods(rods, user)
+	var/obj/structure/lattice/ship/lattice = locate(/obj/structure/lattice/ship) in target
+	TEST_ASSERT(lattice, "Shuttle rods should create ship lattice for RCD plating")
+
+	rcd.mode = RCD_TURF
+	rcd.rcd_design_path = /turf/open/floor/plating/rcd
+	var/list/rcd_values = lattice.rcd_vals(user, rcd)
+	TEST_ASSERT_EQUAL(rcd_values["cost"], 1, "Ship lattice RCD plating should retain the ordinary one-unit cost")
+	var/list/rcd_data = list("[RCD_DESIGN_MODE]" = RCD_TURF, "[RCD_DESIGN_PATH]" = /turf/open/floor/plating/rcd)
+	TEST_ASSERT(lattice.rcd_act(user, rcd, rcd_data), "RCD should plate ship lattice")
+	target = get_turf(target)
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "RCD on ship lattice should produce ship plating")
+
+	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
+	target.assemble_baseturfs(initial(target.baseturfs))
+
+/datum/unit_test/shuttle_construction/ship_space_lattice_rcd_builds_plating/Destroy()
 	reset_shuttle_frame_turf(run_loc_floor_bottom_left)
 	return ..()
 
@@ -325,7 +393,7 @@
 
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "shuttle_frame_build_plating_with_tile should succeed")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Tile on rod-frame floor should produce plating, got [target.type]")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Tile on rod-frame floor should produce ship plating")
 	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Frame trait should survive plating")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be cleared after plating")
 	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Turf should remain in the same shuttle frame")
@@ -347,7 +415,7 @@
 
 	target.shuttle_frame_build_plating_with_tile(tiles, user)
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "First tile should produce plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "First tile should produce ship plating")
 
 	target = tiles.place_tile(target, user)
 	TEST_ASSERT(target, "Second tile (place_tile) should return the new turf")
@@ -370,7 +438,7 @@
 	var/list/rcd_data = list("[RCD_DESIGN_MODE]" = RCD_TURF, "[RCD_DESIGN_PATH]" = /turf/open/floor/plating/rcd)
 	TEST_ASSERT(target.shuttle_frame_rcd_act(rcd_data), "shuttle_frame_rcd_act should succeed on rod-frame turf")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "RCD on rod-frame turf should produce plating, got [target.type]")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "RCD on rod-frame turf should produce ship plating")
 	TEST_ASSERT(!iswallturf(target), "RCD should NOT produce a wall on rod-frame turf")
 	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Frame trait should survive RCD plating")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be cleared after RCD plating")
@@ -395,7 +463,7 @@
 
 	target.build_with_floor_tiles(tiles, user)
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Floor tile on lattice should produce plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Floor tile on ship lattice should produce ship plating")
 	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Plating built over space lattice should NOT have a rod overlay")
 
 	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)
@@ -415,7 +483,9 @@
 	RESET_TO_EXPECTED(target)
 	apply_shuttle_rods(target, rods, user)
 
-	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Station rod frame should have the lattice overlay")
+	var/mutable_appearance/rod_overlay = GLOB.shuttle_frame_overlays_by_turf[target]
+	TEST_ASSERT(rod_overlay, "Station rod frame should have the lattice overlay")
+	TEST_ASSERT_EQUAL(rod_overlay.icon, 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi', "Station rod frame should use the ship lattice asset")
 
 	target.shuttle_frame_build_plating_with_tile(tiles, user)
 	target = get_turf(target)
@@ -470,13 +540,15 @@
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[target]
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build plating over rods")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Built layer should be plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Built layer should be ship plating")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be hidden while plating is built")
 
 	target.ScrapeAway()
 	target = get_turf(target)
 	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Deconstructing plating should re-expose the frame rods")
-	TEST_ASSERT(GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay should return after deconstruction")
+	var/mutable_appearance/rod_overlay = GLOB.shuttle_frame_overlays_by_turf[target]
+	TEST_ASSERT(rod_overlay, "Rod overlay should return after deconstruction")
+	TEST_ASSERT_EQUAL(rod_overlay.icon, 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi', "Re-exposed rods should use the ship lattice asset")
 	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target] == frame, "Re-exposed turf should remain in the same shuttle frame")
 
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should be able to rebuild plating on the re-exposed frame turf")
@@ -498,7 +570,7 @@
 	apply_shuttle_rods(target, rods, user)
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over station rods")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Hull layer should be plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Hull layer should be ship plating")
 
 	insert_shuttle_skipover(target)
 	TEST_ASSERT_EQUAL(target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), 1, "Skipover should sit directly beneath the hull plating, not under the station floors")
@@ -536,7 +608,7 @@
 	insert_shuttle_skipover(target)
 	TEST_ASSERT_EQUAL(target.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle), 2, "Skipover should sit beneath the hull plating (depth 2 under a tiled hull)")
 	var/list/stack = target.baseturfs
-	TEST_ASSERT_EQUAL(stack[length(stack)], /turf/open/floor/plating, "Hull plating should be above the skipover")
+	TEST_ASSERT_EQUAL(stack[length(stack)], /turf/open/floor/plating/ship, "Ship plating should be above the skipover")
 	TEST_ASSERT_EQUAL(stack[length(stack) - 2], /turf/open/floor/iron, "Station floor should remain below the skipover")
 
 /datum/unit_test/shuttle_construction/shuttle_skipover_tiled_hull/Destroy()
@@ -573,7 +645,7 @@
 	TEST_ASSERT(frame, "Frame should exist on plating pad before hull plating")
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Should build hull plating over plating-pad rods")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Hull layer should be plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Hull layer should be ship plating")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should be hidden under hull plating")
 
 	target.ScrapeAway()
@@ -606,7 +678,7 @@
 
 	target.ScrapeAway()
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Scraping the tile should leave hull plating")
+	TEST_ASSERT_EQUAL(target.type, /turf/open/floor/plating/ship, "Scraping the tile should leave ship plating")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Tile scrape onto hull plating must not re-expose rods")
 	TEST_ASSERT(!GLOB.shuttle_frame_overlays_by_turf[target], "Rod overlay must stay cleared under hull plating")
 

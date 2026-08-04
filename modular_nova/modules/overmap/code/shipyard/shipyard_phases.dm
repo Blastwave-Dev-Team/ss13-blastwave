@@ -321,9 +321,9 @@
 	if(!created.shipyard_prepare(desired_vars))
 		qdel(created)
 		return "Failed to prepare [target_path] for placement."
-	if(!consume_required_parts(fabricator?.docked_rped, created))
+	if(!consume_required_parts(fabricator, created))
 		if(fabricator)
-			fabricator.paused_reason = "RPED lacks parts for [target_path]."
+			fabricator.paused_reason = "Parts or licensed materials are unavailable for [target_path]."
 		qdel(created)
 		return null
 	created.forceMove(work_turf)
@@ -335,13 +335,13 @@
 	apply_mapping_helpers(created)
 	return TRUE
 
-/datum/ship_plan_op/proc/consume_required_parts(obj/item/storage/part_replacer/replacer, atom/movable/destination)
+/datum/ship_plan_op/proc/consume_required_parts(obj/machinery/shipyard_fabricator/fabricator, atom/movable/destination)
 	if(!length(required_parts))
 		return TRUE
-	if(!replacer)
-		return FALSE
-	var/list/available_parts = replacer.get_sorted_parts()
+	var/obj/item/storage/part_replacer/replacer = fabricator?.docked_rped
+	var/list/available_parts = replacer?.get_sorted_parts() || list()
 	var/list/selected_parts = list()
+	var/list/missing_parts = list()
 	for(var/requirement in required_parts)
 		var/target_path = shipyard_part_item_type(requirement)
 		var/remaining = required_parts[requirement]
@@ -354,11 +354,17 @@
 			if(!remaining)
 				break
 		if(remaining)
-			return FALSE
+			missing_parts[requirement] = remaining
 	for(var/obj/item/part as anything in selected_parts)
 		if(!replacer.atom_storage.attempt_remove(part, destination))
 			return FALSE
 		qdel(part)
+	for(var/requirement in missing_parts)
+		for(var/index in 1 to missing_parts[requirement])
+			var/obj/item/part = fabricator.fabricate_dependency(requirement, destination)
+			if(!part)
+				return FALSE
+			qdel(part)
 	return TRUE
 
 /datum/ship_plan_op/proc/apply_mapping_helpers(atom/movable/target)
@@ -369,13 +375,13 @@
 		var/list/helper_vars = helper_spec["vars"]
 		new helper_path(get_turf(target), target, helper_vars)
 
-/datum/ship_plan_op/proc/find_board(obj/item/storage/part_replacer/replacer)
-	if(!replacer || !board_path)
+/datum/ship_plan_op/proc/find_board(obj/machinery/shipyard_fabricator/fabricator)
+	if(!board_path)
 		return null
-	for(var/obj/item/circuitboard/board in replacer.contents)
+	for(var/obj/item/circuitboard/board in fabricator.docked_rped?.contents)
 		if(istype(board, board_path))
 			return board
-	return null
+	return fabricator.fabricate_dependency(board_path, fabricator)
 
 /**
  * Fill in the board components the manifest already billed to the ore silo.
@@ -395,6 +401,22 @@
 				frame.components += component
 		frame.req_components[component_path] = 0
 
+/// Fill any RPED shortage with base-tier components authorized by research.
+/datum/ship_plan_op/proc/supply_licensed_components(obj/structure/frame/machine/frame, obj/machinery/shipyard_fabricator/fabricator)
+	for(var/component_path in frame.req_components)
+		while(frame.req_components[component_path] > 0)
+			var/obj/item/component = fabricator.fabricate_dependency(component_path, frame)
+			if(!component)
+				return FALSE
+			var/stock_part_datum = GLOB.stock_part_datums_per_object[component.type]
+			if(!isnull(stock_part_datum))
+				frame.components += stock_part_datum
+				qdel(component)
+			else
+				frame.components += component
+			frame.req_components[component_path]--
+	return TRUE
+
 /datum/ship_plan_op/proc/execute_machine(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
@@ -402,15 +424,19 @@
 	if(!frame)
 		return "Machine frame is missing."
 	if(!frame.circuit)
-		var/obj/item/circuitboard/machine/board = find_board(fabricator.docked_rped)
+		var/obj/item/circuitboard/machine/board = find_board(fabricator)
 		if(!board)
-			fabricator.paused_reason = "RPED lacks [board_path]."
+			fabricator.paused_reason = "No physical or licensed [board_path] is available."
 			return null
 		board.build_path = target_path
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Machine board could not be installed."
 	supply_printed_components(frame)
-	frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
+	if(fabricator.docked_rped)
+		frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
+	if(!supply_licensed_components(frame, fabricator))
+		fabricator.paused_reason = "Parts or licensed materials are unavailable for [frame.circuit.name]."
+		return null
 	for(var/component_path in frame.req_components)
 		if(frame.req_components[component_path] > 0)
 			fabricator.paused_reason = "RPED lacks parts for [frame.circuit.name]."
@@ -427,9 +453,9 @@
 	if(!frame)
 		return "Computer frame is missing."
 	if(!frame.circuit)
-		var/obj/item/circuitboard/computer/board = find_board(fabricator.docked_rped)
+		var/obj/item/circuitboard/computer/board = find_board(fabricator)
 		if(!board)
-			fabricator.paused_reason = "RPED lacks [board_path]."
+			fabricator.paused_reason = "No physical or licensed [board_path] is available."
 			return null
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Computer board could not be installed."
@@ -502,6 +528,21 @@
 	. = ..()
 	power_change()
 	update(instant = TRUE, play_sound = FALSE)
+
+/obj/machinery/button/door/shipyard_prepare(list/desired_vars)
+	. = ..()
+	QDEL_NULL(device)
+	QDEL_NULL(board)
+	if(length(req_access) || length(req_one_access))
+		board = new(src)
+		if(length(req_access))
+			board.accesses = req_access
+		else
+			board.one_access = TRUE
+			board.accesses = req_one_access
+	setup_device(TRUE)
+	set_panel_open(FALSE)
+	return TRUE
 
 /obj/structure/closet/shipyard_prepare(list/desired_vars)
 	. = ..()

@@ -24,10 +24,10 @@
 	var/appearance_path
 	switch(operation.op_type)
 		if(SHIPYARD_OP_RODS)
-			icon = 'icons/obj/smooth_structures/lattice.dmi'
+			icon = 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi'
 			icon_state = "lattice-0"
 		if(SHIPYARD_OP_PLATING)
-			appearance_path = /turf/open/floor/plating
+			appearance_path = /turf/open/floor/plating/ship
 		if(SHIPYARD_OP_GIRDER)
 			appearance_path = /obj/structure/girder
 		if(SHIPYARD_OP_MACHINE_FRAME)

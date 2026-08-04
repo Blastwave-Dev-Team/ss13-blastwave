@@ -14,7 +14,7 @@
 		balloon_alert(user, "need a floor tile!")
 		return TRUE
 	playsound(src, 'sound/items/weapons/genhit.ogg', 50, TRUE)
-	var/turf/open/floor/plating/new_plating = place_on_top(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
+	var/turf/open/floor/plating/new_plating = place_on_top(/turf/open/floor/plating/ship, flags = CHANGETURF_INHERIT_AIR)
 	REMOVE_TRAIT(new_plating, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
 	remove_shuttle_frame_overlay(new_plating)
 	to_chat(user, span_notice("You lay plating over the shuttle frame rods."))
@@ -40,7 +40,7 @@
 		return FALSE
 	if(rcd_data[RCD_DESIGN_PATH] != /turf/open/floor/plating/rcd)
 		return FALSE
-	var/turf/open/floor/plating/new_plating = place_on_top(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
+	var/turf/open/floor/plating/new_plating = place_on_top(/turf/open/floor/plating/ship, flags = CHANGETURF_INHERIT_AIR)
 	REMOVE_TRAIT(new_plating, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
 	remove_shuttle_frame_overlay(new_plating)
 	return TRUE

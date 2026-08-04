@@ -17,9 +17,14 @@
 	var/registration_is_custom = TRUE
 	/// Optional qualifier that distinguishes registration variants in-world.
 	var/registration_label
+	/// Designs this trusted stock license may synthesize for its own manifest.
+	var/list/embedded_design_ids = list()
+	/// Opt-in for purchased stock disks whose license covers every designed dependency.
+	var/prebake_dependency_designs = FALSE
 
 /obj/item/ship_blueprint_disk/Initialize(mapload)
 	. = ..()
+	embedded_design_ids = embedded_design_ids.Copy()
 	addtimer(CALLBACK(src, PROC_REF(load_ship_plan)), 0)
 
 /obj/item/ship_blueprint_disk/proc/load_ship_plan()
@@ -33,6 +38,11 @@
 	if(!template)
 		template = new template_type()
 	ship_plan = new /datum/ship_plan/template(template)
+	if(prebake_dependency_designs)
+		for(var/requirement in ship_plan.required_parts)
+			var/datum/design/design = shipyard_dependency_design(requirement)
+			if(design)
+				embedded_design_ids[design.id] = TRUE
 	update_appearance()
 	return ship_plan
 
@@ -52,6 +62,8 @@
 		return
 	. += span_notice("Design: <b>[ship_plan.name]</b> ([ship_plan.width]×[ship_plan.height]).")
 	. += span_notice("Manifest: [length(ship_plan.manifest)] operations; [length(ship_plan.skipped_contents)] skipped map entries.")
+	if(length(embedded_design_ids))
+		. += span_notice("Licensed dependencies: [length(embedded_design_ids)] designs.")
 
 /obj/item/ship_blueprint_disk/personal_shuttle
 	name = "NT Personal custom-registration blueprint disk"
@@ -64,6 +76,7 @@
 	registration_port_type = /obj/docking_port/mobile/overmap/frigate/nt_personal
 	registration_is_custom = FALSE
 	registration_label = "frigate registration"
+	prebake_dependency_designs = TRUE
 
 /obj/item/ship_blueprint_disk/solfed_cutter
 	name = "SolFed Cutter custom-registration blueprint disk"

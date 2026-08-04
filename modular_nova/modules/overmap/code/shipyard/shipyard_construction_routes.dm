@@ -117,7 +117,13 @@ GLOBAL_LIST_INIT(shipyard_wallframes, build_shipyard_wallframe_registry())
  * an exact match counts: subtypes of a mounted machine ship their own frames.
  */
 /proc/get_shipyard_wallframe(machinery_type)
-	return GLOB.shipyard_wallframes[machinery_type]
+	var/list/registry = GLOB.shipyard_wallframes
+	while(machinery_type)
+		var/frame_type = registry[machinery_type]
+		if(frame_type)
+			return frame_type
+		machinery_type = type2parent(machinery_type)
+	return null
 
 /// Cached decomposition of a machine board into silo materials, printed
 /// components the fabricator makes itself, and finished RPED stock parts.
@@ -175,6 +181,69 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		return requirement
 	var/datum/stock_part/stock_part = requirement
 	return initial(stock_part.physical_object_base_type)
+
+/// Designs whose output can satisfy one ship-plan dependency.
+/proc/shipyard_dependency_designs(requirement)
+	var/item_path = shipyard_part_item_type(requirement)
+	var/allow_subtypes = ispath(item_path, /obj/item/stock_parts)
+	var/list/result = list()
+	for(var/design_id in SSresearch.techweb_designs)
+		var/datum/design/design = SSresearch.techweb_designs[design_id]
+		if(!(design.build_type & (IMPRINTER | PROTOLATHE | AUTOLATHE)))
+			continue
+		if(design.build_path == item_path || (allow_subtypes && ispath(design.build_path, item_path)))
+			result += design
+	return result
+
+/// Baseline design embedded by a self-contained stock blueprint.
+/proc/shipyard_dependency_design(requirement)
+	var/item_path = shipyard_part_item_type(requirement)
+	var/datum/design/nearest
+	var/nearest_depth = INFINITY
+	for(var/datum/design/design as anything in shipyard_dependency_designs(requirement))
+		var/depth = 0
+		var/cursor = design.build_path
+		while(cursor && cursor != item_path)
+			depth++
+			cursor = type2parent(cursor)
+		if(depth < nearest_depth)
+			nearest = design
+			nearest_depth = depth
+	return nearest
+
+/// Relative quality of a dependency design's output.
+/proc/shipyard_dependency_design_rating(datum/design/design)
+	if(!design)
+		return -INFINITY
+	var/static/list/ratings = list()
+	if(!isnull(ratings[design.id]))
+		return ratings[design.id]
+	var/obj/item/part = new design.build_path(null)
+	var/rating = part?.get_part_rating() || 0
+	qdel(part)
+	ratings[design.id] = rating
+	return rating
+
+/// Silo-storable material cost for a quantity of one selected design.
+/proc/shipyard_design_material_cost(datum/design/design, amount = 1)
+	if(!design || amount <= 0)
+		return list()
+	var/list/result = list()
+	for(var/material in design.materials)
+		var/material_path = material
+		if(istype(material, /datum/material))
+			var/datum/material/material_datum = material
+			material_path = material_datum.type
+		var/list/equivalent = shipyard_silo_equivalent_cost(material_path, design.materials[material] * amount)
+		for(var/equivalent_path in equivalent)
+			result[equivalent_path] = (result[equivalent_path] || 0) + equivalent[equivalent_path]
+	if(shipyard_material_rejection(result))
+		return list()
+	return result
+
+/// Baseline dependency cost used by static manifest analysis.
+/proc/shipyard_dependency_material_cost(requirement, amount = 1)
+	return shipyard_design_material_cost(shipyard_dependency_design(requirement), amount)
 
 /// Silo cost of printing a quantity of a loose machine component.
 /proc/shipyard_printed_component_cost(component_path, amount)
@@ -634,6 +703,44 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		/datum/material/glass = HALF_SHEET_MATERIAL_AMOUNT,
 	)
 	helper_type = /obj/effect/mapping_helpers/airlock
+
+/// Poddoors are fabricated from substantially more stock than ordinary airlocks.
+/datum/shipyard_route/blast_door
+	target_type = /obj/machinery/door/poddoor
+	materials = list(
+		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 15,
+		/datum/material/iron = SMALL_MATERIAL_AMOUNT * 2,
+		/datum/material/glass = SMALL_MATERIAL_AMOUNT * 2,
+	)
+
+/datum/shipyard_route/shutters
+	target_type = /obj/machinery/door/poddoor/shutters
+	materials = list(
+		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 5,
+		/datum/material/iron = SMALL_MATERIAL_AMOUNT,
+		/datum/material/glass = SMALL_MATERIAL_AMOUNT,
+	)
+
+/// Directional door buttons share the ordinary button frame recipe.
+/datum/shipyard_route/door_button
+	target_type = /obj/machinery/button/door
+	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT)
+	wall_mounted = TRUE
+
+/datum/shipyard_route/door_button/resolve_materials(datum/ship_plan/template/plan, produced_type, list/desired)
+	. = ..()
+	var/obj/machinery/button/door/button_type = produced_type
+	var/normal_control = desired["normaldoorcontrol"]
+	if(isnull(normal_control))
+		normal_control = initial(button_type.normaldoorcontrol)
+	var/controller_path = normal_control ? /obj/item/assembly/control/airlock : /obj/item/assembly/control
+	var/list/controller_cost = plan.printable_material_cost(controller_path)
+	if(!length(controller_cost) && normal_control)
+		controller_cost = plan.printable_material_cost(/obj/item/assembly/control)
+		plan.merge_material_cost(controller_cost, plan.printable_material_cost(/obj/item/electronics/airlock))
+	plan.merge_material_cost(., controller_cost)
+	if(length(desired["req_access"]) || length(desired["req_one_access"]))
+		plan.merge_material_cost(., plan.printable_material_cost(/obj/item/electronics/airlock))
 
 /datum/shipyard_route/apc
 	target_type = /obj/machinery/power/apc

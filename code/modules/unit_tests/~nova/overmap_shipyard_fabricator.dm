@@ -32,6 +32,129 @@
 	TEST_ASSERT(counts["[SHIPYARD_PHASE_FINAL]"] > 0, "Manifest should contain final construction operations.")
 	qdel(plan)
 
+/datum/unit_test/overmap_shipyard_fabricator/techweb_binding
+
+/datum/unit_test/overmap_shipyard_fabricator/techweb_binding/Run()
+	var/obj/machinery/shipyard_fabricator/private_fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		run_loc_floor_bottom_left,
+	)
+	TEST_ASSERT(private_fabricator.owns_techweb, "Player-built fabricators should own an isolated techweb.")
+	TEST_ASSERT(istype(private_fabricator.stored_research, /datum/techweb/shipyard), "Player-built fabricators should initialize a shipyard techweb.")
+
+	var/obj/item/disk/tech_disk/disk = allocate(/obj/item/disk/tech_disk)
+	var/datum/design/fabricator_design = SSresearch.techweb_design_by_id("shipyard_fabricator")
+	TEST_ASSERT(fabricator_design, "Techweb import test requires the shipyard fabricator design.")
+	disk.stored_research.add_design(fabricator_design)
+	private_fabricator.research_disk = disk
+	TEST_ASSERT(private_fabricator.import_research_disk(), "Private fabricators should import a technology disk.")
+	TEST_ASSERT(private_fabricator.stored_research.researched_designs[fabricator_design.id], "Imported designs should persist in the private techweb.")
+
+	var/datum/techweb/private_web = private_fabricator.stored_research
+	qdel(private_fabricator)
+	TEST_ASSERT(QDELETED(private_web), "Destroying a private fabricator should delete its owned techweb.")
+
+	var/datum/techweb/science/station_web = locate(/datum/techweb/science) in SSresearch.techwebs
+	TEST_ASSERT(station_web, "Mapped station fabricator test requires the station science web.")
+	var/obj/machinery/shipyard_fabricator/mapped/station/station_fabricator = allocate(
+		/obj/machinery/shipyard_fabricator/mapped/station,
+		run_loc_floor_bottom_left,
+	)
+	TEST_ASSERT(!station_fabricator.owns_techweb, "Mapped station fabricators should borrow research.")
+	TEST_ASSERT_EQUAL(station_fabricator.stored_research, station_web, "Mapped station fabricators should bind the exact station science web.")
+	station_fabricator.research_disk = allocate(/obj/item/disk/tech_disk)
+	TEST_ASSERT(!station_fabricator.import_research_disk(), "Shared fabricators must not import disks into their borrowed web.")
+
+/datum/unit_test/overmap_shipyard_fabricator/blueprint_dependency_license
+
+/datum/unit_test/overmap_shipyard_fabricator/blueprint_dependency_license/Run()
+	var/obj/item/ship_blueprint_disk/personal_shuttle/generic_disk = allocate(/obj/item/ship_blueprint_disk/personal_shuttle)
+	generic_disk.load_ship_plan()
+	TEST_ASSERT(!length(generic_disk.embedded_design_ids), "Generic and surveyed-style disks should not carry dependency licenses.")
+
+	var/obj/item/ship_blueprint_disk/personal_shuttle/typed/stock_disk = allocate(/obj/item/ship_blueprint_disk/personal_shuttle/typed)
+	stock_disk.load_ship_plan()
+	TEST_ASSERT(length(stock_disk.embedded_design_ids), "The purchased NT Personal disk should carry dependency licenses.")
+	var/list/dependency_paths = list()
+	for(var/requirement in stock_disk.ship_plan.required_parts)
+		dependency_paths[shipyard_part_item_type(requirement)] = TRUE
+		var/datum/design/required_design = shipyard_dependency_design(requirement)
+		TEST_ASSERT(required_design, "Purchased NT Personal dependency [requirement] should have a printable design.")
+		TEST_ASSERT(stock_disk.embedded_design_ids[required_design.id], "Stock license should include required design [required_design.id].")
+	for(var/design_id in stock_disk.embedded_design_ids)
+		var/datum/design/embedded = SSresearch.techweb_design_by_id(design_id)
+		var/matches_dependency = FALSE
+		for(var/dependency_path in dependency_paths)
+			if(ispath(embedded.build_path, dependency_path))
+				matches_dependency = TRUE
+				break
+		TEST_ASSERT(embedded && matches_dependency, "Embedded design [design_id] must be a dependency of its own ship.")
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		run_loc_floor_bottom_left,
+	)
+	stock_disk.forceMove(fabricator)
+	fabricator.blueprint_disk = stock_disk
+	TEST_ASSERT(!fabricator.dependency_preflight_issue(stock_disk.ship_plan), "Purchased NT Personal blueprints should be self-contained without an RPED.")
+
+/datum/unit_test/overmap_shipyard_fabricator/dependency_source_priority
+
+/datum/unit_test/overmap_shipyard_fabricator/dependency_source_priority/Run()
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		run_loc_floor_bottom_left,
+	)
+	var/datum/ship_plan/plan = new
+	plan.required_parts[/datum/stock_part/capacitor] = 1
+	for(var/datum/design/design as anything in shipyard_dependency_designs(/datum/stock_part/capacitor))
+		fabricator.stored_research.researched_designs -= design.id
+
+	var/obj/item/storage/part_replacer/replacer = allocate(/obj/item/storage/part_replacer/bluespace)
+	var/obj/item/stock_parts/capacitor/quadratic/physical_part = allocate(/obj/item/stock_parts/capacitor/quadratic)
+	physical_part.forceMove(replacer)
+	fabricator.docked_rped = replacer
+	TEST_ASSERT(!fabricator.dependency_preflight_issue(plan), "A physical RPED part should satisfy the requirement without any researched design.")
+
+	fabricator.docked_rped = null
+	TEST_ASSERT(fabricator.dependency_preflight_issue(plan), "A missing RPED part should fail when no compatible design research is loaded.")
+
+	var/datum/design/basic_design = SSresearch.techweb_design_by_id("basic_capacitor")
+	var/datum/design/quadratic_design = SSresearch.techweb_design_by_id("quadratic_capacitor")
+	fabricator.stored_research.add_design(basic_design)
+	fabricator.stored_research.add_design(quadratic_design)
+	TEST_ASSERT_EQUAL(
+		fabricator.authorized_dependency_design(/datum/stock_part/capacitor),
+		quadratic_design,
+		"Direct fabrication should select the highest researched compatible part.",
+	)
+	qdel(plan)
+
+/datum/unit_test/overmap_shipyard_fabricator/door_fixture_routes
+
+/datum/unit_test/overmap_shipyard_fabricator/door_fixture_routes/Run()
+	var/datum/shipyard_route/blast_door/blast_route = get_shipyard_route(/obj/machinery/door/poddoor)
+	var/datum/shipyard_route/shutters/shutter_route = get_shipyard_route(/obj/machinery/door/poddoor/shutters)
+	var/datum/shipyard_route/door_button/button_route = get_shipyard_route(/obj/machinery/button/door/directional/north)
+	TEST_ASSERT(istype(blast_route), "Blast doors should not use the generic airlock route.")
+	TEST_ASSERT(istype(shutter_route), "Shutters should have their own lower-cost route.")
+	TEST_ASSERT(istype(button_route), "Directional door buttons should inherit the door-button route.")
+	TEST_ASSERT_EQUAL(blast_route.materials[/datum/material/alloy/plasteel], SHEET_MATERIAL_AMOUNT * 15, "Blast doors should cost fifteen plasteel sheets.")
+	TEST_ASSERT_EQUAL(shutter_route.materials[/datum/material/alloy/plasteel], SHEET_MATERIAL_AMOUNT * 5, "Shutters should cost five plasteel sheets.")
+
+	var/datum/ship_plan/template/plan = new
+	var/list/button_cost = button_route.resolve_materials(plan, /obj/machinery/button/door/directional/north, list())
+	TEST_ASSERT(button_cost[/datum/material/iron] >= SHEET_MATERIAL_AMOUNT, "Door buttons should include their iron wallframe.")
+	TEST_ASSERT(button_cost[/datum/material/glass] > 0, "Door buttons should include their controller electronics.")
+	qdel(plan)
+
+	var/obj/machinery/button/door/directional/north/button = new(null)
+	TEST_ASSERT(button.shipyard_prepare(list("id" = "shipyard_test_door")), "Door buttons should prepare outside mapload.")
+	var/obj/item/assembly/control/controller = button.device
+	TEST_ASSERT(istype(controller), "Prepared door buttons should contain a blast-door controller.")
+	TEST_ASSERT_EQUAL(controller.id, "shipyard_test_door", "Prepared controls should preserve the mapped door ID.")
+	TEST_ASSERT(!button.panel_open, "Prepared door buttons should be closed and operational.")
+	qdel(button)
+
 /datum/unit_test/overmap_shipyard_fabricator/solfed_disks
 
 /datum/unit_test/overmap_shipyard_fabricator/solfed_disks/Run()
@@ -934,6 +1057,8 @@
 	TEST_ASSERT_EQUAL(first_projection.mouse_opacity, MOUSE_OPACITY_TRANSPARENT, "Shipyard projections should not intercept clicks.")
 	TEST_ASSERT(first_projection.flags_1 & HOLOGRAM_1, "Shipyard projections should be marked as holograms.")
 	TEST_ASSERT(length(first_projection.filters), "Shipyard projections should carry the holopad-style hologram filters.")
+	TEST_ASSERT_EQUAL(first_projection.icon, 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi', "Rod projections should use the ship lattice asset.")
+	TEST_ASSERT_EQUAL(first_projection.icon_state, "lattice-0", "Rod projections should show isolated ship lattice.")
 
 	fabricator.pause_build("Projection test pause.")
 	TEST_ASSERT_EQUAL(length(fabricator.phase_projections), 2, "Pausing should retain current-phase projections.")
@@ -944,7 +1069,10 @@
 
 	fabricator.project_phase(SHIPYARD_PHASE_PLATING)
 	TEST_ASSERT_EQUAL(length(fabricator.phase_projections), 1, "Changing phase should replace the previous projection set.")
-	TEST_ASSERT(fabricator.phase_projections[REF(plating)], "Plating phase should project its pending operation.")
+	var/obj/effect/overlay/shipyard_projection/plating_projection = fabricator.phase_projections[REF(plating)]
+	TEST_ASSERT(plating_projection, "Plating phase should project its pending operation.")
+	TEST_ASSERT_EQUAL(plating_projection.icon, 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi', "Plating projections should use the ship hull asset.")
+	TEST_ASSERT_EQUAL(plating_projection.icon_state, "ship_plating", "Plating projections should show ship plating.")
 	fabricator.abort_build()
 	TEST_ASSERT(!length(fabricator.phase_projections), "Aborting should clear all phase projections.")
 
@@ -1074,8 +1202,10 @@
 	)
 	TEST_ASSERT(!plating.satisfied(get_turf(origin)), "Exposed frame rods on a plating pad should still owe a hull layer.")
 	TEST_ASSERT_EQUAL(plating.execute(fabricator), TRUE, "Plating phase should replay shuttle frame tiling.")
-	TEST_ASSERT(plating.satisfied(get_turf(origin)), "Plating operation postcondition should pass.")
-	TEST_ASSERT(rods.satisfied(get_turf(origin)), "A plated tile should keep counting the rod stage as done so resumes do not rebill it.")
+	var/turf/plated_origin = get_turf(origin)
+	TEST_ASSERT_EQUAL(plated_origin.type, /turf/open/floor/plating/ship, "Plating phase should produce ship plating.")
+	TEST_ASSERT(plating.satisfied(plated_origin), "Plating operation postcondition should pass.")
+	TEST_ASSERT(rods.satisfied(plated_origin), "A plated tile should keep counting the rod stage as done so resumes do not rebill it.")
 	qdel(rods)
 	qdel(plating)
 
@@ -1210,7 +1340,7 @@
 	TEST_ASSERT_EQUAL(rods.execute_rods(pad), TRUE, "Frame rods should anchor on the landing pad.")
 	TEST_ASSERT_EQUAL(deck.execute_deck(pad), "Hull plating is missing beneath this deck tile.", "A deck should not be tiled straight onto exposed rods.")
 	TEST_ASSERT_EQUAL(plating.execute_plating(pad), TRUE, "Hull plating should cover the rods.")
-	TEST_ASSERT(isplatingturf(pad), "The plating phase should leave the tile as bare hull plating.")
+	TEST_ASSERT_EQUAL(pad.type, /turf/open/floor/plating/ship, "The plating phase should leave the tile as bare ship plating.")
 	TEST_ASSERT(!deck.satisfied(pad), "Bare hull plating should not pass for a tiled deck.")
 
 	// What registration does to a hull tile, which the plating phase triggers: the
@@ -1228,7 +1358,12 @@
 	TEST_ASSERT(istype(decked, /turf/open/floor/mineral/titanium/tiled), "The deck should be the floor the blueprint mapped, got [decked.type].")
 	TEST_ASSERT_EQUAL(decked.dir, EAST, "The deck should keep the direction it was mapped with.")
 	var/list/beneath = islist(decked.baseturfs) ? decked.baseturfs : list(decked.baseturfs)
-	TEST_ASSERT(/turf/open/floor/plating in beneath, "Prying a deck back up should expose hull plating.")
+	var/found_hull_plating = FALSE
+	for(var/base_turf in beneath)
+		if(ispath(base_turf, /turf/open/floor/plating))
+			found_hull_plating = TRUE
+			break
+	TEST_ASSERT(found_hull_plating, "Prying a deck back up should expose hull plating.")
 
 	TEST_ASSERT(rods.satisfied(decked), "A resumed build should still find its rods under a finished deck.")
 	TEST_ASSERT(plating.satisfied(decked), "A resumed build should still find its hull under a finished deck.")

@@ -638,7 +638,7 @@
 	if(used_rods.use(1))
 		to_chat(user, span_notice("You construct a lattice."))
 		playsound(src, 'sound/items/weapons/genhit.ogg', 50, TRUE)
-		var/obj/structure/lattice/new_lattice = new (src)
+		var/obj/structure/lattice/new_lattice = new used_rods.ship_lattice_type(src)
 		if(istype(used_rods, /obj/item/stack/rods/shuttle) && !istype(loc, /area/shuttle))
 			new_lattice.AddElement(/datum/element/shuttle_construction_lattice)
 	else
@@ -656,7 +656,8 @@
 		return
 
 	playsound(src, 'sound/items/weapons/genhit.ogg', 50, TRUE)
-	var/turf/open/floor/plating/new_plating = place_on_top(/turf/open/floor/plating, flags = CHANGETURF_INHERIT_AIR)
+	var/ship_plating_type = lattice?.ship_plating_type || /turf/open/floor/plating
+	var/turf/open/floor/plating/new_plating = place_on_top(ship_plating_type, flags = CHANGETURF_INHERIT_AIR)
 	if(istype(loc, /area/shuttle))
 		new_plating.insert_baseturf(turf_type = /turf/baseturf_skipover/shuttle)
 	if(lattice)
