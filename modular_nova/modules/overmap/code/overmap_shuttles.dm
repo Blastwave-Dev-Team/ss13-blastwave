@@ -43,6 +43,14 @@
 	description = "Sol Federation patrol frigate."
 	admin_notes = "SolFed patrol frigate, seats 3 crew, 2 spacepods."
 
+/datum/map_template/shuttle/overmap/frigate/ikea_sma
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "ikea"
+	suffix = "sma"
+	name = "Space Ikea Sma"
+	description = "Space Ikea Base Model"
+	admin_notes = "Space Ikea base ship, seats 3 or 4 -ish"
+
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
 /// every construction route instead of whatever the fleet happens to use.
@@ -71,6 +79,13 @@
 /obj/docking_port/mobile/overmap/frigate/solfed_patrol
 	name = "SolFed Patrol"
 	shuttle_id = "solfed_patrol"
+	preferred_direction = WEST
+	port_direction = EAST // match map airlock facing when mapped
+	area_type = /area/shuttle/overmap/frigate
+
+/obj/docking_port/mobile/overmap/frigate/ikea_sma
+	name = "Space Ikea Sma"
+	shuttle_id = "ikea_sma"
 	preferred_direction = WEST
 	port_direction = EAST // match map airlock facing when mapped
 	area_type = /area/shuttle/overmap/frigate
