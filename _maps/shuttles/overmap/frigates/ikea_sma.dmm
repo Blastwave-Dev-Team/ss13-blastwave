@@ -113,12 +113,12 @@
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate)
 "x" = (
-/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
-	dir = 8
-	},
 /obj/machinery/portable_atmospherics/canister{
 	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
 	name = "propellant gas mix"
+	},
+/obj/machinery/atmospherics/components/unary/portables_connector{
+	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate)
@@ -218,9 +218,7 @@
 "V" = (
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
-/obj/machinery/door/window/left/directional/east{
-	dir = 8
-	},
+/obj/machinery/door/window/left/directional/west,
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate)
 "W" = (
@@ -233,8 +231,10 @@
 /area/shuttle/overmap/frigate)
 "X" = (
 /obj/machinery/light/directional/south,
-/obj/machinery/atmospherics/pipe/smart/manifold/pink/hidden/layer1,
 /obj/structure/cable/multilayer/connected,
+/obj/machinery/atmospherics/pipe/layer_manifold/pink/hidden{
+	dir = 8
+	},
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate)
 "Y" = (
