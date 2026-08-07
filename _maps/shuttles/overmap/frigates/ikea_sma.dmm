@@ -131,7 +131,6 @@
 /area/shuttle/overmap/frigate)
 "z" = (
 /obj/machinery/atmospherics/components/binary/pump{
-	piping_layer = 1;
 	dir = 8
 	},
 /turf/open/floor/mineral/titanium,
