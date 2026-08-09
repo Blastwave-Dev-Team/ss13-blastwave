@@ -95,9 +95,7 @@
 	return ..()
 
 /// Shipyard landing zones are often bare space; frame rods have to anchor there
-/// so the plating phase can turn the framed void into a hull tile. This is the
-/// direct construction path the fabricator uses - space attackby still builds a
-/// lattice via build_with_rods, which is covered separately.
+/// as a real lattice so the plating phase can turn the framed void into a hull tile.
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_space
 
 /datum/unit_test/shuttle_construction/shuttle_frame_rods_on_space/Run()
@@ -114,13 +112,15 @@
 	apply_shuttle_rods(target, rods, user)
 	TEST_ASSERT_EQUAL(rods.get_amount(), rod_count - 1, "Shuttle frame rods on space should be consumed")
 	TEST_ASSERT(istype(target, /turf/open/space), "Anchoring rods on space should leave the turf as space")
-	TEST_ASSERT(!locate(/obj/structure/lattice) in target, "Frame rods on space should not spawn a lattice object")
-	TEST_ASSERT(HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Space should carry the shuttle rod trait source")
+	TEST_ASSERT(locate(/obj/structure/lattice/ship) in target, "Frame rods on space should spawn a ship lattice")
+	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Space lattice should own the construction trait source")
+	TEST_ASSERT(HAS_TRAIT(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF), "Space should be tracked as a shuttle frame")
 	TEST_ASSERT(GLOB.shuttle_frames_by_turf[target], "Space should be registered to a shuttle frame")
 
 	TEST_ASSERT(target.shuttle_frame_build_plating_with_tile(tiles, user), "Tile on space frame rods should produce plating")
 	target = get_turf(target)
-	TEST_ASSERT(istype(target, /turf/open/floor/plating), "Plating over space frame rods should yield plating, got [target?.type]")
+	TEST_ASSERT(istype(target, /turf/open/floor/plating/ship), "Plating over space frame rods should yield ship plating, got [target?.type]")
+	TEST_ASSERT(!locate(/obj/structure/lattice) in target, "Plating should consume the ship lattice")
 	TEST_ASSERT(!HAS_TRAIT_FROM(target, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE), "Rod source should clear after plating space")
 
 	target.ChangeTurf(EXPECTED_FLOOR_TYPE, original_baseturfs)

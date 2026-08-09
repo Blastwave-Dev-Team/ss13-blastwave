@@ -86,7 +86,8 @@
 	/// it by an entire round, so a hard reference here would keep a scuttled
 	/// vessel alive forever.
 	var/datum/weakref/built_shuttle_ref
-	var/rotated_plan = FALSE
+	/// Absolute cardinal facing selected for the next ship.
+	var/build_direction = NORTH
 	var/datum/weakref/last_operator
 	/// Whether an operator holds a console session.
 	var/authenticated = FALSE
@@ -517,6 +518,9 @@
 		balloon_alert(user, "build in progress")
 		return ITEM_INTERACT_BLOCKING
 	if(istype(tool, /obj/item/ship_blueprint_disk))
+		if(orientation_locked())
+			balloon_alert(user, "abort build first")
+			return ITEM_INTERACT_BLOCKING
 		if(blueprint_disk)
 			balloon_alert(user, "disk slot occupied")
 			return ITEM_INTERACT_BLOCKING
@@ -527,6 +531,7 @@
 		if(!user.transferItemToLoc(tool, src))
 			return ITEM_INTERACT_BLOCKING
 		blueprint_disk = disk
+		build_direction = disk.ship_plan.shuttle_dir
 		update_appearance()
 		balloon_alert(user, "blueprint loaded")
 		return ITEM_INTERACT_SUCCESS
@@ -622,11 +627,21 @@
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
 	var/obj/effect/landmark/overmap_landing_zone/zone = controller?.active_zone
+	var/allowed_directions = allowed_build_directions(zone)
+	var/direction_valid = (build_direction in GLOB.cardinals) && (allowed_directions & build_direction)
+	var/list/printed_dimensions = oriented_plan_dimensions(plan)
 	data["state"] = state
 	data["pausedReason"] = paused_reason
 	data["planName"] = plan?.name
 	data["planWidth"] = plan?.width || 0
 	data["planHeight"] = plan?.height || 0
+	data["printedWidth"] = printed_dimensions[1]
+	data["printedHeight"] = printed_dimensions[2]
+	data["nativeDirection"] = plan?.shuttle_dir || NORTH
+	data["buildDirection"] = build_direction
+	data["enabledDirections"] = allowed_directions
+	data["directionValid"] = direction_valid
+	data["orientationLocked"] = orientation_locked()
 	data["operation"] = operation_index
 	data["operationTotal"] = length(plan?.manifest)
 	data["phase"] = current_phase
@@ -763,12 +778,18 @@
 		var/obj/item/item_path = shipyard_part_item_type(part_path)
 		var/count = physical_dependency_count(part_path)
 		var/datum/design/design = authorized_dependency_design(part_path)
+		var/research_status = "Missing"
+		if(design)
+			if(stored_research?.researched_designs[design.id])
+				research_status = "Has node"
+			else if(blueprint_disk?.embedded_design_ids[design.id])
+				research_status = "Blueprint license"
 		result += list(list(
 			"name" = initial(item_path.name),
 			"required" = plan.required_parts[part_path],
 			"available" = count,
 			"fabricable" = !!design,
-			"fabricated" = design?.name,
+			"research" = research_status,
 		))
 	return result
 
@@ -801,6 +822,10 @@
 		return FALSE
 
 	switch(action)
+		if("set_direction")
+			var/new_direction = text2num(params["dir"])
+			var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
+			. = set_build_direction(new_direction, controller?.active_zone)
 		if("start")
 			. = start_build(user)
 		if("pause")
@@ -812,10 +837,11 @@
 			abort_build()
 			. = TRUE
 		if("eject_disk")
-			if(state == SHIPYARD_STATE_BUILDING)
+			if(orientation_locked())
 				return FALSE
 			blueprint_disk?.forceMove(drop_location())
 			blueprint_disk = null
+			build_direction = NORTH
 			update_appearance()
 			. = TRUE
 		if("eject_rped")
@@ -859,6 +885,43 @@
 	var/continuing = (state in list(SHIPYARD_STATE_BUILDING, SHIPYARD_STATE_PAUSED, SHIPYARD_STATE_FAULT))
 	return zone.get_occupant(continuing ? built_shuttle_ref?.resolve() : null)
 
+/obj/machinery/shipyard_fabricator/proc/orientation_locked()
+	return state != SHIPYARD_STATE_IDLE
+
+/obj/machinery/shipyard_fabricator/proc/allowed_build_directions(obj/effect/landmark/overmap_landing_zone/zone)
+	return (zone?.exit_direction in GLOB.cardinals) \
+		? zone.exit_direction \
+		: (NORTH | SOUTH | EAST | WEST)
+
+/obj/machinery/shipyard_fabricator/proc/set_build_direction(new_direction, obj/effect/landmark/overmap_landing_zone/zone)
+	if(orientation_locked() || !(new_direction in GLOB.cardinals))
+		return FALSE
+	if(!(allowed_build_directions(zone) & new_direction))
+		return FALSE
+	build_direction = new_direction
+	paused_reason = null
+	return TRUE
+
+/// Rotation and dimensions for the currently selected absolute facing.
+/obj/machinery/shipyard_fabricator/proc/plan_rotation(datum/ship_plan/plan = blueprint_disk?.ship_plan)
+	return shipyard_plan_rotation(plan?.shuttle_dir, build_direction)
+
+/obj/machinery/shipyard_fabricator/proc/oriented_plan_dimensions(datum/ship_plan/plan = blueprint_disk?.ship_plan)
+	return shipyard_oriented_dimensions(plan, plan_rotation(plan))
+
+/obj/machinery/shipyard_fabricator/proc/oriented_operation_vars(datum/ship_plan_op/operation)
+	return shipyard_oriented_vars(operation?.desired_vars, plan_rotation(), operation?.target_path)
+
+/obj/machinery/shipyard_fabricator/proc/oriented_helper_specs(datum/ship_plan_op/operation)
+	var/list/result = list()
+	var/rotation = plan_rotation()
+	for(var/list/helper_spec as anything in operation?.helper_specs)
+		result += list(list(
+			"path" = helper_spec["path"],
+			"vars" = shipyard_oriented_vars(helper_spec["vars"], rotation, helper_spec["path"]),
+		))
+	return result
+
 /obj/machinery/shipyard_fabricator/proc/start_build(mob/living/user)
 	if(state == SHIPYARD_STATE_BUILDING)
 		return FALSE
@@ -878,18 +941,24 @@
 	if(!zone)
 		paused_reason = "Link a controller with an active landing zone."
 		return FALSE
+	if(!(build_direction in GLOB.cardinals))
+		paused_reason = "Select a valid ship direction."
+		return FALSE
+	if((zone.exit_direction in GLOB.cardinals) && build_direction != zone.exit_direction)
+		paused_reason = "The selected ship direction must match the landing zone exit."
+		return FALSE
 	if(blocking_occupant(zone))
 		paused_reason = "The linked landing zone is occupied."
 		return FALSE
 	if(zone.shipyard_claim?.resolve() != src && zone.shipyard_claim?.resolve())
 		paused_reason = "The linked landing zone is claimed by another fabricator."
 		return FALSE
-	if(!zone.can_fit_shuttle(plan.width, plan.height))
+	var/list/oriented_dimensions = oriented_plan_dimensions(plan)
+	var/printed_width = oriented_dimensions[1]
+	var/printed_height = oriented_dimensions[2]
+	if(printed_width > zone.zone_width || printed_height > zone.zone_height)
 		paused_reason = "The blueprint does not fit inside the linked landing zone."
 		return FALSE
-	rotated_plan = plan.width > zone.zone_width || plan.height > zone.zone_height
-	var/printed_width = rotated_plan ? plan.height : plan.width
-	var/printed_height = rotated_plan ? plan.width : plan.height
 	var/turf/far_corner = locate(zone.x + printed_width - 1, zone.y + printed_height - 1, zone.z)
 	if(!far_corner || get_dist(src, far_corner) > max_print_range)
 		paused_reason = "Scanner resolution limits this fabricator to [max_print_range] tiles; the far hull corner is out of range."
@@ -962,7 +1031,7 @@
 	clear_fault_marker()
 	if(!operation || !target)
 		return
-	fault_marker = new(target, operation)
+	fault_marker = new(target, operation, oriented_operation_vars(operation))
 	if(QDELETED(fault_marker))
 		fault_marker = null
 
@@ -1012,7 +1081,11 @@
 		var/turf/target = get_operation_turf(operation, zone)
 		if(!target || operation.satisfied(target))
 			continue
-		var/obj/effect/overlay/shipyard_projection/projection = new(target, operation)
+		var/obj/effect/overlay/shipyard_projection/projection = new(
+			target,
+			operation,
+			oriented_operation_vars(operation),
+		)
 		if(!QDELETED(projection))
 			phase_projections[REF(operation)] = projection
 
@@ -1078,10 +1151,14 @@
 /obj/machinery/shipyard_fabricator/proc/get_operation_turf(datum/ship_plan_op/operation, obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve())
 	if(!operation || !zone)
 		return null
-	if(rotated_plan)
-		var/datum/ship_plan/plan = blueprint_disk?.ship_plan
-		return locate(zone.x + operation.rel_y, zone.y + plan.width - 1 - operation.rel_x, zone.z)
-	return locate(zone.x + operation.rel_x, zone.y + operation.rel_y, zone.z)
+	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
+	var/list/oriented = shipyard_oriented_coordinates(
+		plan,
+		operation.rel_x,
+		operation.rel_y,
+		plan_rotation(plan),
+	)
+	return locate(zone.x + oriented[1], zone.y + oriented[2], zone.z)
 
 /// Every tile the manifest lays hull plating on.
 /obj/machinery/shipyard_fabricator/proc/hull_turfs()
@@ -1102,7 +1179,6 @@
 	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
 		return TRUE
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
-	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
 	var/list/hull_turfs = hull_turfs()
 	if(!length(hull_turfs))
 		fault_build(null, "No hull plating exists for shuttle registration.")
@@ -1115,8 +1191,8 @@
 		origin,
 		hull_turfs,
 		list(),
-		zone.exit_direction || NORTH,
-		zone.exit_direction || NORTH,
+		build_direction,
+		build_direction,
 		area_type = blueprint_disk.registration_area_type,
 		docking_port_type = blueprint_disk.registration_port_type,
 		name = plan.name,

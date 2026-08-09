@@ -32,6 +32,13 @@
 	if(locate(/obj/structure/lattice) in src)
 		balloon_alert(user, "lattice already here!")
 		return TRUE
+	// Bare space has no surface to carry an inlaid rod overlay. Preserve the
+	// ordinary lattice construction path so it has a real, inspectable support.
+	if(is_space_or_openspace(src))
+		var/rod_count = used_rods.get_amount()
+		build_with_rods(used_rods, user)
+		return used_rods.get_amount() < rod_count \
+			&& !!(locate(/obj/structure/lattice/ship) in src)
 	if(!used_rods.use(1))
 		balloon_alert(user, "need a shuttle frame rod!")
 		return TRUE

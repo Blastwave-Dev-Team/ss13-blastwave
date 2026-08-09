@@ -24,13 +24,92 @@
 	var/datum/map_template/shuttle/template = new /datum/map_template/shuttle/overmap/frigate/nt_personal()
 	var/datum/ship_plan/template/plan = new(template)
 	TEST_ASSERT(length(plan.manifest), "NT Personal template should produce a shipyard manifest.")
-	TEST_ASSERT(plan.width > 0 && plan.height > 0, "Manifest should retain parsed template dimensions.")
+	TEST_ASSERT_EQUAL(plan.width, 11, "NT Personal should crop raw DMM padding from its width.")
+	TEST_ASSERT_EQUAL(plan.height, 13, "NT Personal should crop raw DMM padding from its height.")
+	TEST_ASSERT_EQUAL(plan.shuttle_dir, SOUTH, "NT Personal should inherit its mapped mobile port's native facing.")
 	TEST_ASSERT(plan.material_cost[/datum/material/iron] > 0, "Manifest should aggregate iron costs.")
 	var/list/counts = plan.phase_counts()
 	TEST_ASSERT(counts["[SHIPYARD_PHASE_RODS]"] > 0, "Manifest should contain hull rod operations.")
 	TEST_ASSERT(counts["[SHIPYARD_PHASE_PLATING]"] > 0, "Manifest should contain hull plating operations.")
 	TEST_ASSERT(counts["[SHIPYARD_PHASE_FINAL]"] > 0, "Manifest should contain final construction operations.")
 	qdel(plan)
+
+/datum/unit_test/overmap_shipyard_fabricator/orientation_transforms
+
+/datum/unit_test/overmap_shipyard_fabricator/orientation_transforms/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, origin)
+	zone.zone_width = 3
+	zone.zone_height = 3
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(
+		/obj/machinery/shipyard_fabricator,
+		get_step(origin, WEST),
+	)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new
+	plan.width = 3
+	plan.height = 2
+	plan.shuttle_dir = NORTH
+	var/datum/ship_plan_op/operation = new(
+		SHIPYARD_PHASE_FINAL,
+		0,
+		0,
+		SHIPYARD_OP_OBJECT,
+		/obj/machinery/light/small/directional/north,
+		null,
+		list(
+			"initialize_directions" = NORTH | EAST,
+			"pixel_x" = 2,
+			"pixel_y" = 3,
+		),
+	)
+	operation.helper_specs = list(list(
+		"path" = /obj/effect/mapping_helpers/airlock/access/any/engineering/engine_equipment,
+		"vars" = list("dir" = NORTH),
+	))
+	plan.manifest = list(operation)
+	disk.ship_plan = plan
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	fabricator.claimed_zone = WEAKREF(zone)
+
+	var/static/list/cases = list(
+		list(NORTH, 0, 0, 3, 2, null, NORTH | EAST, 2, 3),
+		list(EAST, 0, 2, 2, 3, EAST, EAST | SOUTH, 3, -2),
+		list(SOUTH, 2, 1, 3, 2, SOUTH, SOUTH | WEST, -2, -3),
+		list(WEST, 1, 0, 2, 3, WEST, WEST | NORTH, -3, 2),
+	)
+	for(var/list/test_case as anything in cases)
+		fabricator.build_direction = test_case[1]
+		var/turf/target = fabricator.get_operation_turf(operation, zone)
+		TEST_ASSERT_EQUAL(target, locate(origin.x + test_case[2], origin.y + test_case[3], origin.z), "Direction [test_case[1]] should rotate operation coordinates.")
+		var/list/dimensions = fabricator.oriented_plan_dimensions(plan)
+		TEST_ASSERT_EQUAL(dimensions[1], test_case[4], "Direction [test_case[1]] should produce the expected width.")
+		TEST_ASSERT_EQUAL(dimensions[2], test_case[5], "Direction [test_case[1]] should produce the expected height.")
+		var/list/oriented_vars = fabricator.oriented_operation_vars(operation)
+		TEST_ASSERT_EQUAL(oriented_vars["dir"], test_case[6], "Direction [test_case[1]] should rotate a directional subtype's implicit dir.")
+		TEST_ASSERT_EQUAL(oriented_vars["initialize_directions"], test_case[7], "Direction [test_case[1]] should rotate directional bitmasks.")
+		TEST_ASSERT_EQUAL(oriented_vars["pixel_x"], test_case[8], "Direction [test_case[1]] should rotate pixel_x.")
+		TEST_ASSERT_EQUAL(oriented_vars["pixel_y"], test_case[9], "Direction [test_case[1]] should rotate pixel_y.")
+
+	fabricator.build_direction = EAST
+	var/list/oriented_helpers = fabricator.oriented_helper_specs(operation)
+	TEST_ASSERT_EQUAL(oriented_helpers[1]["vars"]["dir"], EAST, "Nested mapping-helper vars should rotate with their operation.")
+	var/obj/effect/overlay/shipyard_projection/projection = new(
+		origin,
+		operation,
+		fabricator.oriented_operation_vars(operation),
+	)
+	TEST_ASSERT_EQUAL(projection.dir, EAST, "Construction projections should use the selected orientation.")
+	qdel(projection)
+
+	zone.exit_direction = EAST
+	fabricator.build_direction = NORTH
+	TEST_ASSERT(!fabricator.set_build_direction(NORTH, zone), "A configured landing-zone exit should reject a different facing.")
+	TEST_ASSERT(fabricator.set_build_direction(EAST, zone), "The configured landing-zone exit should be selectable.")
+	fabricator.state = "paused"
+	TEST_ASSERT(!fabricator.set_build_direction(SOUTH, zone), "An active build should lock its orientation.")
+	TEST_ASSERT_EQUAL(fabricator.build_direction, EAST, "A rejected orientation change must preserve the active facing.")
 
 /datum/unit_test/overmap_shipyard_fabricator/techweb_binding
 
@@ -170,8 +249,9 @@
 		disks[disk_type] = disk
 		disk.load_ship_plan()
 		TEST_ASSERT(disk.ship_plan, "[disk_type] should initialize a ship plan.")
-		TEST_ASSERT_EQUAL(disk.ship_plan.width, 18, "[disk_type] should retain the frigate template width.")
-		TEST_ASSERT_EQUAL(disk.ship_plan.height, 12, "[disk_type] should retain the frigate template height.")
+		TEST_ASSERT_EQUAL(disk.ship_plan.width, 14, "[disk_type] should crop raw DMM padding from its width.")
+		TEST_ASSERT_EQUAL(disk.ship_plan.height, 9, "[disk_type] should crop raw DMM padding from its height.")
+		TEST_ASSERT_EQUAL(disk.ship_plan.shuttle_dir, WEST, "[disk_type] should inherit its mapped mobile port's native facing.")
 		TEST_ASSERT(length(disk.ship_plan.manifest), "[disk_type] should produce a non-empty construction manifest.")
 		var/list/counts = disk.ship_plan.phase_counts()
 		TEST_ASSERT(counts["[SHIPYARD_PHASE_RODS]"] > 0, "[disk_type] should contain rod operations.")
@@ -776,10 +856,13 @@
 	disk.ship_plan = plan
 	disk.forceMove(fabricator)
 	fabricator.blueprint_disk = disk
+	fabricator.build_direction = WEST
 	fabricator.claimed_zone = WEAKREF(zone)
 	TEST_ASSERT(fabricator.complete_phase(SHIPYARD_PHASE_PLATING), "Typed disk should register its plated hull.")
 	registered_port = fabricator.built_shuttle_ref?.resolve()
 	TEST_ASSERT(istype(registered_port, /obj/docking_port/mobile/overmap/frigate/solfed_cutter), "Typed Cutter disk should create the Cutter mobile-port subtype.")
+	TEST_ASSERT_EQUAL(registered_port.dir, WEST, "Typed registration should use the selected physical facing.")
+	TEST_ASSERT_EQUAL(registered_port.preferred_direction, WEST, "Typed registration should use the selected travel direction.")
 	TEST_ASSERT(istype(get_area(origin), /area/shuttle/overmap/frigate), "Typed Cutter disk should create a frigate shuttle area.")
 
 /datum/unit_test/overmap_shipyard_fabricator/part_scaling
@@ -1077,10 +1160,10 @@
 	TEST_ASSERT(!length(fabricator.phase_projections), "Aborting should clear all phase projections.")
 
 	fabricator.claimed_zone = WEAKREF(zone)
-	fabricator.rotated_plan = TRUE
+	fabricator.build_direction = EAST
 	fabricator.project_phase(SHIPYARD_PHASE_RODS)
 	first_projection = fabricator.phase_projections[REF(first_rods)]
-	TEST_ASSERT_EQUAL(first_projection.loc, fabricator.get_operation_turf(first_rods, zone), "Rotated projections should use the fabricator's operation-turf transform.")
+	TEST_ASSERT_EQUAL(first_projection.loc, fabricator.get_operation_turf(first_rods, zone), "Oriented projections should use the fabricator's operation-turf transform.")
 	fabricator.finish_build()
 	TEST_ASSERT(!length(fabricator.phase_projections), "Completing construction should clear all phase projections.")
 

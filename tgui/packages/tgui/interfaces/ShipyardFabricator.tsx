@@ -13,14 +13,16 @@ import {
 import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
+import { Direction } from '../constants';
 import { Window } from '../layouts';
+import { DirectionPad } from './common/DirectionPad';
 
 type SupplyEntry = {
   name: string;
   required: number;
   available: number;
   fabricable?: BooleanLike;
-  fabricated?: string;
+  research?: 'Has node' | 'Blueprint license' | 'Missing';
 };
 
 type Fault = {
@@ -46,6 +48,13 @@ type Data = {
   planName: string | null;
   planWidth: number;
   planHeight: number;
+  printedWidth: number;
+  printedHeight: number;
+  nativeDirection: Direction;
+  buildDirection: Direction;
+  enabledDirections: Direction;
+  directionValid: BooleanLike;
+  orientationLocked: BooleanLike;
   operation: number;
   operationTotal: number;
   phase: number;
@@ -85,6 +94,13 @@ const PHASE_NAMES = [
   'Machines and airlocks',
   'Commissioning',
 ];
+
+const CARDINAL_DIRECTION_NAMES: Partial<Record<Direction, string>> = {
+  [Direction.NORTH]: 'North',
+  [Direction.SOUTH]: 'South',
+  [Direction.EAST]: 'East',
+  [Direction.WEST]: 'West',
+};
 
 const summarizeSkips = (
   counts: Partial<Record<SkipCategory, number>>,
@@ -153,6 +169,7 @@ const FabricatorView = () => {
   const canStart =
     !!data.diskLoaded &&
     !!data.dependenciesReady &&
+    !!data.directionValid &&
     !!data.siloLinked &&
     !data.siloOnHold &&
     !!data.zoneActive &&
@@ -289,6 +306,40 @@ const FabricatorView = () => {
         )}
       </Section>
 
+      <Section title="Print Orientation">
+        <Stack>
+          <Stack.Item basis="180px">
+            <DirectionPad
+              title="Ship Direction"
+              tooltip="Physically rotates the printed hull and sets its registered travel direction. A configured landing-zone exit is the only permitted facing."
+              enabledDirections={
+                data.orientationLocked ? (0 as Direction) : data.enabledDirections
+              }
+              selectedDirection={data.buildDirection}
+              onSelect={(dir) => act('set_direction', { dir })}
+            />
+          </Stack.Item>
+          <Stack.Item grow>
+            <LabeledList>
+              <LabeledList.Item label="Native facing">
+                {CARDINAL_DIRECTION_NAMES[data.nativeDirection] || 'Unknown'}
+              </LabeledList.Item>
+              <LabeledList.Item label="Selected facing">
+                {CARDINAL_DIRECTION_NAMES[data.buildDirection] || 'Unknown'}
+              </LabeledList.Item>
+              <LabeledList.Item label="Printed footprint">
+                {data.printedWidth}×{data.printedHeight}
+              </LabeledList.Item>
+              <LabeledList.Item label="Landing-zone policy">
+                {data.directionValid
+                  ? 'Direction permitted'
+                  : 'Select the configured exit direction'}
+              </LabeledList.Item>
+            </LabeledList>
+          </Stack.Item>
+        </Stack>
+      </Section>
+
       <Section
         title="Research Authorization"
         buttons={
@@ -334,7 +385,11 @@ const FabricatorView = () => {
       </Section>
 
       <SupplyTable title="Silo Materials (sheets)" entries={data.materials} />
-      <SupplyTable title="Dependency Boards and Parts" entries={data.parts} />
+      <SupplyTable
+        title="Dependency Boards and Parts"
+        entries={data.parts}
+        showResearch
+      />
 
       <Section
         title="Docked RPED"
@@ -377,7 +432,11 @@ const FabricatorView = () => {
   );
 };
 
-const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
+const SupplyTable = (props: {
+  title: string;
+  entries: SupplyEntry[];
+  showResearch?: boolean;
+}) => (
   <Section title={props.title}>
     {!props.entries.length ? (
       <Box color="label">No requirements loaded.</Box>
@@ -386,6 +445,7 @@ const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
         <Table.Row header>
           <Table.Cell>Item</Table.Cell>
           <Table.Cell textAlign="right">Available</Table.Cell>
+          {props.showResearch && <Table.Cell>Research</Table.Cell>}
           <Table.Cell textAlign="right">Required</Table.Cell>
         </Table.Row>
         {props.entries.map((entry) => (
@@ -400,10 +460,12 @@ const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
               }
             >
               {entry.available}
-              {entry.fabricable && entry.available < entry.required
-                ? ` + ${entry.fabricated || 'licensed fabrication'}`
-                : ''}
             </Table.Cell>
+            {props.showResearch && (
+              <Table.Cell color={entry.fabricable ? 'good' : 'bad'}>
+                {entry.research}
+              </Table.Cell>
+            )}
             <Table.Cell textAlign="right">{entry.required}</Table.Cell>
           </Table.Row>
         ))}
