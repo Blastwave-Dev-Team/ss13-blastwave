@@ -201,11 +201,7 @@
 	var/datum/design/quadratic_design = SSresearch.techweb_design_by_id("quadratic_capacitor")
 	fabricator.stored_research.add_design(basic_design)
 	fabricator.stored_research.add_design(quadratic_design)
-	TEST_ASSERT_EQUAL(
-		fabricator.authorized_dependency_design(/datum/stock_part/capacitor),
-		quadratic_design,
-		"Direct fabrication should select the highest researched compatible part.",
-	)
+	TEST_ASSERT_EQUAL(fabricator.authorized_dependency_design(/datum/stock_part/capacitor), quadratic_design, "Direct fabrication should select the highest researched compatible part.")
 	qdel(plan)
 
 /datum/unit_test/overmap_shipyard_fabricator/door_fixture_routes

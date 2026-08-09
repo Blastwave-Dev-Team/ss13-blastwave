@@ -25,9 +25,12 @@
 /obj/item/ship_blueprint_disk/Initialize(mapload)
 	. = ..()
 	embedded_design_ids = embedded_design_ids.Copy()
-	addtimer(CALLBACK(src, PROC_REF(load_ship_plan)), 0)
+	// Load on demand. A deferred timer here races create_and_destroy / cargo
+	// export qdel and can leave the disk stuck inside a container.
 
 /obj/item/ship_blueprint_disk/proc/load_ship_plan()
+	if(QDELETED(src))
+		return null
 	if(ship_plan)
 		return ship_plan
 	if(!ispath(template_type, /datum/map_template/shuttle))
@@ -57,6 +60,8 @@
 
 /obj/item/ship_blueprint_disk/examine(mob/user)
 	. = ..()
+	if(!ship_plan)
+		load_ship_plan()
 	if(!ship_plan)
 		. += span_warning("The disk contains no readable ship manifest.")
 		return
