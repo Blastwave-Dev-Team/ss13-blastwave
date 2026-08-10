@@ -146,7 +146,7 @@
 	log_econ("[siphon_actor] ended a station reserve theft using [siphon_id], extracting [syphoning_credits] [MONEY_NAME].")
 	SSblackbox.record_feedback("amount", "station_reserve_siphoned", syphoning_credits)
 	if(syphoning_credits)
-		SSeconomy.add_audit_entry(synced_bank_account, syphoning_credits, "Reserve theft by [siphon_actor] using [siphon_id]")
+		SSeconomy.add_audit_entry(synced_bank_account, syphoning_credits, "Reserve theft using [siphon_id]")
 	// BLASTWAVE EDIT ADDITION END
 	var/atom/droploc = drop_location()
 	for(var/cash_typepath in credits_to_spacecash(syphoning_credits))
@@ -166,8 +166,8 @@
 	siphon_id = istype(card) ? "[card.registered_name] ([card.assignment])" : "No ID"
 	siphoning = TRUE
 	var/area/siphon_area = get_area(src)
-	var/message = "Unauthorized station reserve theft started in [initial(siphon_area.name)] by [siphon_actor] using [siphon_id]!"
+	var/message = "Unauthorized station reserve theft started in [initial(siphon_area.name)] using [siphon_id]!"
 	radio.talk_into(src, message, radio_channel)
-	log_econ(message)
+	log_econ("[message] Actor: [siphon_actor].")
 	// BLASTWAVE EDIT ADDITION END
 	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: access-based unauthorized flag assignment

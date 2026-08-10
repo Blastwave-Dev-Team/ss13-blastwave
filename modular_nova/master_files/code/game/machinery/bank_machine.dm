@@ -1,5 +1,5 @@
 /obj/machinery/computer/bank_machine
-	/// Identity recorded when the current theft began.
+	/// OOC key_name recorded when the current theft began. Logging only — never IC.
 	var/siphon_actor = "Unknown"
-	/// ID card recorded when the current theft began.
+	/// IC ID card string recorded when the current theft began.
 	var/siphon_id = "No ID"
