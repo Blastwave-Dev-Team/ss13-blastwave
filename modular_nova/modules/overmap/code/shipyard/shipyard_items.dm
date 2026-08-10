@@ -51,6 +51,10 @@
 
 /obj/item/ship_blueprint_disk/Destroy()
 	QDEL_NULL(ship_plan)
+	// Break closet/crate containment before the parent qdel chain. If we are
+	// already QDELETED and later re-inserted, create_and_destroy hard-deletes.
+	if(loc && !isturf(loc))
+		moveToNullspace()
 	return ..()
 
 /obj/item/ship_blueprint_disk/update_name(updates)

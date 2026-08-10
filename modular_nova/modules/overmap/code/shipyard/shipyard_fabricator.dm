@@ -440,6 +440,8 @@
 	clear_phase_projections()
 	release_zone()
 	QDEL_NULL(materials)
+	// Drop held items only if they still exist; always clear the refs so a disk
+	// qdel'd earlier by allocate() isn't kept alive until hard-delete.
 	eject_all()
 	if(owns_techweb)
 		QDEL_NULL(stored_research)
@@ -472,10 +474,17 @@
 
 /obj/machinery/shipyard_fabricator/proc/eject_all()
 	var/atom/drop = drop_location()
-	blueprint_disk?.forceMove(drop)
-	research_disk?.forceMove(drop)
-	docked_rped?.forceMove(drop)
-	intake_blueprints?.forceMove(drop)
+	// Never forceMove an already-qdeleted atom back onto the turf: allocate()
+	// may qdel the disk before us, and re-parenting a zombie onto the unit-test
+	// floor lets create_and_destroy seal it inside a later closet.
+	if(blueprint_disk && !QDELETED(blueprint_disk))
+		blueprint_disk.forceMove(drop)
+	if(research_disk && !QDELETED(research_disk))
+		research_disk.forceMove(drop)
+	if(docked_rped && !QDELETED(docked_rped))
+		docked_rped.forceMove(drop)
+	if(intake_blueprints && !QDELETED(intake_blueprints))
+		intake_blueprints.forceMove(drop)
 	blueprint_disk = null
 	research_disk = null
 	docked_rped = null
