@@ -23,7 +23,6 @@
 	high_heat_threshold = 0.15
 	high_humidity_threshold = 0.15
 	biome_stamp_size = 60
-	smoothing_iterations = 50
 
 /datum/map_generator/cave_generator/lavaland/ruin_version
 	biome_population = FALSE
