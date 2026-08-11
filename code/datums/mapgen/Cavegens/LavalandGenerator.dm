@@ -23,7 +23,12 @@
 	high_heat_threshold = 0.15
 	high_humidity_threshold = 0.15
 	biome_stamp_size = 60
+<<<<<<< HEAD
 	
+=======
+	smoothing_iterations = 50
+
+>>>>>>> 68e4ba2fa87905d77357fac2ea3acfb0192ac356
 /datum/map_generator/cave_generator/lavaland/ruin_version
 	biome_population = FALSE
 	weighted_open_turf_types = list(/turf/open/misc/asteroid/basalt/lava_land_surface/no_ruins = 1)

@@ -389,6 +389,10 @@ GLOBAL_VAR_INIT(focused_tests, focused_tests())
 	returnable_list += list(/obj/item/organ/neck_accessory, /obj/item/organ/head_accessory)
 	// Require SSovermap context (linked Zs, bound shuttles, roundstart POI registry).
 	returnable_list += typesof(/obj/structure/overmap)
+	// Blueprint disks parse shuttle templates and are exercised by dedicated
+	// shipyard tests. Spawning them in create_and_destroy races closet sweep
+	// and hard-deletes with whichever locker shared the turf.
+	returnable_list += typesof(/obj/item/ship_blueprint_disk)
 	//NOVA EDIT ADDITION END
 	return returnable_list
 

@@ -72,17 +72,38 @@ SUBSYSTEM_DEF(economy)
 /datum/controller/subsystem/economy/Initialize()
 	//removes cargo from the split
 	var/budget_to_hand_out = round(budget_pool / department_accounts.len -1)
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	station_reserve_account = new
+	var/station_opening_allocation = 0
+	for(var/dep_id in station_department_accounts)
+		if(dep_id != ACCOUNT_CAR)
+			station_opening_allocation += budget_to_hand_out
+	fund_station_treasury(station_opening_allocation, "Nanotrasen: Station opening allocation")
+	// BLASTWAVE EDIT ADDITION END
 	if(time2text(world.timeofday, "DDD") == SUNDAY)
 		mail_blocked = TRUE
+	/* // BLASTWAVE EDIT REMOVAL START - STATION_TREASURY
 	for(var/dep_id in department_accounts)
-		if(dep_id == ACCOUNT_CAR) //cargo starts with NOTHING
+		if(dep_id == ACCOUNT_CAR)
 			new /datum/bank_account/department(dep_id, 0, player_account = FALSE)
 			continue
 		new /datum/bank_account/department(dep_id, budget_to_hand_out, player_account = FALSE)
+	*/ // BLASTWAVE EDIT REMOVAL END
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	for(var/dep_id in department_accounts)
+		var/datum/bank_account/department/department_account = new(dep_id, 0, player_account = FALSE)
+		if(dep_id == ACCOUNT_CAR) //cargo starts with NOTHING
+			continue
+		if(dep_id in station_department_accounts)
+			disburse_station_funds(department_account, budget_to_hand_out, "Station opening allocation")
+			continue
+		fund_independent_account(department_account, budget_to_hand_out, "Opening allocation")
+	// BLASTWAVE EDIT ADDITION END
 	return SS_INIT_SUCCESS
 
 /datum/controller/subsystem/economy/Recover()
 	departmental_accounts = SSeconomy.departmental_accounts
+	station_reserve_account = SSeconomy.station_reserve_account // BLASTWAVE EDIT ADDITION - STATION_TREASURY
 	bank_accounts_by_id = SSeconomy.bank_accounts_by_id
 	dep_cards = SSeconomy.dep_cards
 
@@ -97,6 +118,7 @@ SUBSYSTEM_DEF(economy)
 		temporary_total = 0
 		processing_part = ECON_DEPARTMENT_STEP
 		cached_processing = department_accounts.Copy()
+		fund_station_treasury(MAX_GRANT_DPT * length(station_department_accounts), "Nanotrasen: Periodic station funding") // BLASTWAVE EDIT ADDITION - STATION_TREASURY
 
 	if(processing_part == ECON_DEPARTMENT_STEP)
 		if(!departmental_payouts())
@@ -140,10 +162,17 @@ SUBSYSTEM_DEF(economy)
 	// son sonic speed? cache? hot over in cold food why? (datum var accesses are slow, cache lists for sonic speed)
 	var/list/cached_processing = src.cached_processing
 	for(var/i in 1 to length(cached_processing))
-		var/datum/bank_account/dept_account = get_dep_account(cached_processing[i])
+		var/datum/bank_account/department/dept_account = get_dep_account(cached_processing[i]) // BLASTWAVE EDIT CHANGE - STATION_TREASURY - ORIGINAL: var/datum/bank_account/dept_account = get_dep_account(cached_processing[i])
 		if(!dept_account)
 			continue
-		dept_account.adjust_money(MAX_GRANT_DPT)
+		// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: dept_account.adjust_money(MAX_GRANT_DPT)
+		// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+		if(dept_account.department_id in station_department_accounts)
+			disburse_station_funds(dept_account, MAX_GRANT_DPT, "Periodic station allocation")
+		else
+			var/list/funding_source = independent_funding_sources[dept_account.department_id]
+			fund_independent_account(dept_account, funding_source?["periodic_grant"], "Periodic funding")
+		// BLASTWAVE EDIT ADDITION END
 		if(MC_TICK_CHECK)
 			cached_processing.Cut(1, i + 1)
 			return FALSE

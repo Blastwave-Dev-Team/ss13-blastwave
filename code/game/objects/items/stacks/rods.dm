@@ -47,6 +47,8 @@ GLOBAL_LIST_INIT(rod_recipes, list ( \
 	drop_sound = 'sound/items/handling/materials/metal_drop.ogg'
 	sound_vary = TRUE
 	usable_for_construction = TRUE
+	/// Lattice produced when these rods are anchored over an unsupported turf.
+	var/ship_lattice_type = /obj/structure/lattice
 
 /datum/embedding/rods
 	embed_chance = 50
@@ -158,6 +160,7 @@ GLOBAL_LIST_INIT(rod_recipes, list ( \
 	icon_state = "shuttlerods"
 	mats_per_unit = list(/datum/material/iron=HALF_SHEET_MATERIAL_AMOUNT,  /datum/material/titanium=SMALL_MATERIAL_AMOUNT)
 	merge_type = /obj/item/stack/rods/shuttle
+	ship_lattice_type = /obj/structure/lattice/ship
 
 /obj/item/stack/rods/shuttle/five
 	amount = 5

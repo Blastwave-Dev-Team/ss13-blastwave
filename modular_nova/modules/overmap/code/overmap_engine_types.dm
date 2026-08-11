@@ -58,18 +58,15 @@
 	/// Power draw multiplier while running in hall-only mode.
 	var/hall_only_power_mult = 2.0
 
-/// Hall-only ISP proxy: when the injector feed is dry we still return the hall
-/// efficiency so the engine reports a non-zero output and stays active on grid
-/// power alone. Chamber-only (feed not yet pressurized) uses chamber ISP estimate.
+/// Hall-only ISP proxy: only pressurized feed can provide propellant thrust.
+/// Gas stranded in the injector chamber must not suppress the grid fallback.
 /obj/machinery/power/shuttle_engine/overmap/standard/get_isp_efficiency()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_feed_propellant())
 		return fuel_injector_estimate_isp(injector) || injector.base_isp
-	if(injector?.has_propellant())
-		return injector.base_isp
 	return hall_only_efficiency
 
-/// Active whenever it has propellant OR any grid power to run hall-only mode.
+/// HNT engines always require grid power, including while using propellant.
 /obj/machinery/power/shuttle_engine/overmap/standard/update_engine()
 	thruster_active = TRUE
 	if(machine_stat & BROKEN)
@@ -82,9 +79,6 @@
 		thruster_active = FALSE
 		return FALSE
 	scan_for_injector()
-	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector?.has_propellant())
-		return TRUE
 	if(get_power_fraction() > 0)
 		return TRUE
 	thruster_active = FALSE
@@ -100,10 +94,8 @@
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
 	if(injector?.has_feed_propellant())
 		return ..(percentage, skip_engine_update = TRUE, dt = dt)
-	// Chamber still has gas but L2 has not pressurized yet — wait, do not hall-only.
-	if(injector?.has_propellant())
-		return 0
-	// Hall-only fallback: reduced thrust, no propellant consumed, higher power cost.
+	// Hall-only fallback: reduced thrust, no propellant consumed, higher power
+	// cost. This also applies while gas is stranded in an unpressurized chamber.
 	var/power_fraction = get_power_fraction()
 	if(power_fraction <= 0)
 		return 0
@@ -115,20 +107,20 @@
 /// as fuel fullness. This keeps `undock()` and throttle-sustain working with a dry injector.
 /obj/machinery/power/shuttle_engine/overmap/standard/return_fuel()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector)
+	if(injector?.has_feed_propellant())
 		return injector.return_fuel()
 	return get_power_fraction() * 100
 
 /obj/machinery/power/shuttle_engine/overmap/standard/return_fuel_cap()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector)
+	if(injector?.has_feed_propellant())
 		return injector.return_fuel_cap()
 	return 100
 
 /// Reported capability reflects hall-only reduction when running without propellant.
 /obj/machinery/power/shuttle_engine/overmap/standard/get_rated_thrust()
 	var/obj/machinery/overmap/fuel_injector/injector = get_linked_injector()
-	if(injector?.has_propellant())
+	if(injector?.has_feed_propellant())
 		return thrust
 	return thrust * hall_only_efficiency
 

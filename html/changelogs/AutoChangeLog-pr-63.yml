@@ -1,0 +1,7 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "Added Nanotrasen station treasury and departmental funding mechanics."
+  - balance: "Salary raises above base pay now draw from the station reserve."
+  - qol: "Accounting consoles now show effective salaries and their funding split."
+  - code_imp: "Separated DS-2, Interdyne, and Tarkon funding sources."

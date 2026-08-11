@@ -43,6 +43,7 @@ export function ExaminePanel(props) {
     assigned_map,
     flavor_text,
     flavor_text_nsfw,
+    erp_preferences_enabled,
     ooc_notes,
     ooc_notes_nsfw,
     custom_species,
@@ -104,27 +105,29 @@ export function ExaminePanel(props) {
                   preserveWhitespace
                   title="Flavor Text"
                   buttons={
-                    <>
-                      <Button
-                        selected={flavorTextIndex === 'SFW'}
-                        bold={flavorTextIndex === 'SFW'}
-                        onClick={() => setFlavorTextIndex('SFW')}
-                        textAlign="center"
-                        width="150px"
-                      >
-                        SFW
-                      </Button>
-                      <Button
-                        selected={flavorTextIndex === 'NSFW'}
-                        disabled={!flavor_text_nsfw}
-                        bold={flavorTextIndex === 'NSFW'}
-                        onClick={() => setFlavorTextIndex('NSFW')}
-                        textAlign="center"
-                        width="150px"
-                      >
-                        NSFW
-                      </Button>
-                    </>
+                    erp_preferences_enabled ? (
+                      <>
+                        <Button
+                          selected={flavorTextIndex === 'SFW'}
+                          bold={flavorTextIndex === 'SFW'}
+                          onClick={() => setFlavorTextIndex('SFW')}
+                          textAlign="center"
+                          width="150px"
+                        >
+                          SFW
+                        </Button>
+                        <Button
+                          selected={flavorTextIndex === 'NSFW'}
+                          disabled={!flavor_text_nsfw}
+                          bold={flavorTextIndex === 'NSFW'}
+                          onClick={() => setFlavorTextIndex('NSFW')}
+                          textAlign="center"
+                          width="150px"
+                        >
+                          NSFW
+                        </Button>
+                      </>
+                    ) : undefined
                   }
                 >
                   {flavorTextIndex === 'SFW' && formatURLs(flavor_text)}
@@ -140,27 +143,29 @@ export function ExaminePanel(props) {
                       title="OOC Notes"
                       preserveWhitespace
                       buttons={
-                        <>
-                          <Button
-                            selected={oocNotesIndex === 'SFW'}
-                            bold={oocNotesIndex === 'SFW'}
-                            onClick={() => setOocNotesIndex('SFW')}
-                            textAlign="center"
-                            minWidth="60px"
-                          >
-                            SFW
-                          </Button>
-                          <Button
-                            selected={oocNotesIndex === 'NSFW'}
-                            disabled={!ooc_notes_nsfw}
-                            bold={oocNotesIndex === 'NSFW'}
-                            onClick={() => setOocNotesIndex('NSFW')}
-                            textAlign="center"
-                            minWidth="60px"
-                          >
-                            NSFW
-                          </Button>
-                        </>
+                        erp_preferences_enabled ? (
+                          <>
+                            <Button
+                              selected={oocNotesIndex === 'SFW'}
+                              bold={oocNotesIndex === 'SFW'}
+                              onClick={() => setOocNotesIndex('SFW')}
+                              textAlign="center"
+                              minWidth="60px"
+                            >
+                              SFW
+                            </Button>
+                            <Button
+                              selected={oocNotesIndex === 'NSFW'}
+                              disabled={!ooc_notes_nsfw}
+                              bold={oocNotesIndex === 'NSFW'}
+                              onClick={() => setOocNotesIndex('NSFW')}
+                              textAlign="center"
+                              minWidth="60px"
+                            >
+                              NSFW
+                            </Button>
+                          </>
+                        ) : undefined
                       }
                     >
                       {!!nova_star_status && (

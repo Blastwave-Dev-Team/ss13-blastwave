@@ -17,12 +17,20 @@
 	var/registration_is_custom = TRUE
 	/// Optional qualifier that distinguishes registration variants in-world.
 	var/registration_label
+	/// Designs this trusted stock license may synthesize for its own manifest.
+	var/list/embedded_design_ids = list()
+	/// Opt-in for purchased stock disks whose license covers every designed dependency.
+	var/prebake_dependency_designs = FALSE
 
 /obj/item/ship_blueprint_disk/Initialize(mapload)
 	. = ..()
-	addtimer(CALLBACK(src, PROC_REF(load_ship_plan)), 0)
+	embedded_design_ids = embedded_design_ids.Copy()
+	// Load on demand. A deferred timer here races create_and_destroy / cargo
+	// export qdel and can leave the disk stuck inside a container.
 
 /obj/item/ship_blueprint_disk/proc/load_ship_plan()
+	if(QDELETED(src))
+		return null
 	if(ship_plan)
 		return ship_plan
 	if(!ispath(template_type, /datum/map_template/shuttle))
@@ -33,11 +41,20 @@
 	if(!template)
 		template = new template_type()
 	ship_plan = new /datum/ship_plan/template(template)
+	if(prebake_dependency_designs)
+		for(var/requirement in ship_plan.required_parts)
+			var/datum/design/design = shipyard_dependency_design(requirement)
+			if(design)
+				embedded_design_ids[design.id] = TRUE
 	update_appearance()
 	return ship_plan
 
 /obj/item/ship_blueprint_disk/Destroy()
 	QDEL_NULL(ship_plan)
+	// Break closet/crate containment before the parent qdel chain. If we are
+	// already QDELETED and later re-inserted, create_and_destroy hard-deletes.
+	if(loc && !isturf(loc))
+		moveToNullspace()
 	return ..()
 
 /obj/item/ship_blueprint_disk/update_name(updates)
@@ -48,14 +65,27 @@
 /obj/item/ship_blueprint_disk/examine(mob/user)
 	. = ..()
 	if(!ship_plan)
+		load_ship_plan()
+	if(!ship_plan)
 		. += span_warning("The disk contains no readable ship manifest.")
 		return
 	. += span_notice("Design: <b>[ship_plan.name]</b> ([ship_plan.width]×[ship_plan.height]).")
 	. += span_notice("Manifest: [length(ship_plan.manifest)] operations; [length(ship_plan.skipped_contents)] skipped map entries.")
+	if(length(embedded_design_ids))
+		. += span_notice("Licensed dependencies: [length(embedded_design_ids)] designs.")
 
 /obj/item/ship_blueprint_disk/personal_shuttle
-	name = "personal travel shuttle blueprint disk"
-	template_type = /datum/map_template/shuttle/whiteship/personalshuttle
+	name = "NT Personal custom-registration blueprint disk"
+	template_type = /datum/map_template/shuttle/overmap/frigate/nt_personal
+	registration_label = "custom registration"
+
+/obj/item/ship_blueprint_disk/personal_shuttle/typed
+	name = "NT Personal frigate-registration blueprint disk"
+	registration_area_type = /area/shuttle/overmap/frigate
+	registration_port_type = /obj/docking_port/mobile/overmap/frigate/nt_personal
+	registration_is_custom = FALSE
+	registration_label = "frigate registration"
+	prebake_dependency_designs = TRUE
 
 /obj/item/ship_blueprint_disk/solfed_cutter
 	name = "SolFed Cutter custom-registration blueprint disk"

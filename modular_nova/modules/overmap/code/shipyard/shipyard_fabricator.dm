@@ -38,6 +38,12 @@
 #define SHIPYARD_PANEL "shuttle_printer-maintenance_panel"
 #define SHIPYARD_DISK "shuttle_printer-computer_disk"
 
+/// Private research snapshot owned by a player-built shipyard fabricator.
+/datum/techweb/shipyard
+	id = "SHIPYARD"
+	organization = "Independent Shipyard"
+	should_generate_points = FALSE
+
 /// Landing-zone claim held while a shipyard build is active.
 /obj/effect/landmark/overmap_landing_zone
 	var/datum/weakref/shipyard_claim
@@ -62,6 +68,8 @@
 	var/datum/weakref/linked_controller
 	/// Inserted recipe disk.
 	var/obj/item/ship_blueprint_disk/blueprint_disk
+	/// Technology disk waiting to be imported into a private research snapshot.
+	var/obj/item/disk/tech_disk/research_disk
 	/// Docked parts inventory.
 	var/obj/item/storage/part_replacer/docked_rped
 	/// Optional linked shuttle blueprints accepted for future serialization.
@@ -78,7 +86,8 @@
 	/// it by an entire round, so a hard reference here would keep a scuttled
 	/// vessel alive forever.
 	var/datum/weakref/built_shuttle_ref
-	var/rotated_plan = FALSE
+	/// Absolute cardinal facing selected for the next ship.
+	var/build_direction = NORTH
 	var/datum/weakref/last_operator
 	/// Whether an operator holds a console session.
 	var/authenticated = FALSE
@@ -101,6 +110,25 @@
 	var/dish_icon_state = SHIPYARD_DISH_IDLE
 	/// Direction of the directional dish overlay.
 	var/dish_direction = SOUTH
+	/// Research designs this machine may use to synthesize ship dependencies.
+	var/datum/techweb/stored_research
+	/// Player-built machines own their isolated web; mapped variants borrow one.
+	var/owns_techweb = TRUE
+	/// Exact shared techweb type used by mapped station/faction variants.
+	var/shared_techweb_type
+
+/// Mappers opt into a shared web explicitly; no proximity fallback is allowed.
+/obj/machinery/shipyard_fabricator/mapped
+	owns_techweb = FALSE
+	shared_techweb_type = /datum/techweb/science
+
+/obj/machinery/shipyard_fabricator/mapped/station
+
+/obj/machinery/shipyard_fabricator/mapped/oldstation
+	shared_techweb_type = /datum/techweb/oldstation
+
+/obj/machinery/shipyard_fabricator/mapped/tarkon
+	shared_techweb_type = /datum/techweb/tarkon
 
 /// One constructible half of the two-frame shipyard fabricator.
 /// Completing two horizontally adjacent halves consumes both and creates the
@@ -185,7 +213,100 @@
 /obj/machinery/shipyard_fabricator/Initialize(mapload)
 	. = ..()
 	materials = new(src, mapload, allow_standalone = FALSE)
+	if(owns_techweb)
+		stored_research = new /datum/techweb/shipyard
+	else
+		for(var/datum/techweb/candidate as anything in SSresearch.techwebs)
+			if(candidate.type == shared_techweb_type)
+				stored_research = candidate
+				break
 	register_context()
+
+/**
+ * Whether `neighbor` is next to either tile this machine occupies.
+ *
+ * Parent adjacency and TGUI distance both key off `loc`, which for a
+ * `bound_width = 64` machine is only the western turf. Standing by the eastern
+ * half - the natural approach when the machine sits against a north wall - then
+ * fails interact/UI reach even though you are clearly next to it.
+ */
+/obj/machinery/shipyard_fabricator/proc/footprint_adjacent(atom/neighbor)
+	if(neighbor == loc || neighbor?.loc == src)
+		return TRUE
+	var/turf/neighbor_turf = get_turf(neighbor)
+	if(!neighbor_turf)
+		return FALSE
+	var/atom/movable/mover = ismovable(neighbor) ? neighbor : null
+	for(var/turf/our_turf as anything in locs)
+		if(our_turf == neighbor_turf || our_turf.Adjacent(neighbor, target = src, mover = mover))
+			return TRUE
+	return FALSE
+
+/obj/machinery/shipyard_fabricator/Adjacent(atom/neighbor, atom/target, atom/movable/mover)
+	return footprint_adjacent(neighbor)
+
+/obj/machinery/shipyard_fabricator/CheckReachableAdjacency(atom/movable/reacher, reacher_range)
+	if(footprint_adjacent(reacher))
+		return TRUE
+	return ..()
+
+/obj/machinery/shipyard_fabricator/can_interact(mob/user)
+	// user.can_interact_with() uses user.Adjacent(src), which only sees loc. When
+	// the caller is next to our eastern tile, treat that as sufficient reach and
+	// run the ordinary machinery gates ourselves.
+	if(!footprint_adjacent(user))
+		return ..()
+	return fabricator_can_interact_nearby(user)
+
+/// Machinery interaction gates with adjacency already established via footprint.
+/obj/machinery/shipyard_fabricator/proc/fabricator_can_interact_nearby(mob/user)
+	if(QDELETED(user))
+		return FALSE
+	if((machine_stat & (NOPOWER | BROKEN)) && !(interaction_flags_machine & INTERACT_MACHINE_OFFLINE))
+		return FALSE
+	var/try_use_signal = SEND_SIGNAL(user, COMSIG_TRY_USE_MACHINE, src) | SEND_SIGNAL(src, COMSIG_TRY_USE_MACHINE, user)
+	if(try_use_signal & COMPONENT_CANT_USE_MACHINE_INTERACT)
+		return FALSE
+	if(isAdminGhostAI(user))
+		return TRUE
+	if(!isliving(user))
+		return FALSE
+	if(!HAS_SILICON_ACCESS(user) && !user.can_hold_items())
+		return FALSE
+	if(HAS_SILICON_ACCESS(user))
+		if(!(interaction_flags_machine & INTERACT_MACHINE_ALLOW_SILICON))
+			return FALSE
+		if(panel_open && !(interaction_flags_machine & INTERACT_MACHINE_OPEN) && !(interaction_flags_machine & INTERACT_MACHINE_OPEN_SILICON))
+			return FALSE
+		return TRUE
+	if((interaction_flags_atom & INTERACT_ATOM_REQUIRES_DEXTERITY) && !ISADVANCEDTOOLUSER(user))
+		to_chat(user, span_warning("You don't have the dexterity to do this!"))
+		return FALSE
+	if(!(interaction_flags_atom & INTERACT_ATOM_IGNORE_INCAPACITATED))
+		var/ignore_flags = NONE
+		if(interaction_flags_atom & INTERACT_ATOM_IGNORE_RESTRAINED)
+			ignore_flags |= INCAPABLE_RESTRAINTS
+		if(!(interaction_flags_atom & INTERACT_ATOM_CHECK_GRAB))
+			ignore_flags |= INCAPABLE_GRAB
+		if(INCAPACITATED_IGNORING(user, ignore_flags))
+			return FALSE
+	if(panel_open && !(interaction_flags_machine & INTERACT_MACHINE_OPEN))
+		return FALSE
+	if(interaction_flags_machine & INTERACT_MACHINE_REQUIRES_SILICON)
+		return FALSE
+	if(interaction_flags_machine & INTERACT_MACHINE_REQUIRES_STANDING)
+		var/mob/living/living_user = user
+		if(!(living_user.mobility_flags & MOBILITY_MOVE))
+			return FALSE
+	return TRUE
+
+/obj/machinery/shipyard_fabricator/ui_status(mob/user, datum/ui_state/state)
+	. = ..()
+	// shared_living_ui_distance uses get_dist against loc, so a user next to the
+	// eastern half reads as two tiles away and only gets UI_UPDATE.
+	if(. < UI_INTERACTIVE && . > UI_CLOSE && footprint_adjacent(user))
+		return UI_INTERACTIVE
+	return .
 
 /obj/machinery/shipyard_fabricator/update_icon_state()
 	icon_state = printer_deployed ? "shuttle_printer-base" : "shuttle_printer"
@@ -319,7 +440,13 @@
 	clear_phase_projections()
 	release_zone()
 	QDEL_NULL(materials)
+	// Drop held items only if they still exist; always clear the refs so a disk
+	// qdel'd earlier by allocate() isn't kept alive until hard-delete.
 	eject_all()
+	if(owns_techweb)
+		QDEL_NULL(stored_research)
+	else
+		stored_research = null
 	return ..()
 
 /obj/machinery/shipyard_fabricator/on_deconstruction(disassembled)
@@ -347,10 +474,19 @@
 
 /obj/machinery/shipyard_fabricator/proc/eject_all()
 	var/atom/drop = drop_location()
-	blueprint_disk?.forceMove(drop)
-	docked_rped?.forceMove(drop)
-	intake_blueprints?.forceMove(drop)
+	// Never forceMove an already-qdeleted atom back onto the turf: allocate()
+	// may qdel the disk before us, and re-parenting a zombie onto the unit-test
+	// floor lets create_and_destroy seal it inside a later closet.
+	if(blueprint_disk && !QDELETED(blueprint_disk))
+		blueprint_disk.forceMove(drop)
+	if(research_disk && !QDELETED(research_disk))
+		research_disk.forceMove(drop)
+	if(docked_rped && !QDELETED(docked_rped))
+		docked_rped.forceMove(drop)
+	if(intake_blueprints && !QDELETED(intake_blueprints))
+		intake_blueprints.forceMove(drop)
 	blueprint_disk = null
+	research_disk = null
 	docked_rped = null
 	intake_blueprints = null
 	if(!QDELETED(src))
@@ -369,7 +505,7 @@
 	if(docked_rped)
 		balloon_alert(user, "rped dock occupied")
 		return FALSE
-	if(!user.Adjacent(src))
+	if(!footprint_adjacent(user))
 		balloon_alert(user, "too far away")
 		return FALSE
 	if(!user.transferItemToLoc(replacer, src))
@@ -387,7 +523,13 @@
 	return ..()
 
 /obj/machinery/shipyard_fabricator/item_interaction(mob/living/user, obj/item/tool, list/modifiers)
+	if(state == SHIPYARD_STATE_BUILDING)
+		balloon_alert(user, "build in progress")
+		return ITEM_INTERACT_BLOCKING
 	if(istype(tool, /obj/item/ship_blueprint_disk))
+		if(orientation_locked())
+			balloon_alert(user, "abort build first")
+			return ITEM_INTERACT_BLOCKING
 		if(blueprint_disk)
 			balloon_alert(user, "disk slot occupied")
 			return ITEM_INTERACT_BLOCKING
@@ -398,8 +540,21 @@
 		if(!user.transferItemToLoc(tool, src))
 			return ITEM_INTERACT_BLOCKING
 		blueprint_disk = disk
+		build_direction = disk.ship_plan.shuttle_dir
 		update_appearance()
 		balloon_alert(user, "blueprint loaded")
+		return ITEM_INTERACT_SUCCESS
+	if(istype(tool, /obj/item/disk/tech_disk))
+		if(!owns_techweb)
+			balloon_alert(user, "shared research is read-only")
+			return ITEM_INTERACT_BLOCKING
+		if(research_disk)
+			balloon_alert(user, "research slot occupied")
+			return ITEM_INTERACT_BLOCKING
+		if(!user.transferItemToLoc(tool, src))
+			return ITEM_INTERACT_BLOCKING
+		research_disk = tool
+		balloon_alert(user, "technology disk loaded")
 		return ITEM_INTERACT_SUCCESS
 	if(istype(tool, /obj/item/storage/part_replacer))
 		return dock_rped(user, tool) ? ITEM_INTERACT_SUCCESS : ITEM_INTERACT_BLOCKING
@@ -442,6 +597,7 @@
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
 	. += span_notice("Landing zone: [controller ? controller.zone_label : "unlinked"].")
 	. += span_notice("Silo: [materials?.silo ? "linked" : "unlinked"]; RPED: [docked_rped ? "docked" : "missing"]; disk: [blueprint_disk ? blueprint_disk.ship_plan?.name : "missing"].")
+	. += span_notice("Research: [owns_techweb ? "private snapshot" : (stored_research?.organization || "shared link unavailable")].")
 	if(paused_reason)
 		. += span_warning(paused_reason)
 
@@ -480,11 +636,21 @@
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
 	var/obj/effect/landmark/overmap_landing_zone/zone = controller?.active_zone
+	var/allowed_directions = allowed_build_directions(zone)
+	var/direction_valid = (build_direction in GLOB.cardinals) && (allowed_directions & build_direction)
+	var/list/printed_dimensions = oriented_plan_dimensions(plan)
 	data["state"] = state
 	data["pausedReason"] = paused_reason
 	data["planName"] = plan?.name
 	data["planWidth"] = plan?.width || 0
 	data["planHeight"] = plan?.height || 0
+	data["printedWidth"] = printed_dimensions[1]
+	data["printedHeight"] = printed_dimensions[2]
+	data["nativeDirection"] = plan?.shuttle_dir || NORTH
+	data["buildDirection"] = build_direction
+	data["enabledDirections"] = allowed_directions
+	data["directionValid"] = direction_valid
+	data["orientationLocked"] = orientation_locked()
 	data["operation"] = operation_index
 	data["operationTotal"] = length(plan?.manifest)
 	data["phase"] = current_phase
@@ -497,6 +663,10 @@
 	data["siloOnHold"] = materials?.on_hold()
 	data["rpedDocked"] = !!docked_rped
 	data["diskLoaded"] = !!blueprint_disk
+	data["researchDiskLoaded"] = !!research_disk
+	data["researchSource"] = owns_techweb ? "Private snapshot" : (stored_research?.organization || "Unavailable shared web")
+	data["researchDesignCount"] = length(stored_research?.researched_designs)
+	data["canImportResearch"] = owns_techweb
 	data["blueprintsLoaded"] = !!intake_blueprints
 	data["materialMultiplier"] = material_cost_multiplier
 	data["placementDelay"] = fabrication_delay
@@ -507,20 +677,104 @@
 	data["zoneWidth"] = zone?.zone_width || 0
 	data["zoneHeight"] = zone?.zone_height || 0
 	data["zoneOccupied"] = !!blocking_occupant(zone)
+	data["dependenciesReady"] = !dependency_preflight_issue(plan)
 	data["materials"] = material_summary(plan)
 	data["parts"] = part_summary(plan)
 	return data
+
+/obj/machinery/shipyard_fabricator/proc/import_research_disk()
+	if(!owns_techweb || !research_disk?.stored_research || !stored_research)
+		return FALSE
+	research_disk.stored_research.copy_research_to(stored_research)
+	return TRUE
+
+/// Highest-rated compatible design authorized by imported or blueprint research.
+/obj/machinery/shipyard_fabricator/proc/authorized_dependency_design(requirement)
+	var/datum/design/best_design
+	var/best_rating = -INFINITY
+	for(var/datum/design/design as anything in shipyard_dependency_designs(requirement))
+		if(!stored_research?.researched_designs[design.id] && !blueprint_disk?.embedded_design_ids[design.id])
+			continue
+		var/rating = shipyard_dependency_design_rating(design)
+		if(!best_design || rating > best_rating)
+			best_design = design
+			best_rating = rating
+	return best_design
+
+/obj/machinery/shipyard_fabricator/proc/dependency_design_authorized(requirement)
+	return !!authorized_dependency_design(requirement)
+
+/obj/machinery/shipyard_fabricator/proc/physical_dependency_count(requirement)
+	var/item_path = shipyard_part_item_type(requirement)
+	var/count = 0
+	for(var/obj/item/part in docked_rped?.contents)
+		if(istype(part, item_path))
+			count++
+	return count
+
+/// First dependency the RPED and active licenses cannot supply.
+/obj/machinery/shipyard_fabricator/proc/dependency_preflight_issue(datum/ship_plan/plan)
+	if(!plan)
+		return "No ship plan is loaded."
+	for(var/requirement in plan.required_parts)
+		var/missing = plan.required_parts[requirement] - physical_dependency_count(requirement)
+		if(missing <= 0)
+			continue
+		if(!length(shipyard_dependency_designs(requirement)))
+			return "No printable design exists for [requirement]; supply it through an RPED."
+		var/datum/design/design = authorized_dependency_design(requirement)
+		if(!design)
+			return "No researched design for [requirement] is included in the imported or blueprint disk."
+		if(!length(shipyard_design_material_cost(design)))
+			return "[design.name] cannot be billed to the ore silo."
+	return null
+
+/obj/machinery/shipyard_fabricator/proc/dependency_material_cost(datum/ship_plan/plan)
+	var/list/result = list()
+	if(!plan)
+		return result
+	for(var/requirement in plan.required_parts)
+		var/missing = max(0, plan.required_parts[requirement] - physical_dependency_count(requirement))
+		if(!missing)
+			continue
+		var/datum/design/design = authorized_dependency_design(requirement)
+		var/list/cost = shipyard_design_material_cost(design, missing)
+		for(var/material_path in cost)
+			result[material_path] = (result[material_path] || 0) + cost[material_path]
+	return result
+
+/// Create and bill one dependency that the active research sources authorize.
+/obj/machinery/shipyard_fabricator/proc/fabricate_dependency(requirement, atom/destination)
+	var/datum/design/design = authorized_dependency_design(requirement)
+	var/list/cost = shipyard_design_material_cost(design)
+	if(!design || !length(cost) || !materials?.mat_container?.has_materials(cost, material_cost_multiplier))
+		return null
+	var/obj/item/created = new design.build_path(destination)
+	if(!created || QDELETED(created))
+		return null
+	materials.use_materials(
+		cost,
+		coefficient = material_cost_multiplier,
+		action = "fabricate dependency",
+		name = blueprint_disk?.ship_plan?.name || "ship",
+		user_data = consumer_id_data(),
+	)
+	return created
 
 /obj/machinery/shipyard_fabricator/proc/material_summary(datum/ship_plan/plan)
 	var/list/result = list()
 	if(!plan)
 		return result
-	for(var/material_path in plan.material_cost)
+	var/list/combined_cost = plan.material_cost.Copy()
+	var/list/dependency_cost = dependency_material_cost(plan)
+	for(var/material_path in dependency_cost)
+		combined_cost[material_path] = (combined_cost[material_path] || 0) + dependency_cost[material_path]
+	for(var/material_path in combined_cost)
 		var/datum/material/material = SSmaterials.get_material(material_path)
 		var/available = materials?.mat_container?.get_material_amount(material_path) || 0
 		result += list(list(
 			"name" = material?.name || "[material_path]",
-			"required" = round(plan.material_cost[material_path] * material_cost_multiplier / SHEET_MATERIAL_AMOUNT, 0.1),
+			"required" = round(combined_cost[material_path] * material_cost_multiplier / SHEET_MATERIAL_AMOUNT, 0.1),
 			"available" = round(available / SHEET_MATERIAL_AMOUNT, 0.1),
 		))
 	return result
@@ -531,14 +785,20 @@
 		return result
 	for(var/part_path in plan.required_parts)
 		var/obj/item/item_path = shipyard_part_item_type(part_path)
-		var/count = 0
-		for(var/obj/item/part in docked_rped?.contents)
-			if(istype(part, item_path))
-				count++
+		var/count = physical_dependency_count(part_path)
+		var/datum/design/design = authorized_dependency_design(part_path)
+		var/research_status = "Missing"
+		if(design)
+			if(stored_research?.researched_designs[design.id])
+				research_status = "Has node"
+			else if(blueprint_disk?.embedded_design_ids[design.id])
+				research_status = "Blueprint license"
 		result += list(list(
 			"name" = initial(item_path.name),
 			"required" = plan.required_parts[part_path],
 			"available" = count,
+			"fabricable" = !!design,
+			"research" = research_status,
 		))
 	return result
 
@@ -571,6 +831,10 @@
 		return FALSE
 
 	switch(action)
+		if("set_direction")
+			var/new_direction = text2num(params["dir"])
+			var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
+			. = set_build_direction(new_direction, controller?.active_zone)
 		if("start")
 			. = start_build(user)
 		if("pause")
@@ -582,10 +846,11 @@
 			abort_build()
 			. = TRUE
 		if("eject_disk")
-			if(state == SHIPYARD_STATE_BUILDING)
+			if(orientation_locked())
 				return FALSE
 			blueprint_disk?.forceMove(drop_location())
 			blueprint_disk = null
+			build_direction = NORTH
 			update_appearance()
 			. = TRUE
 		if("eject_rped")
@@ -595,7 +860,20 @@
 			docked_rped = null
 			update_appearance()
 			. = TRUE
+		if("import_research")
+			if(state == SHIPYARD_STATE_BUILDING || !import_research_disk())
+				return FALSE
+			balloon_alert(user, "research imported")
+			. = TRUE
+		if("eject_research_disk")
+			if(state == SHIPYARD_STATE_BUILDING)
+				return FALSE
+			research_disk?.forceMove(drop_location())
+			research_disk = null
+			. = TRUE
 		if("eject_blueprints")
+			if(state == SHIPYARD_STATE_BUILDING)
+				return FALSE
 			intake_blueprints?.forceMove(drop_location())
 			intake_blueprints = null
 			. = TRUE
@@ -616,6 +894,43 @@
 	var/continuing = (state in list(SHIPYARD_STATE_BUILDING, SHIPYARD_STATE_PAUSED, SHIPYARD_STATE_FAULT))
 	return zone.get_occupant(continuing ? built_shuttle_ref?.resolve() : null)
 
+/obj/machinery/shipyard_fabricator/proc/orientation_locked()
+	return state != SHIPYARD_STATE_IDLE
+
+/obj/machinery/shipyard_fabricator/proc/allowed_build_directions(obj/effect/landmark/overmap_landing_zone/zone)
+	return (zone?.exit_direction in GLOB.cardinals) \
+		? zone.exit_direction \
+		: (NORTH | SOUTH | EAST | WEST)
+
+/obj/machinery/shipyard_fabricator/proc/set_build_direction(new_direction, obj/effect/landmark/overmap_landing_zone/zone)
+	if(orientation_locked() || !(new_direction in GLOB.cardinals))
+		return FALSE
+	if(!(allowed_build_directions(zone) & new_direction))
+		return FALSE
+	build_direction = new_direction
+	paused_reason = null
+	return TRUE
+
+/// Rotation and dimensions for the currently selected absolute facing.
+/obj/machinery/shipyard_fabricator/proc/plan_rotation(datum/ship_plan/plan = blueprint_disk?.ship_plan)
+	return shipyard_plan_rotation(plan?.shuttle_dir, build_direction)
+
+/obj/machinery/shipyard_fabricator/proc/oriented_plan_dimensions(datum/ship_plan/plan = blueprint_disk?.ship_plan)
+	return shipyard_oriented_dimensions(plan, plan_rotation(plan))
+
+/obj/machinery/shipyard_fabricator/proc/oriented_operation_vars(datum/ship_plan_op/operation)
+	return shipyard_oriented_vars(operation?.desired_vars, plan_rotation(), operation?.target_path)
+
+/obj/machinery/shipyard_fabricator/proc/oriented_helper_specs(datum/ship_plan_op/operation)
+	var/list/result = list()
+	var/rotation = plan_rotation()
+	for(var/list/helper_spec as anything in operation?.helper_specs)
+		result += list(list(
+			"path" = helper_spec["path"],
+			"vars" = shipyard_oriented_vars(helper_spec["vars"], rotation, helper_spec["path"]),
+		))
+	return result
+
 /obj/machinery/shipyard_fabricator/proc/start_build(mob/living/user)
 	if(state == SHIPYARD_STATE_BUILDING)
 		return FALSE
@@ -623,8 +938,9 @@
 	if(!plan || !length(plan.manifest))
 		paused_reason = "Insert a valid ship blueprint disk."
 		return FALSE
-	if(!docked_rped)
-		paused_reason = "Dock an RPED containing required boards and stock parts."
+	var/dependency_issue = dependency_preflight_issue(plan)
+	if(dependency_issue)
+		paused_reason = dependency_issue
 		return FALSE
 	if(!materials?.silo || !materials.can_use_resource(user_data = consumer_id_data()))
 		paused_reason = "A live ore silo connection is required."
@@ -634,18 +950,24 @@
 	if(!zone)
 		paused_reason = "Link a controller with an active landing zone."
 		return FALSE
+	if(!(build_direction in GLOB.cardinals))
+		paused_reason = "Select a valid ship direction."
+		return FALSE
+	if((zone.exit_direction in GLOB.cardinals) && build_direction != zone.exit_direction)
+		paused_reason = "The selected ship direction must match the landing zone exit."
+		return FALSE
 	if(blocking_occupant(zone))
 		paused_reason = "The linked landing zone is occupied."
 		return FALSE
 	if(zone.shipyard_claim?.resolve() != src && zone.shipyard_claim?.resolve())
 		paused_reason = "The linked landing zone is claimed by another fabricator."
 		return FALSE
-	if(!zone.can_fit_shuttle(plan.width, plan.height))
+	var/list/oriented_dimensions = oriented_plan_dimensions(plan)
+	var/printed_width = oriented_dimensions[1]
+	var/printed_height = oriented_dimensions[2]
+	if(printed_width > zone.zone_width || printed_height > zone.zone_height)
 		paused_reason = "The blueprint does not fit inside the linked landing zone."
 		return FALSE
-	rotated_plan = plan.width > zone.zone_width || plan.height > zone.zone_height
-	var/printed_width = rotated_plan ? plan.height : plan.width
-	var/printed_height = rotated_plan ? plan.width : plan.height
 	var/turf/far_corner = locate(zone.x + printed_width - 1, zone.y + printed_height - 1, zone.z)
 	if(!far_corner || get_dist(src, far_corner) > max_print_range)
 		paused_reason = "Scanner resolution limits this fabricator to [max_print_range] tiles; the far hull corner is out of range."
@@ -718,7 +1040,7 @@
 	clear_fault_marker()
 	if(!operation || !target)
 		return
-	fault_marker = new(target, operation)
+	fault_marker = new(target, operation, oriented_operation_vars(operation))
 	if(QDELETED(fault_marker))
 		fault_marker = null
 
@@ -768,7 +1090,11 @@
 		var/turf/target = get_operation_turf(operation, zone)
 		if(!target || operation.satisfied(target))
 			continue
-		var/obj/effect/overlay/shipyard_projection/projection = new(target, operation)
+		var/obj/effect/overlay/shipyard_projection/projection = new(
+			target,
+			operation,
+			oriented_operation_vars(operation),
+		)
 		if(!QDELETED(projection))
 			phase_projections[REF(operation)] = projection
 
@@ -834,10 +1160,14 @@
 /obj/machinery/shipyard_fabricator/proc/get_operation_turf(datum/ship_plan_op/operation, obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve())
 	if(!operation || !zone)
 		return null
-	if(rotated_plan)
-		var/datum/ship_plan/plan = blueprint_disk?.ship_plan
-		return locate(zone.x + operation.rel_y, zone.y + plan.width - 1 - operation.rel_x, zone.z)
-	return locate(zone.x + operation.rel_x, zone.y + operation.rel_y, zone.z)
+	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
+	var/list/oriented = shipyard_oriented_coordinates(
+		plan,
+		operation.rel_x,
+		operation.rel_y,
+		plan_rotation(plan),
+	)
+	return locate(zone.x + oriented[1], zone.y + oriented[2], zone.z)
 
 /// Every tile the manifest lays hull plating on.
 /obj/machinery/shipyard_fabricator/proc/hull_turfs()
@@ -858,7 +1188,6 @@
 	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
 		return TRUE
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
-	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
 	var/list/hull_turfs = hull_turfs()
 	if(!length(hull_turfs))
 		fault_build(null, "No hull plating exists for shuttle registration.")
@@ -871,8 +1200,8 @@
 		origin,
 		hull_turfs,
 		list(),
-		zone.exit_direction || NORTH,
-		zone.exit_direction || NORTH,
+		build_direction,
+		build_direction,
 		area_type = blueprint_disk.registration_area_type,
 		docking_port_type = blueprint_disk.registration_port_type,
 		name = plan.name,

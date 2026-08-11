@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -14,6 +14,7 @@ import type { BooleanLike } from 'tgui-core/react';
 import { useBackend } from '../backend';
 import { Direction } from '../constants';
 import { Window } from '../layouts';
+import { DirectionPad } from './common/DirectionPad';
 
 type AreaData = { name: string; ref: string };
 
@@ -60,70 +61,11 @@ type OffShuttleFrameData = {
   problems: undefined;
 };
 
-type DirectionPadProps = {
-  title: string;
-  tooltip?: ReactNode;
-  enabledDirections: Direction;
-  selectedDirection: Direction;
-  onSelect: (direction: Direction) => void;
-};
-
-const directionData: [Direction, string][] = [
-  [Direction.NORTH, 'up'],
-  [Direction.SOUTH, 'down'],
-  [Direction.EAST, 'right'],
-  [Direction.WEST, 'left'],
-];
-
 type ProblemsTooltipProps = {
   description: string;
   problemHeader: string;
   problems: number;
   problemStrings: string[];
-};
-
-const DirectionPad = (props: DirectionPadProps) => {
-  const { title, tooltip, enabledDirections, selectedDirection, onSelect } =
-    props;
-  const [north, south, east, west] = directionData.map(
-    ([direction, icon_suffix], i) => (
-      <Stack.Item key={i}>
-        <Button
-          fluid
-          m={0}
-          icon={`arrow-${icon_suffix}`}
-          selected={selectedDirection & direction}
-          disabled={!(enabledDirections & direction)}
-          onClick={() => onSelect(direction)}
-        />
-      </Stack.Item>
-    ),
-  );
-  const titleNode = (
-    <Box width="100%" textAlign="center">
-      {title}
-    </Box>
-  );
-  return (
-    <Section
-      fill
-      title={
-        tooltip ? <Tooltip content={tooltip}>{titleNode}</Tooltip> : titleNode
-      }
-    >
-      <Stack fill vertical align="center" justify="center">
-        {north}
-        <Stack.Item>
-          <Stack>
-            {west}
-            <Stack.Item width="1rem" mx={1} />
-            {east}
-          </Stack>
-        </Stack.Item>
-        {south}
-      </Stack>
-    </Section>
-  );
 };
 
 const VisualizationToggle = (props: VisualizationToggleProps) => {
