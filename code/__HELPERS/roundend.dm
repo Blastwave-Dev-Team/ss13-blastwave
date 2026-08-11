@@ -534,6 +534,10 @@ GLOBAL_LIST_INIT(achievements_unlocked, list())
 	var/station_vault = 0
 	///How many players joined the round.
 	var/total_players = GLOB.joined_player_list.len
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	var/station_department_total = 0
+	var/list/independent_account_balances = list()
+	// BLASTWAVE EDIT ADDITION END
 	var/static/list/typecache_bank = typecacheof(list(/datum/bank_account/department, /datum/bank_account/remote))
 	for(var/i in SSeconomy.bank_accounts_by_id)
 		var/datum/bank_account/current_acc = SSeconomy.bank_accounts_by_id[i]
@@ -542,6 +546,13 @@ GLOBAL_LIST_INIT(achievements_unlocked, list())
 		station_vault += current_acc.account_balance
 		if(!mr_moneybags || mr_moneybags.account_balance < current_acc.account_balance)
 			mr_moneybags = current_acc
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	for(var/datum/bank_account/department/department_account as anything in SSeconomy.departmental_accounts)
+		if(department_account.department_id in SSeconomy.station_department_accounts)
+			station_department_total += department_account.account_balance
+		else
+			independent_account_balances[department_account.department_id] = department_account.account_balance
+	// BLASTWAVE EDIT ADDITION END
 	parts += "<div class='panel stationborder'><span class='header'>Station Economic Summary:</span><br>"
 	parts += "<span class='service'>Service Statistics:</span><br>"
 	for(var/venue_path in SSrestaurant.all_venues)
@@ -572,6 +583,11 @@ GLOBAL_LIST_INIT(achievements_unlocked, list())
 
 	parts += "<b>General Statistics:</b><br>"
 	parts += "There were [station_vault] [MONEY_NAME] collected by crew this shift.<br>"
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	parts += "The station reserve closed with [SSeconomy.get_station_reserve()?.account_balance || 0] [MONEY_NAME], while station departments held [station_department_total].<br>"
+	parts += "Independent accounts closed with DS-2 [independent_account_balances[ACCOUNT_DS2] || 0], Interdyne [independent_account_balances[ACCOUNT_INT] || 0], and Tarkon [independent_account_balances[ACCOUNT_TI] || 0] [MONEY_NAME].<br>"
+	log_econ("Roundend station reserve: [SSeconomy.get_station_reserve()?.account_balance || 0]; station departments: [station_department_total]; DS-2: [independent_account_balances[ACCOUNT_DS2] || 0]; Interdyne: [independent_account_balances[ACCOUNT_INT] || 0]; Tarkon: [independent_account_balances[ACCOUNT_TI] || 0].")
+	// BLASTWAVE EDIT ADDITION END
 	if(total_players > 0)
 		parts += "An average of [station_vault/total_players] [MONEY_NAME] were collected.<br>"
 		log_econ("Roundend [MONEY_NAME_SINGULAR] total: [station_vault] [MONEY_NAME]. Average [MONEY_NAME_CAPITALIZED]: [station_vault/total_players]")

@@ -544,7 +544,7 @@
 		else if(case_name == "hot_plasma_o2")
 			TEST_ASSERT(actual > cold_plasma_o2_thrust, "hot_plasma_o2 should exceed cold_plasma_o2.")
 
-	// Chamber-only wait: gas in chamber, empty L2 → no hall-only, no feed burn.
+	// Chamber-only: gas stranded before L2 must not suppress hall-only fallback.
 	feed_air = pipeline_air(injector.feed_connector)
 	feed_air.remove(feed_air.total_moles())
 	injector.feed_connector.gas_connector.update_parents()
@@ -558,14 +558,16 @@
 	var/list/wait_map = ship.process_engine_fuel_burns(full_demand_moles(engine), 1)
 	TEST_ASSERT(!length(wait_map), "Chamber-only should not batch through process_engine_fuel_burns.")
 	var/wait_thrust = engine.burn_engine(100, skip_engine_update = TRUE)
-	TEST_ASSERT(wait_thrust <= 0, "Chamber-only HNT must wait (0 thrust), not fall through to hall-only.")
+	var/expected_hall = engine.thrust * engine.hall_only_efficiency
+	assert_thrust_near(wait_thrust, expected_hall, "chamber_only_hall_fallback")
+	ship.calculate_avg_fuel()
+	TEST_ASSERT(ship.avg_fuel_amnt > 0, "A grid-powered HNT should report propulsion availability while its injector feed is dry.")
 
 	// Hall-only via ship.burn_engines with dry injector (null dir is all-stop, not burn).
 	injector.air_contents.remove(injector.air_contents.total_moles())
 	TEST_ASSERT(!injector.has_propellant(), "Injector must be fully dry for hall-only.")
 	refresh_grid_power(grid_apc)
 	TEST_ASSERT(engine.update_engine(), "Grid power should keep dry HNT active for hall-only.")
-	var/expected_hall = engine.thrust * engine.hall_only_efficiency
 	ship.burn_engines(NORTH, 100)
 	log_test("SHIP HALL-ONLY est_thrust=[round(ship.est_thrust, 0.001)] expected=[round(expected_hall, 0.001)]")
 	assert_thrust_near(ship.est_thrust, expected_hall, "ship_hall_only")

@@ -13,21 +13,21 @@
 	/// Tint of the projection. Null leaves the default holographic blue.
 	var/holo_color
 
-/obj/effect/overlay/shipyard_projection/Initialize(mapload, datum/ship_plan_op/operation)
+/obj/effect/overlay/shipyard_projection/Initialize(mapload, datum/ship_plan_op/operation, list/oriented_vars)
 	. = ..()
-	if(!operation || !configure_appearance(operation))
+	if(!operation || !configure_appearance(operation, oriented_vars || operation.desired_vars))
 		return INITIALIZE_HINT_QDEL
 	source_operation = operation
 	makeHologram(color_override = holo_color)
 
-/obj/effect/overlay/shipyard_projection/proc/configure_appearance(datum/ship_plan_op/operation)
+/obj/effect/overlay/shipyard_projection/proc/configure_appearance(datum/ship_plan_op/operation, list/oriented_vars)
 	var/appearance_path
 	switch(operation.op_type)
 		if(SHIPYARD_OP_RODS)
-			icon = 'icons/obj/smooth_structures/lattice.dmi'
+			icon = 'modular_nova/modules/shuttle_construction/icons/ship_plating.dmi'
 			icon_state = "lattice-0"
 		if(SHIPYARD_OP_PLATING)
-			appearance_path = /turf/open/floor/plating
+			appearance_path = /turf/open/floor/plating/ship
 		if(SHIPYARD_OP_GIRDER)
 			appearance_path = /obj/structure/girder
 		if(SHIPYARD_OP_MACHINE_FRAME)
@@ -54,8 +54,8 @@
 			icon_state = initial(appearance_source.base_icon_state)
 	if(!icon || !icon_state)
 		return FALSE
-	if("dir" in operation.desired_vars)
-		setDir(operation.desired_vars["dir"])
+	if("dir" in oriented_vars)
+		setDir(oriented_vars["dir"])
 	return TRUE
 
 /// Marks the tile a build stalled on, and outlives the phase that created it.
@@ -64,7 +64,7 @@
 	desc = "A stuttering red projection marking the tile the shipyard fabricator could not build on."
 	holo_color = COLOR_RED
 
-/obj/effect/overlay/shipyard_projection/fault/configure_appearance(datum/ship_plan_op/operation)
+/obj/effect/overlay/shipyard_projection/fault/configure_appearance(datum/ship_plan_op/operation, list/oriented_vars)
 	if(..())
 		return TRUE
 	// Nothing to preview for this kind of operation, so mark the tile itself.

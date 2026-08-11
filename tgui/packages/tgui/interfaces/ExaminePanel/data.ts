@@ -13,6 +13,7 @@ export type ExaminePanelData = {
   custom_species: string;
   custom_species_lore: string;
   // Descriptions, but requiring manual input to see
+  erp_preferences_enabled: boolean;
   flavor_text_nsfw: string;
   ooc_notes_nsfw: string;
   // Antaggery

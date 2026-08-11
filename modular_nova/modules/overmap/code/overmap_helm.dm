@@ -311,7 +311,9 @@
 				"enabled" = engine.enabled,
 				"broken" = !!(engine.machine_stat & BROKEN),
 				"ref" = REF(engine),
-				"fuelSource" = injector ? "injector" : (istype(engine, /obj/machinery/power/shuttle_engine/overmap/standard) ? "hall-only" : "none"),
+				"fuelSource" = injector?.has_feed_propellant() \
+					? "injector" \
+					: (istype(engine, /obj/machinery/power/shuttle_engine/overmap/standard) ? "hall-only" : "none"),
 			)
 			if(injector)
 				engine_entry["pressure"] = round(injector.return_chamber_pressure(), 0.1)

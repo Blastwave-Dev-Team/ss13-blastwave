@@ -1,0 +1,1045 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"bA" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"bN" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/power/apc/auto_name/directional/north,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"cz" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "wsnorthbolts"
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper,
+/obj/docking_port/mobile/overmap/frigate/nt_personal,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"cW" = (
+/turf/closed/wall/mineral/titanium/nodiagonal,
+/area/shuttle/overmap/frigate)
+"dG" = (
+/obj/machinery/power/terminal{
+	dir = 4
+	},
+/obj/machinery/power/port_gen/pacman,
+/obj/item/stack/sheet/mineral/plasma/five,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"ef" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "wsnorthbolts"
+	},
+/obj/machinery/atmospherics/pipe/smart/simple/supply/visible{
+	dir = 1
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 1
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"er" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"eu" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "ws_westbolts"
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/locked,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"fm" = (
+/obj/machinery/computer/helm{
+	dir = 1
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"gB" = (
+/obj/structure/window/reinforced/spawner/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/structure/cable,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"hc" = (
+/turf/open/space/basic,
+/area/space)
+"iG" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"iY" = (
+/turf/closed/wall/mineral/plastitanium/nodiagonal,
+/area/shuttle/overmap/frigate)
+"lB" = (
+/obj/machinery/light_switch/directional/north{
+	pixel_y = 23
+	},
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"lV" = (
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
+	dir = 1
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"mT" = (
+/obj/machinery/power/smes/engineering,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"oX" = (
+/obj/machinery/light/small/directional/south,
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"pz" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/obj/machinery/door/poddoor/shutters{
+	id = "whiteship_windows";
+	name = "Exterior Window Blast Door"
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"qu" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"qF" = (
+/obj/machinery/light/small/directional/south,
+/obj/machinery/light_switch/directional/west,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"qJ" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 1
+	},
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1
+	},
+/obj/structure/cable,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"rP" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"um" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "ws_eastbolts"
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airlock/locked,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"vn" = (
+/obj/structure/window/reinforced/spawner/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"vw" = (
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"zV" = (
+/obj/machinery/door/airlock/shuttle{
+	name = "Sleeping Quarter"
+	},
+/obj/structure/cable,
+/obj/effect/decal/cleanable/blood/footprints{
+	dir = 1
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"An" = (
+/turf/closed/wall/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"Co" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "ws_eastbolts"
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 8
+	},
+/obj/effect/mapping_helpers/airlock/locked,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"DY" = (
+/obj/structure/cable,
+/obj/machinery/button/door/directional/north{
+	normaldoorcontrol = 1;
+	specialfunctions = 4;
+	id = "wsnorthbolts";
+	name = "Exterior Bolt Control"
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"EX" = (
+/obj/machinery/door/airlock/external/ruin{
+	id_tag = "ws_westbolts"
+	},
+/obj/effect/mapping_helpers/airlock/cyclelink_helper{
+	dir = 8
+	},
+/obj/effect/mapping_helpers/airlock/locked,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Gr" = (
+/obj/machinery/light/small/directional/west,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Jk" = (
+/obj/structure/tank_dispenser/oxygen,
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Kq" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Lw" = (
+/obj/machinery/light/broken/directional/east,
+/obj/structure/table,
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"NX" = (
+/obj/structure/cable,
+/obj/machinery/overmap/fuel_injector{
+	dir = 1
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Op" = (
+/obj/structure/window/reinforced/spawner/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"QY" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 1
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/structure/cable,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"RD" = (
+/obj/machinery/light/small/directional/north,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"RH" = (
+/obj/machinery/button/door/directional/west{
+	name = "Bolt Control";
+	id = "ws_westbolts";
+	normaldoorcontrol = 1;
+	specialfunctions = 4
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"Sd" = (
+/obj/machinery/light/cold/no_nightlight/directional/west,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"Ta" = (
+/obj/structure/chair/comfy/shuttle,
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"TE" = (
+/turf/template_noop,
+/area/template_noop)
+"TI" = (
+/obj/structure/table,
+/obj/machinery/button/door{
+	id = "whiteship_windows";
+	name = "Windows Blast Door Control"
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"Ug" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"UF" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 4
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Wm" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 1
+	},
+/obj/structure/cable,
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate)
+"Wv" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"XK" = (
+/obj/machinery/button/door/directional/east{
+	name = "Bolt Control";
+	id = "ws_eastbolts";
+	normaldoorcontrol = 1;
+	specialfunctions = 4
+	},
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"Ya" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Yp" = (
+/turf/open/floor/mineral/plastitanium,
+/area/shuttle/overmap/frigate)
+"YJ" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"YL" = (
+/obj/machinery/light/small/directional/west,
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"Ze" = (
+/obj/machinery/light/small/directional/east,
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"ZF" = (
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"ZJ" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+
+(1,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+UF
+iY
+cW
+cW
+cW
+TE
+TE
+TE
+TE
+TE
+TE
+TE
+"}
+(2,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+QY
+vn
+YL
+dG
+cW
+cW
+eu
+cW
+TE
+TE
+TE
+TE
+"}
+(3,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+Wm
+gB
+Wv
+mT
+cW
+RD
+bA
+cW
+TE
+TE
+TE
+TE
+"}
+(4,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+An
+iY
+iY
+YJ
+iG
+cW
+cW
+EX
+cW
+cW
+pz
+pz
+cW
+"}
+(5,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+iY
+Gr
+iY
+DY
+iG
+qF
+cW
+lB
+RH
+Sd
+Ta
+fm
+pz
+"}
+(6,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+cz
+ZF
+ef
+ZJ
+qu
+ZJ
+zV
+Ug
+er
+er
+Yp
+TI
+pz
+"}
+(7,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+iY
+Jk
+iY
+Ya
+Kq
+oX
+cW
+bN
+XK
+Lw
+Ta
+lV
+pz
+"}
+(8,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+An
+iY
+iY
+NX
+Kq
+cW
+cW
+um
+cW
+cW
+pz
+pz
+cW
+"}
+(9,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+qJ
+gB
+rP
+iG
+cW
+RD
+bA
+cW
+TE
+TE
+TE
+TE
+"}
+(10,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+qJ
+Op
+Ze
+vw
+cW
+cW
+Co
+cW
+TE
+TE
+TE
+TE
+"}
+(11,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+TE
+vw
+iY
+cW
+cW
+cW
+TE
+TE
+TE
+TE
+TE
+TE
+TE
+"}
+(12,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(13,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(14,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(15,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(16,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(17,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(18,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(19,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(20,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(21,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(22,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(23,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(24,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}
+(25,1,1) = {"
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+hc
+"}

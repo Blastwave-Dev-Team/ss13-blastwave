@@ -68,6 +68,7 @@
 	name = "shuttle floor"
 	icon = 'modular_nova/modules/advanced_shuttles/icons/erokez.dmi'
 	icon_state = "floor1"
+	base_icon_state = "floor1"
 
 /turf/open/floor/iron/shuttle/ferry/airless
 	initial_gas_mix = AIRLESS_ATMOS
@@ -166,79 +167,106 @@
  *	MINING/RND/EXPLORATION FLOORS
  */
 
+// base_icon_state must match icon_state: /turf/open/floor/iron/update_icon_state()
+// always assigns icon_state = base_icon_state, and the iron parent defaults that to
+// "floor", which is absent from exploration_floor.dmi (and ferry's erokez.dmi).
+// Fabricator place_on_top → Initialize → update_appearance then blanks the tile;
+// crowbarring to plating "fixes" it only because the broken appearance is gone.
 /turf/open/floor/iron/shuttle/exploration
 	name = "shuttle floor"
 	icon = 'modular_nova/modules/advanced_shuttles/icons/exploration_floor.dmi'
 	icon_state = "oside"
+	base_icon_state = "oside"
 
 /turf/open/floor/iron/shuttle/exploration/uside
 	icon_state = "uside"
+	base_icon_state = "uside"
 
 /turf/open/floor/iron/shuttle/exploration/corner
 	icon_state = "corner"
+	base_icon_state = "corner"
 
 /turf/open/floor/iron/shuttle/exploration/side
 	icon_state = "side"
+	base_icon_state = "side"
 
 /turf/open/floor/iron/shuttle/exploration/corner_invcorner
 	icon_state = "corner_icorner"
+	base_icon_state = "corner_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/adjinvcorner
 	icon_state = "adj_icorner"
+	base_icon_state = "adj_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/oppinvcorner
 	icon_state = "opp_icorner"
+	base_icon_state = "opp_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/invertcorner
 	icon_state = "icorner"
+	base_icon_state = "icorner"
 
 /turf/open/floor/iron/shuttle/exploration/doubleinvertcorner
 	icon_state = "double_icorner"
+	base_icon_state = "double_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/tripleinvertcorner
 	icon_state = "tri_icorner"
+	base_icon_state = "tri_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/doubleside
 	icon_state = "double_side"
+	base_icon_state = "double_side"
 
 /turf/open/floor/iron/shuttle/exploration/quadinvertcorner
 	icon_state = "4icorner"
+	base_icon_state = "4icorner"
 
 /turf/open/floor/iron/shuttle/exploration/doubleinvertcorner_side
 	icon_state = "double_icorner_side"
+	base_icon_state = "double_icorner_side"
 
 /turf/open/floor/iron/shuttle/exploration/invertcorner_side
 	icon_state = "side_icorner"
+	base_icon_state = "side_icorner"
 
 /turf/open/floor/iron/shuttle/exploration/invertcorner_side_flipped
 	icon_state = "side_icorner_f"
+	base_icon_state = "side_icorner_f"
 
 /turf/open/floor/iron/shuttle/exploration/blanktile
 	icon_state = "blank"
+	base_icon_state = "blank"
 
 /turf/open/floor/iron/shuttle/exploration/flat
 	icon_state = "flat"
+	base_icon_state = "flat"
 
 /turf/open/floor/iron/shuttle/exploration/flat/airless
 	initial_gas_mix = AIRLESS_ATMOS
 
 /turf/open/floor/iron/shuttle/exploration/textured_flat
 	icon_state = "flattexture"
+	base_icon_state = "flattexture"
 
 /turf/open/floor/iron/shuttle/exploration/textured_flat/airless
 	initial_gas_mix = AIRLESS_ATMOS
 
 /turf/open/floor/iron/shuttle/exploration/equipmentrail1
 	icon_state = "rail1"
+	base_icon_state = "rail1"
 
 /turf/open/floor/iron/shuttle/exploration/equipmentrail2
 	icon_state = "rail2"
+	base_icon_state = "rail2"
 
 /turf/open/floor/iron/shuttle/exploration/equipmentrail3
 	icon_state = "rail3"
+	base_icon_state = "rail3"
 
 /turf/open/floor/iron/shuttle/exploration/hazard
 	icon_state = "hazard"
+	base_icon_state = "hazard"
 
 /turf/open/floor/iron/shuttle/exploration/hazard/airless
 	initial_gas_mix = AIRLESS_ATMOS

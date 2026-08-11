@@ -4,13 +4,12 @@
 	circuit = /obj/item/circuitboard/computer/bankmachine
 	icon_screen = "vault"
 	icon_keyboard = "security_key"
-	req_access = list(ACCESS_VAULT)
+	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: req_access = list(ACCESS_VAULT)
 	///Whether the machine is currently being siphoned
 	var/siphoning = FALSE
 	///While siphoning, how much money do we have? Will drop this once siphon is complete.
 	var/syphoning_credits = 0
-	///Whether siphoning is authorized or not (has access)
-	var/unauthorized = FALSE
+	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: var/unauthorized = FALSE
 	///Amount of time before the next warning over the radio is announced.
 	var/next_warning = 0
 	///The amount of time we have between warnings
@@ -21,10 +20,9 @@
 	///The channel we announce a siphon over.
 	var/radio_channel = RADIO_CHANNEL_COMMON
 
-	///What department to check to link our bank account to.
-	var/account_department = ACCOUNT_CAR
+	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: var/account_department = ACCOUNT_CAR
 	///Bank account we're connected to.
-	var/datum/bank_account/synced_bank_account
+	var/datum/bank_account/station_reserve/synced_bank_account // BLASTWAVE EDIT CHANGE - STATION_TREASURY - ORIGINAL: var/datum/bank_account/synced_bank_account
 
 /obj/machinery/computer/bank_machine/Initialize(mapload)
 	. = ..()
@@ -33,7 +31,7 @@
 	radio.canhear_range = 0
 	radio.set_listening(FALSE)
 	radio.recalculateChannels()
-	synced_bank_account = SSeconomy.get_dep_account(account_department)
+	synced_bank_account = SSeconomy.get_station_reserve() // BLASTWAVE EDIT CHANGE - STATION_TREASURY - ORIGINAL: synced_bank_account = SSeconomy.get_dep_account(account_department)
 
 	if(!mapload)
 		AddComponent(/datum/component/gps, "Forbidden Cash Signal")
@@ -59,7 +57,11 @@
 		value = inserted_chip.get_item_credit_value()
 	if(value)
 		if(synced_bank_account)
-			synced_bank_account.adjust_money(value)
+			// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: synced_bank_account.adjust_money(value)
+			// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+			synced_bank_account.adjust_money(value, "Vault cash deposit")
+			log_econ("[key_name(user)] deposited [value] [MONEY_NAME] into the station reserve.")
+			// BLASTWAVE EDIT ADDITION END
 			say("[MONEY_NAME_CAPITALIZED] deposited! The [synced_bank_account.account_holder] is now [synced_bank_account.account_balance] [MONEY_SYMBOL].")
 		qdel(weapon)
 		return
@@ -84,7 +86,7 @@
 	synced_bank_account.adjust_money(-siphon_am)
 	if(next_warning < world.time && prob(15))
 		var/area/A = get_area(loc)
-		var/message = "[unauthorized ? "Unauthorized c" : "C"]redit withdrawal underway in [initial(A.name)][unauthorized ? "!!" : "..."]"
+		var/message = "Unauthorized station reserve theft underway in [initial(A.name)]!!" // BLASTWAVE EDIT CHANGE - STATION_TREASURY - ORIGINAL: var/message = "[unauthorized ? "Unauthorized c" : "C"]redit withdrawal underway in [initial(A.name)][unauthorized ? "!!" : "..."]"
 		radio.talk_into(src, message, radio_channel)
 		next_warning = world.time + minimum_time_between_warnings
 
@@ -101,6 +103,11 @@
 	data["current_balance"] = synced_bank_account?.account_balance || 0
 	data["siphoning"] = siphoning
 	data["station_name"] = station_name()
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	data["account_name"] = synced_bank_account?.account_holder || ACCOUNT_STA_NAME
+	data["siphon_rate"] = 100
+	data["session_credits"] = syphoning_credits
+	// BLASTWAVE EDIT ADDITION END
 
 	return data
 
@@ -112,7 +119,7 @@
 	switch(action)
 		if("siphon")
 			if(is_station_level(src.z) || is_centcom_level(src.z))
-				say("Siphon of station [MONEY_NAME] has begun!")
+				say("Unauthorized extraction of station reserve funds has begun!") // BLASTWAVE EDIT CHANGE - STATION_TREASURY - ORIGINAL: say("Siphon of station [MONEY_NAME] has begun!")
 				start_siphon(ui.user)
 			else
 				say("Error: Console not in reach of station, withdrawal cannot begin.")
@@ -129,17 +136,38 @@
 		end_siphon()
 
 /obj/machinery/computer/bank_machine/proc/end_siphon()
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	if(!siphoning)
+		return
+	// BLASTWAVE EDIT ADDITION END
 	siphoning = FALSE
-	unauthorized = FALSE
+	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: unauthorized = FALSE
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	log_econ("[siphon_actor] ended a station reserve theft using [siphon_id], extracting [syphoning_credits] [MONEY_NAME].")
+	SSblackbox.record_feedback("amount", "station_reserve_siphoned", syphoning_credits)
+	if(syphoning_credits)
+		SSeconomy.add_audit_entry(synced_bank_account, syphoning_credits, "Reserve theft using [siphon_id]")
+	// BLASTWAVE EDIT ADDITION END
 	var/atom/droploc = drop_location()
 	for(var/cash_typepath in credits_to_spacecash(syphoning_credits))
 		new cash_typepath(droploc)
 	syphoning_credits = 0
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	siphon_actor = "Unknown"
+	siphon_id = "No ID"
+	// BLASTWAVE EDIT ADDITION END
 
 /obj/machinery/computer/bank_machine/proc/start_siphon(mob/living/carbon/user)
+	// BLASTWAVE EDIT ADDITION START - STATION_TREASURY
+	if(siphoning)
+		return
 	var/obj/item/card/id/card = user.get_idcard(hand_first = TRUE)
-	if(!istype(card) || !check_access(card))
-		unauthorized = TRUE
-	else
-		unauthorized = FALSE
+	siphon_actor = key_name(user)
+	siphon_id = istype(card) ? "[card.registered_name] ([card.assignment])" : "No ID"
 	siphoning = TRUE
+	var/area/siphon_area = get_area(src)
+	var/message = "Unauthorized station reserve theft started in [initial(siphon_area.name)] using [siphon_id]!"
+	radio.talk_into(src, message, radio_channel)
+	log_econ("[message] Actor: [siphon_actor].")
+	// BLASTWAVE EDIT ADDITION END
+	// BLASTWAVE EDIT REMOVAL - STATION_TREASURY - ORIGINAL: access-based unauthorized flag assignment

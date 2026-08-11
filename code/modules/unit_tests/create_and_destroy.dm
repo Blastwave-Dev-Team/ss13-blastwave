@@ -52,15 +52,15 @@ GLOBAL_VAR_INIT(running_create_and_destroy, FALSE)
 				original_baseturf_count = length(original_baseturfs)
 		else
 			var/atom/creation = new type_path(spawn_at)
-			if(QDELETED(creation))
-				// Same as below
-				creation = null
-				continue
-			//Go all in
-			qdel(creation, force = TRUE)
+			if(!QDELETED(creation))
+				//Go all in
+				qdel(creation, force = TRUE)
 			//This will hold a ref to the last thing we process unless we set it to null
 			//Yes byond is fucking sinful
 			creation = null
+			// Always sweep the turf, even when the type qdel'd itself during
+			// New/Initialize (spawners). Skipping that left closets on the test
+			// floor that later swallowed other atoms and hard-deleted with them.
 
 		//There's a lot of stuff that either spawns stuff in on create, or removes stuff on destroy. Let's cut it all out so things are easier to deal with
 		var/list/to_del = spawn_at.contents - cached_contents
