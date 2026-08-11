@@ -204,6 +204,21 @@
 		qdel(N)
 		to_chat(user, span_warning("You're incapable of slapping in your current state."))
 
+/datum/emote/living/carbon/catfight
+	key = "catfight"
+	key_third_person = "catfights"
+	mob_type_allowed_typecache = list(/mob/living/carbon/human)
+	hands_use_check = TRUE
+	cooldown = 0.1 SECONDS
+
+/datum/emote/living/carbon/catfight/run_emote(mob/user, params, type_override, intentional)
+	. = ..()
+	var/obj/item/hand_item/catfight/N = new(user)
+	if(user.put_in_hands(N))
+		to_chat(user, span_notice("You ready your murder mitten."))
+	else
+		qdel(N)
+		to_chat(user, span_warning("You're incapable of cat-fighting in your current state."))
 
 /datum/emote/living/carbon/hand
 	key = "hand"

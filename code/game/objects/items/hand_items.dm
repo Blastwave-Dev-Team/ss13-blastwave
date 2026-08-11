@@ -739,3 +739,27 @@
 	to_chat(firer, span_green("You deliver a chef's kiss over [target], declaring it perfect."))
 	target.visible_message(span_notice("[firer] delivers a chef's kiss over [target]."), ignored_mobs = firer)
 	target.reagents.add_reagent(/datum/reagent/love, clamp(amount_nutriment / 4, 1, 10)) // clamped to about half of the most dense food I think we have (super bite burger)
+
+/obj/item/hand_item/catfight
+	name = "murder mitten"
+	desc = "This is how felinids settle disputes."
+	inhand_icon_state = "nothing"
+	attack_verb_continuous = list("bats", "biffs", "baps")
+	attack_verb_simple = list("slap")
+	hitsound = 'sound/items/weapons/tap.ogg'
+
+/obj/item/hand_item/catfight/attack(mob/living/slapped, mob/living/carbon/human/user)
+	. = ..()
+	if(iscarbon(slapped))
+		var/mob/living/carbon/potential_tailed = slapped
+		potential_tailed.unwag_tail()
+	user.do_attack_animation(slapped)
+	var/slap_volume = 50
+	user.visible_message(
+		span_danger("[user] smacks [slapped]!"),
+		span_notice("You smack [slapped]!"),
+		span_hear("You hear a smack."),
+	)
+	user.changeNext_move(CLICK_CD_RAPID)
+	playsound(slapped, 'sound/items/weapons/tap.ogg', slap_volume, TRUE, -1)
+	return
