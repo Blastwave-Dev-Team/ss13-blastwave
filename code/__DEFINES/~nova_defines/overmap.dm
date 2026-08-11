@@ -63,12 +63,14 @@
 /// Programmable landing controller board: lock console to one ID owner; pad stays open.
 #define LANDING_CONTROLLER_LOCK_USER "user"
 
-// Shipyard fabricator construction phases.
+// Shipyard fabricator construction phases. Networks precede structure because a
+// pipe or cable is only hidden by the deck laid over it: hiding runs off the
+// turf change, so anything printed onto a finished deck sits on top of it.
 #define SHIPYARD_PHASE_RODS 1
 #define SHIPYARD_PHASE_PLATING 2
 #define SHIPYARD_PHASE_FRAMES 3
-#define SHIPYARD_PHASE_STRUCTURE 4
-#define SHIPYARD_PHASE_NETWORKS 5
+#define SHIPYARD_PHASE_NETWORKS 4
+#define SHIPYARD_PHASE_STRUCTURE 5
 #define SHIPYARD_PHASE_FINAL 6
 #define SHIPYARD_PHASE_COMMISSIONING 7
 

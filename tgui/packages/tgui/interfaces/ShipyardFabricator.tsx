@@ -13,12 +13,16 @@ import {
 import type { BooleanLike } from 'tgui-core/react';
 
 import { useBackend } from '../backend';
+import { Direction } from '../constants';
 import { Window } from '../layouts';
+import { DirectionPad } from './common/DirectionPad';
 
 type SupplyEntry = {
   name: string;
   required: number;
   available: number;
+  fabricable?: BooleanLike;
+  research?: 'Has node' | 'Blueprint license' | 'Missing';
 };
 
 type Fault = {
@@ -44,6 +48,13 @@ type Data = {
   planName: string | null;
   planWidth: number;
   planHeight: number;
+  printedWidth: number;
+  printedHeight: number;
+  nativeDirection: Direction;
+  buildDirection: Direction;
+  enabledDirections: Direction;
+  directionValid: BooleanLike;
+  orientationLocked: BooleanLike;
   operation: number;
   operationTotal: number;
   phase: number;
@@ -54,6 +65,11 @@ type Data = {
   siloOnHold: BooleanLike;
   rpedDocked: BooleanLike;
   diskLoaded: BooleanLike;
+  researchDiskLoaded: BooleanLike;
+  researchSource: string;
+  researchDesignCount: number;
+  canImportResearch: BooleanLike;
+  dependenciesReady: BooleanLike;
   blueprintsLoaded: BooleanLike;
   zoneLinked: BooleanLike;
   zoneActive: BooleanLike;
@@ -73,11 +89,18 @@ const PHASE_NAMES = [
   'Frame rods',
   'Hull plating',
   'Frames and girders',
-  'Walls and windows',
   'Pipes and wiring',
+  'Walls and decking',
   'Machines and airlocks',
   'Commissioning',
 ];
+
+const CARDINAL_DIRECTION_NAMES: Partial<Record<Direction, string>> = {
+  [Direction.NORTH]: 'North',
+  [Direction.SOUTH]: 'South',
+  [Direction.EAST]: 'East',
+  [Direction.WEST]: 'West',
+};
 
 const summarizeSkips = (
   counts: Partial<Record<SkipCategory, number>>,
@@ -145,7 +168,8 @@ const FabricatorView = () => {
   const resumable = data.state === 'paused' || data.state === 'fault';
   const canStart =
     !!data.diskLoaded &&
-    !!data.rpedDocked &&
+    !!data.dependenciesReady &&
+    !!data.directionValid &&
     !!data.siloLinked &&
     !data.siloOnHold &&
     !!data.zoneActive &&
@@ -282,8 +306,90 @@ const FabricatorView = () => {
         )}
       </Section>
 
+      <Section title="Print Orientation">
+        <Stack>
+          <Stack.Item basis="180px">
+            <DirectionPad
+              title="Ship Direction"
+              tooltip="Physically rotates the printed hull and sets its registered travel direction. A configured landing-zone exit is the only permitted facing."
+              enabledDirections={
+                data.orientationLocked ? (0 as Direction) : data.enabledDirections
+              }
+              selectedDirection={data.buildDirection}
+              onSelect={(dir) => act('set_direction', { dir })}
+            />
+          </Stack.Item>
+          <Stack.Item grow>
+            <LabeledList>
+              <LabeledList.Item label="Native facing">
+                {CARDINAL_DIRECTION_NAMES[data.nativeDirection] || 'Unknown'}
+              </LabeledList.Item>
+              <LabeledList.Item label="Selected facing">
+                {CARDINAL_DIRECTION_NAMES[data.buildDirection] || 'Unknown'}
+              </LabeledList.Item>
+              <LabeledList.Item label="Printed footprint">
+                {data.printedWidth}×{data.printedHeight}
+              </LabeledList.Item>
+              <LabeledList.Item label="Landing-zone policy">
+                {data.directionValid
+                  ? 'Direction permitted'
+                  : 'Select the configured exit direction'}
+              </LabeledList.Item>
+            </LabeledList>
+          </Stack.Item>
+        </Stack>
+      </Section>
+
+      <Section
+        title="Research Authorization"
+        buttons={
+          <>
+            <Button
+              icon="download"
+              disabled={
+                !data.canImportResearch ||
+                !data.researchDiskLoaded ||
+                running
+              }
+              onClick={() => act('import_research')}
+            >
+              Import
+            </Button>
+            <Button
+              ml={1}
+              icon="eject"
+              disabled={!data.researchDiskLoaded || running}
+              onClick={() => act('eject_research_disk')}
+            >
+              Eject
+            </Button>
+          </>
+        }
+      >
+        <LabeledList>
+          <LabeledList.Item label="Source">
+            {data.researchSource}
+          </LabeledList.Item>
+          <LabeledList.Item label="Known designs">
+            {data.researchDesignCount}
+          </LabeledList.Item>
+          <LabeledList.Item label="Technology disk">
+            {data.researchDiskLoaded ? 'Loaded' : 'Empty'}
+          </LabeledList.Item>
+        </LabeledList>
+        {!data.canImportResearch && (
+          <Box mt={1} color="label">
+            Shared station and faction research is read-only at this terminal.
+          </Box>
+        )}
+      </Section>
+
       <SupplyTable title="Silo Materials (sheets)" entries={data.materials} />
-      <SupplyTable title="RPED Boards and Parts" entries={data.parts} />
+      <SupplyTable
+        title="Dependency Boards and Parts"
+        entries={data.parts}
+        showResearch
+      />
 
       <Section
         title="Docked RPED"
@@ -297,7 +403,9 @@ const FabricatorView = () => {
           </Button>
         }
       >
-        {data.rpedDocked ? 'Parts inventory available.' : 'Dock an RPED.'}
+        {data.rpedDocked
+          ? 'Physical parts are preferred over licensed fabrication.'
+          : 'Optional: dock an RPED to supply upgraded or unlicensed parts.'}
       </Section>
 
       {!!data.faults.length && (
@@ -324,7 +432,11 @@ const FabricatorView = () => {
   );
 };
 
-const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
+const SupplyTable = (props: {
+  title: string;
+  entries: SupplyEntry[];
+  showResearch?: boolean;
+}) => (
   <Section title={props.title}>
     {!props.entries.length ? (
       <Box color="label">No requirements loaded.</Box>
@@ -333,6 +445,7 @@ const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
         <Table.Row header>
           <Table.Cell>Item</Table.Cell>
           <Table.Cell textAlign="right">Available</Table.Cell>
+          {props.showResearch && <Table.Cell>Research</Table.Cell>}
           <Table.Cell textAlign="right">Required</Table.Cell>
         </Table.Row>
         {props.entries.map((entry) => (
@@ -340,10 +453,19 @@ const SupplyTable = (props: { title: string; entries: SupplyEntry[] }) => (
             <Table.Cell>{entry.name}</Table.Cell>
             <Table.Cell
               textAlign="right"
-              color={entry.available >= entry.required ? 'good' : 'bad'}
+              color={
+                entry.available >= entry.required || entry.fabricable
+                  ? 'good'
+                  : 'bad'
+              }
             >
               {entry.available}
             </Table.Cell>
+            {props.showResearch && (
+              <Table.Cell color={entry.fabricable ? 'good' : 'bad'}>
+                {entry.research}
+              </Table.Cell>
+            )}
             <Table.Cell textAlign="right">{entry.required}</Table.Cell>
           </Table.Row>
         ))}
