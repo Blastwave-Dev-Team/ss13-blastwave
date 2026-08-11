@@ -1,0 +1,7 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "The shipyard fabricator can be used from either of the two tiles it\noccupies, so one built against a wall still works."
+  - bugfix: "Shuttle frame rods anchor on bare space and on the dirt, sand, snow, ice,\nand shallow water of a planetary landing zone. Water deep enough to swim in\nstill refuses them."
+  - bugfix: "Exploration and ferry shuttle floors no longer render solid black."
+  - bugfix: "A printed ship runs its pipes and wiring under the deck instead of over\nthe top of it."
