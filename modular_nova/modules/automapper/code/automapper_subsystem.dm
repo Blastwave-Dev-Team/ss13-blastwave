@@ -63,6 +63,8 @@ SUBSYSTEM_DEF(automapper)
 			CRASH("[template] could not find map file [map_file]!")
 
 		var/datum/map_template/automap_template/map = new(map_file, template, required_map, load_turf)
+		if(selected_template["priority"])
+			map.load_priority = selected_template["priority"]
 		preloaded_map_templates += map
 
 /**
@@ -71,6 +73,7 @@ SUBSYSTEM_DEF(automapper)
 /datum/controller/subsystem/automapper/proc/load_templates_from_cache(map_names)
 	if(!islist(map_names))
 		map_names = list(map_names)
+	sortTim(preloaded_map_templates, GLOBAL_PROC_REF(cmp_automap_template_priority))
 	for(var/datum/map_template/automap_template/iterating_template as anything in preloaded_map_templates)
 		if(iterating_template.affects_builtin_map && ((SSmapping.current_map.map_file in map_names) || SSmapping.current_map.map_file == map_names))
 			// CentCom already started loading objects, place them in the netherzone

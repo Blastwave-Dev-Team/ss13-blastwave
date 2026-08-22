@@ -194,3 +194,9 @@ SAVEFILE_UPLOAD_LIMIT 2000
 
 ## Uncomment to disable the Star rank restrictions
 #ENABLE_NOVA_STAR_RESTRICTIONS 0
+
+## Persistent character ledger: max ordinary ATM deposit (credits). Evac sweep uses this times EVAC_DEPOSIT_MULTIPLIER.
+ATM_DEPOSIT_LIMIT 5000
+## Max ordinary ATM withdraw from the persistent ledger into the round account, per character per round.
+ATM_WITHDRAW_LIMIT 5000
+EVAC_DEPOSIT_MULTIPLIER 3

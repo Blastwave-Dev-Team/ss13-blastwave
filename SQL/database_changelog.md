@@ -2,19 +2,65 @@ Any time you make a change to the schema files, remember to increment the databa
 
 Make sure to also update `DB_MAJOR_VERSION` and `DB_MINOR_VERSION`, which can be found in `code/__DEFINES/subsystem.dm`.
 
-The latest database version is 5.38 (5.34 for /tg/); The query to update the schema revision table is:
+The latest database version is 5.39 (5.34 for /tg/); The query to update the schema revision table is:
 
 ```sql
-INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 38);
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 39);
 ```
 
 or
 
 ```sql
-INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 38);
+INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 39);
 ```
 
 In any query remember to add a prefix to the table names if you use one.
+
+---
+
+Version 5.39, 12 August 2026, by Maldaris
+Adds append-only character credit ledger tables and the `character_ledger_append` procedure. Ledger money rows are INSERT-only with serial primary keys; balances are derived from the latest `balance_after`.
+
+```sql
+CREATE TABLE `character_identity` (
+  `character_uuid` CHAR(36) NOT NULL,
+  `ckey` VARCHAR(32) NOT NULL,
+  `slot` INT UNSIGNED NOT NULL DEFAULT 0,
+  `display_name` VARCHAR(64) NOT NULL DEFAULT '',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`character_uuid`),
+  KEY `idx_character_identity_ckey_slot` (`ckey`, `slot`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `character_ledger_transaction` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `character_uuid` CHAR(36) NOT NULL,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `delta` BIGINT NOT NULL,
+  `balance_after` BIGINT NOT NULL,
+  `channel` VARCHAR(32) NOT NULL,
+  `reason` VARCHAR(255) NOT NULL DEFAULT '',
+  `idempotency_key` VARCHAR(128) NOT NULL,
+  `round_id` INT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idempotency_key` (`idempotency_key`),
+  KEY `idx_ledger_uuid_currency_id` (`character_uuid`, `currency_code`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `currency_epoch` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `currency_code_created` (`currency_code`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT IGNORE INTO `currency_epoch` (`currency_code`, `notes`) VALUES ('NTCR', 'Initial Nanotrasen credit epoch');
+```
+
+See `SQL/nova_schema.sql` for the `character_ledger_append` stored procedure.
 
 ---
 
