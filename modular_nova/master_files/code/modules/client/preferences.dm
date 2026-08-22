@@ -46,6 +46,9 @@
 	/// If a food doesn't exist in this list, it uses the default value.
 	var/list/food_preferences = list()
 
+	/// Immutable per-slot character UUID used as the persistent ledger and ship-ownership key.
+	var/character_uuid
+
 /datum/preferences/proc/species_updated(species_type)
 	all_quirks = list()
 	// Reset cultural stuff

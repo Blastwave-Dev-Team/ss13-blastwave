@@ -85,6 +85,12 @@
 
 
 	food_preferences = SANITIZE_LIST(save_data["food_preferences"])
+	var/loaded_uuid = save_data["character_uuid"]
+	character_uuid = copytext("[loaded_uuid]", 1, 37)
+	if(character_uuid == "null" || character_uuid == "0")
+		character_uuid = ""
+	if(!character_uuid)
+		character_uuid = generate_character_uuid()
 
 	var/needs_nova_update = savefile_needs_update_nova(save_data)
 	if(needs_nova_update >= 0)
@@ -346,6 +352,9 @@
 	save_data["languages"] = languages
 	save_data["modular_version"] = MODULAR_SAVEFILE_VERSION_MAX
 	save_data["food_preferences"] = food_preferences
+	if(!character_uuid)
+		character_uuid = generate_character_uuid()
+	save_data["character_uuid"] = character_uuid
 
 /datum/preferences/proc/update_markings(list/markings)
 	if (islist(markings))
