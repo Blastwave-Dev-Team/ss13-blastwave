@@ -53,6 +53,75 @@
 		"target" = target_path ? "[target_path]" : null,
 	)
 
+/// Clockwise quarter-turn needed to point a plan from its native facing to a target.
+/proc/shipyard_plan_rotation(native_direction, target_direction)
+	if(!(native_direction in GLOB.cardinals) || !(target_direction in GLOB.cardinals))
+		return 0
+	return SIMPLIFY_DEGREES(dir2angle(target_direction) - dir2angle(native_direction))
+
+/// Width and height after applying a cardinal quarter-turn.
+/proc/shipyard_oriented_dimensions(datum/ship_plan/plan, rotation)
+	if(!plan)
+		return list(0, 0)
+	if(rotation == 90 || rotation == 270)
+		return list(plan.height, plan.width)
+	return list(plan.width, plan.height)
+
+/// Zero-based coordinates rotated clockwise inside a normalized plan rectangle.
+/proc/shipyard_oriented_coordinates(datum/ship_plan/plan, rel_x, rel_y, rotation)
+	switch(rotation)
+		if(90)
+			return list(rel_y, plan.width - 1 - rel_x)
+		if(180)
+			return list(plan.width - 1 - rel_x, plan.height - 1 - rel_y)
+		if(270)
+			return list(plan.height - 1 - rel_y, rel_x)
+	return list(rel_x, rel_y)
+
+/// Rotate a single BYOND direction by the plan's clockwise angle.
+/proc/shipyard_oriented_direction(direction, rotation)
+	if(!direction || !rotation)
+		return direction
+	return angle2dir(dir2angle(direction) + rotation)
+
+/// Rotate every cardinal represented in a directional bitmask.
+/proc/shipyard_oriented_direction_mask(direction_mask, rotation)
+	if(!direction_mask || !rotation)
+		return direction_mask
+	var/result = NONE
+	for(var/direction in GLOB.cardinals)
+		if(direction_mask & direction)
+			result |= shipyard_oriented_direction(direction, rotation)
+	return result
+
+/// Copy and rotate map vars whose meaning depends on cardinal orientation.
+/proc/shipyard_oriented_vars(list/source_vars, rotation, atom_path)
+	var/list/result = source_vars?.Copy() || list()
+	if(!rotation)
+		return result
+	if(!("dir" in result) && ispath(atom_path, /atom))
+		var/atom/atom_type = atom_path
+		result["dir"] = initial(atom_type.dir)
+	for(var/var_name in list("dir", "dpdir"))
+		if(var_name in result)
+			result[var_name] = shipyard_oriented_direction(result[var_name], rotation)
+	if("initialize_directions" in result)
+		result["initialize_directions"] = shipyard_oriented_direction_mask(result["initialize_directions"], rotation)
+	if(("pixel_x" in result) || ("pixel_y" in result))
+		var/pixel_x = result["pixel_x"] || 0
+		var/pixel_y = result["pixel_y"] || 0
+		switch(rotation)
+			if(90)
+				result["pixel_x"] = pixel_y
+				result["pixel_y"] = -pixel_x
+			if(180)
+				result["pixel_x"] = -pixel_x
+				result["pixel_y"] = -pixel_y
+			if(270)
+				result["pixel_x"] = -pixel_y
+				result["pixel_y"] = pixel_x
+	return result
+
 // --- Material cost primitives ----------------------------------------------
 // These are pure lookups over compile-time metadata, so they are global procs
 // and cached where instantiation is involved.
@@ -290,8 +359,6 @@
 	if(!length(model_cache))
 		return FALSE
 
-	width = parsed.bounds[MAP_MAXX] - parsed.bounds[MAP_MINX] + 1
-	height = parsed.bounds[MAP_MAXY] - parsed.bounds[MAP_MINY] + 1
 	var/min_x = parsed.bounds[MAP_MINX]
 	var/min_y = parsed.bounds[MAP_MINY]
 	var/min_z = parsed.bounds[MAP_MINZ]
@@ -310,8 +377,39 @@
 				map_x++
 			map_y--
 
+	if(!normalize_hull_bounds())
+		return FALSE
 	sortTim(manifest, GLOBAL_PROC_REF(cmp_ship_plan_ops))
 	return length(manifest) > 0
+
+/// Crop raw DMM padding away and make the southwest hull tile coordinate zero.
+/datum/ship_plan/template/proc/normalize_hull_bounds()
+	var/hull_min_x = INFINITY
+	var/hull_min_y = INFINITY
+	var/hull_max_x = -INFINITY
+	var/hull_max_y = -INFINITY
+	for(var/datum/ship_plan_op/operation as anything in manifest)
+		if(operation.op_type != SHIPYARD_OP_PLATING)
+			continue
+		hull_min_x = min(hull_min_x, operation.rel_x)
+		hull_min_y = min(hull_min_y, operation.rel_y)
+		hull_max_x = max(hull_max_x, operation.rel_x)
+		hull_max_y = max(hull_max_y, operation.rel_y)
+	if(hull_min_x == INFINITY)
+		width = 0
+		height = 0
+		return FALSE
+	for(var/datum/ship_plan_op/operation as anything in manifest)
+		operation.rel_x -= hull_min_x
+		operation.rel_y -= hull_min_y
+	for(var/list/skipped as anything in skipped_contents)
+		if(isnum(skipped["x"]))
+			skipped["x"] -= hull_min_x
+		if(isnum(skipped["y"]))
+			skipped["y"] -= hull_min_y
+	width = hull_max_x - hull_min_x + 1
+	height = hull_max_y - hull_min_y + 1
+	return TRUE
 
 /// Resolve a wall's declared construction materials instead of assuming iron.
 /datum/ship_plan/template/proc/wall_material_cost(turf_path)
@@ -562,6 +660,11 @@
 			turf_attributes = member_attributes[member_index]
 		else if(ispath(member_path, /obj/machinery/power/apc))
 			has_apc = TRUE
+		else if(ispath(member_path, /obj/docking_port/mobile))
+			var/obj/docking_port/mobile/port_type = member_path
+			var/native_direction = initial(port_type.preferred_direction)
+			if(native_direction in GLOB.cardinals)
+				shuttle_dir = native_direction
 	if(!turf_path || ispath(turf_path, /turf/open/space) || ispath(turf_path, /turf/template_noop))
 		return
 
@@ -761,17 +864,21 @@
 		"cell_type",
 		"chargemode",
 		"color",
+		"density",
 		"dir",
 		"dpdir",
 		"environ",
 		"equipment",
 		"greyscale_colors",
 		"icon_state",
+		"id",
 		"initialize_directions",
 		"layer",
 		"lighting",
 		"locked",
 		"name",
+		"normaldoorcontrol",
+		"opacity",
 		"pipe_color",
 		"pipe_flags",
 		"piping_layer",
@@ -782,7 +889,9 @@
 		"pixel_y",
 		"req_access",
 		"req_one_access",
+		"specialfunctions",
 		"start_charge",
+		"sync_doors",
 		"welded",
 	)
 	for(var/var_name in allowed)
@@ -801,7 +910,7 @@
 /// Catalog v1: explicit opt-in shuttle templates only.
 /proc/get_fabricable_ship_plans()
 	var/static/list/fabricable_template_types = list(
-		/datum/map_template/shuttle/whiteship/personalshuttle,
+		/datum/map_template/shuttle/overmap/frigate/nt_personal,
 	)
 	var/list/plans = list()
 	for(var/template_type in fabricable_template_types)

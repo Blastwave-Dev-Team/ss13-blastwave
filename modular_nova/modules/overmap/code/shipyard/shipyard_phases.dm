@@ -18,6 +18,12 @@
 		return TRUE
 	return !!work_turf.depth_to_find_baseturf(/turf/baseturf_skipover/shuttle)
 
+/// Whether the hull support is still visibly waiting for plating.
+/proc/shipyard_exposed_rods(turf/work_turf)
+	if(HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+		return TRUE
+	return !!(locate(/obj/structure/lattice/ship) in work_turf)
+
 /datum/ship_plan_op/proc/satisfied(turf/work_turf)
 	if(!work_turf)
 		return FALSE
@@ -31,7 +37,7 @@
 			// plating still owes a hull layer. Plating is only done once that
 			// layer has covered the exposed rods.
 			return shipyard_hull_turf(work_turf) \
-				&& !HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE)
+				&& !shipyard_exposed_rods(work_turf)
 		if(SHIPYARD_OP_GIRDER)
 			return !!(locate(/obj/structure/girder) in work_turf)
 		// Matched on our own stamp rather than on any frame at all, so a tile
@@ -106,6 +112,7 @@
 	fabricator.play_placement_effect(work_turf)
 
 	var/result
+	var/list/oriented_vars = fabricator.oriented_operation_vars(src)
 	switch(op_type)
 		if(SHIPYARD_OP_RODS)
 			result = execute_rods(work_turf)
@@ -116,21 +123,21 @@
 		if(SHIPYARD_OP_MACHINE_FRAME)
 			result = execute_machine_frame(work_turf)
 		if(SHIPYARD_OP_COMPUTER_FRAME)
-			result = execute_computer_frame(work_turf)
+			result = execute_computer_frame(work_turf, oriented_vars)
 		if(SHIPYARD_OP_TURF)
-			result = execute_turf(work_turf)
+			result = execute_turf(work_turf, oriented_vars)
 		if(SHIPYARD_OP_OBJECT)
-			result = execute_object(work_turf)
+			result = execute_object(work_turf, oriented_vars)
 		if(SHIPYARD_OP_DECAL)
-			result = execute_decal(work_turf)
+			result = execute_decal(work_turf, oriented_vars)
 		if(SHIPYARD_OP_GENERATED)
-			result = execute_generated(work_turf, fabricator)
+			result = execute_generated(work_turf, fabricator, oriented_vars)
 		if(SHIPYARD_OP_MACHINE)
 			result = execute_machine(work_turf, fabricator)
 		if(SHIPYARD_OP_COMPUTER)
 			result = execute_computer(work_turf, fabricator)
 		if(SHIPYARD_OP_COMMISSION)
-			result = execute_commission(work_turf)
+			result = execute_commission(work_turf, oriented_vars)
 		else
 			return "Unknown shipyard operation '[op_type]'."
 	if(result != TRUE)
@@ -146,21 +153,23 @@
 	return TRUE
 
 /datum/ship_plan_op/proc/execute_rods(turf/open/work_turf)
-	if(!istype(work_turf) || !isfloorturf(work_turf))
-		return "Hull rods require an open floor."
+	if(!istype(work_turf))
+		return "Hull rods require an open turf."
+	if(!work_turf.can_anchor_shuttle_frame_rods())
+		return "Hull rods cannot anchor into the [work_turf.name]."
 	if(shipyard_hull_turf(work_turf))
 		return TRUE
 	var/obj/item/stack/rods/shuttle/rods = new(work_turf, 1)
 	var/handled = work_turf.build_shuttle_frame_with_rods(rods, null)
 	qdel(rods)
-	return handled && HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE) \
+	return handled && HAS_TRAIT(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF) \
 		? TRUE \
 		: "Unable to anchor shuttle frame rods on this turf."
 
 /datum/ship_plan_op/proc/execute_plating(turf/open/work_turf)
 	if(!istype(work_turf))
 		return "Hull plating requires an open turf."
-	if(!HAS_TRAIT_FROM(work_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF, SHUTTLE_ROD_TRAIT_SOURCE))
+	if(!shipyard_exposed_rods(work_turf))
 		return "Shuttle frame rods are missing beneath this hull tile."
 	var/obj/item/stack/tile/iron/tiles = new(work_turf, 1)
 	var/handled = work_turf.shuttle_frame_build_plating_with_tile(tiles, null)
@@ -217,7 +226,8 @@
 	frame.shipyard_target = target_path
 	return TRUE
 
-/datum/ship_plan_op/proc/execute_computer_frame(turf/work_turf)
+/datum/ship_plan_op/proc/execute_computer_frame(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(!isfloorturf(work_turf))
 		return "Computer frame placement requires shuttle plating."
 	var/obj/structure/frame/computer/frame = claim_frame(work_turf, /obj/structure/frame/computer)
@@ -225,16 +235,17 @@
 		frame = new /obj/structure/frame/computer(work_turf)
 	frame.set_anchored(TRUE)
 	frame.shipyard_target = target_path
-	if(desired_vars["dir"])
-		frame.setDir(desired_vars["dir"])
+	if(oriented_vars["dir"])
+		frame.setDir(oriented_vars["dir"])
 	return TRUE
 
 /// A blueprint's turf is either a wall raised on a girder or a deck tiled over
 /// the hull, which share nothing but the operation kind.
-/datum/ship_plan_op/proc/execute_turf(turf/work_turf)
+/datum/ship_plan_op/proc/execute_turf(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(ispath(target_path, /turf/closed))
 		return execute_wall(work_turf)
-	return execute_deck(work_turf)
+	return execute_deck(work_turf, oriented_vars)
 
 /datum/ship_plan_op/proc/execute_wall(turf/work_turf)
 	var/obj/structure/girder/girder = locate() in work_turf
@@ -253,7 +264,8 @@
  * stays where it is - which is what keeps a finished deck legible as hull to a
  * build that is resumed over it.
  */
-/datum/ship_plan_op/proc/execute_deck(turf/work_turf)
+/datum/ship_plan_op/proc/execute_deck(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(!isfloorturf(work_turf))
 		return "Deck tiling requires shuttle plating."
 	if(!shipyard_hull_turf(work_turf))
@@ -263,8 +275,8 @@
 	var/turf/decked = work_turf.place_on_top(target_path, flags = CHANGETURF_INHERIT_AIR)
 	if(!istype(decked, target_path))
 		return "Deck tiling failed."
-	if(desired_vars["dir"])
-		decked.setDir(desired_vars["dir"])
+	if(oriented_vars["dir"])
+		decked.setDir(oriented_vars["dir"])
 	return TRUE
 
 /**
@@ -277,11 +289,12 @@
  * applied afterwards leaves a vent both hunting for its pipe and drawing its cap
  * on the wrong side.
  */
-/datum/ship_plan_op/proc/execute_object(turf/work_turf)
+/datum/ship_plan_op/proc/execute_object(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(locate(target_path) in work_turf)
 		return TRUE
-	if(length(desired_vars))
-		world.preloader_setup(desired_vars, target_path)
+	if(length(oriented_vars))
+		world.preloader_setup(oriented_vars, target_path)
 	var/atom/movable/created = new target_path(work_turf)
 	if(!created)
 		GLOB.use_preloader = FALSE
@@ -299,47 +312,49 @@
  * what the map loader's preloader is for, and using it keeps the printed
  * markings identical to the ones in the blueprint.
  */
-/datum/ship_plan_op/proc/execute_decal(turf/work_turf)
+/datum/ship_plan_op/proc/execute_decal(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(isclosedturf(work_turf))
 		return "Cannot paint [target_path] onto a wall."
-	if(length(desired_vars))
-		world.preloader_setup(desired_vars, target_path)
+	if(length(oriented_vars))
+		world.preloader_setup(oriented_vars, target_path)
 	var/atom/painted = new target_path(work_turf)
 	if(GLOB.use_preloader)
 		world.preloader_load(painted)
 	return TRUE
 
 /// Initialize away from the world, sanitize, then place and activate atomically.
-/datum/ship_plan_op/proc/execute_generated(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
+/datum/ship_plan_op/proc/execute_generated(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	if(locate(target_path) in work_turf)
 		return TRUE
 	var/atom/movable/created = new target_path(null)
 	if(!created || QDELETED(created))
 		return "Failed to initialize [target_path]."
-	if(!created.shipyard_prepare(desired_vars))
+	if(!created.shipyard_prepare(oriented_vars))
 		qdel(created)
 		return "Failed to prepare [target_path] for placement."
-	if(!consume_required_parts(fabricator?.docked_rped, created))
+	if(!consume_required_parts(fabricator, created))
 		if(fabricator)
-			fabricator.paused_reason = "RPED lacks parts for [target_path]."
+			fabricator.paused_reason = "Parts or licensed materials are unavailable for [target_path]."
 		qdel(created)
 		return null
 	created.forceMove(work_turf)
 	if(QDELETED(created))
 		return "Failed to place [target_path]."
-	created.shipyard_commission(desired_vars)
+	created.shipyard_commission(oriented_vars)
 	var/datum/shipyard_route/route = get_shipyard_route(target_path)
-	route?.commission(created, desired_vars)
-	apply_mapping_helpers(created)
+	route?.commission(created, oriented_vars)
+	apply_mapping_helpers(created, fabricator ? fabricator.oriented_helper_specs(src) : helper_specs)
 	return TRUE
 
-/datum/ship_plan_op/proc/consume_required_parts(obj/item/storage/part_replacer/replacer, atom/movable/destination)
+/datum/ship_plan_op/proc/consume_required_parts(obj/machinery/shipyard_fabricator/fabricator, atom/movable/destination)
 	if(!length(required_parts))
 		return TRUE
-	if(!replacer)
-		return FALSE
-	var/list/available_parts = replacer.get_sorted_parts()
+	var/obj/item/storage/part_replacer/replacer = fabricator?.docked_rped
+	var/list/available_parts = replacer?.get_sorted_parts() || list()
 	var/list/selected_parts = list()
+	var/list/missing_parts = list()
 	for(var/requirement in required_parts)
 		var/target_path = shipyard_part_item_type(requirement)
 		var/remaining = required_parts[requirement]
@@ -352,28 +367,35 @@
 			if(!remaining)
 				break
 		if(remaining)
-			return FALSE
+			missing_parts[requirement] = remaining
 	for(var/obj/item/part as anything in selected_parts)
 		if(!replacer.atom_storage.attempt_remove(part, destination))
 			return FALSE
 		qdel(part)
+	for(var/requirement in missing_parts)
+		for(var/index in 1 to missing_parts[requirement])
+			var/obj/item/part = fabricator.fabricate_dependency(requirement, destination)
+			if(!part)
+				return FALSE
+			qdel(part)
 	return TRUE
 
-/datum/ship_plan_op/proc/apply_mapping_helpers(atom/movable/target)
-	for(var/list/helper_spec as anything in helper_specs)
+/datum/ship_plan_op/proc/apply_mapping_helpers(atom/movable/target, list/oriented_helper_specs)
+	oriented_helper_specs ||= helper_specs
+	for(var/list/helper_spec as anything in oriented_helper_specs)
 		var/helper_path = helper_spec["path"]
 		if(!ispath(helper_path, /obj/effect/mapping_helpers))
 			continue
 		var/list/helper_vars = helper_spec["vars"]
 		new helper_path(get_turf(target), target, helper_vars)
 
-/datum/ship_plan_op/proc/find_board(obj/item/storage/part_replacer/replacer)
-	if(!replacer || !board_path)
+/datum/ship_plan_op/proc/find_board(obj/machinery/shipyard_fabricator/fabricator)
+	if(!board_path)
 		return null
-	for(var/obj/item/circuitboard/board in replacer.contents)
+	for(var/obj/item/circuitboard/board in fabricator.docked_rped?.contents)
 		if(istype(board, board_path))
 			return board
-	return null
+	return fabricator.fabricate_dependency(board_path, fabricator)
 
 /**
  * Fill in the board components the manifest already billed to the ore silo.
@@ -393,6 +415,22 @@
 				frame.components += component
 		frame.req_components[component_path] = 0
 
+/// Fill any RPED shortage with base-tier components authorized by research.
+/datum/ship_plan_op/proc/supply_licensed_components(obj/structure/frame/machine/frame, obj/machinery/shipyard_fabricator/fabricator)
+	for(var/component_path in frame.req_components)
+		while(frame.req_components[component_path] > 0)
+			var/obj/item/component = fabricator.fabricate_dependency(component_path, frame)
+			if(!component)
+				return FALSE
+			var/stock_part_datum = GLOB.stock_part_datums_per_object[component.type]
+			if(!isnull(stock_part_datum))
+				frame.components += stock_part_datum
+				qdel(component)
+			else
+				frame.components += component
+			frame.req_components[component_path]--
+	return TRUE
+
 /datum/ship_plan_op/proc/execute_machine(turf/work_turf, obj/machinery/shipyard_fabricator/fabricator)
 	if(locate(target_path) in work_turf)
 		return TRUE
@@ -400,15 +438,19 @@
 	if(!frame)
 		return "Machine frame is missing."
 	if(!frame.circuit)
-		var/obj/item/circuitboard/machine/board = find_board(fabricator.docked_rped)
+		var/obj/item/circuitboard/machine/board = find_board(fabricator)
 		if(!board)
-			fabricator.paused_reason = "RPED lacks [board_path]."
+			fabricator.paused_reason = "No physical or licensed [board_path] is available."
 			return null
 		board.build_path = target_path
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Machine board could not be installed."
 	supply_printed_components(frame)
-	frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
+	if(fabricator.docked_rped)
+		frame.install_parts_from_part_replacer(last_operator(fabricator), fabricator.docked_rped, TRUE)
+	if(!supply_licensed_components(frame, fabricator))
+		fabricator.paused_reason = "Parts or licensed materials are unavailable for [frame.circuit.name]."
+		return null
 	for(var/component_path in frame.req_components)
 		if(frame.req_components[component_path] > 0)
 			fabricator.paused_reason = "RPED lacks parts for [frame.circuit.name]."
@@ -425,9 +467,9 @@
 	if(!frame)
 		return "Computer frame is missing."
 	if(!frame.circuit)
-		var/obj/item/circuitboard/computer/board = find_board(fabricator.docked_rped)
+		var/obj/item/circuitboard/computer/board = find_board(fabricator)
 		if(!board)
-			fabricator.paused_reason = "RPED lacks [board_path]."
+			fabricator.paused_reason = "No physical or licensed [board_path] is available."
 			return null
 		if(!frame.install_board(last_operator(fabricator), board, FALSE))
 			return "Computer board could not be installed."
@@ -440,13 +482,14 @@
 /datum/ship_plan_op/proc/last_operator(obj/machinery/shipyard_fabricator/fabricator)
 	return fabricator.last_operator?.resolve()
 
-/datum/ship_plan_op/proc/execute_commission(turf/work_turf)
+/datum/ship_plan_op/proc/execute_commission(turf/work_turf, list/oriented_vars)
+	oriented_vars ||= desired_vars
 	var/atom/movable/target = locate(target_path) in work_turf
 	if(!target)
 		return "Commissioning target [target_path] is missing."
-	target.shipyard_commission(desired_vars)
+	target.shipyard_commission(oriented_vars)
 	var/datum/shipyard_route/route = get_shipyard_route(target_path)
-	route?.commission(target, desired_vars)
+	route?.commission(target, oriented_vars)
 	return TRUE
 
 /// Nullspace preparation hook. Return FALSE to prevent world placement.
@@ -500,6 +543,21 @@
 	. = ..()
 	power_change()
 	update(instant = TRUE, play_sound = FALSE)
+
+/obj/machinery/button/door/shipyard_prepare(list/desired_vars)
+	. = ..()
+	QDEL_NULL(device)
+	QDEL_NULL(board)
+	if(length(req_access) || length(req_one_access))
+		board = new(src)
+		if(length(req_access))
+			board.accesses = req_access
+		else
+			board.one_access = TRUE
+			board.accesses = req_one_access
+	setup_device(TRUE)
+	set_panel_open(FALSE)
+	return TRUE
 
 /obj/structure/closet/shipyard_prepare(list/desired_vars)
 	. = ..()

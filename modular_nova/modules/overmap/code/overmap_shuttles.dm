@@ -50,6 +50,13 @@
 	name = "Space Ikea Sma"
 	description = "Space Ikea Base Model"
 	admin_notes = "Space Ikea base ship, seats 3 or 4 -ish"
+/datum/map_template/shuttle/overmap/frigate/nt_personal
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "nt"
+	suffix = "personal"
+	name = "NT Personal"
+	description = "Nanotrasen personal transport frigate."
+	admin_notes = "Whiteship-style personal ship, comes with the Shipyard Fabricator crate."
 
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
@@ -88,4 +95,9 @@
 	shuttle_id = "ikea_sma"
 	preferred_direction = WEST
 	port_direction = EAST // match map airlock facing when mapped
+/obj/docking_port/mobile/overmap/frigate/nt_personal
+	name = "NT Personal"
+	shuttle_id = "nt_personal"
+	preferred_direction = SOUTH // match current map port; update if airlock facing changes
+	port_direction = SOUTH
 	area_type = /area/shuttle/overmap/frigate

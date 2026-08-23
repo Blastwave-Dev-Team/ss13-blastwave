@@ -422,7 +422,7 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 		turf.baseturfs = list(turf.baseturfs)
 	var/list/stack = turf.baseturfs
 	for(var/i in length(stack) to 1 step -1)
-		if(stack[i] == /turf/open/floor/plating)
+		if(ispath(stack[i], /turf/open/floor/plating))
 			turf.insert_baseturf(i, /turf/baseturf_skipover/shuttle)
 			return
 	// No plating anywhere: take only the top layer, leave everything else.

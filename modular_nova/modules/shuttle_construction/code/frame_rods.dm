@@ -1,4 +1,23 @@
-/// Anchors shuttle frame rods into existing plating or floor tiles for custom shuttle construction.
+/**
+ * Whether this turf can hold shuttle frame rods.
+ *
+ * A landing zone is whatever ground the pad happens to cover, so every kind
+ * qualifies: station plating, the bare space of an orbital pad, and the dirt, sand,
+ * snow, ice, or wading-depth water of a planetary one. None of them are a hull yet
+ * - the plating phase is what turns a framed tile into one - so the only surfaces
+ * ruled out are the ones that cannot carry plating over them.
+ */
+/turf/open/proc/can_anchor_shuttle_frame_rods()
+	if(istype(src, /turf/open/floor/plating/reinforced) || istype(src, /turf/open/floor/plating/foam))
+		return FALSE
+	return isfloorturf(src) || is_space_or_openspace(src) || ismiscturf(src)
+
+/// Water you can stand in is ground like any other, but a tile deep enough to swim
+/// and drown in is not a surface a hull can be anchored to.
+/turf/open/water/can_anchor_shuttle_frame_rods()
+	return !is_swimming_tile
+
+/// Anchors shuttle frame rods for custom shuttle construction.
 /// Returns TRUE if handled, FALSE to fall through to other rod behavior.
 /turf/open/proc/build_shuttle_frame_with_rods(obj/item/stack/rods/shuttle/used_rods, mob/user)
 	if(!istype(used_rods))
@@ -8,13 +27,18 @@
 		return TRUE
 	if(istype(loc, /area/shuttle))
 		return FALSE
-	if(!isfloorturf(src))
-		return FALSE
-	if(istype(src, /turf/open/floor/plating/reinforced) || istype(src, /turf/open/floor/plating/foam))
+	if(!can_anchor_shuttle_frame_rods())
 		return FALSE
 	if(locate(/obj/structure/lattice) in src)
 		balloon_alert(user, "lattice already here!")
 		return TRUE
+	// Bare space has no surface to carry an inlaid rod overlay. Preserve the
+	// ordinary lattice construction path so it has a real, inspectable support.
+	if(is_space_or_openspace(src))
+		var/rod_count = used_rods.get_amount()
+		build_with_rods(used_rods, user)
+		return used_rods.get_amount() < rod_count \
+			&& !!(locate(/obj/structure/lattice/ship) in src)
 	if(!used_rods.use(1))
 		balloon_alert(user, "need a shuttle frame rod!")
 		return TRUE
