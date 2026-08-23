@@ -43,6 +43,13 @@
 	description = "Sol Federation patrol frigate."
 	admin_notes = "SolFed patrol frigate, seats 3 crew, 2 spacepods."
 
+/datum/map_template/shuttle/overmap/frigate/ikea_sma
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "ikea"
+	suffix = "sma"
+	name = "Space Ikea Sma"
+	description = "Space Ikea Base Model"
+	admin_notes = "Space Ikea base ship, seats 3 or 4 -ish"
 /datum/map_template/shuttle/overmap/frigate/nt_personal
 	prefix = "_maps/shuttles/overmap/frigates/"
 	port_id = "nt"
@@ -83,6 +90,11 @@
 	port_direction = EAST // match map airlock facing when mapped
 	area_type = /area/shuttle/overmap/frigate
 
+/obj/docking_port/mobile/overmap/frigate/ikea_sma
+	name = "Space Ikea Sma"
+	shuttle_id = "ikea_sma"
+	preferred_direction = WEST
+	port_direction = EAST // match map airlock facing when mapped
 /obj/docking_port/mobile/overmap/frigate/nt_personal
 	name = "NT Personal"
 	shuttle_id = "nt_personal"
