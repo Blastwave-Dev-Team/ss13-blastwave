@@ -35,6 +35,6 @@ ADMIN_VERB(adjust_character_ledger, R_ADMIN, "Adjust Character Ledger", "Credit 
 		to_chat(user, span_warning("Ledger [action] failed: [result.reason] ([result.status])"))
 		return
 	to_chat(user, span_notice("Ledger [action] of [amount] applied. Balance is now [result.balance_after]."))
-	log_admin("[key_name(user)] [lowertext(action)]ed [amount] on character ledger [uuid]. Reason: [reason]. Balance: [result.balance_after].")
-	message_admins("[key_name_admin(user)] [lowertext(action)]ed [amount] on character ledger [uuid]. Balance: [result.balance_after].")
+	log_admin("[key_name(user)] [LOWER_TEXT(action)]ed [amount] on character ledger [uuid]. Reason: [reason]. Balance: [result.balance_after].")
+	message_admins("[key_name_admin(user)] [LOWER_TEXT(action)]ed [amount] on character ledger [uuid]. Balance: [result.balance_after].")
 	BLACKBOX_LOG_ADMIN_VERB("Adjust Character Ledger")

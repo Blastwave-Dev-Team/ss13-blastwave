@@ -365,7 +365,7 @@
 // NOVA EDIT START
 #include "~nova\apc_shuttle_rotate.dm"
 #include "~nova\automapper.dm"
-#include "~nova\character_ledger.dm" // BLASTWAVE EDIT ADDITION - CHARACTER_LEDGER
+#include "~nova\character_ledger.dm"
 #include "~nova\digi_underclothes.dm"
 #include "~nova\liver_nova.dm"
 #include "~nova\megacell_charger.dm"
