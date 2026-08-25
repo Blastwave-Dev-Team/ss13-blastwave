@@ -12,7 +12,7 @@
 	if (!SSmachines.special_tune_whitelist_areas["interdyne_ds2"])
 		SSmachines.special_tune_whitelist_areas["interdyne_ds2"] = typecacheof(list(
 			/area/ruin/space/has_grav/interdyne,
-			/area/shuttle/interdyne_cargo,
+			/area/shuttle/overmap/frigate/interdyne_cargo,
 			/area/ruin/interdyne_planetary_base,
 			/area/ruin/space/has_grav/nova/des_two))
 
@@ -24,7 +24,7 @@
 	if (!SSmachines.special_tune_whitelist_areas["tarkon"])
 		SSmachines.special_tune_whitelist_areas["tarkon"] = typecacheof(list(
 			/area/ruin/space/has_grav/port_tarkon,
-			/area/shuttle/ruin/tarkon_driver))
+			/area/shuttle/overmap/frigate/tarkon_driver))
 
 	if(is_type_in_typecache(target_area.type, SSmachines.special_tune_whitelist_areas["tarkon"]))
 		tarkonize()

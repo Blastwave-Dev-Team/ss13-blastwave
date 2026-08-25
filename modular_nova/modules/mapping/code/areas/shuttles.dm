@@ -11,17 +11,8 @@
 /area/shuttle/blackmarket_burst
 	name = "Blackmarket Burst"
 
-/area/shuttle/interdyne_cargo
-	name = "Interdyne Cargo Shuttle"
-
 /area/shuttle/syndicate/slaver
 	name = "Slave Ship"
-	requires_power = TRUE
-
-// Ruin subtype: the driver ships with the Port Tarkon ruin and carries space
-// turfs in its dmm - /area/shuttle/ruin is exempt from mapload space checks.
-/area/shuttle/ruin/tarkon_driver
-	name = "Tarkon Driver"
 	requires_power = TRUE
 
 /area/shuttle/trader/bridge

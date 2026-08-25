@@ -1578,9 +1578,9 @@
 	height = 6;
 	name = "Interdyne Hangar";
 	width = 9;
-	shuttle_id = "interdyne_cargo_home";
+	shuttle_id = "interdyne_cargo_mining";
 	dir = 4;
-	roundstart_template = /datum/map_template/shuttle/ruin/interdyne_cargo;
+	roundstart_template = /datum/map_template/shuttle/overmap/frigate/interdyne_cargo;
 	dwidth = 2
 	},
 /turf/open/floor/plating,
@@ -4716,9 +4716,6 @@
 /turf/open/floor/iron/dark/textured_large,
 /area/ruin/interdyne_planetary_base/med)
 "No" = (
-/obj/machinery/computer/shuttle/interdyne_cargo{
-	dir = 8
-	},
 /obj/effect/turf_decal/siding/wideplating_new/dark{
 	dir = 4
 	},

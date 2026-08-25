@@ -1,0 +1,244 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"a" = (
+/turf/open/space/basic,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"b" = (
+/obj/docking_port/mobile/overmap/frigate/interdyne_cargo{
+	dir = 4
+	},
+/obj/machinery/door/airlock/external/glass{
+	name = "External Access"
+	},
+/obj/effect/mapping_helpers/airlock/cutaiwire,
+/obj/structure/fans/tiny,
+/obj/effect/mapping_helpers/airlock/access/all/syndicate/general,
+/obj/effect/turf_decal/stripes/line{
+	dir = 8
+	},
+/obj/effect/turf_decal/stripes/line{
+	dir = 4
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"c" = (
+/turf/closed/wall/r_wall/plastitanium/syndicate/nodiagonal,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"d" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"g" = (
+/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
+	dir = 4
+	},
+/obj/machinery/portable_atmospherics/canister{
+	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
+	name = "propellant gas mix"
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"j" = (
+/turf/open/floor/catwalk_floor/iron_dark,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"l" = (
+/obj/machinery/suit_storage_unit/interdyne/nerfed,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"n" = (
+/obj/effect/spawner/structure/window/reinforced/plasma/plastitanium,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"o" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 8
+	},
+/turf/open/floor/plating/airless,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"p" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/r_wall/plastitanium/syndicate,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"q" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/structure/frame/machine/secured,
+/obj/item/assembly/igniter,
+/obj/item/circuitboard/machine/ore_redemption,
+/obj/effect/turf_decal/delivery,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"s" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"v" = (
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"w" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/structure/frame/machine/secured,
+/obj/item/circuitboard/machine/ore_silo,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"A" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 8
+	},
+/obj/structure/window/reinforced/survival_pod/spawner/directional/north,
+/obj/structure/window/reinforced/survival_pod/spawner/directional/east,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"B" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/structure/closet/crate/eva,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"D" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/catwalk_floor/iron_dark,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"E" = (
+/obj/machinery/overmap/fuel_injector,
+/obj/machinery/light/red/directional/west,
+/obj/machinery/button/door/directional/west{
+	req_access = list("syndicate");
+	id = "interdyneshuttle"
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"F" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/r_wall/plastitanium/syndicate/nodiagonal,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"G" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/effect/turf_decal/loading_area{
+	dir = 4
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"K" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/catwalk_floor/iron_dark,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"O" = (
+/turf/closed/wall/r_wall/plastitanium/syndicate,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"Q" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"R" = (
+/obj/structure/fans/tiny/forcefield{
+	dir = 4
+	},
+/obj/effect/turf_decal/stripes/line{
+	dir = 8
+	},
+/obj/effect/turf_decal/stripes/line{
+	dir = 4
+	},
+/obj/machinery/door/poddoor/preopen{
+	id = "interdyneshuttle"
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"S" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/catwalk_floor/iron_dark,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"U" = (
+/obj/machinery/computer/helm{
+	dir = 8
+	},
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"W" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/catwalk_floor/iron_dark,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+"Z" = (
+/obj/machinery/power/shuttle_engine/overmap/standard{
+	dir = 8
+	},
+/obj/structure/window/reinforced/survival_pod/spawner/directional/east,
+/obj/structure/window/reinforced/survival_pod/spawner/directional/south,
+/turf/open/floor/iron/dark/textured_large,
+/area/shuttle/overmap/frigate/interdyne_cargo)
+
+(1,1,1) = {"
+c
+Z
+b
+O
+O
+R
+R
+A
+c
+"}
+(2,1,1) = {"
+c
+w
+v
+g
+E
+K
+j
+G
+c
+"}
+(3,1,1) = {"
+c
+Q
+s
+W
+W
+S
+D
+q
+c
+"}
+(4,1,1) = {"
+c
+U
+v
+j
+j
+j
+j
+B
+c
+"}
+(5,1,1) = {"
+O
+c
+d
+d
+d
+l
+l
+F
+p
+"}
+(6,1,1) = {"
+a
+O
+n
+n
+O
+n
+n
+O
+o
+"}

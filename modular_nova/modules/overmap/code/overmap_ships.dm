@@ -1059,6 +1059,8 @@
 		)
 		if(istype(target, /obj/structure/overmap/level/main))
 			candidates += "[shuttle.shuttle_id]_home"
+			// Shared station pad used by offsite hulls that do not get their own home dock.
+			candidates += "whiteship_home"
 		if(istype(target, /obj/structure/overmap/level/mining))
 			candidates += "[shuttle.shuttle_id]_away"
 		if(istype(target, /obj/structure/overmap/dynamic))
@@ -1068,6 +1070,8 @@
 			for(var/dock_id in candidates)
 				var/obj/docking_port/stationary/found = find_dock_quiet(dock_id)
 				if(!found)
+					continue
+				if(length(target_zs) && !(found.z in target_zs))
 					continue
 				if(!shuttle.check_dock(found, TRUE))
 					continue

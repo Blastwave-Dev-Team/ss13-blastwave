@@ -445,9 +445,6 @@
 "bV" = (
 /obj/effect/turf_decal/trimline/dark_red/line,
 /obj/effect/turf_decal/trimline/dark_red/mid_joiner,
-/obj/machinery/computer/shuttle/interdyne_cargo{
-	name = "syndicate cargo shuttle terminal"
-	},
 /turf/open/floor/iron/dark/textured_large,
 /area/ruin/space/has_grav/nova/des_two/bridge)
 "bW" = (
@@ -3452,7 +3449,7 @@
 	height = 6;
 	name = "DS-2 Hangar";
 	width = 9;
-	shuttle_id = "interdyne_cargo_away";
+	shuttle_id = "interdyne_cargo_des_two";
 	dir = 4;
 	dwidth = 2
 	},

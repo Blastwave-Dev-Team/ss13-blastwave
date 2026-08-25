@@ -1,0 +1,695 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"ao" = (
+/turf/closed/wall/mineral/titanium/spaceship/nodiagonal,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"aZ" = (
+/obj/machinery/door/airlock/titanium/glass,
+/obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"bl" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"bE" = (
+/obj/structure/rack/shelf,
+/obj/item/tank/internals/emergency_oxygen,
+/obj/item/tank/internals/emergency_oxygen,
+/obj/item/tank/internals/emergency_oxygen,
+/obj/machinery/door/window/brigdoor/tarkon/right/directional/west,
+/obj/machinery/light/directional/south,
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"bU" = (
+/obj/structure/window/reinforced/survival_pod/indestructible/spawner/directional/north,
+/obj/structure/cable,
+/obj/machinery/power/shuttle_engine/overmap/standard,
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 1
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"db" = (
+/turf/closed/wall/mineral/titanium/spaceship,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"fe" = (
+/turf/open/floor/iron/recharge_floor,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"fD" = (
+/turf/closed/wall/mineral/titanium/nodiagonal,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"fH" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"fS" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 4
+	},
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"hE" = (
+/obj/structure/cable,
+/obj/machinery/power/terminal{
+	dir = 4
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"iw" = (
+/obj/machinery/door/airlock/titanium,
+/obj/structure/fans/tiny/invisible,
+/obj/structure/cable,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"jy" = (
+/obj/structure/closet/crate/internals,
+/obj/item/clothing/head/helmet/space/eva,
+/obj/item/clothing/mask/breath,
+/obj/item/clothing/suit/space/eva,
+/obj/item/tank/internals/oxygen,
+/obj/item/tank/internals/oxygen,
+/obj/item/clothing/suit/space/eva,
+/obj/item/clothing/head/helmet/space/eva,
+/obj/item/clothing/mask/breath,
+/obj/machinery/door/window/brigdoor/tarkon/right/directional/east,
+/obj/machinery/light/directional/south,
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"jO" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"lu" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 1
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"lU" = (
+/obj/structure/rack/shelf,
+/obj/item/flashlight/flare,
+/obj/item/flashlight/flare,
+/obj/item/flashlight/flare,
+/obj/machinery/door/window/brigdoor/tarkon/right/directional/west,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"lV" = (
+/obj/machinery/atmospherics/components/unary/portables_connector/layer1,
+/obj/machinery/portable_atmospherics/canister{
+	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
+	name = "propellant gas mix"
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"mm" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"mP" = (
+/obj/structure/rack/shelf,
+/obj/item/oxygen_candle,
+/obj/item/oxygen_candle,
+/obj/item/oxygen_candle,
+/obj/machinery/door/window/brigdoor/tarkon/right/directional/west,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"na" = (
+/obj/machinery/airalarm/directional/south,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"nb" = (
+/obj/machinery/light/directional/north,
+/obj/structure/tank_dispenser,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"ni" = (
+/obj/machinery/light/directional/south,
+/obj/machinery/atmospherics/components/unary/portables_connector/layer4{
+	dir = 1
+	},
+/obj/machinery/portable_atmospherics/canister/air,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"nl" = (
+/obj/machinery/power/smes/tarkon_driver,
+/obj/structure/cable,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"pn" = (
+/obj/structure/cable,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"pG" = (
+/obj/machinery/computer/helm,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"pU" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"qn" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"qO" = (
+/obj/machinery/airalarm/directional/east,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"qT" = (
+/obj/machinery/light/directional/east,
+/obj/structure/table/reinforced,
+/obj/effect/spawner/random/food_or_drink/snack,
+/obj/item/crowbar/red,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"tC" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"tD" = (
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"tJ" = (
+/obj/machinery/computer/camera_advanced/tarkon_cam,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"wj" = (
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"wF" = (
+/obj/structure/table/reinforced,
+/obj/machinery/button/door{
+	id = "driverwindows";
+	name = "Blast Shield Control";
+	dir = 8
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"xc" = (
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"xf" = (
+/turf/template_noop,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"yz" = (
+/obj/structure/table/reinforced,
+/obj/machinery/light/directional/south,
+/obj/item/pickaxe/drill,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"zK" = (
+/obj/structure/rack/shelf,
+/obj/effect/spawner/random/engineering/material,
+/obj/effect/spawner/random/engineering/material,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"AY" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Bd" = (
+/obj/machinery/mech_bay_recharge_port{
+	dir = 2
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Cs" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"CA" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"DY" = (
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Fi" = (
+/obj/structure/table/reinforced,
+/obj/item/tank/internals/emergency_oxygen/engi,
+/obj/machinery/airalarm/directional/west,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Hu" = (
+/obj/structure/cable,
+/obj/machinery/power/terminal{
+	dir = 4
+	},
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Ik" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"IF" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Jd" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Ku" = (
+/obj/machinery/camera/autoname/tarkon/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"KO" = (
+/obj/machinery/light/directional/north,
+/obj/structure/cable,
+/obj/machinery/overmap/fuel_injector,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"KR" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 8
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"LD" = (
+/obj/structure/table/reinforced,
+/obj/machinery/cell_charger,
+/obj/machinery/light_switch/directional/east,
+/obj/machinery/camera/autoname/tarkon/directional/east,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Mu" = (
+/obj/machinery/recharge_station,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"MC" = (
+/obj/structure/rack/shelf,
+/obj/effect/spawner/random/medical/medkit,
+/obj/effect/spawner/random/medical/medkit,
+/obj/machinery/airalarm/directional/east,
+/obj/effect/mapping_helpers/airalarm/all_access,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"MT" = (
+/obj/machinery/door/airlock/titanium,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Nb" = (
+/obj/structure/window/reinforced/survival_pod/indestructible/spawner/directional/north,
+/obj/structure/cable,
+/obj/machinery/power/shuttle_engine/overmap/standard,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"NL" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"NT" = (
+/obj/machinery/door/airlock/titanium/glass,
+/obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Ob" = (
+/obj/structure/closet/crate/internals,
+/obj/item/clothing/head/helmet/space/eva,
+/obj/item/clothing/mask/breath,
+/obj/item/clothing/suit/space/eva,
+/obj/item/tank/internals/oxygen,
+/obj/item/tank/internals/oxygen,
+/obj/item/clothing/suit/space/eva,
+/obj/item/clothing/head/helmet/space/eva,
+/obj/item/clothing/mask/breath,
+/obj/machinery/door/window/brigdoor/tarkon/right/directional/east,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Oj" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Pm" = (
+/obj/machinery/light/directional/west,
+/obj/structure/table/reinforced,
+/obj/item/clothing/mask/gas,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"PD" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 4
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"PW" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"RF" = (
+/obj/machinery/suit_storage_unit/industrial/tarkon,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"RY" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Sw" = (
+/obj/machinery/light/directional/north,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"SX" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Uq" = (
+/obj/machinery/door/airlock/titanium,
+/obj/structure/fans/tiny/invisible,
+/obj/structure/cable,
+/obj/docking_port/mobile/overmap/frigate/tarkon_driver,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"UD" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"UF" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Va" = (
+/obj/machinery/door/airlock/titanium,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Wi" = (
+/obj/structure/rack/shelf,
+/obj/effect/spawner/random/maintenance/three,
+/obj/machinery/light/directional/north,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Xa" = (
+/obj/machinery/computer/mech_bay_power_console{
+	dir = 4
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Yr" = (
+/obj/machinery/door/airlock/titanium,
+/obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
+/obj/structure/fans/tiny/invisible,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"YW" = (
+/obj/effect/spawner/structure/window/reinforced/shuttle,
+/obj/machinery/door/poddoor{
+	id = "driverwindows"
+	},
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"Zb" = (
+/obj/machinery/door/airlock/titanium/glass,
+/obj/effect/mapping_helpers/airlock/access/all/tarkon/general,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"ZC" = (
+/turf/open/floor/catwalk_floor/iron,
+/area/shuttle/overmap/frigate/tarkon_driver)
+"ZP" = (
+/obj/machinery/power/apc/auto_name/directional/east,
+/obj/structure/cable,
+/obj/effect/mapping_helpers/apc/full_charge,
+/obj/effect/mapping_helpers/apc/unlocked,
+/obj/structure/table/reinforced,
+/obj/item/storage/toolbox/emergency,
+/turf/open/floor/mineral/titanium,
+/area/shuttle/overmap/frigate/tarkon_driver)
+
+(1,1,1) = {"
+xf
+ao
+ao
+Oj
+Oj
+Oj
+Oj
+xf
+xf
+xf
+db
+db
+db
+db
+ao
+db
+"}
+(2,1,1) = {"
+xf
+xf
+ao
+nb
+RF
+RF
+Oj
+YW
+YW
+fD
+ao
+Bd
+fe
+Mu
+qn
+Nb
+"}
+(3,1,1) = {"
+xf
+xf
+Yr
+RY
+Cs
+na
+Oj
+Ob
+Ob
+jy
+ao
+Xa
+PW
+Ku
+jO
+bU
+"}
+(4,1,1) = {"
+Oj
+YW
+fD
+Oj
+Zb
+AY
+fD
+fS
+PD
+PD
+ao
+Sw
+PW
+qn
+ao
+db
+"}
+(5,1,1) = {"
+YW
+wF
+Pm
+Fi
+Cs
+PD
+CA
+xc
+Jd
+xc
+ao
+DY
+IF
+NL
+ni
+db
+"}
+(6,1,1) = {"
+YW
+pG
+lu
+xc
+Cs
+pU
+aZ
+pU
+pU
+pU
+Va
+pU
+pU
+UF
+ZC
+iw
+"}
+(7,1,1) = {"
+YW
+tD
+lu
+xc
+Cs
+SX
+NT
+SX
+SX
+SX
+MT
+SX
+Cs
+bl
+pn
+Uq
+"}
+(8,1,1) = {"
+YW
+tJ
+qT
+LD
+Cs
+qO
+CA
+xc
+KR
+xc
+ao
+lV
+UD
+tC
+yz
+db
+"}
+(9,1,1) = {"
+Oj
+YW
+fD
+Oj
+Zb
+Oj
+fD
+fH
+mm
+mm
+ao
+KO
+Ik
+tC
+ao
+db
+"}
+(10,1,1) = {"
+xf
+xf
+Yr
+RY
+Cs
+wj
+Oj
+mP
+lU
+bE
+ao
+hE
+PW
+Hu
+jO
+bU
+"}
+(11,1,1) = {"
+xf
+xf
+ao
+Wi
+zK
+MC
+Oj
+YW
+YW
+fD
+ao
+nl
+ZP
+nl
+qn
+Nb
+"}
+(12,1,1) = {"
+xf
+ao
+ao
+Oj
+Oj
+Oj
+Oj
+xf
+xf
+xf
+ao
+db
+db
+db
+ao
+db
+"}

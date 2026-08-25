@@ -50,6 +50,7 @@
 	name = "Space Ikea Sma"
 	description = "Space Ikea Base Model"
 	admin_notes = "Space Ikea base ship, seats 3 or 4 -ish"
+
 /datum/map_template/shuttle/overmap/frigate/nt_personal
 	prefix = "_maps/shuttles/overmap/frigates/"
 	port_id = "nt"
@@ -57,6 +58,22 @@
 	name = "NT Personal"
 	description = "Nanotrasen personal transport frigate."
 	admin_notes = "Whiteship-style personal ship, comes with the Shipyard Fabricator crate."
+
+/datum/map_template/shuttle/overmap/frigate/interdyne_cargo
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "interdyne"
+	suffix = "cargo"
+	name = "Interdyne Cargo"
+	description = "Interdyne offsite cargo shuttle. Roundstart hull for the Interdyne hangar."
+	admin_notes = "Replaces ruin_interdyne_cargo. Docks as interdyne_cargo_mining / interdyne_cargo_des_two / whiteship_home."
+
+/datum/map_template/shuttle/overmap/frigate/tarkon_driver
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "tarkon"
+	suffix = "driver"
+	name = "Tarkon Driver"
+	description = "Tarkon offsite shuttle. Roundstart hull for Port Tarkon."
+	admin_notes = "Replaces ruin_tarkon_driver. Docks as tarkon_driver_escapefromtarkon / whiteship_home."
 
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
@@ -95,9 +112,26 @@
 	shuttle_id = "ikea_sma"
 	preferred_direction = WEST
 	port_direction = EAST // match map airlock facing when mapped
+	area_type = /area/shuttle/overmap/frigate
+
 /obj/docking_port/mobile/overmap/frigate/nt_personal
 	name = "NT Personal"
 	shuttle_id = "nt_personal"
 	preferred_direction = SOUTH // match current map port; update if airlock facing changes
 	port_direction = SOUTH
 	area_type = /area/shuttle/overmap/frigate
+
+/obj/docking_port/mobile/overmap/frigate/interdyne_cargo
+	name = "Interdyne Cargo"
+	shuttle_id = "interdyne_cargo"
+	preferred_direction = EAST
+	port_direction = SOUTH
+	area_type = /area/shuttle/overmap/frigate/interdyne_cargo
+
+/obj/docking_port/mobile/overmap/frigate/tarkon_driver
+	name = "Tarkon Driver"
+	shuttle_id = "tarkon_driver"
+	preferred_direction = WEST
+	port_direction = SOUTH
+	area_type = /area/shuttle/overmap/frigate/tarkon_driver
+

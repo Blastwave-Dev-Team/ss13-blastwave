@@ -748,13 +748,11 @@
 	dir = 4
 	},
 /obj/item/card/id/away/tarkonrobo,
-/obj/item/shuttle_remote/tarkon,
 /obj/structure/safe{
 	name = "important backups safe"
 	},
 /obj/item/circuitboard/machine/circuit_imprinter,
 /obj/item/circuitboard/machine/protolathe/tarkon,
-/obj/item/circuitboard/computer/tarkon_driver,
 /obj/item/circuitboard/machine/rdserver/tarkon,
 /obj/item/paper/fluff/ruins/tarkon/macaroni,
 /obj/item/blueprints/tarkon,
@@ -8084,8 +8082,8 @@
 	dwidth = 6;
 	height = 16;
 	name = "Port Tarkon";
-	roundstart_template = /datum/map_template/shuttle/ruin/tarkon_driver;
-	shuttle_id = "port_tarkon";
+	roundstart_template = /datum/map_template/shuttle/overmap/frigate/tarkon_driver;
+	shuttle_id = "tarkon_driver_escapefromtarkon";
 	width = 14
 	},
 /turf/open/misc/asteroid/airless,
@@ -8498,7 +8496,6 @@
 /obj/effect/mapping_helpers/airalarm/all_access,
 /obj/structure/closet/secure_closet/tarkon/engi,
 /obj/item/circuitboard/machine/powerator/tarkon,
-/obj/item/circuitboard/computer/tarkon_driver,
 /obj/item/circuitboard/computer/atmos_control/tarkon/plasma_tank,
 /obj/item/circuitboard/computer/atmos_control/tarkon/oxygen_tank,
 /obj/item/circuitboard/computer/atmos_control/tarkon/incinerator,
