@@ -230,3 +230,80 @@
 	TEST_ASSERT(partial.success, "Partial restore deposit should succeed: [partial.reason]")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.remaining_atm_withdraw(uuid), 1500, "Partial deposit should restore that much withdraw room.")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.remaining_atm_deposit(uuid), CONFIG_GET(number/atm_deposit_limit), "Partial restore should not consume deposit cap.")
+
+/datum/unit_test/character_uuid_persist_without_prefs_ui
+
+/datum/unit_test/character_uuid_persist_without_prefs_ui/Run()
+	var/datum/preferences/prefs = new(new /datum/client_interface)
+	TEST_ASSERT(prefs.character_uuid, "Load-on-join should mint a UUID in memory.")
+	TEST_ASSERT(prefs.savefile, "Preferences must have a savefile to persist the UUID.")
+	var/uuid = prefs.character_uuid
+	var/tree_key = "character[prefs.default_slot]"
+	var/datum/json_savefile/before_disk = new(prefs.path)
+	var/list/before_slot = before_disk.get_entry(tree_key)
+	TEST_ASSERT(!before_slot?["character_uuid"], "UUID should not be on disk before persist_character_uuid (save_character does not flush).")
+
+	TEST_ASSERT(SScharacter_ledger.persist_character_uuid(prefs), "persist_character_uuid should write the minted UUID.")
+
+	var/datum/json_savefile/after_disk = new(prefs.path)
+	var/list/after_slot = after_disk.get_entry(tree_key)
+	TEST_ASSERT_EQUAL(after_slot?["character_uuid"], uuid, "Reloading the slot after persist should see the same UUID without ui_close.")
+
+	if(prefs.path && fexists(prefs.path))
+		fdel(prefs.path)
+
+/datum/unit_test/character_identity_merge_latest
+
+/datum/unit_test/character_identity_merge_latest/Run()
+	var/ckey_value = "merge_latest"
+	var/oldest = generate_character_uuid()
+	var/funded = generate_character_uuid()
+	var/survivor = generate_character_uuid()
+	SScharacter_ledger.insert_identity(oldest, ckey_value, 1, "Oldest")
+	SScharacter_ledger.insert_identity(funded, ckey_value, 1, "Funded")
+	SScharacter_ledger.insert_identity(survivor, ckey_value, 1, "Survivor")
+	SScharacter_ledger.try_credit(oldest, 1000, LEDGER_CHANNEL_ADMIN_SEED, "oldest seed", "test:merge:seed:[oldest]")
+	SScharacter_ledger.try_credit(funded, 1250, LEDGER_CHANNEL_ADMIN_SEED, "funded seed", "test:merge:seed:[funded]")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.lookup_uuid(ckey_value, 1), survivor, "Lookup should pick the latest identity before merge.")
+
+	TEST_ASSERT(SScharacter_ledger.merge_duplicate_identities() >= 1, "The duplicate (ckey, slot) group should merge.")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.lookup_uuid(ckey_value, 1), survivor, "Latest created_at should survive the merge.")
+	TEST_ASSERT(SScharacter_ledger.identity_exists(survivor), "Survivor identity should remain.")
+	TEST_ASSERT(!SScharacter_ledger.identity_exists(oldest), "Oldest identity row should be deleted.")
+	TEST_ASSERT(!SScharacter_ledger.identity_exists(funded), "Funded loser identity row should be deleted.")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(survivor), 2250, "Survivor should receive the sum of loser balances.")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(oldest), 0, "Oldest loser should be drained to 0.")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(funded), 0, "Funded loser should be drained to 0.")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.count_rows(survivor, LEDGER_CHANNEL_IDENTITY_MERGE), 2, "Each funded loser should append one IDENTITY_MERGE credit.")
+
+/datum/unit_test/character_identity_lookup_writes_back
+
+/datum/unit_test/character_identity_lookup_writes_back/Run()
+	var/ckey_value = "lookup_writeback"
+	var/existing = generate_character_uuid()
+	SScharacter_ledger.insert_identity(existing, ckey_value, 1, "Lookup")
+	TEST_ASSERT_EQUAL(SScharacter_ledger.lookup_uuid(ckey_value, 1), existing, "lookup_uuid should find the inserted identity.")
+
+	var/datum/client_interface/mock = new
+	var/datum/preferences/prefs = new(mock)
+	prefs.character_uuid = ""
+	prefs.default_slot = 1
+	mock.prefs = prefs
+
+	var/mob/living/carbon/human/human = allocate(/mob/living/carbon/human/consistent)
+	human.mind_initialize()
+	human.mind.key = ckey_value
+	human.mind.character_uuid = null
+	human.mind.original_character_slot_index = 1
+	human.mock_client = mock
+
+	TEST_ASSERT(SScharacter_ledger.ensure_identity(human), "ensure_identity should succeed from lookup_uuid.")
+	TEST_ASSERT_EQUAL(human.mind.character_uuid, existing, "Empty prefs should reuse the latest identity for the slot.")
+	TEST_ASSERT_EQUAL(prefs.character_uuid, existing, "ensure_identity should write the looked-up UUID back onto prefs.")
+
+	var/datum/json_savefile/disk = new(prefs.path)
+	var/list/slot = disk.get_entry("character[prefs.default_slot]")
+	TEST_ASSERT_EQUAL(slot?["character_uuid"], existing, "Looked-up UUID should be persisted without opening prefs UI.")
+
+	if(prefs.path && fexists(prefs.path))
+		fdel(prefs.path)

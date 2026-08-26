@@ -19,7 +19,7 @@ character PIN each click.
   `~nova/character_ledger.dm`
 - `SQL/nova_schema.sql`: `character_identity`,
   `character_ledger_transaction`, `character_ledger_append`
-- `SQL/database_changelog.md`: schema 5.39 notes
+- `SQL/database_changelog.md`: schema 5.40 notes
 
 ### Modular Overrides
 

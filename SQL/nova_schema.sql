@@ -166,6 +166,8 @@ CREATE TABLE `whitelist` (
 
 --
 -- Table structure for table `character_identity`.
+-- One row per (ckey, slot). Duplicate historical UUIDs are merged via IDENTITY_MERGE
+-- onto the latest created_at (see database_changelog.md 5.40).
 --
 DROP TABLE IF EXISTS `character_identity`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -177,7 +179,7 @@ CREATE TABLE `character_identity` (
   `display_name` VARCHAR(64) NOT NULL DEFAULT '',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`character_uuid`),
-  KEY `idx_character_identity_ckey_slot` (`ckey`, `slot`)
+  UNIQUE KEY `uniq_character_identity_ckey_slot` (`ckey`, `slot`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

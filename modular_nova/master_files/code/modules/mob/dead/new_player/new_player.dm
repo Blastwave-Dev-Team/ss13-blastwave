@@ -5,7 +5,10 @@
 	var/mob/living/spawning_mob = .
 	if(!spawning_mob?.mind || isAI(spawning_mob))
 		return
-	spawning_mob.mind.character_uuid = client.prefs.character_uuid
+	var/uuid = SScharacter_ledger.resolve_character_uuid(spawning_mob.mind, client.prefs, client.ckey, client.prefs.default_slot)
+	spawning_mob.mind.character_uuid = uuid
+	client.prefs.character_uuid = uuid
+	SScharacter_ledger.persist_character_uuid(client.prefs)
 	if(!ishuman(spawning_mob))
 		return
 	SScharacter_ledger.ensure_identity(spawning_mob)

@@ -53,6 +53,8 @@ SUBSYSTEM_DEF(character_ledger)
 	var/list/memory_identities
 	/// Inserted epoch currency codes in memory.
 	var/list/memory_epochs
+	/// Monotonic created_at for memory-store identities so lookup can pick the latest.
+	var/next_identity_created_at = 1
 
 /datum/controller/subsystem/character_ledger/Initialize()
 	participated_uuids = list()
@@ -85,6 +87,7 @@ SUBSYSTEM_DEF(character_ledger)
 	memory_by_key = SScharacter_ledger.memory_by_key
 	memory_identities = SScharacter_ledger.memory_identities
 	memory_epochs = SScharacter_ledger.memory_epochs
+	next_identity_created_at = SScharacter_ledger.next_identity_created_at
 
 /datum/controller/subsystem/character_ledger/proc/seed_epoch()
 	var/datum/db_query/query = SSdbcore.NewQuery(
@@ -153,28 +156,77 @@ SUBSYSTEM_DEF(character_ledger)
 /datum/controller/subsystem/character_ledger/proc/active_currency()
 	return LEDGER_CURRENCY_NTCR
 
+/// Writes only character_uuid for the current slot and flushes the savefile. Avoids a full save_character().
+/datum/controller/subsystem/character_ledger/proc/persist_character_uuid(datum/preferences/prefs)
+	if(!prefs?.savefile || !prefs.character_uuid)
+		return FALSE
+	var/tree_key = "character[prefs.default_slot]"
+	var/list/save_data = prefs.savefile.get_entry(tree_key)
+	if(!islist(save_data))
+		save_data = list()
+		prefs.savefile.set_entry(tree_key, save_data)
+	save_data["character_uuid"] = prefs.character_uuid
+	prefs.savefile.save()
+	return TRUE
+
+/// mind → prefs → latest identity for (ckey, slot) → generate.
+/datum/controller/subsystem/character_ledger/proc/resolve_character_uuid(datum/mind/mind, datum/preferences/prefs, ckey_value, slot)
+	var/uuid = mind?.character_uuid
+	if(!uuid)
+		uuid = prefs?.character_uuid
+	if(!uuid)
+		uuid = lookup_uuid(ckey_value, slot)
+	if(!uuid)
+		uuid = generate_character_uuid()
+	return uuid
+
 /datum/controller/subsystem/character_ledger/proc/ensure_identity(mob/living/carbon/human/human)
 	if(!istype(human) || !human.mind)
 		return FALSE
-	var/uuid = human.mind.character_uuid
-	if(!uuid)
-		uuid = human.client?.prefs?.character_uuid
-	if(!uuid)
-		uuid = generate_character_uuid()
-		if(human.client?.prefs)
-			human.client.prefs.character_uuid = uuid
+	var/datum/preferences/prefs
+	if(human.client)
+		prefs = human.client.prefs
+	else if(human.mock_client)
+		prefs = human.mock_client.prefs
+	var/ckey_value = ckey(human.mind?.key || human.ckey)
+	var/slot = text2num(human.mind.original_character_slot_index || prefs?.default_slot || 0) || 0
+	var/prefs_uuid = prefs?.character_uuid
+	var/uuid = resolve_character_uuid(human.mind, prefs, ckey_value, slot)
+	var/should_persist = !prefs_uuid || (prefs_uuid != uuid)
 	human.mind.character_uuid = uuid
+	if(prefs)
+		prefs.character_uuid = uuid
+		if(should_persist)
+			persist_character_uuid(prefs)
 	register_participant(uuid)
 
-	var/ckey_value = ckey(human.ckey || human.mind.key)
-	var/slot = human.mind.original_character_slot_index || 0
 	var/display_name = human.real_name || human.name
-	return insert_identity(uuid, ckey_value, slot, display_name)
+	if(!insert_identity(uuid, ckey_value, slot, display_name))
+		return FALSE
+	if(identity_exists(uuid))
+		return TRUE
+	var/existing = lookup_uuid(ckey_value, slot)
+	if(!existing)
+		return FALSE
+	uuid = existing
+	human.mind.character_uuid = uuid
+	if(prefs)
+		prefs.character_uuid = uuid
+		persist_character_uuid(prefs)
+	register_participant(uuid)
+	return TRUE
 
 /datum/controller/subsystem/character_ledger/proc/insert_identity(character_uuid, ckey_value, slot, display_name)
+	ckey_value = ckey(ckey_value)
+	slot = text2num(slot) || 0
 	if(use_memory_store)
 		if(!memory_identities[character_uuid])
-			memory_identities[character_uuid] = list("ckey" = ckey_value, "slot" = slot, "display_name" = display_name)
+			memory_identities[character_uuid] = list(
+				"owner_ckey" = ckey_value,
+				"slot" = slot,
+				"display_name" = display_name,
+				"created_at" = next_identity_created_at++,
+			)
 		return TRUE
 	if(!SSdbcore.Connect())
 		return FALSE
@@ -194,19 +246,46 @@ SUBSYSTEM_DEF(character_ledger)
 	qdel(query)
 	return success
 
+/datum/controller/subsystem/character_ledger/proc/identity_exists(character_uuid)
+	if(!character_uuid)
+		return FALSE
+	if(use_memory_store)
+		return !isnull(memory_identities[character_uuid])
+	if(!SSdbcore.Connect())
+		return FALSE
+	var/datum/db_query/query = SSdbcore.NewQuery({"
+		SELECT 1 FROM [format_table_name("character_identity")]
+		WHERE character_uuid = :uuid
+		LIMIT 1
+	"}, list("uuid" = character_uuid))
+	var/found = query.Execute(async = FALSE) && query.NextRow()
+	qdel(query)
+	return found
+
+/datum/controller/subsystem/character_ledger/proc/memory_identity_ckey(list/identity)
+	return identity["owner_ckey"] || identity["ckey"]
+
 /datum/controller/subsystem/character_ledger/proc/lookup_uuid(ckey_value, slot)
 	ckey_value = ckey(ckey_value)
+	slot = text2num(slot) || 0
 	if(use_memory_store)
+		var/best_uuid
+		var/best_created = -1
 		for(var/uuid in memory_identities)
 			var/list/identity = memory_identities[uuid]
-			if(identity["ckey"] == ckey_value && identity["slot"] == slot)
-				return uuid
-		return null
+			if(memory_identity_ckey(identity) != ckey_value || text2num(identity["slot"]) != slot)
+				continue
+			var/created = identity["created_at"] || 0
+			if(created >= best_created)
+				best_created = created
+				best_uuid = uuid
+		return best_uuid
 	if(!SSdbcore.Connect())
 		return null
 	var/datum/db_query/query = SSdbcore.NewQuery({"
 		SELECT character_uuid FROM [format_table_name("character_identity")]
 		WHERE ckey = :ckey AND slot = :slot
+		ORDER BY created_at DESC
 		LIMIT 1
 	"}, list("ckey" = ckey_value, "slot" = slot))
 	if(!query.Execute(async = FALSE) || !query.NextRow())
@@ -215,6 +294,124 @@ SUBSYSTEM_DEF(character_ledger)
 	var/uuid = query.item[1]
 	qdel(query)
 	return uuid
+
+/// Latest created_at per (ckey, slot) keeps the identity. Other UUIDs credit their NTCR balance onto it and are drained to 0.
+/datum/controller/subsystem/character_ledger/proc/merge_duplicate_identities()
+	if(!use_memory_store)
+		return merge_duplicate_identities_sql()
+	var/list/groups = list()
+	for(var/uuid in memory_identities)
+		var/list/identity = memory_identities[uuid]
+		var/group_key = "[memory_identity_ckey(identity)]|[text2num(identity["slot"]) || 0]"
+		var/list/members = groups[group_key]
+		if(!islist(members))
+			members = list()
+			groups[group_key] = members
+		members += uuid
+	var/merged = 0
+	for(var/group_key in groups)
+		var/list/uuids = groups[group_key]
+		if(uuids.len < 2)
+			continue
+		var/survivor
+		var/best_created = -1
+		for(var/uuid in uuids)
+			var/created = memory_identities[uuid]["created_at"] || 0
+			if(created >= best_created)
+				best_created = created
+				survivor = uuid
+		for(var/loser in uuids)
+			if(loser == survivor)
+				continue
+			var/loser_balance = get_balance(loser)
+			if(loser_balance > 0)
+				var/datum/character_ledger_result/credit = try_credit(
+					survivor,
+					loser_balance,
+					LEDGER_CHANNEL_IDENTITY_MERGE,
+					"Merged identity [loser]",
+					"identity_merge:[survivor]:[loser]",
+				)
+				if(!credit.success)
+					log_sql("SScharacter_ledger: identity merge credit failed for [survivor] from [loser]: [credit.reason]")
+					continue
+				var/datum/character_ledger_result/debit = try_debit(
+					loser,
+					loser_balance,
+					LEDGER_CHANNEL_IDENTITY_MERGE,
+					"Drained into [survivor]",
+					"identity_merge:[survivor]:[loser]:drain",
+				)
+				if(!debit.success)
+					log_sql("SScharacter_ledger: identity merge drain failed for [loser]: [debit.reason]")
+			memory_identities -= loser
+		merged++
+	return merged
+
+/datum/controller/subsystem/character_ledger/proc/merge_duplicate_identities_sql()
+	if(!SSdbcore.Connect())
+		return 0
+	var/datum/db_query/groups = SSdbcore.NewQuery({"
+		SELECT ckey, slot
+		FROM [format_table_name("character_identity")]
+		GROUP BY ckey, slot
+		HAVING COUNT(*) > 1
+	"})
+	if(!groups.Execute(async = FALSE))
+		log_sql("SScharacter_ledger: identity merge group query failed: [groups.ErrorMsg()]")
+		qdel(groups)
+		return 0
+	var/merged = 0
+	while(groups.NextRow())
+		var/ckey_value = groups.item[1]
+		var/slot = text2num(groups.item[2])
+		var/survivor = lookup_uuid(ckey_value, slot)
+		if(!survivor)
+			continue
+		var/datum/db_query/losers = SSdbcore.NewQuery({"
+			SELECT character_uuid FROM [format_table_name("character_identity")]
+			WHERE ckey = :ckey AND slot = :slot AND character_uuid != :survivor
+		"}, list("ckey" = ckey_value, "slot" = slot, "survivor" = survivor))
+		if(!losers.Execute(async = FALSE))
+			log_sql("SScharacter_ledger: identity merge loser query failed: [losers.ErrorMsg()]")
+			qdel(losers)
+			continue
+		var/list/loser_uuids = list()
+		while(losers.NextRow())
+			loser_uuids += losers.item[1]
+		qdel(losers)
+		for(var/loser in loser_uuids)
+			var/loser_balance = get_balance(loser)
+			if(loser_balance > 0)
+				var/datum/character_ledger_result/credit = try_credit(
+					survivor,
+					loser_balance,
+					LEDGER_CHANNEL_IDENTITY_MERGE,
+					"Merged identity [loser]",
+					"identity_merge:[survivor]:[loser]",
+				)
+				if(!credit.success)
+					log_sql("SScharacter_ledger: identity merge credit failed for [survivor] from [loser]: [credit.reason]")
+					continue
+				var/datum/character_ledger_result/debit = try_debit(
+					loser,
+					loser_balance,
+					LEDGER_CHANNEL_IDENTITY_MERGE,
+					"Drained into [survivor]",
+					"identity_merge:[survivor]:[loser]:drain",
+				)
+				if(!debit.success)
+					log_sql("SScharacter_ledger: identity merge drain failed for [loser]: [debit.reason]")
+			var/datum/db_query/forget = SSdbcore.NewQuery({"
+				DELETE FROM [format_table_name("character_identity")]
+				WHERE character_uuid = :uuid
+			"}, list("uuid" = loser))
+			if(!forget.Execute(async = FALSE))
+				log_sql("SScharacter_ledger: identity merge delete failed for [loser]: [forget.ErrorMsg()]")
+			qdel(forget)
+		merged++
+	qdel(groups)
+	return merged
 
 /datum/controller/subsystem/character_ledger/proc/get_balance(character_uuid, currency = LEDGER_CURRENCY_NTCR)
 	if(!character_uuid)
