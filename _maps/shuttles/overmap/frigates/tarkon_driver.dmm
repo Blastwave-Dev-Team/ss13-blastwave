@@ -220,8 +220,8 @@
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate/tarkon_driver)
 "xf" = (
-/turf/template_noop,
-/area/shuttle/overmap/frigate/tarkon_driver)
+/turf/open/space/basic,
+/area/space)
 "yz" = (
 /obj/structure/table/reinforced,
 /obj/machinery/light/directional/south,
