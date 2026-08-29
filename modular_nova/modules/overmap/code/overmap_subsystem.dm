@@ -52,6 +52,9 @@ SUBSYSTEM_DEF(overmap)
 	var/last_encounter_spawn_error
 	/// Soft-cleared content Zs available for reuse by lazy dynamic encounters.
 	var/list/reusable_content_zs = list()
+	/// Helm → affiliation queued because the ship is not bound yet (ruin
+	/// hulls load in SSshuttle before SSovermap.bind_existing_shuttles).
+	var/list/pending_helm_affiliations = list()
 	/// Content Z levels this round took from BYOND, which never gives one back.
 	var/content_zs_allocated = 0
 	/// Content Z levels served out of the recycle pool instead of a new one.
@@ -70,6 +73,7 @@ SUBSYSTEM_DEF(overmap)
 	create_map()
 	bind_existing_shuttles()
 	bind_existing_consoles()
+	flush_pending_helm_affiliations()
 	init_hull_renderer()
 	return SS_INIT_SUCCESS
 
@@ -80,6 +84,18 @@ SUBSYSTEM_DEF(overmap)
 		helm.set_ship()
 	for(var/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/nav in navs)
 		nav.link_shuttle()
+
+/// Apply helm affiliation helpers that ran before their shuttle had a ship.
+/datum/controller/subsystem/overmap/proc/flush_pending_helm_affiliations()
+	for(var/obj/machinery/computer/helm/helm as anything in pending_helm_affiliations)
+		var/affiliation = pending_helm_affiliations[helm]
+		if(QDELETED(helm))
+			continue
+		if(!helm.current_ship)
+			helm.set_ship()
+		if(!apply_ship_affiliation(helm.current_ship, affiliation))
+			log_mapping("Helm affiliation [affiliation] deferred from [helm] at [AREACOORD(helm)] could not apply.")
+	pending_helm_affiliations.Cut()
 
 /datum/controller/subsystem/overmap/fire(resumed = FALSE)
 	for(var/obj/structure/overmap/event/E as anything in events)
@@ -143,6 +159,48 @@ SUBSYSTEM_DEF(overmap)
 			continue
 		return picked
 	return null
+
+/// Random unoccupied overmap turf within a chebyshev band of `origin`.
+/// `max_dist` 0 means no outer cap. Falls back to `get_unused_overmap_square()`
+/// if the band is full or `origin` is missing.
+/datum/controller/subsystem/overmap/proc/get_unused_overmap_square_near(atom/origin, min_dist = 0, max_dist = 0, thing_to_not_have = /obj/structure/overmap, tries = MAX_OVERMAP_PLACEMENT_ATTEMPTS)
+	var/turf/origin_turf = get_turf(origin)
+	if(!origin_turf)
+		return get_unused_overmap_square(thing_to_not_have, tries)
+	var/star_x = round(size / 2)
+	var/star_y = round(size / 2)
+	for(var/i in 1 to tries)
+		var/turf/picked = locate(rand(2, size - 1), rand(2, size - 1), overmap_z)
+		if(!picked)
+			continue
+		if(locate(thing_to_not_have) in picked)
+			continue
+		if(max(abs(picked.x - star_x), abs(picked.y - star_y)) < OVERMAP_STAR_BUFFER)
+			continue
+		var/dist = get_dist(origin_turf, picked)
+		if(dist < min_dist)
+			continue
+		if(max_dist && dist > max_dist)
+			continue
+		return picked
+	return get_unused_overmap_square(thing_to_not_have, tries)
+
+/// Configured station-relative band for a ruin id, or null if unconstrained.
+/// Returns list(min_dist, max_dist). max_dist 0 means no outer cap.
+/datum/controller/subsystem/overmap/proc/get_site_distance_band(ruin_id)
+	if(!ruin_id)
+		return null
+	var/list/mins = CONFIG_GET(keyed_list/overmap_site_min_distance)
+	var/list/maxs = CONFIG_GET(keyed_list/overmap_site_max_distance)
+	var/min_dist = 0
+	var/max_dist = 0
+	if(mins && (ruin_id in mins))
+		min_dist = mins[ruin_id]
+	if(maxs && (ruin_id in maxs))
+		max_dist = maxs[ruin_id]
+	if(!min_dist && !max_dist)
+		return null
+	return list(min_dist, max_dist)
 
 /// Categorize all non-edge overmap turfs into concentric rings by euclidean
 /// distance from the star center. Populates `radius_tiles` for orbital placement.
@@ -325,7 +383,12 @@ SUBSYSTEM_DEF(overmap)
 			mining_path = /obj/structure/overmap/level/mining/ice
 		else
 			mining_path = /obj/structure/overmap/level/mining/lavaland
-	var/turf/picked = get_unused_overmap_square()
+	var/list/band = get_site_distance_band(AWAY_OVERMAP_OBJECT_ID_MINING)
+	var/turf/picked
+	if(band)
+		picked = get_unused_overmap_square_near(main, band[1], band[2])
+	else
+		picked = get_unused_overmap_square()
 	if(!picked)
 		WARNING("create_map(): could not find an unused tile for the mining POI.")
 		return
@@ -406,16 +469,31 @@ SUBSYSTEM_DEF(overmap)
 		return
 	port.current_ship = ship
 
+/// Outermost euclidean ring used by SOLAR placement.
+/datum/controller/subsystem/overmap/proc/max_orbital_radius()
+	return round((size - 2) / 2)
+
+/// Solar ring in the hop band (inner quarter to outer three-quarters).
+/// The old 6-8 range was the rim of a 20x20 grid; on 64x64 that is still
+/// next to the star.
+/datum/controller/subsystem/overmap/proc/pick_hop_orbit()
+	var/outer = max_orbital_radius()
+	var/inner = max(OVERMAP_STAR_BUFFER + 2, round(outer * 0.25))
+	var/far = max(inner, round(outer * 0.75))
+	return "[rand(inner, far)]"
+
+/// SOLAR chain length scales with grid size so belts stay wide enough to steer around.
+/datum/controller/subsystem/overmap/proc/event_chain_scale()
+	return max(1, round(size / 20))
+
 /// Spawn dynamic encounter objects on the overmap grid. In SOLAR mode,
-/// encounters are placed in outer orbits (rings 6-8). In RANDOM mode,
-/// they're placed on random tiles.
+/// encounters sit in the hop band. In RANDOM mode, they're placed on random tiles.
 /datum/controller/subsystem/overmap/proc/spawn_encounters()
 	var/max_encounters = CONFIG_GET(number/max_overmap_dynamic_events)
 	for(var/i in 1 to max_encounters)
 		var/turf/T
 		if(generator_type == OVERMAP_GENERATOR_SOLAR)
-			var/orbit = "[rand(6, 8)]"
-			T = get_unused_overmap_square_in_radius(orbit)
+			T = get_unused_overmap_square_in_radius(pick_hop_orbit())
 		else
 			T = get_unused_overmap_square()
 		if(!T)
@@ -462,7 +540,7 @@ SUBSYSTEM_DEF(overmap)
 		if(!T)
 			continue
 		var/obj/structure/overmap/event/E = new event_type(T)
-		var/chain_rate = E.chain_rate
+		var/chain_rate = E.chain_rate * event_chain_scale()
 		for(var/j in 1 to chain_rate)
 			if(LAZYLEN(events) >= max_events)
 				return
@@ -477,7 +555,7 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/spawn_event_cluster(event_type, turf/location, max_events, chance, depth = 0)
 	if(LAZYLEN(events) >= max_events)
 		return
-	if(depth > 8)
+	if(depth > 8 * event_chain_scale())
 		return
 	var/obj/structure/overmap/event/E = new event_type(location)
 	if(!chance)
@@ -647,6 +725,7 @@ SUBSYSTEM_DEF(overmap)
 	if(!ruin_turf || !template || !reserve)
 		return
 	template.load(ruin_turf)
+	SSautomapper.load_templates_for_ruin(template, template.load_origin_turf(ruin_turf, FALSE))
 	var/list/affected = template.get_affected_turfs(ruin_turf, FALSE)
 	if(!validate_ruin_turfs_fit_reservation(reserve, affected))
 		WARNING("Overmap ruin [template.name] footprint exceeds reservation at [ruin_turf.x],[ruin_turf.y],[ruin_turf.z]")
@@ -860,6 +939,7 @@ SUBSYSTEM_DEF(overmap)
 		placed_rects += list(ruin_rect_from_anchor(anchor, template))
 		loaded += template
 		loaded_ids += template.id
+		SSautomapper.load_templates_for_ruin(template, template.load_origin_turf(anchor, FALSE))
 
 		if(!template.always_spawn_with)
 			continue
@@ -878,6 +958,7 @@ SUBSYSTEM_DEF(overmap)
 				placed_rects += list(ruin_rect_from_anchor(chain_anchor, linked))
 				chained += linked
 				loaded_ids += linked.id
+				SSautomapper.load_templates_for_ruin(linked, linked.load_origin_turf(chain_anchor, FALSE))
 
 	if(!length(loaded))
 		WARNING("generate_overmap_content_z: no ruins loaded for [level_name] on Z[site_z]")
@@ -947,12 +1028,16 @@ SUBSYSTEM_DEF(overmap)
 	if(!length(templates))
 		return null
 
-	var/turf/grid_turf = get_unused_overmap_square()
+	var/datum/map_template/ruin/primary = templates[1]
+	var/list/band = get_site_distance_band(primary.id)
+	var/turf/grid_turf
+	if(band)
+		grid_turf = get_unused_overmap_square_near(main, band[1], band[2])
+	else
+		grid_turf = get_unused_overmap_square()
 	if(!grid_turf)
 		WARNING("spawn_overmap_site: no free overmap tile")
 		return null
-
-	var/datum/map_template/ruin/primary = templates[1]
 	var/site_id = primary.id || "site_[length(overmap_objects)]"
 	var/site_name = primary.name || "Unknown Signal"
 	if(length(templates) > 1)

@@ -206,6 +206,30 @@ The all node may be added as a child to the when node to specify that it will be
 	- /obj/dogbed
 ```
 
+### `required_on_map`
+
+If this type appears anywhere on the map, the listed types must also appear somewhere on the same map.
+
+```yml
+/obj/machinery/power/shuttle_engine/overmap:
+  required_on_map:
+    - /obj/machinery/power/apc
+```
+
+### `required_adjacent`
+
+Require a matching atom on a neighboring tile, not the same tile. `side` is `reverse` (opposite the atom's `dir`, the overmap engine intake), `dir` (the atom's facing), or a cardinal name. `dir` defaults to SOUTH when unset. `skip` excludes identified subtypes. Neighbors can require a `piping_layer` (from a `/layerN` suffix or a `piping_layer` var-edit).
+
+```yml
+/obj/machinery/power/shuttle_engine/overmap:
+  required_adjacent:
+    side: reverse
+    skip:
+      - /obj/machinery/power/shuttle_engine/overmap/void
+    neighbors:
+      /obj/machinery/atmospherics/pipe: { piping_layer: 2 }
+```
+
 ### `skip_files`
 
 To skip processing this rule when the current filename start with a given path, either the start of a path, the full path (with extension), or regex matched.

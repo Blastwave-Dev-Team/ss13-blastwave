@@ -1,0 +1,12 @@
+help: Overmap ships need an APC, a cable under every engine, and a layer-2 propellant pipe on the intake side (opposite the engine dir). Void thrusters skip the pipe check.
+/obj/machinery/power/shuttle_engine/overmap:
+  required_neighbors:
+    - /obj/structure/cable
+  required_on_map:
+    - /obj/machinery/power/apc
+  required_adjacent:
+    side: reverse
+    skip:
+      - /obj/machinery/power/shuttle_engine/overmap/void
+    neighbors:
+      /obj/machinery/atmospherics/pipe: { piping_layer: 2 }
