@@ -1,0 +1,561 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aa" = (
+/turf/open/space/basic,
+/area/space)
+"ab" = (
+/obj/structure/marker_beacon/burgundy,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ac" = (
+/obj/machinery/door/poddoor/shutters/preopen{
+	id = "burstwinds"
+	},
+/obj/structure/window/reinforced/shuttle,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ad" = (
+/turf/closed/wall/mineral/titanium/nodiagonal,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ae" = (
+/obj/structure/marker_beacon/olive,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"af" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ag" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/effect/spawner/random/structure/crate_abandoned,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ah" = (
+/obj/machinery/light/cold/directional/north,
+/obj/machinery/button/door/directional/north{
+	id = "burstwinds";
+	name = "Window Shutter Control"
+	},
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ai" = (
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aj" = (
+/obj/structure/window/reinforced/shuttle,
+/obj/machinery/door/poddoor/shutters/preopen{
+	id = "burstwindf"
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ak" = (
+/obj/structure/fluff/metalpole/anchor{
+	dir = 4;
+	pixel_x = -33
+	},
+/turf/closed/wall/mineral/titanium/nodiagonal,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"al" = (
+/obj/effect/turf_decal/siding/wideplating/dark,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"am" = (
+/obj/effect/turf_decal/siding/wideplating/dark/corner{
+	dir = 8
+	},
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"an" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ao" = (
+/obj/structure/window/reinforced/plasma/spawner/directional/west,
+/obj/machinery/airalarm/directional/north,
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav{
+	dir = 4
+	},
+/obj/effect/mapping_helpers/airalarm/away_general_access,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ap" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aq" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ar" = (
+/obj/structure/window/reinforced/shuttle,
+/obj/machinery/door/poddoor/shutters/preopen{
+	dir = 8;
+	id = "burstwindf"
+	},
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"as" = (
+/obj/structure/fans/tiny/forcefield{
+	dir = 4
+	},
+/obj/machinery/door/poddoor/preopen{
+	id = "burstcargo"
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"at" = (
+/obj/structure/railing{
+	dir = 1
+	},
+/obj/effect/decal/cleanable/dirt,
+/obj/effect/spawner/random/structure/crate_loot,
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/turf_decal/box/corners{
+	dir = 1
+	},
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"au" = (
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/spawner/random/structure/crate_abandoned,
+/obj/structure/railing{
+	dir = 5
+	},
+/obj/effect/turf_decal/box/corners{
+	dir = 4
+	},
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"av" = (
+/obj/machinery/light/floor,
+/obj/effect/turf_decal/siding/wideplating/dark{
+	dir = 8
+	},
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aw" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ax" = (
+/obj/structure/window/reinforced/plasma/spawner/directional/west,
+/obj/item/radio/intercom/directional/south,
+/obj/machinery/computer/helm{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ay" = (
+/obj/structure/chair/comfy/shuttle{
+	dir = 8
+	},
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"az" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
+/obj/machinery/power/apc/auto_name/directional/east,
+/obj/structure/cable,
+/obj/machinery/power/terminal{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aA" = (
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/turf_decal/box/corners{
+	dir = 8
+	},
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aB" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/turf_decal/box/corners,
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aC" = (
+/obj/effect/turf_decal/siding/wideplating/dark{
+	dir = 8
+	},
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aD" = (
+/obj/structure/closet/firecloset/wall{
+	pixel_x = 31
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aE" = (
+/obj/machinery/modular_computer/preset/civilian{
+	dir = 1
+	},
+/obj/machinery/light/cold/directional/south,
+/obj/machinery/button/door/directional/south{
+	id = "burstwindf";
+	name = "Window Shutter Control";
+	pixel_x = 7
+	},
+/obj/machinery/button/door/directional/south{
+	pixel_x = -7;
+	id = "burstcargo";
+	name = "Cargo Doors"
+	},
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aF" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/closet/secure_closet/wall{
+	pixel_x = 33
+	},
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aG" = (
+/obj/effect/turf_decal/box/corners{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aH" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/turf_decal/box/corners{
+	dir = 4
+	},
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aI" = (
+/obj/effect/turf_decal/siding/wideplating/dark{
+	dir = 8
+	},
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aJ" = (
+/obj/effect/decal/cleanable/dirt,
+/turf/closed/wall/mineral/titanium/interior,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aK" = (
+/obj/machinery/door/airlock/shuttle,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/ferry,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aL" = (
+/obj/structure/railing,
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/effect/turf_decal/box/corners{
+	dir = 8
+	},
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aM" = (
+/obj/effect/spawner/random/structure/crate_loot,
+/obj/effect/turf_decal/tile/neutral/diagonal_centre,
+/obj/structure/railing{
+	dir = 6
+	},
+/obj/effect/turf_decal/box/corners,
+/turf/open/floor/pod/dark,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aN" = (
+/obj/effect/decal/cleanable/dirt,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aO" = (
+/obj/machinery/light/cold/directional/north,
+/obj/machinery/button/door/directional/north{
+	name = "External Airlock Bolt Control";
+	normaldoorcontrol = 1;
+	specialfunctions = 4;
+	id = "burstexts"
+	},
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aP" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aQ" = (
+/obj/structure/fans/tiny,
+/obj/machinery/door/airlock/external{
+	id_tag = "burstexts"
+	},
+/obj/docking_port/mobile/overmap/frigate/blackmarket_burst{
+	dir = 8
+	},
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aR" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/closet/emcloset/wall{
+	pixel_x = -28
+	},
+/obj/effect/turf_decal/siding/wideplating/dark{
+	dir = 1
+	},
+/obj/item/storage/toolbox/mechanical,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aS" = (
+/obj/machinery/button/door/directional/south{
+	id = "burstcargo";
+	name = "Blast Door Control"
+	},
+/obj/effect/decal/cleanable/dirt,
+/obj/effect/turf_decal/siding/wideplating/dark{
+	dir = 1
+	},
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aT" = (
+/obj/effect/turf_decal/siding/wideplating/dark/corner{
+	dir = 1
+	},
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 4
+	},
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aU" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aV" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aW" = (
+/obj/effect/decal/cleanable/dirt,
+/obj/machinery/airalarm/directional/south,
+/obj/effect/mapping_helpers/airalarm/away_general_access,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/components/unary/portables_connector/layer4{
+	dir = 1;
+	pipe_color = "#FFA62B"
+	},
+/obj/machinery/portable_atmospherics/canister/air,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aX" = (
+/obj/machinery/door/airlock/external,
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aY" = (
+/obj/machinery/overmap/fuel_injector{
+	dir = 4
+	},
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"aZ" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/structure/cable,
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"ba" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bb" = (
+/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
+	dir = 8
+	},
+/obj/machinery/portable_atmospherics/canister{
+	initial_gas_mix = "plasma=4400;o2=2930;TEMP=293.15";
+	name = "propellant gas mix"
+	},
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bc" = (
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bd" = (
+/obj/structure/window/reinforced/plasma/spawner/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/power/smes/full,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"be" = (
+/obj/structure/window/reinforced/plasma/spawner/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/power/terminal{
+	dir = 8
+	},
+/obj/structure/cable,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bf" = (
+/obj/structure/window/reinforced/plasma/spawner/directional/south,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/turf/open/floor/iron/shuttle/cargo,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bg" = (
+/obj/structure/fans/tiny,
+/obj/machinery/door/airlock/external{
+	id_tag = "burstexts"
+	},
+/turf/open/floor/catwalk_floor,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bh" = (
+/obj/machinery/power/shuttle_engine/overmap/standard,
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bi" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 1;
+	name = "killroom vent"
+	},
+/obj/machinery/power/shuttle_engine/overmap/standard,
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+"bj" = (
+/obj/structure/marker_beacon/olive,
+/turf/closed/wall/mineral/titanium/nodiagonal,
+/area/shuttle/overmap/frigate/blackmarket_burst)
+
+(1,1,1) = {"
+aa
+af
+ak
+as
+as
+as
+as
+ak
+ad
+ad
+ab
+"}
+(2,1,1) = {"
+ab
+ad
+al
+at
+aA
+aG
+aL
+aR
+aX
+bc
+bg
+"}
+(3,1,1) = {"
+ac
+ag
+al
+au
+aB
+aH
+aM
+aS
+ad
+ad
+af
+"}
+(4,1,1) = {"
+ad
+ah
+am
+av
+aC
+aI
+av
+aT
+aY
+bd
+bh
+"}
+(5,1,1) = {"
+ac
+ai
+an
+aw
+aD
+aw
+aw
+aU
+aZ
+be
+bi
+"}
+(6,1,1) = {"
+ae
+ad
+ao
+ax
+ad
+aJ
+aN
+aP
+ba
+bf
+bh
+"}
+(7,1,1) = {"
+aa
+aj
+ap
+ay
+aE
+ad
+aO
+aV
+bb
+bf
+bh
+"}
+(8,1,1) = {"
+aa
+aj
+aq
+az
+aF
+aK
+aP
+aW
+ad
+ad
+bj
+"}
+(9,1,1) = {"
+aa
+af
+ar
+af
+ad
+ad
+aQ
+ad
+af
+aa
+aa
+"}

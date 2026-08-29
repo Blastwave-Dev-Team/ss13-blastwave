@@ -8,9 +8,6 @@
 	suffix = "nova"
 	name = "Prison Transporter NSS-74"
 
-/area/shuttle/blackmarket_burst
-	name = "Blackmarket Burst"
-
 /area/shuttle/syndicate/slaver
 	name = "Slave Ship"
 	requires_power = TRUE

@@ -27,6 +27,9 @@
 /area/shuttle/overmap/frigate/tarkon_driver
 	name = "Tarkon Driver"
 
+/area/shuttle/overmap/frigate/blackmarket_burst
+	name = "Black Market Burst"
+
 /* STATIC ORBITAL STRUCTURE AREAS */
 
 /// Base for non-mobile orbital structures loaded as their own map section.

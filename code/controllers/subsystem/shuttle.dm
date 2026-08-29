@@ -188,6 +188,7 @@ SUBSYSTEM_DEF(shuttle)
 		supply_packs[pack.id] = pack
 
 	setup_shuttles(stationary_docking_ports)
+	SSautomapper.flush_pending_ruin_shuttles() // BLASTWAVE EDIT ADDITION - OVERMAP - ruin-relative automapper
 	has_purchase_shuttle_access = init_has_purchase_shuttle_access()
 
 	if(!arrivals)

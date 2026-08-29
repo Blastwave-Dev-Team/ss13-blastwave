@@ -5,15 +5,15 @@
 	default = OVERMAP_GENERATOR_RANDOM
 
 /datum/config_entry/number/max_overmap_events
-	default = 12
+	default = 120
 	min_val = 0
 
 /datum/config_entry/number/max_overmap_event_clusters
-	default = 3
+	default = 12
 	min_val = 0
 
 /datum/config_entry/number/max_overmap_dynamic_events
-	default = 4
+	default = 8
 	min_val = 0
 
 /datum/config_entry/number/max_overmap_named_sites
@@ -34,3 +34,13 @@
 /datum/config_entry/number/max_overmap_landing_zone_dimension
 	default = 80
 	min_val = 10
+
+/// Per-POI chebyshev min distance from the station. Key is ruin `id` or `mining`.
+/datum/config_entry/keyed_list/overmap_site_min_distance
+	key_mode = KEY_MODE_TEXT
+	value_mode = VALUE_MODE_NUM
+
+/// Per-ruin chebyshev max distance from the station POI. Key is ruin `id`. 0 = no cap.
+/datum/config_entry/keyed_list/overmap_site_max_distance
+	key_mode = KEY_MODE_TEXT
+	value_mode = VALUE_MODE_NUM

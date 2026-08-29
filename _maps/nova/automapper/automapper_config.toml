@@ -8,6 +8,12 @@
 # trait_name - The name of the Z level trait that will be used to determine what Z level we use.
 # Traits - Station (for station relatied edits), CentCom (for edits on the CC map), Mining (for edits on Lavaland)
 # More can be found in code\__DEFINES\maps.dm
+#
+# Ruin-relative stamps (applied after a ruin DMM loads; trait_name is ignored):
+# shuttle - SSmapping.shuttle_templates id. Loads via SSshuttle.action_load instead of overlaying a DMM.
+# dir / width / height / dwidth / dheight - destination port geometry when no port is already on the tile.
+# shuttle_id - optional lasting port id. Omit to spawn a delete_after port.
+# coordinates are 1-based SDMM coords on required_map (the ruin suffix).
 
 # CENTRAL COMMAND MAP TEMPLATES
 # CC Ferry Dock - Admin Shuttle
@@ -543,3 +549,33 @@ directory = "_maps/nova/automapper/templates/catwalkstation/"
 required_map = "CatwalkStation_2023.dmm"
 coordinates = [92, 145, 1]
 trait_name = "Station"
+
+# OVERMAP RUIN HOME HULLS
+# Tarkon Driver — ephemeral port; return docking is the beacon LZ.
+[templates.port_tarkon_driver]
+required_map = "port_tarkon.dmm"
+coordinates = [77, 31, 1]
+shuttle = "tarkon_driver"
+dir = 4
+width = 14
+height = 16
+dwidth = 6
+
+# Interdyne Cargo — uses the mapped hangar port on this tile.
+[templates.interdyne_cargo]
+required_map = "lavaland_surface_interdyne_base1.dmm"
+coordinates = [44, 22, 1]
+shuttle = "interdyne_cargo"
+dir = 4
+width = 9
+height = 6
+dwidth = 2
+
+# Black Market Burst — uses the mapped Market port on this tile.
+[templates.blackmarket_burst]
+required_map = "blackmarket.dmm"
+coordinates = [20, 12, 1]
+shuttle = "blackmarket_burst"
+width = 11
+height = 9
+dwidth = 4

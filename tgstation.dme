@@ -9259,6 +9259,7 @@
 #include "modular_nova\modules\overmap\code\overmap_landing_beacon.dm"
 #include "modular_nova\modules\overmap\code\overmap_landing_manipulator.dm"
 #include "modular_nova\modules\overmap\code\overmap_landing_zone.dm"
+#include "modular_nova\modules\overmap\code\overmap_mapping_helpers.dm"
 #include "modular_nova\modules\overmap\code\overmap_nav.dm"
 #include "modular_nova\modules\overmap\code\overmap_neurohelm.dm"
 #include "modular_nova\modules\overmap\code\overmap_objects.dm"

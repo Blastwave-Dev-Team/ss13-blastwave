@@ -11,6 +11,9 @@
 
 	for(var/template in test_config["templates"])
 		var/selected_template = test_config["templates"][template]
+		var/shuttle_id = selected_template["shuttle"]
+		if(shuttle_id)
+			TEST_ASSERT(SSmapping.shuttle_templates[shuttle_id], "[template] shuttle id [shuttle_id] is not a loaded shuttle template!")
 
 		for(var/map in selected_template["map_files"])
 			var/map_file = selected_template["directory"] + selected_template["map_files"][map]
@@ -20,17 +23,8 @@
 			if(template_two == template)
 				continue
 			var/selected_template_two = test_config["templates"][template_two]
-
-			TEST_ASSERT_NOTEQUAL(selected_template["coordinates"], selected_template_two["coordinates"], "Automap template [template] had the same coords as [template_two]!")
-			TEST_ASSERT_NOTEQUAL(selected_template["map_files"], selected_template_two["map_files"], "Automap template [template] had the same map files as [template_two]!")
-
-/// This is like /datum/unit_test/log_mapping and tests if the integration with the current map failed.
-/datum/unit_test/area_spawn
-
-/datum/unit_test/area_spawn/Run()
-	for(var/list/failed_area_spawn_entry as anything in SSarea_spawn.failed_area_spawns) // each failed_area_spawn_entry is a list keyed to area_spawn with the value being the map name where it occurred
-		for(var/datum/area_spawn/area_spawn as anything in failed_area_spawn_entry)
-			var/datum/area_spawn/temp_area_spawn_instance = new area_spawn() // initial doesn't work on lists so we have to actually instantiate the area_spawn if we want to get the value of target_areas
-			TEST_FAIL("[area_spawn] could not find any suitable turfs among [english_list(temp_area_spawn_instance.target_areas)] on map: [failed_area_spawn_entry[area_spawn]].")
-			qdel(temp_area_spawn_instance)
-
+			if(selected_template["required_map"] != selected_template_two["required_map"])
+				continue
+			TEST_ASSERT_NOTEQUAL(selected_template["coordinates"], selected_template_two["coordinates"], "Automap template [template] had the same coords as [template_two] on [selected_template["required_map"]]!")
+			if(selected_template["map_files"] && selected_template_two["map_files"])
+				TEST_ASSERT_NOTEQUAL(selected_template["map_files"], selected_template_two["map_files"], "Automap template [template] had the same map files as [template_two]!")

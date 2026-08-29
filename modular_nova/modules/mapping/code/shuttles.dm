@@ -11,42 +11,6 @@
 	credit_cost = CARGO_CRATE_VALUE * 4
 	occupancy_limit = 45
 
-/*----- Black Market Shuttle Datum + related code -----*/
-/datum/map_template/shuttle/ruin/blackmarket_burst
-	prefix = "_maps/shuttles/nova/"
-	suffix = "blackmarket_burst"
-	description = "A small cargo jump freighter, popular among smugglers who enjoy both the cargo space and speed"
-	name = "Black Market Burst"
-
-/obj/machinery/computer/shuttle/caravan/blackmarket_burst
-	name = "Burst Shuttle Console"
-	desc = "Used to control the affectionately named 'Burst'."
-	circuit = /obj/item/circuitboard/computer/blackmarket_burst
-	shuttleId = "blackmarket_burst"
-	possible_destinations = "blackmarket_burst_custom;blackmarket_burst_home;whiteship_home"
-
-/obj/machinery/computer/camera_advanced/shuttle_docker/blackmarket_burst
-	name = "Burst Navigation Computer"
-	desc = "Used to designate a precise transit location for the affectionately named 'Burst'."
-	shuttleId = "blackmarket_burst"
-	lock_override = NONE
-	shuttlePortId = "blackmarket_burst_custom"
-	jump_to_ports = list("blackmarket_burst_home" = 1, "whiteship_home" = 1)
-	view_range = 0
-	x_offset = 2
-	y_offset = 0
-
-/obj/item/circuitboard/computer/blackmarket_burst
-	name = "Burst Control Console (Computer Board)"
-	build_path = /obj/machinery/computer/shuttle/caravan/blackmarket_burst
-
-/obj/item/shuttle_remote/bmd
-	name = "Burst Remote"
-	shuttle_away_id = "whiteship_home"
-	shuttle_home_id = "blackmarket_burst_home"
-
-/*----- End of Black Market Shuttle Code -----*/
-
 /datum/map_template/shuttle/prison_transport
 	prefix = "_maps/shuttles/nova/"
 	port_id = "prison_transport"

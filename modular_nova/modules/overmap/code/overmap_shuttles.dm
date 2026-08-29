@@ -65,7 +65,7 @@
 	suffix = "cargo"
 	name = "Interdyne Cargo"
 	description = "Interdyne offsite cargo shuttle. Roundstart hull for the Interdyne hangar."
-	admin_notes = "Replaces ruin_interdyne_cargo. Docks as interdyne_cargo_mining / interdyne_cargo_des_two / whiteship_home."
+	admin_notes = "Spawned by ruin-relative automapper on lavaland_surface_interdyne_base1. Returns via interdyne_cargo_mining / interdyne_cargo_des_two / hangar LZ."
 
 /datum/map_template/shuttle/overmap/frigate/tarkon_driver
 	prefix = "_maps/shuttles/overmap/frigates/"
@@ -73,7 +73,15 @@
 	suffix = "driver"
 	name = "Tarkon Driver"
 	description = "Tarkon offsite shuttle. Roundstart hull for Port Tarkon."
-	admin_notes = "Replaces ruin_tarkon_driver. Docks as tarkon_driver_escapefromtarkon / whiteship_home."
+	admin_notes = "Spawned by ruin-relative automapper on port_tarkon. Returns via Tarkon Dock beacon LZ."
+
+/datum/map_template/shuttle/overmap/frigate/blackmarket_burst
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "blackmarket"
+	suffix = "burst"
+	name = "Black Market Burst"
+	description = "A small cargo jump freighter, popular among smugglers who enjoy both the cargo space and speed."
+	admin_notes = "Spawned by ruin-relative automapper on blackmarket. Returns via blackmarket_burst_blackmarket / Market LZ."
 
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
@@ -134,4 +142,11 @@
 	preferred_direction = WEST
 	port_direction = SOUTH
 	area_type = /area/shuttle/overmap/frigate/tarkon_driver
+
+/obj/docking_port/mobile/overmap/frigate/blackmarket_burst
+	name = "Burst"
+	shuttle_id = "blackmarket_burst"
+	preferred_direction = WEST
+	port_direction = EAST
+	area_type = /area/shuttle/overmap/frigate/blackmarket_burst
 
