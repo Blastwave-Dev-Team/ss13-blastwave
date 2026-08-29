@@ -41,11 +41,50 @@ class TypepathExtra:
 
         return self.typepath.segments == path.segments[:len(self.typepath.segments)]
 
+BYOND_DIR_OFFSETS = {
+    1: (0, -1),  # NORTH: toward the start of a TGM column
+    2: (0, 1),   # SOUTH
+    4: (1, 0),   # EAST
+    8: (-1, 0),  # WEST
+}
+BYOND_REVERSE_DIR = {1: 2, 2: 1, 4: 8, 8: 4}
+BYOND_DIR_NAMES = {1: "north", 2: "south", 4: "east", 8: "west"}
+DEFAULT_ATOM_DIR = 2
+
+
+def parse_atom_dir(identified: Content) -> int:
+    value = identified.var_edits.get("dir", DEFAULT_ATOM_DIR)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_ATOM_DIR
+
+
+def content_piping_layer(content: Content) -> Optional[int]:
+    if "piping_layer" in content.var_edits:
+        try:
+            return int(content.var_edits["piping_layer"])
+        except (TypeError, ValueError):
+            return None
+    match = re.search(r"/layer(\d+)(?:/|$)", str(content.path))
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def parse_neighbor_list(neighbors_data) -> list:
+    expect(isinstance(neighbors_data, list) or isinstance(neighbors_data, dict), "neighbors must be a list, or a dictionary keyed by type.")
+    if isinstance(neighbors_data, dict):
+        return [AtomNeighbor(typepath, data) for typepath, data in neighbors_data.items()]
+    return [AtomNeighbor(typepath) for typepath in neighbors_data]
+
+
 class AtomNeighbor:
     identical: bool = False
     typepath: Optional[TypepathExtra] = None
     pattern: Optional[re.Pattern] = None
     ignore: list[TypepathExtra] = []
+    piping_layer: Optional[int] = None
 
     def __init__(self, typepath, data = {}):
         if typepath.upper() != typepath:
@@ -68,6 +107,12 @@ class AtomNeighbor:
             expect(isinstance(ignore_data, list), "ignore must be a list of typepaths.")
             self.ignore = [TypepathExtra(tp) for tp in ignore_data]
 
+        if "piping_layer" in data:
+            self.piping_layer = data.pop("piping_layer")
+        expect(self.piping_layer is None or isinstance(self.piping_layer, (int, float)), "piping_layer must be a number.")
+        if self.piping_layer is not None:
+            self.piping_layer = int(self.piping_layer)
+
         expect(len(data) == 0, f"Unknown key in banned neighbor: {', '.join(data.keys())}.")
 
     def matches(self, identified: Content, neighbor: Content):
@@ -80,6 +125,9 @@ class AtomNeighbor:
 
             return True
 
+        if self.piping_layer is not None and content_piping_layer(neighbor) != self.piping_layer:
+            return False
+
         if self.typepath is not None:
             if self.typepath.matches_path(neighbor.path):
                 return True
@@ -91,10 +139,16 @@ class AtomNeighbor:
         return False
 
     def to_string(self) -> str:
-        if (self.typepath is not None):
-            return self.typepath.typepath.path
-        elif (self.pattern is not None):
-            return self.pattern.pattern
+        label = None
+        if self.typepath is not None:
+            label = self.typepath.typepath.path
+        elif self.pattern is not None:
+            label = self.pattern.pattern
+        else:
+            label = "neighbor"
+        if self.piping_layer is not None:
+            return f"{label} (piping layer {self.piping_layer})"
+        return label
 
 Choices = list[Constant] | re.Pattern
 
@@ -304,11 +358,42 @@ class When:
     def match_string(self) -> str:
         return f" when {self.root_group.match_string(True)}";
 
+class RequiredAdjacent:
+    side: str
+    neighbors: list[AtomNeighbor]
+    skip: list[TypepathExtra]
+
+    def __init__(self, data):
+        expect(isinstance(data, dict), "required_adjacent must be a dictionary.")
+        self.side = data.pop("side", "reverse")
+        expect(self.side in ("reverse", "dir", "north", "south", "east", "west"), "required_adjacent side must be reverse, dir, north, south, east, or west.")
+        expect("neighbors" in data, "required_adjacent must specify neighbors.")
+        self.neighbors = parse_neighbor_list(data.pop("neighbors"))
+        self.skip = []
+        if "skip" in data:
+            skip_data = data.pop("skip")
+            expect(isinstance(skip_data, list), "required_adjacent skip must be a list of typepaths.")
+            self.skip = [TypepathExtra(tp) for tp in skip_data]
+        expect(len(data) == 0, f"Unknown key in required_adjacent: {', '.join(data.keys())}.")
+
+    def neighbor_dir(self, atom_dir: int) -> int:
+        if self.side == "reverse":
+            return BYOND_REVERSE_DIR.get(atom_dir, 1)
+        if self.side == "dir":
+            return atom_dir if atom_dir in BYOND_DIR_OFFSETS else DEFAULT_ATOM_DIR
+        return {"north": 1, "south": 2, "east": 4, "west": 8}[self.side]
+
+    def neighbor_offset(self, atom_dir: int) -> tuple[int, int]:
+        return BYOND_DIR_OFFSETS[self.neighbor_dir(atom_dir)]
+
+
 class Rules:
     banned: bool = False
     banned_neighbors: list[AtomNeighbor] = []
     banned_variables: bool | list[BannedVariable] = []
     required_neighbors: list[AtomNeighbor] = []
+    required_on_map: list[TypepathExtra] = []
+    required_adjacent: Optional[RequiredAdjacent] = None
     ignored_neighbors: list[AtomNeighbor] = []
     when: Optional[When] = None
     skip_files: list[Union[str, re.Pattern]] = []
@@ -336,14 +421,15 @@ class Rules:
                 self.banned_neighbors = [AtomNeighbor(typepath) for typepath in banned_neighbors_data]
 
         if "required_neighbors" in data:
-            required_neighbors_data = data.pop("required_neighbors")
+            self.required_neighbors = parse_neighbor_list(data.pop("required_neighbors"))
 
-            expect(isinstance(required_neighbors_data, list) or isinstance(required_neighbors_data, dict), "required_neighbors must be a list, or a dictionary keyed by type.")
+        if "required_on_map" in data:
+            required_on_map_data = data.pop("required_on_map")
+            expect(isinstance(required_on_map_data, list), "required_on_map must be a list of typepaths.")
+            self.required_on_map = [TypepathExtra(tp) for tp in required_on_map_data]
 
-            if isinstance(required_neighbors_data, dict):
-                self.required_neighbors = [AtomNeighbor(typepath, data) for typepath, data in required_neighbors_data.items()]
-            else:
-                self.required_neighbors = [AtomNeighbor(typepath) for typepath in required_neighbors_data]
+        if "required_adjacent" in data:
+            self.required_adjacent = RequiredAdjacent(data.pop("required_adjacent"))
 
         if "banned_variables" in data:
             banned_variables_data = data.pop("banned_variables")
@@ -376,21 +462,24 @@ class Rules:
 
         expect(len(data) == 0, f"Unknown lint rules: {', '.join(data.keys())}.")
 
+    def skips_file(self, filename) -> bool:
+        if not self.skip_files or filename is None:
+            return False
+        norm = str(filename).replace("\\", "/")
+        for entry in self.skip_files:
+            if isinstance(entry, str):
+                if entry in norm:
+                    return True
+            elif entry.search(norm):
+                return True
+        return False
+
     def run(self, identified: Content, contents: list[Content], identified_index) -> list[MaplintError]:
         failures: list[MaplintError] = []
         when_text = self.when.match_string() if self.when is not None else ""
 
-        if self.skip_files:
-            filename = getattr(identified, "filename", None)
-            if filename is not None:
-                norm = str(filename).replace("\\", "/")
-                for entry in self.skip_files:
-                    if isinstance(entry, str):
-                        if entry in norm:
-                            return failures
-                    else:
-                        if entry.search(norm):
-                            return failures
+        if self.skips_file(getattr(identified, "filename", None)):
+            return failures
 
         # If a when is present and is unmet, skip evaluation of this rule
         if self.when and not self.when.evaluate(identified):
@@ -493,4 +582,93 @@ class Lint:
                         failure.pop_id = pop
                         all_failures.append(failure)
 
+        all_failures.extend(self.run_map_rules(map_data, width, height))
         return list(set(all_failures))
+
+    def run_map_rules(self, map_data: DMM, width: int, height: int) -> list[MaplintError]:
+        failures: list[MaplintError] = []
+        present_identities: list[tuple[TypepathExtra, Rules, Content]] = []
+
+        for typepath_extra, rules in self.rules.items():
+            if not rules.required_on_map and rules.required_adjacent is None:
+                continue
+            for contents in map_data.pops.values():
+                for content in contents:
+                    if not typepath_extra.matches_path(content.path):
+                        continue
+                    if rules.skips_file(getattr(content, "filename", None)):
+                        continue
+                    if rules.when and not rules.when.evaluate(content):
+                        continue
+                    present_identities.append((typepath_extra, rules, content))
+
+        checked_on_map: set[int] = set()
+        for _, rules, content in present_identities:
+            if not rules.required_on_map or id(rules) in checked_on_map:
+                continue
+            checked_on_map.add(id(rules))
+            when_text = rules.when.match_string() if rules.when is not None else ""
+            for required in rules.required_on_map:
+                if map_has_type(map_data, required):
+                    continue
+                failure = fail_content(content, f"Map with {content.path} is missing a required type{when_text}: {required.typepath.path}")
+                failure.help = self.help
+                failures.append(failure)
+
+        if any(rules.required_adjacent for _, rules, _ in present_identities):
+            failures.extend(self.run_adjacent_rules(map_data, width, height))
+
+        return failures
+
+    def run_adjacent_rules(self, map_data: DMM, width: int, height: int) -> list[MaplintError]:
+        failures: list[MaplintError] = []
+        for z, z_level in enumerate(map_data.turfs):
+            for x, column in enumerate(z_level):
+                for y, pop in enumerate(column):
+                    contents = map_data.pops[pop]
+                    for content in contents:
+                        for typepath_extra, rules in self.rules.items():
+                            adjacent = rules.required_adjacent
+                            if adjacent is None or not typepath_extra.matches_path(content.path):
+                                continue
+                            if rules.skips_file(getattr(content, "filename", None)):
+                                continue
+                            if rules.when and not rules.when.evaluate(content):
+                                continue
+                            if any(skip.matches_path(content.path) for skip in adjacent.skip):
+                                continue
+                            atom_dir = parse_atom_dir(content)
+                            dx, dy = adjacent.neighbor_offset(atom_dir)
+                            nx, ny = x + dx, y + dy
+                            when_text = rules.when.match_string() if rules.when is not None else ""
+                            side_name = BYOND_DIR_NAMES.get(adjacent.neighbor_dir(atom_dir), "adjacent")
+                            neighbor_contents = contents_at(map_data, nx, ny, z)
+                            for required in adjacent.neighbors:
+                                if any(required.matches(content, neighbor) for neighbor in neighbor_contents):
+                                    continue
+                                failure = fail_content(content, f"Typepath {content.path} is missing {required.to_string()} on the {side_name} tile{when_text}.")
+                                failure.coordinates = f"({x + 1}, {height - y}, {z + 1})"
+                                failure.help = self.help
+                                failure.pop_id = pop
+                                failures.append(failure)
+        return failures
+
+
+def map_has_type(map_data: DMM, typepath_extra: TypepathExtra) -> bool:
+    for contents in map_data.pops.values():
+        for content in contents:
+            if typepath_extra.matches_path(content.path):
+                return True
+    return False
+
+
+def contents_at(map_data: DMM, x: int, y: int, z: int) -> list[Content]:
+    if z < 0 or z >= len(map_data.turfs):
+        return []
+    z_level = map_data.turfs[z]
+    if x < 0 or x >= len(z_level):
+        return []
+    column = z_level[x]
+    if y < 0 or y >= len(column):
+        return []
+    return map_data.pops[column[y]]

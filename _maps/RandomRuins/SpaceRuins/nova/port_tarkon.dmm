@@ -7545,7 +7545,7 @@
 /area/ruin/space/has_grav)
 "tT" = (
 /obj/structure/lattice,
-/turf/open/space,
+/turf/open/space/basic,
 /area/space/nearstation)
 "tU" = (
 /obj/machinery/landing_corner,
@@ -7772,7 +7772,7 @@
 /turf/open/floor/iron/dark,
 /area/ruin/space/has_grav/port_tarkon/kitchen)
 "uB" = (
-/turf/open/space,
+/turf/open/space/basic,
 /area/space/nearstation)
 "uC" = (
 /obj/effect/turf_decal/sand/plating,
@@ -10318,7 +10318,7 @@
 "AS" = (
 /obj/structure/fluff/metalpole,
 /obj/structure/lattice,
-/turf/open/space,
+/turf/open/space/basic,
 /area/space/nearstation)
 "AT" = (
 /obj/machinery/atmospherics/components/unary/passive_vent/layer2{
