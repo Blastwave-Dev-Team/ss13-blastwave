@@ -1,6 +1,9 @@
 // MODULE ID: OVERMAP
 // Mapping helpers: helm affiliation pins and landing-zone beacon links.
 
+/datum/unit_test/overmap_mapping_helpers
+	abstract_type = /datum/unit_test/overmap_mapping_helpers
+
 /datum/unit_test/overmap_mapping_helpers/helm_affiliation
 
 /datum/unit_test/overmap_mapping_helpers/helm_affiliation/Run()
