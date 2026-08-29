@@ -1,3 +1,9 @@
+/datum/mind
+	/// Immutable character UUID copied from prefs at spawn. Used by the persistent credit ledger.
+	var/character_uuid
+	/// 4-digit ATM PIN copied from character prefs at spawn/respawn.
+	var/atm_pin
+
 // Free chaplain highpriest role if the chaplain's mind gets deleted for some reason
 /datum/mind/Destroy()
 	var/list/holy_successors = list_holy_successors()

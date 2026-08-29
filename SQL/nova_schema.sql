@@ -165,6 +165,143 @@ CREATE TABLE `whitelist` (
 
 
 --
+-- Table structure for table `character_identity`.
+-- One row per (ckey, slot). Duplicate historical UUIDs are merged via IDENTITY_MERGE
+-- onto the latest created_at (see database_changelog.md 5.40).
+--
+DROP TABLE IF EXISTS `character_identity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `character_identity` (
+  `character_uuid` CHAR(36) NOT NULL,
+  `ckey` VARCHAR(32) NOT NULL,
+  `slot` INT UNSIGNED NOT NULL DEFAULT 0,
+  `display_name` VARCHAR(64) NOT NULL DEFAULT '',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`character_uuid`),
+  UNIQUE KEY `uniq_character_identity_ckey_slot` (`ckey`, `slot`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
+-- Table structure for table `character_ledger_transaction`.
+--
+DROP TABLE IF EXISTS `character_ledger_transaction`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `character_ledger_transaction` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `character_uuid` CHAR(36) NOT NULL,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `delta` BIGINT NOT NULL,
+  `balance_after` BIGINT NOT NULL,
+  `channel` VARCHAR(32) NOT NULL,
+  `reason` VARCHAR(255) NOT NULL DEFAULT '',
+  `idempotency_key` VARCHAR(128) NOT NULL,
+  `round_id` INT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idempotency_key` (`idempotency_key`),
+  KEY `idx_ledger_uuid_currency_id` (`character_uuid`, `currency_code`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
+-- Table structure for table `currency_epoch`.
+--
+DROP TABLE IF EXISTS `currency_epoch`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `currency_epoch` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `currency_code_created` (`currency_code`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+INSERT IGNORE INTO `currency_epoch` (`currency_code`, `notes`) VALUES ('NTCR', 'Initial Nanotrasen credit epoch');
+
+
+--
+-- Procedure to append a character ledger transaction atomically.
+-- INSERT-only; serial id is the sequence. Never UPDATE existing money rows.
+--
+DELIMITER $$
+DROP PROCEDURE IF EXISTS `character_ledger_append`;
+CREATE PROCEDURE `character_ledger_append`(
+	IN `p_uuid` CHAR(36),
+	IN `p_currency` VARCHAR(8),
+	IN `p_delta` BIGINT,
+	IN `p_channel` VARCHAR(32),
+	IN `p_reason` VARCHAR(255),
+	IN `p_idempotency_key` VARCHAR(128),
+	IN `p_round_id` INT,
+	IN `p_allow_zero` TINYINT
+)
+SQL SECURITY INVOKER
+BEGIN
+	DECLARE v_prev BIGINT DEFAULT 0;
+	DECLARE v_new BIGINT;
+	DECLARE v_existing_id BIGINT DEFAULT NULL;
+	DECLARE v_existing_balance BIGINT DEFAULT 0;
+	DECLARE v_identity CHAR(36) DEFAULT NULL;
+
+	DECLARE CONTINUE HANDLER FOR NOT FOUND BEGIN END;
+
+	SELECT `id`, `balance_after` INTO v_existing_id, v_existing_balance
+	FROM `character_ledger_transaction`
+	WHERE `idempotency_key` = p_idempotency_key
+	LIMIT 1;
+
+	IF v_existing_id IS NOT NULL THEN
+		SELECT 'duplicate' AS `status`, v_existing_balance AS `balance_after`, v_existing_id AS `id`;
+	ELSEIF p_delta = 0 AND p_allow_zero = 0 THEN
+		SELECT 'invalid' AS `status`, 0 AS `balance_after`, NULL AS `id`;
+	ELSE
+		START TRANSACTION;
+		SELECT `character_uuid` INTO v_identity
+		FROM `character_identity`
+		WHERE `character_uuid` = p_uuid
+		FOR UPDATE;
+
+		IF v_identity IS NULL THEN
+			ROLLBACK;
+			SELECT 'no_identity' AS `status`, 0 AS `balance_after`, NULL AS `id`;
+		ELSE
+			SELECT `balance_after` INTO v_prev
+			FROM `character_ledger_transaction`
+			WHERE `character_uuid` = p_uuid AND `currency_code` = p_currency
+			ORDER BY `id` DESC
+			LIMIT 1
+			FOR UPDATE;
+
+			SET v_prev = IFNULL(v_prev, 0);
+			SET v_new = v_prev + p_delta;
+
+			IF v_new < 0 THEN
+				ROLLBACK;
+				SELECT 'insufficient' AS `status`, v_prev AS `balance_after`, NULL AS `id`;
+			ELSE
+				INSERT INTO `character_ledger_transaction` (
+					`character_uuid`, `currency_code`, `delta`, `balance_after`, `channel`, `reason`, `idempotency_key`, `round_id`
+				) VALUES (
+					p_uuid, p_currency, p_delta, v_new, p_channel, p_reason, p_idempotency_key, p_round_id
+				);
+				COMMIT;
+				SELECT 'ok' AS `status`, v_new AS `balance_after`, LAST_INSERT_ID() AS `id`;
+			END IF;
+		END IF;
+	END IF;
+END$$
+DELIMITER ;
+
+
+--
 -- Procedure to update player ckeys in the database.
 --
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

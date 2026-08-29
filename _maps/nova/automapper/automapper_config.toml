@@ -543,3 +543,61 @@ directory = "_maps/nova/automapper/templates/catwalkstation/"
 required_map = "CatwalkStation_2023.dmm"
 coordinates = [92, 145, 1]
 trait_name = "Station"
+
+# CHARACTER LEDGER ATM TEMPLATES
+# 1x1 overlays. priority > 0 loads after arrivals so they stamp onto the finished tile.
+[templates.metastation_atm]
+map_files = ["metastation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/metastation/"
+required_map = "MetaStation.dmm"
+coordinates = [50, 124, 1]
+trait_name = "Station"
+priority = 1
+
+[templates.deltastation_atm]
+map_files = ["deltastation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/deltastation/"
+required_map = "DeltaStation2.dmm"
+coordinates = [142, 212, 1]
+trait_name = "Station"
+priority = 1
+
+[templates.icebox_atm]
+map_files = ["icebox_atm.dmm"]
+directory = "_maps/nova/automapper/templates/icebox/"
+required_map = "IceBoxStation.dmm"
+coordinates = [26, 126, 3]
+trait_name = "Station"
+priority = 1
+
+[templates.tramstation_atm]
+map_files = ["tramstation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/tramstation/"
+required_map = "tramstation.dmm"
+coordinates = [34, 118, 2]
+trait_name = "Station"
+priority = 1
+
+[templates.wawastation_atm]
+map_files = ["wawastation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/wawastation/"
+required_map = "wawastation.dmm"
+coordinates = [91, 83, 2]
+trait_name = "Station"
+priority = 1
+
+[templates.nebulastation_atm]
+map_files = ["nebulastation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/nebulastation/"
+required_map = "NebulaStation.dmm"
+coordinates = [121, 120, 2]
+trait_name = "Station"
+priority = 1
+
+[templates.catwalkstation_atm]
+map_files = ["catwalkstation_atm.dmm"]
+directory = "_maps/nova/automapper/templates/catwalkstation/"
+required_map = "CatwalkStation_2023.dmm"
+coordinates = [119, 71, 1]
+trait_name = "Station"
+priority = 1
