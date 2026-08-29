@@ -58,13 +58,6 @@
 /obj/effect/mapping_helpers/airalarm/all_access,
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate/tarkon_driver)
-"hE" = (
-/obj/structure/cable,
-/obj/machinery/power/terminal{
-	dir = 4
-	},
-/turf/open/floor/mineral/titanium,
-/area/shuttle/overmap/frigate/tarkon_driver)
 "iw" = (
 /obj/machinery/door/airlock/titanium,
 /obj/structure/fans/tiny/invisible,
@@ -273,16 +266,12 @@
 /area/shuttle/overmap/frigate/tarkon_driver)
 "Hu" = (
 /obj/structure/cable,
-/obj/machinery/power/terminal{
-	dir = 4
-	},
 /obj/machinery/camera/autoname/tarkon/directional/south,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate/tarkon_driver)
 "Ik" = (
-/obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
@@ -308,7 +297,6 @@
 /area/shuttle/overmap/frigate/tarkon_driver)
 "KO" = (
 /obj/machinery/light/directional/north,
-/obj/structure/cable,
 /obj/machinery/overmap/fuel_injector,
 /turf/open/floor/mineral/titanium,
 /area/shuttle/overmap/frigate/tarkon_driver)
@@ -651,7 +639,7 @@ mP
 lU
 bE
 ao
-hE
+xc
 PW
 Hu
 jO

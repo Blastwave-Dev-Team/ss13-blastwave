@@ -11,6 +11,9 @@
 		return DOCKING_SUCCESS
 
 	if(!force)
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - ERT occupied-hangar fallback
+		new_dock = maybe_divert_occupied_dock(new_dock)
+		// BLASTWAVE EDIT ADDITION END
 		if(!check_dock(new_dock))
 			remove_ripples()
 			return DOCKING_BLOCKED

@@ -399,15 +399,13 @@
 /obj/structure/window/reinforced/plasma/spawner/directional/south,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/power/smes/full,
+/obj/structure/cable,
 /turf/open/floor/iron/shuttle/cargo,
 /area/shuttle/overmap/frigate/blackmarket_burst)
 "be" = (
 /obj/structure/window/reinforced/plasma/spawner/directional/south,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/obj/machinery/power/terminal{
-	dir = 8
-	},
 /obj/structure/cable,
 /turf/open/floor/iron/shuttle/cargo,
 /area/shuttle/overmap/frigate/blackmarket_burst)

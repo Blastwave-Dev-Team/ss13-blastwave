@@ -14,12 +14,14 @@
 	},
 /obj/structure/window/reinforced/survival_pod/spawner/directional/east,
 /obj/structure/window/reinforced/survival_pod/spawner/directional/south,
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "e" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /obj/structure/frame/machine/secured,
 /obj/item/circuitboard/machine/ore_silo,
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "f" = (
@@ -55,16 +57,19 @@
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "i" = (
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "j" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "k" = (
 /obj/structure/chair/comfy/shuttle{
 	dir = 8
 	},
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "l" = (
@@ -90,7 +95,9 @@
 /turf/open/floor/catwalk_floor/iron_dark,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "p" = (
-/obj/machinery/overmap/fuel_injector,
+/obj/machinery/overmap/fuel_injector{
+	dir = 4
+	},
 /obj/machinery/light/red/directional/west,
 /obj/machinery/button/door/directional/west{
 	req_access = list("syndicate");
@@ -113,11 +120,6 @@
 	},
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
-"r" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/open/floor/catwalk_floor/iron_dark,
-/area/shuttle/overmap/frigate/interdyne_cargo)
 "s" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
@@ -125,7 +127,8 @@
 /turf/open/floor/catwalk_floor/iron_dark,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "t" = (
-/obj/machinery/suit_storage_unit/interdyne/nerfed,
+/obj/structure/cable,
+/obj/machinery/power/smes/full,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "u" = (
@@ -139,6 +142,10 @@
 	},
 /obj/structure/window/reinforced/survival_pod/spawner/directional/north,
 /obj/structure/window/reinforced/survival_pod/spawner/directional/east,
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 4
+	},
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "w" = (
@@ -146,6 +153,8 @@
 /obj/effect/turf_decal/loading_area{
 	dir = 4
 	},
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "x" = (
@@ -155,26 +164,30 @@
 /obj/item/assembly/igniter,
 /obj/item/circuitboard/machine/ore_redemption,
 /obj/effect/turf_decal/delivery,
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "y" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /obj/structure/closet/crate/eva,
+/obj/structure/cable,
 /turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "z" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/closed/wall/r_wall/plastitanium/syndicate/nodiagonal,
+/obj/structure/cable,
+/turf/open/floor/catwalk_floor/iron_dark,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "A" = (
-/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
-/turf/closed/wall/r_wall/plastitanium/syndicate,
+/obj/machinery/power/apc/auto_name/directional/east,
+/obj/machinery/power/terminal{
+	dir = 4
+	},
+/obj/structure/cable,
+/turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 "B" = (
-/obj/machinery/atmospherics/components/unary/passive_vent{
-	dir = 8
-	},
-/turf/open/floor/plating/airless,
+/obj/machinery/suit_storage_unit/interdyne/nerfed,
+/obj/structure/cable,
+/turf/open/floor/iron/dark/textured_large,
 /area/shuttle/overmap/frigate/interdyne_cargo)
 
 (1,1,1) = {"
@@ -194,7 +207,7 @@ e
 i
 m
 p
-r
+o
 o
 w
 a
@@ -217,7 +230,7 @@ i
 o
 o
 o
-o
+z
 y
 a
 "}
@@ -226,11 +239,11 @@ b
 a
 k
 k
-k
-t
-t
-z
 A
+t
+B
+a
+b
 "}
 (6,1,1) = {"
 c
@@ -241,5 +254,5 @@ b
 l
 l
 b
-B
+c
 "}
