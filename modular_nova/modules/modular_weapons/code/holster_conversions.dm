@@ -14,6 +14,7 @@
 	tool_behaviors = list(TOOL_SCREWDRIVER)
 	time = 15 SECONDS
 	category = CAT_CLOTHING
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/charge_holster/New()
 	. = ..()
@@ -42,6 +43,7 @@
 	time = 15 SECONDS
 	category = CAT_CLOTHING
 	blacklist = list(/obj/item/storage/belt/holster/energy/onegun,)
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/supercharge_holster/check_requirements(mob/user, list/collected_requirements)
 	var/obj/item/storage/belt/holster/the_drip = collected_requirements[/obj/item/storage/belt/holster/energy][1]
