@@ -11,6 +11,8 @@
 	icon = 'modular_nova/modules/overmap/icons/overmap.dmi'
 	icon_state = "ship"
 	base_icon_state = "ship"
+	contact_type = "ship"
+	contact_label = "Ship"
 
 	/// Current flight-assisted speed envelope in tiles/second.
 	/// Refreshed from available full-output thrust and ship mass.
@@ -1158,22 +1160,8 @@
 	if(!COOLDOWN_FINISHED(src, scan_cooldown))
 		return 0
 	COOLDOWN_START(src, scan_cooldown, OVERMAP_SCAN_COOLDOWN)
-	var/scan_px = sensor_range * ICON_SIZE_ALL
-	var/scan_sq = scan_px * scan_px
-	var/my_px = get_overmap_abs_px()
-	var/my_py = get_overmap_abs_py()
 	var/count = 0
-	for(var/obj/structure/overmap/other as anything in SSovermap.overmap_objects)
-		if(other == src || QDELETED(other))
-			continue
-		if(other.z != z)
-			continue
-		var/dx = other.get_overmap_abs_px() - my_px
-		var/dy = other.get_overmap_abs_py() - my_py
-		if(dx * dx + dy * dy > scan_sq)
-			continue
-		if(!SSovermap.can_view_installation(src, other))
-			continue
+	for(var/obj/structure/overmap/other as anything in gather_radar_contacts(sensor_range, 0, 360))
 		var/ref = REF(other)
 		if(LAZYACCESS(scanned_objects, ref))
 			deltimer(scanned_objects[ref])
@@ -1191,15 +1179,21 @@
 /// Fighter: direct piloting only (NIF or neurohelm). No helm console.
 /obj/structure/overmap/ship/simulated/fighter
 	control_flags = SHIP_CONTROL_DIRECT
+	contact_type = "fighter"
+	contact_label = "Fighter"
 
 /// Frigate: purpose-built overmap ship. Supports both helm console and
 /// direct piloting.
 /obj/structure/overmap/ship/simulated/frigate
 	control_flags = SHIP_CONTROL_CONSOLE | SHIP_CONTROL_DIRECT
+	contact_type = "frigate"
+	contact_label = "Frigate"
 
 /// Capital / military: supports both console and direct piloting.
 /obj/structure/overmap/ship/simulated/capital
 	control_flags = SHIP_CONTROL_CONSOLE | SHIP_CONTROL_DIRECT
+	contact_type = "capital"
+	contact_label = "Capital"
 
 #undef SHIP_SIZE_THRESHOLD
 #undef SHIP_DOCKED_REPAIR_TIME

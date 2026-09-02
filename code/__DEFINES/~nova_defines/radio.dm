@@ -21,3 +21,10 @@
 #define RADIO_TOKEN_TARKON ":k"
 
 #define FREQ_TARKON 1243
+
+#define RADIO_CHANNEL_OVERMAP "Deep-Space"
+#define RADIO_KEY_OVERMAP "a"
+#define RADIO_TOKEN_OVERMAP ":a"
+#define RADIO_COLOR_OVERMAP "#7ec8e3"
+
+#define FREQ_OVERMAP 1501

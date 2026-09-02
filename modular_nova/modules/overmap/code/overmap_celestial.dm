@@ -11,6 +11,8 @@
 	icon_state = "object"
 	anchored = TRUE
 	density = TRUE
+	contact_type = "celestial"
+	contact_label = "Body"
 
 	/// Gravitational mass. Determines pull strength on ships within SOI.
 	var/gravity_mass = 100
@@ -125,6 +127,8 @@
 	pixel_y = -32
 	gravity_mass = 500
 	sphere_of_influence = 256
+	contact_type = "star"
+	contact_label = "Star"
 
 /obj/structure/overmap/celestial/planet
 	name = "planet"
@@ -132,6 +136,8 @@
 	icon_state = "globe"
 	gravity_mass = 50
 	sphere_of_influence = 128
+	contact_type = "planet"
+	contact_label = "Planet"
 
 /obj/structure/overmap/celestial/moon
 	name = "moon"
@@ -139,3 +145,5 @@
 	icon_state = "object"
 	gravity_mass = 10
 	sphere_of_influence = 64
+	contact_type = "moon"
+	contact_label = "Moon"

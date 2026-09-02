@@ -43,12 +43,32 @@ required_map = "MetaStation.dmm"
 coordinates = [133, 182, 1]
 trait_name = "Station"
 
-# Metastation Barber
-[templates.metastation_barber]
-map_files = ["metastation_barber.dmm"]
+# Metastation Barber — disabled while Flight Ops occupies this footprint.
+# [templates.metastation_barber]
+# map_files = ["metastation_barber.dmm"]
+# directory = "_maps/nova/automapper/templates/metastation/"
+# required_map = "MetaStation.dmm"
+# coordinates = [101, 116, 1]
+# trait_name = "Station"
+
+# Metastation Flight Operations Center
+[templates.metastation_flight_ops]
+map_files = ["metastation_flight_ops.dmm"]
 directory = "_maps/nova/automapper/templates/metastation/"
 required_map = "MetaStation.dmm"
 coordinates = [101, 116, 1]
+trait_name = "Station"
+
+# Metastation exterior radar radome — west of starboard-fore solars, north of gravgen.
+# Origin is the SW of the overlay. Dish pad stays at 165-166,178-181. Station-grid
+# cable is template_noop-only (does not replace MetaStation turfs): west on y=178,
+# then south through the gravgen-adjacent external cycle into starboard/fore maint,
+# joining the existing cable at 160,167.
+[templates.metastation_radar_dish]
+map_files = ["metastation_radar_dish.dmm"]
+directory = "_maps/nova/automapper/templates/metastation/"
+required_map = "MetaStation.dmm"
+coordinates = [160, 168, 1]
 trait_name = "Station"
 
 # Metastation Armory

@@ -13,6 +13,7 @@ GLOBAL_LIST_INIT(channel_tokens, list(
 	RADIO_CHANNEL_GUILD = RADIO_TOKEN_GUILD, //NOVA EDIT ADDITION - Mapping
 	RADIO_CHANNEL_TARKON = RADIO_TOKEN_TARKON, //NOVA EDIT ADDITION - MAPPING
 	RADIO_CHANNEL_SOLFED = RADIO_TOKEN_SOLFED, //NOVA EDIT ADDITION - SOLFED
+	RADIO_CHANNEL_OVERMAP = RADIO_TOKEN_OVERMAP, //NOVA EDIT ADDITION - OVERMAP
 	RADIO_CHANNEL_SYNDICATE = RADIO_TOKEN_SYNDICATE,
 	RADIO_CHANNEL_SUPPLY = RADIO_TOKEN_SUPPLY,
 	RADIO_CHANNEL_SERVICE = RADIO_TOKEN_SERVICE,
@@ -480,6 +481,11 @@ GLOBAL_LIST_INIT(channel_tokens, list(
 				channels[channel_name] = keyslot2.channels[channel_name]
 
 		special_channels |= keyslot2.special_channels
+		// NOVA EDIT ADDITION START - OVERMAP
+		if(!overmap_cipher && istype(keyslot2, /obj/item/encryptionkey/overmap))
+			var/obj/item/encryptionkey/overmap/overmap_key = keyslot2
+			overmap_cipher = overmap_key.network_cipher
+		// NOVA EDIT ADDITION END
 
 		for(var/ch_name in channels)
 			LAZYSET(secure_radio_connections, ch_name, add_radio(src, GLOB.default_radio_channels[ch_name]))

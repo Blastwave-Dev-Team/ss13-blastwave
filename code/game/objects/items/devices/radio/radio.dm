@@ -72,6 +72,8 @@
 	var/obj/item/encryptionkey/keyslot
 	/// Flags for which "special" radio networks should be accessible
 	var/special_channels = NONE
+	/// Cipher copied from an overmap encryption key. Null = unencrypted overmap traffic.
+	var/overmap_cipher // NOVA EDIT ADDITION - OVERMAP
 	/// associative list of the encrypted radio channels this radio is currently set to listen/broadcast to, of the form: list(channel name = TRUE or FALSE)
 	var/list/channels
 	/// lazy associative list of the encrypted radio channels this radio can listen/broadcast to, of the form: list(channel name = channel frequency)
@@ -166,6 +168,11 @@
 				channels[channel_name] = keyslot.channels[channel_name]
 
 		special_channels |= keyslot.special_channels
+		// NOVA EDIT ADDITION START - OVERMAP
+		if(istype(keyslot, /obj/item/encryptionkey/overmap))
+			var/obj/item/encryptionkey/overmap/overmap_key = keyslot
+			overmap_cipher = overmap_key.network_cipher
+		// NOVA EDIT ADDITION END
 
 	for(var/channel_name in channels)
 		LAZYSET(secure_radio_connections, channel_name, add_radio(src, GLOB.default_radio_channels[channel_name]))
@@ -180,6 +187,7 @@
 	channels = list()
 	LAZYNULL(secure_radio_connections)
 	special_channels = NONE
+	overmap_cipher = null // NOVA EDIT ADDITION - OVERMAP
 
 	if(!freerange && (frequency > MAX_FREQ || frequency < MIN_FREQ))
 		frequency = FREQ_COMMON
@@ -367,6 +375,16 @@
 		signal.levels = list(0)
 		signal.broadcast()
 		return
+
+	// NOVA EDIT ADDITION START - OVERMAP
+	if(freq == FREQ_OVERMAP || channel == RADIO_CHANNEL_OVERMAP)
+		signal.data["compression"] = 0
+		signal.data["overmap_cipher"] = overmap_cipher
+		signal.transmission_method = TRANSMISSION_SUPERSPACE
+		signal.levels = list(0)
+		signal.broadcast()
+		return
+	// NOVA EDIT ADDITION END
 
 	if(isliving(talking_movable))
 		/* NOVA EDIT REMOVAL START - ORIGINAL - We use our own radio sounds - see modular_nova/modules/radiosound/code/radio.dm - ORIGINAL:

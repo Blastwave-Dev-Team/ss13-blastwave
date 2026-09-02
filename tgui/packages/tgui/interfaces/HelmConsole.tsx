@@ -34,7 +34,7 @@ type OtherShip = {
   bearing?: number;
   distance?: number;
   adjacent?: BooleanLike;
-  type?: 'level' | 'dynamic' | 'ship' | 'event' | 'unknown';
+  type?: string;
   landingZones?: LandingZone[];
 };
 
@@ -512,15 +512,47 @@ const EnginesTab = () => {
   );
 };
 
+const HAZARD_TYPES = new Set([
+  'event',
+  'meteor',
+  'electric',
+  'emp',
+  'radiation',
+]);
+
 const contactTypeLabel = (type?: string) => {
   switch (type) {
+    case 'star':
+      return 'STAR';
+    case 'planet':
+      return 'PLN';
+    case 'moon':
+      return 'MOON';
+    case 'celestial':
+      return 'BODY';
     case 'level':
+    case 'station':
+    case 'mining':
+    case 'installation':
+    case 'depot':
+    case 'site':
+    case 'open_space':
       return 'POI';
     case 'dynamic':
       return 'SIG';
     case 'ship':
       return 'SHIP';
+    case 'fighter':
+      return 'FTR';
+    case 'frigate':
+      return 'FRG';
+    case 'capital':
+      return 'CAP';
     case 'event':
+    case 'meteor':
+    case 'electric':
+    case 'emp':
+    case 'radiation':
       return 'HAZ';
     default:
       return '???';
@@ -591,7 +623,7 @@ const RadarTab = ({ selectedGpsRef, onSelectGps }: RadarTabProps) => {
                 </div>
               </div>
               <div className="HelmPanel__radar-actions">
-                {contact.adjacent && contact.type !== 'event' ? (
+                {contact.adjacent && !HAZARD_TYPES.has(contact.type ?? '') ? (
                   <button
                     className="HelmPanel__btn"
                     disabled={!canDock}
