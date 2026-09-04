@@ -13,7 +13,6 @@
 /turf/closed/wall/r_wall,
 /area/station/command/flight_operations)
 "ae" = (
-/obj/machinery/door/firedoor,
 /obj/structure/cable,
 /obj/machinery/door/airlock/command/glass{
 	name = "Flight Operations"
