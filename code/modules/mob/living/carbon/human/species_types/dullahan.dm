@@ -282,12 +282,18 @@
 
 /obj/item/dullahan_relay/Hear(atom/movable/speaker, message_language, raw_message, radio_freq, radio_freq_name, radio_freq_color, list/spans, list/message_mods = list(), message_range)
 	. = ..()
-	var/dist = get_dist(speaker, src) - message_range
+	if(isnull(owner))
+		return FALSE
+
+	var/raw_dist = get_dist(speaker, src)
+	if(message_mods[WHISPER_MODE])
+		var/turf/in_front = get_step(speaker, speaker.dir)
+		if(in_front && HAS_TRAIT(in_front, TRAIT_TURF_PROJECTS_WHISPERS))
+			raw_dist = min(raw_dist, get_dist(in_front, src))
+	var/dist = raw_dist - message_range
 	if(dist > 0 && dist <= EAVESDROP_EXTRA_RANGE)
 		raw_message = stars(raw_message)
 	if(message_range != INFINITY && dist > EAVESDROP_EXTRA_RANGE)
-		return FALSE
-	if(!owner)
 		return FALSE
 	return owner.Hear(speaker, message_language, raw_message, radio_freq, radio_freq_name, radio_freq_color, spans, message_mods, message_range = INFINITY)
 
