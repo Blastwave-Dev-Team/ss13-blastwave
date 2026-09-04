@@ -70,7 +70,7 @@
 		icon_state = base_icon_state
 	else
 		icon_state = "[base_icon_state]-idle"
-	return
+	return ..()
 
 /obj/machinery/overmap_radio/antenna/examine(mob/user)
 	. = ..()

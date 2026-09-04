@@ -18,7 +18,7 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	circuit = null
 	/// Machines this unit is linked to.
 	var/list/links = list()
-	/// Mapped autolink tokens. Shared tokens link on LateInitialize.
+	/// Mapped autolink tokens. Shared tokens link in post_machine_initialize.
 	var/list/autolinkers = list(OVERMAP_RADAR_AUTOLINK_FOC)
 	/// Identification string for linking UI / examine.
 	var/id = "NULL"
@@ -38,11 +38,11 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	radar_type ||= type
 	register_context()
 	GLOB.overmap_radar_machines += src
-	if(mapload && length(autolinkers))
-		return INITIALIZE_HINT_LATELOAD
 
-/obj/machinery/overmap_radar/LateInitialize()
+/obj/machinery/overmap_radar/post_machine_initialize()
 	. = ..()
+	if(!length(autolinkers))
+		return
 	for(var/obj/machinery/overmap_radar/other as anything in GLOB.overmap_radar_machines)
 		if(other == src || other.network != network)
 			continue
@@ -137,7 +137,7 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	if(!on || !packet)
 		return 0
 	var/sent = 0
-	for(var/obj/machinery/overmap_radar/other as anything in links)
+	for(var/obj/machinery/overmap_radar/other in links)
 		if(!other.on)
 			continue
 		if(filter && !istype(other, filter))
@@ -321,7 +321,7 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 		icon_state = "[base_icon_state]-broken"
 	else
 		icon_state = base_icon_state
-	return
+	return ..()
 
 /obj/machinery/overmap_radar/dish/update_overlays()
 	. = ..()
@@ -382,11 +382,7 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	use_power = NO_POWER_USE
 	var/obj/machinery/overmap_radar/dish/owner
 
-/obj/machinery/power/overmap_radar_node/Initialize(mapload)
-	. = ..()
-	return INITIALIZE_HINT_LATELOAD
-
-/obj/machinery/power/overmap_radar_node/LateInitialize()
+/obj/machinery/power/overmap_radar_node/post_machine_initialize()
 	. = ..()
 	connect_to_network()
 

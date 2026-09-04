@@ -87,4 +87,4 @@
 	parts = list(/obj/item/encryptionkey = 1)
 	time = 2 SECONDS
 	category = CAT_EQUIPMENT
-	crafting_flags = CRAFT_CHECK_DENSITY
+	crafting_flags = CRAFT_CHECK_DENSITY | CRAFT_SKIP_MATERIALS_PARITY

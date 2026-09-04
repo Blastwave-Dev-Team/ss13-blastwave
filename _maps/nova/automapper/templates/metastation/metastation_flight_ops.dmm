@@ -58,6 +58,7 @@
 /obj/machinery/atmospherics/components/unary/passive_vent{
 	dir = 8
 	},
+/obj/machinery/firealarm/directional/east,
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)
 "an" = (

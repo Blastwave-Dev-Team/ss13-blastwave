@@ -113,3 +113,19 @@
 		RND_CATEGORY_CONSTRUCTION + RND_SUBCATEGORY_CONSTRUCTION_ELECTRONICS,
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_SERVICE
+
+/datum/techweb_node/overmap
+	id = TECHWEB_NODE_OVERMAP
+	display_name = "Deep-Space Operations"
+	description = "Communications and radar technology for Deep-Space Operations."
+	prereq_ids = list(TECHWEB_NODE_SHUTTLE_ENG, TECHWEB_NODE_TELECOMS)
+	design_ids = list(
+		"overmap_radar_console",
+		"overmap_radar_processor",
+		"overmap_radar_bus",
+		"overmap_radar_dish",
+		"overmap_radio_antenna",
+		"overmap_encryptionkey",
+	)
+	research_costs = list(TECHWEB_POINT_TYPE_GENERIC = TECHWEB_TIER_5_POINTS)
+	announce_channels = list(RADIO_CHANNEL_COMMAND, RADIO_CHANNEL_ENGINEERING, RADIO_CHANNEL_SCIENCE)

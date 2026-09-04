@@ -40,11 +40,11 @@ GLOBAL_LIST_EMPTY(overmap_radar_consoles)
 /obj/machinery/computer/overmap_radar/Initialize(mapload)
 	. = ..()
 	GLOB.overmap_radar_consoles += src
-	if(mapload && length(autolinkers))
-		return INITIALIZE_HINT_LATELOAD
 
-/obj/machinery/computer/overmap_radar/LateInitialize()
+/obj/machinery/computer/overmap_radar/post_machine_initialize()
 	. = ..()
+	if(!length(autolinkers))
+		return
 	for(var/obj/machinery/overmap_radar/machine as anything in GLOB.overmap_radar_machines)
 		if(machine.network != network)
 			continue
