@@ -309,6 +309,27 @@ If you have a define that's used in more than one file, it **must** be declared 
 
 If you have a define that's used in one file, and won't be used anywhere else, declare it at the top, and `#undef MY_DEFINE` at the bottom of the file. This is to keep context menus clean, and to prevent confusion by those using IDEs with autocomplete.
 
+### Ticked includes (`tgstation.dme`, `_unit_tests.dm`)
+
+Ticked File Enforcement compares each `#include` as an **exact line**. A trailing
+`// NOVA EDIT` or `// BLASTWAVE EDIT` comment on that same line will fail CI as
+a missing include, even though the file is ticked.
+
+Do not put modularization comments on include lines. Wrap a block of includes
+in `// NOVA EDIT START` / `// NOVA EDIT END` (or the Blastwave equivalents)
+instead — those standalone marker lines are skipped by the checker. Log the
+module ID in the module `readme.md`.
+
+```byond
+// Good
+// NOVA EDIT START
+#include "~nova\character_ledger.dm"
+// NOVA EDIT END
+
+// Bad — trailing comment breaks exact-match include checks
+#include "~nova\character_ledger.dm" // BLASTWAVE EDIT ADDITION - CHARACTER_LEDGER
+```
+
 ### Module folder layout
 
 To keep form and ensure most modules are easy to navigate and to keep control of the amount of files and folders being made in the repository, you are required to follow this layout.

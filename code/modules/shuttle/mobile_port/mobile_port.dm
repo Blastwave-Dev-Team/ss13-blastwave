@@ -295,6 +295,11 @@
 		// attempt to move us where we currently are, it will get weird.
 			return SHUTTLE_ALREADY_DOCKED
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - bbox occupancy (overmap LZ vs named pad)
+	if(stationary_dock.overlaps_other_mobile(src))
+		return SHUTTLE_SOMEONE_ELSE_DOCKED
+	// BLASTWAVE EDIT ADDITION END
+
 	return SHUTTLE_CAN_DOCK
 
 /obj/docking_port/mobile/proc/check_dock(obj/docking_port/stationary/S, silent = FALSE)
@@ -318,6 +323,10 @@
  * * destination_port - Stationary docking port to move the shuttle to
  */
 /obj/docking_port/mobile/proc/request(obj/docking_port/stationary/destination_port, forced = FALSE) // NOVA EDIT ADDITION - Forced check
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - ERT occupied-hangar fallback
+	if(!forced)
+		destination_port = maybe_divert_occupied_dock(destination_port)
+	// BLASTWAVE EDIT ADDITION END
 	if(!check_dock(destination_port) && !forced) // NOVA EDIT CHANGE - ORIGINAL: if(!check_dock(destination_port))
 		testing("check_dock failed on request for [src]")
 		return

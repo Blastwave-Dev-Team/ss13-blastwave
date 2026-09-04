@@ -345,6 +345,7 @@
 /turf/open/floor/iron/shuttle/exploration/textured_flat,
 /area/shuttle/mining/large/advanced)
 "aW" = (
+/obj/machinery/atmospherics/pipe/smart/simple/general/hidden/layer2,
 /turf/closed/wall/mineral/titanium/shuttle_wall/mining_large{
 	icon_state = "4,2"
 	},
@@ -392,12 +393,13 @@
 /turf/open/floor/iron/shuttle/exploration,
 /area/shuttle/mining/large/advanced)
 "bd" = (
+/obj/machinery/atmospherics/pipe/smart/simple/general/hidden/layer2,
 /turf/closed/wall/mineral/titanium/shuttle_wall/mining_large{
 	icon_state = "4,1"
 	},
 /area/shuttle/mining/large/advanced)
 "be" = (
-/obj/machinery/atmospherics/pipe/smart/simple/general/hidden/layer2,
+/obj/structure/cable,
 /obj/machinery/power/shuttle_engine/overmap/standard{
 	dir = 4
 	},

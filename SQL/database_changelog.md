@@ -2,19 +2,186 @@ Any time you make a change to the schema files, remember to increment the databa
 
 Make sure to also update `DB_MAJOR_VERSION` and `DB_MINOR_VERSION`, which can be found in `code/__DEFINES/subsystem.dm`.
 
-The latest database version is 5.38 (5.34 for /tg/); The query to update the schema revision table is:
+The latest database version is 5.40 (5.34 for /tg/); The query to update the schema revision table is:
 
 ```sql
-INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 38);
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 40);
 ```
 
 or
 
 ```sql
-INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 38);
+INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 40);
 ```
 
 In any query remember to add a prefix to the table names if you use one.
+
+---
+
+Version 5.40, 25 August 2026, by Maldaris
+One identity per `(ckey, slot)`. Duplicate rows are merged onto the latest
+`character_identity.created_at`; other UUIDs credit their current NTCR
+`balance_after` as `IDENTITY_MERGE` and are drained to 0. Transaction history
+stays. Then `character_identity` gets a unique `(ckey, slot)` key.
+
+Admin snippet for a live `BLASTWAVE` (or any 5.39 ledger) — run once, then
+the unique-key alter. Prefix table names if your instance uses one.
+
+```sql
+CREATE TEMPORARY TABLE `_id_merge_pairs` (
+  `survivor_uuid` CHAR(36) NOT NULL,
+  `loser_uuid` CHAR(36) NOT NULL,
+  `loser_balance` BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`loser_uuid`)
+);
+
+INSERT INTO `_id_merge_pairs` (`survivor_uuid`, `loser_uuid`, `loser_balance`)
+SELECT
+  (
+    SELECT `s`.`character_uuid`
+    FROM `character_identity` `s`
+    WHERE `s`.`ckey` = `lose`.`ckey` AND `s`.`slot` = `lose`.`slot`
+    ORDER BY `s`.`created_at` DESC, `s`.`character_uuid` DESC
+    LIMIT 1
+  ) AS `survivor_uuid`,
+  `lose`.`character_uuid`,
+  IFNULL((
+    SELECT `t`.`balance_after`
+    FROM `character_ledger_transaction` `t`
+    WHERE `t`.`character_uuid` = `lose`.`character_uuid`
+      AND `t`.`currency_code` = 'NTCR'
+    ORDER BY `t`.`id` DESC
+    LIMIT 1
+  ), 0)
+FROM `character_identity` `lose`
+WHERE (`lose`.`ckey`, `lose`.`slot`) IN (
+  SELECT `ckey`, `slot` FROM (
+    SELECT `ckey`, `slot`
+    FROM `character_identity`
+    GROUP BY `ckey`, `slot`
+    HAVING COUNT(*) > 1
+  ) `dupes`
+)
+AND `lose`.`character_uuid` != (
+  SELECT `s`.`character_uuid`
+  FROM `character_identity` `s`
+  WHERE `s`.`ckey` = `lose`.`ckey` AND `s`.`slot` = `lose`.`slot`
+  ORDER BY `s`.`created_at` DESC, `s`.`character_uuid` DESC
+  LIMIT 1
+);
+
+DELIMITER $$
+DROP PROCEDURE IF EXISTS `character_identity_merge_duplicates`;
+CREATE PROCEDURE `character_identity_merge_duplicates`()
+BEGIN
+  DECLARE v_done INT DEFAULT 0;
+  DECLARE v_survivor CHAR(36);
+  DECLARE v_loser CHAR(36);
+  DECLARE v_loser_bal BIGINT DEFAULT 0;
+  DECLARE v_surv_bal BIGINT DEFAULT 0;
+
+  DECLARE pair_cur CURSOR FOR
+    SELECT `survivor_uuid`, `loser_uuid`, `loser_balance`
+    FROM `_id_merge_pairs`
+    ORDER BY `survivor_uuid`, `loser_uuid`;
+
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
+
+  START TRANSACTION;
+  OPEN pair_cur;
+  pair_loop: LOOP
+    FETCH pair_cur INTO v_survivor, v_loser, v_loser_bal;
+    IF v_done THEN
+      LEAVE pair_loop;
+    END IF;
+    IF v_loser_bal > 0 THEN
+      SELECT IFNULL((
+        SELECT `balance_after`
+        FROM `character_ledger_transaction`
+        WHERE `character_uuid` = v_survivor AND `currency_code` = 'NTCR'
+        ORDER BY `id` DESC
+        LIMIT 1
+      ), 0) INTO v_surv_bal;
+      INSERT INTO `character_ledger_transaction` (
+        `character_uuid`, `currency_code`, `delta`, `balance_after`,
+        `channel`, `reason`, `idempotency_key`, `round_id`
+      ) VALUES (
+        v_survivor, 'NTCR', v_loser_bal, v_surv_bal + v_loser_bal,
+        'IDENTITY_MERGE', CONCAT('Merged identity ', v_loser),
+        CONCAT('identity_merge:', v_survivor, ':', v_loser), 0
+      );
+      INSERT INTO `character_ledger_transaction` (
+        `character_uuid`, `currency_code`, `delta`, `balance_after`,
+        `channel`, `reason`, `idempotency_key`, `round_id`
+      ) VALUES (
+        v_loser, 'NTCR', -v_loser_bal, 0,
+        'IDENTITY_MERGE', CONCAT('Drained into ', v_survivor),
+        CONCAT('identity_merge:', v_survivor, ':', v_loser, ':drain'), 0
+      );
+    END IF;
+    DELETE FROM `character_identity` WHERE `character_uuid` = v_loser;
+  END LOOP;
+  CLOSE pair_cur;
+  COMMIT;
+END$$
+DELIMITER ;
+
+CALL `character_identity_merge_duplicates`();
+DROP PROCEDURE IF EXISTS `character_identity_merge_duplicates`;
+DROP TEMPORARY TABLE IF EXISTS `_id_merge_pairs`;
+
+ALTER TABLE `character_identity`
+  DROP KEY `idx_character_identity_ckey_slot`,
+  ADD UNIQUE KEY `uniq_character_identity_ckey_slot` (`ckey`, `slot`);
+
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 40);
+```
+
+---
+
+Version 5.39, 12 August 2026, by Maldaris
+Adds append-only character credit ledger tables and the `character_ledger_append` procedure. Ledger money rows are INSERT-only with serial primary keys; balances are derived from the latest `balance_after`.
+
+```sql
+CREATE TABLE `character_identity` (
+  `character_uuid` CHAR(36) NOT NULL,
+  `ckey` VARCHAR(32) NOT NULL,
+  `slot` INT UNSIGNED NOT NULL DEFAULT 0,
+  `display_name` VARCHAR(64) NOT NULL DEFAULT '',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`character_uuid`),
+  KEY `idx_character_identity_ckey_slot` (`ckey`, `slot`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `character_ledger_transaction` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `character_uuid` CHAR(36) NOT NULL,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `delta` BIGINT NOT NULL,
+  `balance_after` BIGINT NOT NULL,
+  `channel` VARCHAR(32) NOT NULL,
+  `reason` VARCHAR(255) NOT NULL DEFAULT '',
+  `idempotency_key` VARCHAR(128) NOT NULL,
+  `round_id` INT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idempotency_key` (`idempotency_key`),
+  KEY `idx_ledger_uuid_currency_id` (`character_uuid`, `currency_code`, `id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `currency_epoch` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `currency_code` VARCHAR(8) NOT NULL,
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `notes` VARCHAR(255) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `currency_code_created` (`currency_code`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT IGNORE INTO `currency_epoch` (`currency_code`, `notes`) VALUES ('NTCR', 'Initial Nanotrasen credit epoch');
+```
+
+See `SQL/nova_schema.sql` for the `character_ledger_append` stored procedure.
 
 ---
 

@@ -1019,6 +1019,29 @@
 			return port
 	return null
 
+/// Like find_dock_quiet, but skips ports whose Z is not on the target body.
+/// Needed for IDs that exist on more than one Z (whiteship_home on Icebox vs station).
+/obj/structure/overmap/ship/simulated/proc/find_dock_quiet_on_zs(id, list/target_zs)
+	for(var/obj/docking_port/stationary/port in SSshuttle.stationary_docking_ports)
+		if(port.shuttle_id != id)
+			continue
+		if(length(target_zs) && !(port.z in target_zs))
+			continue
+		return port
+	return null
+
+/// Named pads for this hull+target. Offsite ships without one may fall back to whiteship_home.
+/obj/structure/overmap/ship/simulated/proc/has_named_dock_for(obj/structure/overmap/target)
+	if(find_dock_quiet("[shuttle.shuttle_id]_[target.id]"))
+		return TRUE
+	if(find_dock_quiet("[OVERMAP_DOCK_PREFIX]_[target.id]"))
+		return TRUE
+	if(istype(target, /obj/structure/overmap/level/main) && find_dock_quiet("[shuttle.shuttle_id]_home"))
+		return TRUE
+	if(istype(target, /obj/structure/overmap/level/mining) && find_dock_quiet("[shuttle.shuttle_id]_away"))
+		return TRUE
+	return FALSE
+
 /// Try to resolve a stationary docking port for `target` and request the
 /// shuttle to fly to it. If `lz_ref` is given, dock at that landing zone
 /// instead of searching pre-mapped ports.
@@ -1061,6 +1084,9 @@
 		)
 		if(istype(target, /obj/structure/overmap/level/main))
 			candidates += "[shuttle.shuttle_id]_home"
+			// Shared station pad for offsite hulls that have no named dock of their own.
+			if(!has_named_dock_for(target))
+				candidates += "whiteship_home"
 		if(istype(target, /obj/structure/overmap/level/mining))
 			candidates += "[shuttle.shuttle_id]_away"
 		if(istype(target, /obj/structure/overmap/dynamic))
@@ -1068,7 +1094,11 @@
 
 		if(!picked)
 			for(var/dock_id in candidates)
-				var/obj/docking_port/stationary/found = find_dock_quiet(dock_id)
+				var/obj/docking_port/stationary/found
+				if(dock_id == "whiteship_home")
+					found = find_dock_quiet_on_zs(dock_id, target_zs)
+				else
+					found = find_dock_quiet(dock_id)
 				if(!found)
 					continue
 				if(!shuttle.check_dock(found, TRUE))
