@@ -7,6 +7,8 @@
 	name = "unknown spatial anomaly"
 	icon_state = "event"
 	integrity = 0
+	contact_type = "event"
+	contact_label = "Hazard"
 	/// Should `affect_ship()` fire repeatedly while co-located?
 	var/affect_multiple_times = FALSE
 	/// Per-tick probability of `affect_ship()` firing (if `affect_multiple_times`).
@@ -47,6 +49,8 @@
 /obj/structure/overmap/event/meteor
 	name = "asteroid storm (moderate)"
 	icon_state = "meteor1"
+	contact_type = "meteor"
+	contact_label = "Meteor"
 	affect_multiple_times = TRUE
 	chance_to_affect = 5
 	spread_chance = 50
@@ -84,6 +88,8 @@
 /obj/structure/overmap/event/electric
 	name = "charged nebula"
 	icon_state = "electrical1"
+	contact_type = "electric"
+	contact_label = "Nebula"
 	affect_multiple_times = TRUE
 	chance_to_affect = 10
 	spread_chance = 40
@@ -104,6 +110,8 @@
 /obj/structure/overmap/event/emp
 	name = "ion cloud"
 	icon_state = "ion1"
+	contact_type = "emp"
+	contact_label = "Ion"
 	spread_chance = 35
 	chain_rate = 2
 	var/emp_heavy = 3
@@ -127,6 +135,8 @@
 /obj/structure/overmap/event/radiation
 	name = "radiation belt"
 	icon_state = "dust1"
+	contact_type = "radiation"
+	contact_label = "Radiation"
 	spread_chance = 30
 	chain_rate = 3
 	affect_multiple_times = TRUE

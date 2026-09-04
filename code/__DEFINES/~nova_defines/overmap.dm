@@ -146,6 +146,23 @@
 /// Time before a scanned contact fades from the radar if not re-scanned.
 #define OVERMAP_SCAN_DECAY (30 SECONDS)
 
+/// Station dish: full 360° sweep uses this short chebyshev/tile range.
+#define OVERMAP_RADAR_WIDE_RANGE 6
+/// Station dish: narrowest cone uses this long range.
+#define OVERMAP_RADAR_NARROW_RANGE 32
+/// Narrowest sweep cone the dish will accept, in degrees.
+#define OVERMAP_RADAR_MIN_ARC 30
+/// Default packet compression when no processor is in the path.
+#define OVERMAP_RADAR_DEFAULT_COMPRESSION 45
+/// Rolling sweep transcripts kept on the radar console.
+#define OVERMAP_RADAR_TRANSCRIPT_SWEEPS 5
+/// Shared network id for mapped Flight Ops radar machines.
+#define OVERMAP_RADAR_NETWORK_FOC "flightops"
+/// Shared autolinker token for mapped Flight Ops radar machines and consoles.
+#define OVERMAP_RADAR_AUTOLINK_FOC "foc"
+/// Max characters for an operator track label on a radar console.
+#define OVERMAP_RADAR_TRACK_NAME_MAX 12
+
 // --- Physics constants ---
 
 /// SSovermap global tick (events). Entity physics and orbits use SSfastprocess.wait (also 0.2s).

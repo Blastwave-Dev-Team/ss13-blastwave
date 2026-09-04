@@ -1,0 +1,480 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aa" = (
+/turf/closed/wall/r_wall,
+/area/station/command/teleporter)
+"ab" = (
+/obj/effect/spawner/structure/window/reinforced,
+/turf/open/floor/plating,
+/area/station/command/flight_operations/server)
+"ac" = (
+/turf/closed/wall/r_wall,
+/area/station/command/flight_operations/server)
+"ad" = (
+/turf/closed/wall/r_wall,
+/area/station/command/flight_operations)
+"ae" = (
+/obj/structure/cable,
+/obj/machinery/door/airlock/command/glass{
+	name = "Flight Operations"
+	},
+/obj/effect/mapping_helpers/airlock/access/any/command/general,
+/obj/machinery/door/firedoor,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"af" = (
+/obj/effect/spawner/structure/window/reinforced,
+/turf/open/floor/plating,
+/area/station/command/flight_operations)
+"ag" = (
+/obj/machinery/door/airlock/glass,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"ah" = (
+/turf/closed/wall/r_wall,
+/area/station/command/flight_operations/lobby)
+"ai" = (
+/obj/effect/spawner/structure/window/reinforced,
+/turf/open/floor/plating,
+/area/station/command/flight_operations/lobby)
+"aj" = (
+/turf/closed/wall/r_wall,
+/area/station/command/gateway)
+"ak" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 4
+	},
+/obj/machinery/overmap_radio/antenna,
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"al" = (
+/obj/machinery/light/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/general/hidden,
+/obj/machinery/airalarm/directional/north,
+/obj/effect/mapping_helpers/airalarm/tlv_cold_room,
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"am" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 8
+	},
+/obj/machinery/firealarm/directional/east,
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"an" = (
+/obj/structure/table,
+/obj/machinery/fax,
+/obj/machinery/light/directional/west,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"ao" = (
+/obj/structure/cable,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"ap" = (
+/obj/structure/cable,
+/obj/machinery/power/apc/auto_name/directional/north,
+/obj/structure/chair/office/tactical{
+	dir = 4
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aq" = (
+/obj/structure/window/reinforced/spawner/directional/east,
+/obj/machinery/computer/overmap_radar{
+	dir = 8
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"ar" = (
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"as" = (
+/obj/machinery/light/directional/north,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"at" = (
+/obj/structure/table,
+/obj/item/kirbyplants/random,
+/obj/machinery/airalarm/directional/east,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"au" = (
+/obj/structure/window/reinforced/spawner/directional/south,
+/obj/machinery/overmap_radar/processor{
+	id = "FOC Radar Processor"
+	},
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"av" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/general/hidden,
+/obj/machinery/door/window/brigdoor/left/directional/south,
+/obj/machinery/door/firedoor/border_only,
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"aw" = (
+/obj/structure/window/reinforced/spawner/directional/south,
+/obj/machinery/overmap_radar/bus{
+	id = "FOC Radar Bus"
+	},
+/turf/open/floor/circuit/telecomms/server,
+/area/station/command/flight_operations/server)
+"ax" = (
+/obj/machinery/airalarm/directional/west,
+/obj/structure/cable,
+/obj/structure/table,
+/obj/item/paper_bin/carbon,
+/obj/item/stamp/nt_logo,
+/obj/item/stamp/granted,
+/obj/item/stamp/denied,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"ay" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"az" = (
+/obj/structure/cable,
+/obj/structure/window/reinforced/spawner/directional/east,
+/obj/structure/table/reinforced,
+/obj/structure/window/reinforced/spawner/directional/south,
+/obj/item/folder/yellow,
+/obj/item/folder/yellow,
+/obj/item/folder/yellow,
+/obj/item/pen,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aA" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aB" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2{
+	dir = 8
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aC" = (
+/obj/structure/chair/sofa/corp/right{
+	dir = 8
+	},
+/obj/structure/cable,
+/obj/machinery/power/apc/auto_name/directional/east,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aD" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on/layer2{
+	dir = 4
+	},
+/obj/structure/cable,
+/obj/machinery/light/directional/west,
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aE" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/general/hidden,
+/obj/structure/cable,
+/obj/structure/fans/tiny,
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aF" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/structure/cable,
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aG" = (
+/obj/machinery/door/airlock/command/glass{
+	name = "Flight Operations Servers"
+	},
+/obj/effect/mapping_helpers/airlock/access/any/command/general,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/structure/cable,
+/obj/machinery/door/firedoor,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/server)
+"aH" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/structure/cable,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aI" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aJ" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/structure/chair/office/tactical{
+	dir = 4
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aK" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/structure/table/reinforced,
+/obj/machinery/door/window/right/directional/east,
+/obj/item/folder/yellow,
+/obj/item/pen,
+/obj/machinery/door/window/brigdoor/right/directional/west{
+	req_access = list("command")
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aL" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aM" = (
+/obj/structure/chair/sofa/corp{
+	dir = 8
+	},
+/obj/machinery/light/directional/east,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aN" = (
+/obj/structure/table,
+/obj/machinery/firealarm/directional/south,
+/obj/item/multitool,
+/obj/item/multitool{
+	pixel_x = 5;
+	pixel_y = 5
+	},
+/obj/item/multitool{
+	pixel_x = -5;
+	pixel_y = -5
+	},
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aO" = (
+/obj/machinery/atmospherics/components/unary/thermomachine/freezer/on{
+	dir = 1
+	},
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aP" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/obj/machinery/power/apc/auto_name/directional/south,
+/obj/structure/cable,
+/turf/open/floor/iron/dark,
+/area/station/command/flight_operations/server)
+"aQ" = (
+/obj/machinery/light/directional/west,
+/obj/structure/table,
+/obj/item/kirbyplants/random,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aR" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aS" = (
+/obj/machinery/computer/overmap_radar{
+	dir = 1
+	},
+/obj/machinery/firealarm/directional/south,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aT" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aU" = (
+/obj/machinery/firealarm/directional/east,
+/obj/structure/chair/sofa/corp/left{
+	dir = 8
+	},
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aV" = (
+/obj/machinery/door/airlock/command/glass{
+	name = "Flight Operations"
+	},
+/obj/effect/mapping_helpers/airlock/access/any/command/general,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/turf/open/floor/iron,
+/area/station/command/flight_operations)
+"aW" = (
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/door/airlock/glass,
+/turf/open/floor/iron,
+/area/station/command/flight_operations/lobby)
+"aX" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/turf/template_noop,
+/area/template_noop)
+"aY" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/structure/disposalpipe/segment{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/turf/open/floor/iron,
+/area/station/hallway/primary/central)
+"aZ" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/structure/disposalpipe/segment{
+	dir = 10
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/turf/open/floor/iron,
+/area/station/hallway/primary/central)
+"ba" = (
+/obj/effect/turf_decal/tile/neutral{
+	dir = 1
+	},
+/obj/effect/turf_decal/tile/neutral{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2,
+/obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
+/turf/open/floor/iron,
+/area/station/hallway/primary/central)
+
+(1,1,1) = {"
+aa
+aa
+aa
+aa
+aa
+aa
+aX
+"}
+(2,1,1) = {"
+ab
+ak
+au
+aD
+aN
+ac
+aX
+"}
+(3,1,1) = {"
+ac
+al
+av
+aE
+aO
+ab
+aX
+"}
+(4,1,1) = {"
+ab
+am
+aw
+aF
+aP
+ac
+aY
+"}
+(5,1,1) = {"
+ac
+ac
+ac
+aG
+ac
+ac
+aY
+"}
+(6,1,1) = {"
+ad
+an
+ax
+aH
+aQ
+ad
+aY
+"}
+(7,1,1) = {"
+ae
+ao
+ay
+aI
+aR
+aV
+aY
+"}
+(8,1,1) = {"
+ad
+ap
+ao
+aJ
+aS
+ad
+aZ
+"}
+(9,1,1) = {"
+af
+aq
+az
+aK
+ad
+ad
+ba
+"}
+(10,1,1) = {"
+ag
+ar
+aA
+aL
+aT
+aW
+ba
+"}
+(11,1,1) = {"
+ah
+as
+aB
+ar
+ar
+ai
+aX
+"}
+(12,1,1) = {"
+ai
+at
+aC
+aM
+aU
+ai
+aX
+"}
+(13,1,1) = {"
+aj
+aj
+aj
+aj
+aj
+aj
+aX
+"}

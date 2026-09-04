@@ -379,6 +379,7 @@
 #include "~nova\overmap_gps_recovery.dm"
 #include "~nova\overmap_landing_controller.dm"
 #include "~nova\overmap_mapping_helpers.dm"
+#include "~nova\overmap_radar_radio.dm"
 #include "~nova\overmap_ruins.dm"
 #include "~nova\overmap_shipyard_fabricator.dm"
 #include "~nova\overmap_site_seeding.dm"
