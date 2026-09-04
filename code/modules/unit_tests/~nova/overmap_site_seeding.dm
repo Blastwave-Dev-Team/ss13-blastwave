@@ -20,6 +20,30 @@
 	large.height = 10
 	TEST_ASSERT(!SSovermap.is_overmap_cluster_ruin(large), "Side above max should be solo-sized.")
 
+/// Station-relative site placement stays inside the requested chebyshev band.
+/datum/unit_test/overmap_site_distance_band
+
+/datum/unit_test/overmap_site_distance_band/Run()
+	if(!SSovermap.main || !SSovermap.overmap_z)
+		return
+	var/turf/station = get_turf(SSovermap.main)
+	TEST_ASSERT(station, "Station overmap POI has no turf.")
+	var/turf/picked = SSovermap.get_unused_overmap_square_near(SSovermap.main, 6, 10)
+	TEST_ASSERT(picked, "Distance-banded placement should find a free tile.")
+	var/dist = get_dist(station, picked)
+	TEST_ASSERT(dist >= 6, "Banded tile [AREACOORD(picked)] is [dist] from station, expected >= 6.")
+	TEST_ASSERT(dist <= 10, "Banded tile [AREACOORD(picked)] is [dist] from station, expected <= 10.")
+
+	for(var/obj/structure/overmap/poi in SSovermap.overmap_objects)
+		var/list/band = SSovermap.get_site_distance_band(poi.id)
+		if(!band)
+			continue
+		var/site_dist = get_dist(station, get_turf(poi))
+		if(band[1])
+			TEST_ASSERT(site_dist >= band[1], "POI [poi.id] is [site_dist] from station, expected >= [band[1]].")
+		if(band[2])
+			TEST_ASSERT(site_dist <= band[2], "POI [poi.id] is [site_dist] from station, expected <= [band[2]].")
+
 /// Site Zs seed landing zones and have no premapped OVERMAP_DOCK ports.
 /datum/unit_test/overmap_site_lz_seeding
 

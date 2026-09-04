@@ -21,6 +21,15 @@
 /area/shuttle/overmap/frigate
 	name = "Frigate"
 
+/area/shuttle/overmap/frigate/interdyne_cargo
+	name = "Interdyne Cargo"
+
+/area/shuttle/overmap/frigate/tarkon_driver
+	name = "Tarkon Driver"
+
+/area/shuttle/overmap/frigate/blackmarket_burst
+	name = "Black Market Burst"
+
 /* STATIC ORBITAL STRUCTURE AREAS */
 
 /// Base for non-mobile orbital structures loaded as their own map section.

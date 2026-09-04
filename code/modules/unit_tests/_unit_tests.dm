@@ -365,6 +365,7 @@
 // NOVA EDIT START
 #include "~nova\apc_shuttle_rotate.dm"
 #include "~nova\automapper.dm"
+#include "~nova\character_ledger.dm"
 #include "~nova\digi_underclothes.dm"
 #include "~nova\liver_nova.dm"
 #include "~nova\megacell_charger.dm"
@@ -377,6 +378,7 @@
 #include "~nova\overmap_fuel_injector.dm"
 #include "~nova\overmap_gps_recovery.dm"
 #include "~nova\overmap_landing_controller.dm"
+#include "~nova\overmap_mapping_helpers.dm"
 #include "~nova\overmap_ruins.dm"
 #include "~nova\overmap_shipyard_fabricator.dm"
 #include "~nova\overmap_site_seeding.dm"

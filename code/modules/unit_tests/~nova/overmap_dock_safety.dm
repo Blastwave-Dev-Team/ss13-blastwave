@@ -387,3 +387,128 @@
 	if(cutter.current_ship == ship)
 		cutter.current_ship = null
 	ship.shuttle = null
+
+/// Registered test hull with explicit bbox. Unbinds any auto-created overmap icon.
+/datum/unit_test/overmap_dock_safety/proc/make_sized_mobile(turf/port_turf, size = 2, id = "overlap_test")
+	var/obj/docking_port/mobile/port = allocate(/obj/docking_port/mobile, port_turf)
+	port.shuttle_id = id
+	port.width = size
+	port.height = size
+	port.dwidth = 0
+	port.dheight = 0
+	port.setDir(NORTH)
+	port.register(TRUE)
+	if(port.current_ship)
+		var/obj/structure/overmap/ship/simulated/auto_ship = port.current_ship
+		port.current_ship = null
+		auto_ship.shuttle = null
+		qdel(auto_ship)
+	return port
+
+/datum/unit_test/overmap_dock_safety/overlap_occupied
+
+/datum/unit_test/overmap_dock_safety/overlap_occupied/Run()
+	cutter_reserve = SSmapping.request_turf_block_reservation(
+		6,
+		4,
+		1,
+		reservation_type = /datum/turf_reservation/transit,
+	)
+	TEST_ASSERT(cutter_reserve, "Failed to reserve block for overlap_occupied")
+	var/turf/origin = cutter_reserve.bottom_left_turfs[1]
+	for(var/turf/tile as anything in block(origin.x, origin.y, origin.z, origin.x + 5, origin.y + 3, origin.z))
+		tile.ChangeTurf(/turf/open/floor/plating)
+
+	var/obj/docking_port/mobile/occupant = make_sized_mobile(origin, 2, "overlap_occupant")
+	var/turf/dest_turf = locate(origin.x + 1, origin.y, origin.z)
+	var/obj/docking_port/stationary/dest = make_stationary_port(dest_turf, size = 2)
+	var/obj/docking_port/mobile/incoming = make_sized_mobile(locate(origin.x + 4, origin.y, origin.z), 2, "overlap_incoming")
+
+	TEST_ASSERT(dest.overlaps_other_mobile(incoming), "Dest bbox should overlap the occupant hull.")
+	TEST_ASSERT_EQUAL(incoming.canDock(dest), SHUTTLE_SOMEONE_ELSE_DOCKED, "Occupied bbox must reject docking.")
+	TEST_ASSERT(!incoming.check_dock(dest, TRUE), "check_dock must fail when another hull covers the pad.")
+	TEST_ASSERT_NULL(incoming.resolve_near_station_space_fallback(dest, SHUTTLE_SOMEONE_ELSE_DOCKED), "Non-ERT hulls must not get a space fallback.")
+
+	var/turf/clear_turf = locate(origin.x + 3, origin.y, origin.z)
+	var/obj/docking_port/stationary/clear_dest = make_stationary_port(clear_turf, size = 2)
+	TEST_ASSERT(!clear_dest.overlaps_other_mobile(incoming), "Adjacent non-overlapping pad should be clear of the occupant.")
+	TEST_ASSERT_EQUAL(incoming.canDock(clear_dest), SHUTTLE_CAN_DOCK, "Clear adjacent pad should accept docking.")
+
+	qdel(occupant, force = TRUE)
+
+/datum/unit_test/overmap_dock_safety/ert_space_fallback
+
+/datum/unit_test/overmap_dock_safety/ert_space_fallback/Run()
+	TEST_ASSERT(docking_bboxes_overlap(list(1, 1, 2, 2), list(2, 2, 3, 3)), "Touching bboxes must count as overlap.")
+	TEST_ASSERT(!docking_bboxes_overlap(list(1, 1, 2, 2), list(3, 1, 4, 2)), "Separated bboxes must not overlap.")
+	TEST_ASSERT(!docking_bbox_is_on_map(list(1, 1, 5, 5)), "Bbox in the transition edge must be rejected.")
+	TEST_ASSERT(docking_bbox_is_on_map(list(TRANSITIONEDGE, TRANSITIONEDGE, TRANSITIONEDGE + 4, TRANSITIONEDGE + 4)), "Inset bbox must be on-map.")
+	TEST_ASSERT(!docking_bbox_is_on_map(list(world.maxx - 3, TRANSITIONEDGE + 2, world.maxx, TRANSITIONEDGE + 6)), "Bbox clipping world.maxx must be rejected.")
+	TEST_ASSERT(!docking_bbox_is_on_map(list(TRANSITIONEDGE + 2, world.maxy - 3, TRANSITIONEDGE + 6, world.maxy)), "Bbox clipping world.maxy must be rejected.")
+
+	var/list/station_zs = SSmapping.levels_by_trait(ZTRAIT_STATION)
+	if(length(station_zs))
+		var/turf/station_tile
+		for(var/turf/maybe as anything in Z_TURFS(station_zs[1]))
+			if(istype(maybe.loc, /area/station))
+				station_tile = maybe
+				break
+		if(station_tile)
+			var/list/station_coords = list(station_tile.x, station_tile.y, station_tile.x, station_tile.y)
+			TEST_ASSERT(docking_bbox_clips_station(station_coords, station_tile.z), "A bbox on a station area tile must count as clipping the station.")
+			TEST_ASSERT(!docking_bbox_clips_station(list(1, 1, 2, 2), station_tile.z), "A bbox in the map corner must not count as station clipping.")
+
+	cutter_reserve = SSmapping.request_turf_block_reservation(
+		8,
+		4,
+		1,
+		reservation_type = /datum/turf_reservation/transit,
+	)
+	TEST_ASSERT(cutter_reserve, "Failed to reserve block for ert_space_fallback")
+	var/turf/origin = cutter_reserve.bottom_left_turfs[1]
+	for(var/turf/tile as anything in block(origin.x, origin.y, origin.z, origin.x + 7, origin.y + 3, origin.z))
+		tile.ChangeTurf(/turf/open/floor/plating)
+
+	var/obj/docking_port/mobile/occupant = make_sized_mobile(origin, 2, "ert_fallback_occupant")
+	var/turf/dest_turf = locate(origin.x + 1, origin.y, origin.z)
+	var/obj/docking_port/stationary/dest = make_stationary_port(dest_turf, size = 2)
+	var/obj/docking_port/mobile/ert = make_sized_mobile(locate(origin.x + 5, origin.y, origin.z), 2, "ert_test_shuttle")
+
+	TEST_ASSERT(ert.uses_near_station_space_fallback(), "shuttle_id containing ert must use the space fallback.")
+	TEST_ASSERT_EQUAL(ert.canDock(dest), SHUTTLE_SOMEONE_ELSE_DOCKED, "ERT must still see the hangar as occupied.")
+
+	var/obj/docking_port/stationary/fallback = ert.maybe_divert_occupied_dock(dest)
+	TEST_ASSERT(fallback, "Occupied hangar must rematch an ERT to a near-station landing.")
+	TEST_ASSERT(fallback != dest, "Fallback must not be the occupied hangar pad.")
+	TEST_ASSERT_EQUAL(ert.canDock(fallback), SHUTTLE_CAN_DOCK, "Fallback dock must be clear for the ERT.")
+
+	var/obj/docking_port/stationary/whiteship = SSshuttle.getDock("whiteship_home")
+	if(whiteship && fallback == whiteship)
+		var/obj/docking_port/mobile/whiteship_blocker = make_sized_mobile(get_turf(whiteship), 1, "whiteship_blocker")
+		TEST_ASSERT_EQUAL(ert.canDock(whiteship), SHUTTLE_SOMEONE_ELSE_DOCKED, "Occupied whiteship_home must reject docking.")
+		var/obj/docking_port/stationary/space_dock = ert.resolve_near_station_space_fallback(whiteship, SHUTTLE_SOMEONE_ELSE_DOCKED)
+		TEST_ASSERT(space_dock, "ERT must stamp a space dock when whiteship_home is also occupied.")
+		TEST_ASSERT(space_dock != whiteship, "Space fallback must not reuse the occupied whiteship dock.")
+		TEST_ASSERT_EQUAL(ert.canDock(space_dock), SHUTTLE_CAN_DOCK, "Stamped space dock must accept the ERT.")
+		if(space_dock.delete_after)
+			qdel(space_dock, force = TRUE)
+		qdel(whiteship_blocker, force = TRUE)
+	else if(fallback?.delete_after)
+		qdel(fallback, force = TRUE)
+
+	var/turf/space_origin = cutter_reserve.bottom_left_turfs[1]
+	var/turf/space_tile = locate(space_origin.x + 6, space_origin.y, space_origin.z)
+	space_tile.ChangeTurf(/turf/open/space/basic)
+	var/turf/space_tile_b = locate(space_origin.x + 7, space_origin.y, space_origin.z)
+	space_tile_b.ChangeTurf(/turf/open/space/basic)
+	var/turf/space_tile_c = locate(space_origin.x + 6, space_origin.y + 1, space_origin.z)
+	space_tile_c.ChangeTurf(/turf/open/space/basic)
+	var/turf/space_tile_d = locate(space_origin.x + 7, space_origin.y + 1, space_origin.z)
+	space_tile_d.ChangeTurf(/turf/open/space/basic)
+	TEST_ASSERT(ert.space_anchor_is_clear(space_tile, NORTH), "A 2x2 of real space must pass space_anchor_is_clear.")
+	TEST_ASSERT(!ert.space_anchor_is_clear(origin, NORTH), "Plating must fail space_anchor_is_clear.")
+	var/obj/structure/lattice/blocker = allocate(/obj/structure/lattice, space_tile)
+	TEST_ASSERT(!ert.space_anchor_is_clear(space_tile, NORTH), "Lattice on a space tile must fail space_anchor_is_clear.")
+	qdel(blocker)
+
+	qdel(occupant, force = TRUE)

@@ -43,6 +43,7 @@
 
 		load(central_turf,centered = TRUE)
 		loaded++
+		SSautomapper.load_templates_for_ruin(src, load_origin_turf(central_turf, TRUE)) // BLASTWAVE EDIT ADDITION - OVERMAP - ruin-relative automapper
 
 		for(var/turf/T in affected_turfs)
 			T.turf_flags |= NO_RUINS
@@ -57,6 +58,7 @@
 	var/turf/placement = reservation.bottom_left_turfs[1]
 	load(placement)
 	loaded++
+	SSautomapper.load_templates_for_ruin(src, load_origin_turf(placement, FALSE)) // BLASTWAVE EDIT ADDITION - OVERMAP - ruin-relative automapper
 	for(var/turf/T in get_affected_turfs(placement))
 		T.turf_flags |= NO_RUINS
 	var/turf/center = locate(placement.x + round(width/2),placement.y + round(height/2),placement.z)

@@ -653,11 +653,12 @@ SPY_HARD_REWARD_TC_THRESHOLD 15
 ## Generator type: "Random" (default) or "Solar" (orbital rings around star).
 OVERMAP_GENERATOR_TYPE Solar
 ## Maximum total overmap event tiles (debris, nebulae, etc).
-MAX_OVERMAP_EVENTS 12
-## Maximum event clusters spawned (each cluster spreads outward from a seed).
-MAX_OVERMAP_EVENT_CLUSTERS 3
+## Sized for 64x64 so hops cross belts you have to steer around (~3% coverage).
+MAX_OVERMAP_EVENTS 120
+## Maximum event clusters spawned (each cluster spreads or chains from a seed).
+MAX_OVERMAP_EVENT_CLUSTERS 12
 ## Maximum dynamic encounter objects (dockable ruins/anomalies).
-MAX_OVERMAP_DYNAMIC_EVENTS 4
+MAX_OVERMAP_DYNAMIC_EVENTS 8
 ## Maximum named ruin templates placed as overmap sites (budget-fill cap after always_place).
 ## Real Z count is solos + ceil(smalls / OVERMAP_CLUSTER_CAPACITY), not this number.
 MAX_OVERMAP_NAMED_SITES 10
@@ -668,3 +669,10 @@ OVERMAP_CLUSTER_CAPACITY 4
 OVERMAP_SITE_LZ_COUNT 3
 ## Maximum per-side dimension (tiles) for a player-constructed landing zone (sized to the largest evac shuttle).
 MAX_OVERMAP_LANDING_ZONE_DIMENSION 80
+## Optional chebyshev band from the station POI, keyed by ruin id
+## (`des_two`, `blackmarket`, …) or `mining` for the Lavaland / Interdyne planet.
+## Unlisted ids pick any free tile. Repeat a line per site. Omit MAX for no outer cap.
+OVERMAP_SITE_MIN_DISTANCE blackmarket 6
+OVERMAP_SITE_MAX_DISTANCE blackmarket 10
+OVERMAP_SITE_MIN_DISTANCE des_two 30
+OVERMAP_SITE_MIN_DISTANCE mining 8

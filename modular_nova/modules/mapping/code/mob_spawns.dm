@@ -37,7 +37,6 @@
 	uniform = /obj/item/clothing/under/rank/cargo/tech
 	shoes = /obj/item/clothing/shoes/laceup
 	id = /obj/item/card/id/advanced/chameleon/elite/black/blackmarket
-	l_pocket = /obj/item/shuttle_remote/bmd
 
 /datum/outfit/black_market/post_equip(mob/living/carbon/human/shady, visualsOnly)
 	handlebank(shady)
@@ -48,17 +47,6 @@
 			bank_account.adjust_money((rand(BM_TRADER_MIN_CASH, BM_TRADER_MAX_CASH)))
 
 	. = ..()
-
-	var/obj/item/shuttle_remote/bmd/remote = shady.get_item_by_slot(ITEM_SLOT_LPOCKET)
-	if(!remote)
-		return
-	// we boldly assume only one Burst was spawned. Checking by Z-level defeats the purpose of this remote being used by latejoining BMD to retrieve stolen shuttle.
-	var/list/consoles = SSmachines.get_machines_by_type(/obj/machinery/computer/shuttle/caravan/blackmarket_burst)
-	var/obj/machinery/computer/shuttle/caravan/blackmarket_burst/console = pick(consoles)
-	if(!console || console?.remote_ref)
-		return
-	console.remote_ref = WEAKREF(remote)
-	remote.computer_ref = WEAKREF(console)
 
 /obj/item/gun/energy/laser/cybersun/black_market_trader
 	desc = "A laser gun primarily used by syndicate security guards. It fires a rapid spray of low-power plasma beams. This one seems to have had its firing pin replaced."

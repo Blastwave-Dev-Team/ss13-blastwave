@@ -126,11 +126,15 @@
 
 /obj/structure/overmap/event/radiation
 	name = "radiation belt"
-	icon_state = "strange_event"
+	icon_state = "dust1"
 	spread_chance = 30
 	chain_rate = 3
 	affect_multiple_times = TRUE
 	chance_to_affect = 3
+
+/obj/structure/overmap/event/radiation/Initialize(mapload, _id)
+	. = ..()
+	icon_state = "dust[rand(1, 4)]"
 
 /obj/structure/overmap/event/radiation/affect_ship(obj/structure/overmap/ship/simulated/S)
 	if(!S.shuttle)
