@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../"><link rel="stylesheet" href="dmdoc.css"><title>modular_nova/modules/overmap/readme.md - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a></header><main><h1>Overmap <aside>modular_nova/modules/overmap/readme.md</aside> <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/modular_nova/modules/overmap/readme.md"><img src="git.png" width="16" height="16" title="modular_nova/modules/overmap/readme.md"></a></h1><table class="summary" cellspacing="0"><tr><td colspan="2"><h2 id="about">About</h2>
+<p>A tile-based &quot;overmap&quot; Z-level for navigating shuttles between points of
+interest (the station, mining, and post-prototype dynamic encounters).
+Originally implemented for Whitesands; this is a forward-port adapted to
+Nova-shaped tooling.</p>
+<p>The system models a 20x20 grid where each shuttle is represented by a
+<code>/obj/structure/overmap/ship/simulated</code> icon. Players sit at a helm
+console, see the overmap via a <code>ByondUi</code> map widget, and pilot the ship
+between station/mining/etc. by manipulating engines and a 3x3 directional
+control. Clicking &quot;Act&quot; on an overmap target triggers a real
+<code>SSshuttle.request()</code> against an associated stationary docking port.</p>
+<h2 id="module-id">Module ID</h2>
+<p><code>OVERMAP</code></p>
+<h2 id="status">Status</h2>
+<p>Playable prototype - milestones M1 through M7 from the implementation
+plan. Post-prototype backlog (events, dynamic encounters, planet
+generator stub, solar generator, configuration entries, wraparound
+polish, more shuttle area_spawn entries) is tracked separately.</p>
+<p>Space ruin spawning is now overmap-controlled: when <code>overmap_space_ruins</code>
+is TRUE in map config, SSmapping no longer creates crosslinked space ruin
+Zs. Instead, SSovermap.seed_space_sites() places ruin templates as named
+<code>/level/site</code> POIs on isolated reserved Zs.</p>
+<p>Which ruins that draws, and therefore how many full Z levels of turfs a
+round carries, varies run to run. <code>log_overmap_footprint()</code> writes the
+count, the levels taken, and the template ids to <code>world.log</code> once the grid
+is generated, so a round that runs out of memory can be read back against
+what it seeded.</p>
+<p>Cross-faction stealth hides the NT station from DS2 viewers (and vice
+versa in v1) until a deployable syndicate beacon is activated.</p>
+<h2 id="files-added">Files added</h2><h3 id="new-modular-files">New modular files</h3>
+<ul>
+<li><code>modular_nova/modules/overmap/code/overmap_subsystem.dm</code> - SSovermap.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_objects.dm</code> - turfs, area,
+base <code>/obj/structure/overmap</code>, level subtypes (main, mining, site), star.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_ships.dm</code> - base ship and
+<code>/ship/simulated</code> (shuttle-bound) types.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_helm.dm</code> - helm console
+computer + viewscreen.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_nav.dm</code> - shuttle-docker
+subtype that filters landing targets through the overmap.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_engine.dm</code>,
+<code>overmap_engine_types.dm</code>, <code>overmap_heater.dm</code> - shuttle thrust/fuel.</li>
+<li><code>modular_nova/modules/overmap/code/gas_connector.dm</code> - hidden unary
+atmos port used by <code>gas_machine_connector</code>, with shuttle-transit-safe
+<code>return_pipenet</code> / <code>add_member</code> guards.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_circuits.dm</code> - circuit
+boards for helm, nav, engine, heater, landing controller, and corner beacon.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_landing_beacon.dm</code> -
+player-constructable landing zones: <code>/obj/machinery/landing_corner</code>
+light beacons linked via multitool to a <code>/obj/machinery/computer/landing_controller</code>
+console (records-style login, command/engineering access) that derives a
+rectangular landmark, gated by <code>max_overmap_landing_zone_dimension</code>.</li>
+<li><code>tgui/packages/tgui/interfaces/OvermapLandingController.tsx</code> - the
+landing controller UI (login gate, zone naming, corner validation,
+occupancy). Static mock: <code>tgui/prototypes/OvermapLandingController.html</code>.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_area_spawn.dm</code> -
+<code>/datum/area_spawn</code> entries for helm, nav, engines, and the wall-mount
+distress beacon.</li>
+<li><code>modular_nova/modules/overmap/code/overmap_distress_beacon.dm</code> -
+wall-mount NT distress beacon (additive evac call path).</li>
+<li><code>modular_nova/modules/overmap/code/overmap_syndicate_beacon.dm</code> -
+deployable syndicate station beacon (reveals NT to DS2).</li>
+<li><code>modular_nova/modules/overmap/icons/*.dmi</code> - sprites including
+<code>stationary_beacons.dmi</code> (NT wall beacon + syndicate deployable states).</li>
+<li><code>tgui/packages/tgui/interfaces/HelmConsole.tsx</code> - the helm UI rewrite.</li>
+<li><code>tgui/packages/tgui/interfaces/DistressBeacon.tsx</code> - evac beacon TGUI.</li>
+<li><code>code/__DEFINES/~nova_defines/overmap.dm</code> - cross-file defines.</li>
+<li><code>code/modules/unit_tests/~nova/overmap_ruins.dm</code> - unit tests for
+site POIs, stealth gating, crosslinked Z prevention, beacon, and the
+corpse spawner environment exemption.</li>
+</ul>
+<h3 id="master-files-overrides">master_files overrides</h3>
+<ul>
+<li><code>modular_nova/master_files/code/controllers/subsystem/mapping.dm</code> -
+adds <code>overmap_space_ruins</code> var on <code>/datum/map_config</code>; extends
+<code>setup_ruins()</code> to skip space ruin seeding when flag is set.</li>
+<li><code>modular_nova/master_files/code/datums/elements/atmos_requirements.dm</code>
+and <code>body_temp_sensitive.dm</code> - exempt a mob a corpse spawner is in the
+middle of making from the maploaded-environment assertions. Sites and
+encounters load after SSair, which is when those assertions stop being
+deferred and start catching the live line between a corpse spawner
+creating its mob and killing it, failing CI on airless stock ruins.</li>
+</ul>
+<h3 id="core-file-changes-blastwave-edit-addition-change-overmap">Core file changes (BLASTWAVE EDIT ADDITION/CHANGE OVERMAP)</h3>
+<ul>
+<li><code>code/modules/shuttle/mobile_port/mobile_port.dm</code> - adds
+<code>var/obj/structure/overmap/ship/simulated/current_ship</code> to
+<code>/obj/docking_port/mobile</code>, and a <code>SSovermap.setup_shuttle_ship(src)</code>
+hook in <code>Initialize()</code> for non-mapload ports.</li>
+<li><code>code/modules/shuttle/mobile_port/shuttle_move.dm</code> - calls
+<code>current_ship?.check_loc()</code> in <code>initiate_docking</code> after a successful
+move, so the overmap icon resyncs to the destination Z. Stays below
+the existing SSliquids hook so liquid handling fires first.</li>
+<li><code>code/__HELPERS/names.dm</code> - syncs <code>SSovermap.main.name</code> to
+<code>GLOB.station_name</code> whenever the station is renamed.</li>
+<li><code>code/datums/map_config.dm</code> - JSON parse for <code>overmap_space_ruins</code>
+config flag (BLASTWAVE EDIT ADDITION - OVERMAP).</li>
+<li><code>code/modules/atmospherics/machinery/components/unary_devices/machine_connector.dm</code> -
+explicit <code>gas_connector</code> subtype instantiation and <code>piping_layer</code> support
+(BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/controllers/subsystem/mapping.dm</code> - <code>claim_turfs_for_reservation</code>
+proc for post-load ruin turf claiming (BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/modules/mapping/space_management/space_reservation.dm</code> - multiz
+reservation bounds hardening (BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/modules/library/bookcase.dm</code> - null <code>book_data</code> guard during ruin
+map init (BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/modules/research/techweb/nodes/engi_nodes.dm</code> - overmap console
+and propulsion techweb designs (BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/controllers/subsystem/shuttle.dm</code> - deferred <code>post_load</code> in preview
+flow (BLASTWAVE EDIT - SHUTTLE_CONSTRUCTION).</li>
+<li><code>code/controllers/master.dm</code> - <code>paused_ticks</code> MC guard (BLASTWAVE EDIT -
+OVERMAP).</li>
+<li><code>code/modules/unit_tests/_unit_tests.dm</code> - include for
+<code>~nova/overmap_ruins.dm</code> (BLASTWAVE EDIT ADDITION - OVERMAP).</li>
+<li><code>code/modules/shuttle/mobile_port/variants/custom/blueprints.dm</code> -
+christen routes through <code>sync_shuttle_display_name</code> (overmap + GPS);
+master-blueprint TGUI <code>renameShuttle</code> + <code>shuttleName</code> ui_data
+(BLASTWAVE EDIT - OVERMAP). Helper lives in
+<code>modular_nova/modules/overmap/code/overmap_shuttles.dm</code>.</li>
+<li><code>code/controllers/subsystem/air.dm</code> - <code>begin_z_eject</code> / <code>end_z_eject</code> /
+<code>eject_z_from_lists</code> and <code>ejected_zs</code> gate on <code>add_to_active</code> so overmap
+content-Z soft-clear purges LINDA without walking <code>Z_TURFS</code>
+(BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/modules/atmospherics/environmental/LINDA_turf_tile.dm</code> - null-air
+neighbor guard before <code>LINDA_CYCLE_ARCHIVE</code> during Z soft-clear races
+(BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/controllers/subsystem/atoms.dm</code> - re-check <code>INITIALIZED_1</code> after
+<code>CreateAtoms</code> yield so async modular map loads (Port Tarkon) cannot
+double-init unique ruin areas (BLASTWAVE EDIT - OVERMAP).</li>
+<li><code>code/game/objects/structures/crates_lockers/closets/utility_closets.dm</code> -
+confines emergency-closet random replacement/deletion to mapload so
+nullspace shipyard preparation is deterministic.</li>
+<li><code>code/modules/mapping/mapping_helpers.dm</code> - accepts an explicit completed
+shipyard target and serialized DMM vars, then applies airlock, air-alarm,
+and APC behavior through the actual inherited helper subtype.</li>
+<li><code>code/modules/power/lighting/light.dm</code> - permits initialized light fixtures
+to remain safely in nullspace until atomic shipyard placement.</li>
+<li><code>code/modules/power/power.dm</code> - ignores deferred cable icon refreshes whose
+turf was deleted during shuttle/test cleanup.</li>
+</ul>
+<h3 id="config-map-json-not-dmm">Config (map JSON, not .dmm)</h3>
+<ul>
+<li>Every playable map's JSON (metastation, icebox, tramstation, blueshift,
+oceanpubby, and the rest) - <code>space_ruin_levels: 0</code>,
+<code>space_empty_levels: 0</code>, <code>overmap_space_ruins: true</code>. Debug and event
+maps zero the legacy levels without taking overmap ruins.</li>
+</ul>
+<h2 id="credits">Credits</h2>
+<p>Original Whitesands code: Whitesands contributors. Forward-port for
+ss13-blastwave: see git history.</p></td></tr></table></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b0f141c26a35708ad038edf631f3d1ad0496b197">b0f141c</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>

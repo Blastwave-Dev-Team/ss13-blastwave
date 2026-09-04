@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../"><link rel="stylesheet" href="dmdoc.css"><title>modular_nova/modules/character_ledger/readme.md - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a></header><main><h1>modular_nova/modules/character_ledger/readme.md <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/modular_nova/modules/character_ledger/readme.md"><img src="git.png" width="16" height="16" title="modular_nova/modules/character_ledger/readme.md"></a></h1><table class="summary" cellspacing="0"><tr><td colspan="2"><p><a href="https://github.com/NovaSector/NovaSector/pull/">https://github.com/NovaSector/NovaSector/pull/</a></p>
+<h2 id="character-ledger">Character Ledger</h2>
+<p>Module ID: CHARACTER_LEDGER</p>
+<h3 id="description">Description</h3>
+<p>Persistent per-character Nanotrasen credit ledger, plus an ATM that
+moves credits between that ledger and the round ID account. Identity is an
+immutable <code>character_uuid</code> on character prefs, copied onto the mind at spawn.
+Ledger rows are INSERT-only. ATM deposits need no PIN; withdrawals require the
+character PIN each click.</p>
+<h3 id="tg-proc-file-changes">TG Proc/File Changes</h3>
+<ul>
+<li><code>code/__DEFINES/subsystems.dm</code>: <code>DB_MINOR_VERSION</code> bumped for ledger schema</li>
+<li><code>code/modules/unit_tests/_unit_tests.dm</code>: include for
+<code>~nova/character_ledger.dm</code></li>
+<li><code>SQL/nova_schema.sql</code>: <code>character_identity</code>,
+<code>character_ledger_transaction</code>, <code>character_ledger_append</code></li>
+<li><code>SQL/database_changelog.md</code>: schema 5.40 notes</li>
+</ul>
+<h3 id="modular-overrides">Modular Overrides</h3>
+<ul>
+<li><code>modular_nova/master_files/code/datums/mind/_mind.dm</code>:
+<code>var/character_uuid</code>, <code>var/atm_pin</code></li>
+<li><code>modular_nova/master_files/code/modules/mob/dead/new_player/new_player.dm</code>:
+<code>create_character</code> copies UUID, ensures identity, remembers ATM PIN</li>
+<li><code>modular_nova/master_files/code/modules/jobs/job_types/_job.dm</code>:
+<code>on_job_equipping</code> remembers ATM PIN after job gear</li>
+<li><code>modular_nova/master_files/code/controllers/subsystem/persistence/_persistence.dm</code>:
+<code>collect_data</code> runs evac deposit and ROUND_CLOSE</li>
+<li><code>modular_nova/master_files/code/modules/client/preferences.dm</code>:
+<code>var/character_uuid</code></li>
+<li><code>modular_nova/master_files/code/modules/client/preferences_savefile.dm</code>:
+load/save <code>character_uuid</code></li>
+</ul>
+<h3 id="defines">Defines</h3>
+<ul>
+<li><code>code/__DEFINES/~nova_defines/character_ledger.dm</code>:
+<code>LEDGER_CURRENCY_NTCR</code>, <code>LEDGER_CHANNEL_*</code>, <code>LEDGER_STATUS_*</code>,
+<code>ATM_DEPOSIT_LIMIT_DEFAULT</code>, <code>ATM_WITHDRAW_LIMIT_DEFAULT</code>,
+<code>EVAC_DEPOSIT_MULTIPLIER_DEFAULT</code>, <code>ATM_PIN_MIN</code>, <code>ATM_PIN_MAX</code></li>
+</ul>
+<h3 id="included-files-that-are-not-contained-in-this-module">Included files that are not contained in this module</h3>
+<ul>
+<li><code>tgui/packages/tgui/interfaces/CharacterATM.tsx</code></li>
+<li><code>tgui/packages/tgui/interfaces/PreferencesMenu/preferences/features/character_preferences/nova/atm_pin.tsx</code></li>
+<li><code>code/modules/unit_tests/~nova/character_ledger.dm</code></li>
+<li><code>config/nova/config_nova.txt</code>: <code>ATM_DEPOSIT_LIMIT</code>, <code>ATM_WITHDRAW_LIMIT</code>,
+<code>EVAC_DEPOSIT_MULTIPLIER</code></li>
+<li><code>_maps/nova/automapper/automapper_config.toml</code>: 1x1 arrivals ATM overlays
+for Meta, Delta, Icebox, Tram, Wawa, Nebula, and Catwalk</li>
+<li><code>_maps/nova/automapper/templates/*/..._atm.dmm</code></li>
+</ul>
+<h3 id="credits">Credits</h3>
+<ul>
+<li>Blastwave</li>
+</ul></td></tr></table></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b0f141c26a35708ad038edf631f3d1ad0496b197">b0f141c</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>

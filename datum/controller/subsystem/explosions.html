@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../../"><link rel="stylesheet" href="dmdoc.css"><title>/datum/controller/subsystem/explosions - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a> — <a href="datum/controller/subsystem/explosions.html#var">Var Details</a> - <a href="datum/controller/subsystem/explosions.html#proc">Proc Details</a></header><main><h1>explosions <aside>/<a href="datum.html">datum</a>/<a href="datum/controller/subsystem.html">controller/subsystem</a>/<a href="datum/controller/subsystem/explosions.html">explosions</a></aside> <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L8"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 8"></a></h1><table class="summary" cellspacing="0"><tr><td colspan="2"><h2>Vars</h2></td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#var/held_throwturf">held_throwturf</a></th><td>List of turfs to throw the contents of... AFTER the next explosion processes
+This avoids order of operations errors and shit</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#var/throwturf">throwturf</a></th><td>List of turfs to throw the contents of</td></tr><tr><td colspan="2"><h2>Procs</h2></td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/disturb_floor">disturb_floor</a></th><td>Pops and throws floor tiles in a radius around a turf. Used for the non-damaging cross-Z rattle.</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/explode">explode</a></th><td>Makes a given atom explode. Now on the explosions subsystem!</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/handle_z_spread">handle_z_spread</a></th><td>Propagates an explosion vertically to crosslinked Z-levels.</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/propagate_blastwave">propagate_blastwave</a></th><td>Handles the effects of an explosion originating from a given point.</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/shake_the_room">shake_the_room</a></th><td>Handles the sfx and screenshake caused by an explosion.</td></tr><tr><th><a href="datum/controller/subsystem/explosions.html#proc/z_spread_step">z_spread_step</a></th><td>Handles a single vertical hop of an explosion. See <a href="datum/controller/subsystem/explosions.html#proc/handle_z_spread" title="/datum/controller/subsystem/explosions">/datum/controller/subsystem/explosions/proc/handle_z_spread</a>.</td></tr></table><h2 id="var">Var Details</h2><h3 id="var/held_throwturf"><aside class="declaration">var </aside>held_throwturf <aside>– /list</aside> <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L35"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 35"></a></h3><p>List of turfs to throw the contents of... AFTER the next explosion processes
+This avoids order of operations errors and shit</p><h3 id="var/throwturf"><aside class="declaration">var </aside>throwturf <aside>– /list</aside> <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L32"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 32"></a></h3><p>List of turfs to throw the contents of</p><h2 id="proc">Proc Details</h2><h3 id="proc/disturb_floor"><aside class="declaration">proc </aside>disturb_floor<aside>(/<a href="turf.html">turf</a>/target)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L558"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 558"></a></aside></h3><p>Pops and throws floor tiles in a radius around a turf. Used for the non-damaging cross-Z rattle.</p><h3 id="proc/explode"><aside class="declaration">proc </aside>explode<aside>(/<a href="atom.html">atom</a>/origin, devastation_range, heavy_impact_range, light_impact_range, flame_range, flash_range, adminlog, ignorecap, silent, smoke, protect_epicenter, /<a href="atom.html">atom</a>/explosion_cause, explosion_direction, explosion_arc)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L236"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 236"></a></aside></h3><p>Makes a given atom explode. Now on the explosions subsystem!</p>
+<p>Arguments:</p>
+<ul>
+<li><a href="atom.html" title="/atom">origin</a>: The atom that's exploding.</li>
+<li>devastation_range: The range at which the effects of the explosion are at their strongest.</li>
+<li>heavy_impact_range: The range at which the effects of the explosion are relatively severe.</li>
+<li>light_impact_range: The range at which the effects of the explosion are relatively weak.</li>
+<li>flash_range: The range at which the explosion flashes people.</li>
+<li>adminlog: Whether to log the explosion/report it to the administration.</li>
+<li>ignorecap: Whether to ignore the relevant bombcap. Defaults to FALSE.</li>
+<li>flame_range: The range at which the explosion should produce hotspots.</li>
+<li>silent: Whether to generate/execute sound effects.</li>
+<li>smoke: Whether to generate a smoke cloud provided the explosion is powerful enough to warrant it.</li>
+<li>protect_epicenter: Whether to leave the epicenter turf unaffected by the explosion</li>
+<li>explosion_cause: [Optional] The atom that caused the explosion, when different to the origin. Used for logging.</li>
+<li>explosion_direction: The angle in which the explosion is pointed (for directional explosions.)</li>
+<li>explosion_arc: The angle of the arc covered by a directional explosion (if 360 the explosion is non-directional.)</li>
+</ul><h3 id="proc/handle_z_spread"><aside class="declaration">proc </aside>handle_z_spread<aside>(/<a href="turf.html">turf</a>/epicenter, dev, heavy, light, flame, flash, /<a href="atom.html">atom</a>/cause, dir, arc, z_spread_dir)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L514"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 514"></a></aside></h3><p>Propagates an explosion vertically to crosslinked Z-levels.</p>
+<p>Reuses <a href="datum/controller/subsystem/explosions.html#proc/propagate_blastwave" title="/datum/controller/subsystem/explosions">/datum/controller/subsystem/explosions/proc/propagate_blastwave</a> itself for each hop: every vertical step
+re-centers a real, weaker explosion on the neighbor turf, so the floors/ceilings between levels are destroyed by the
+normal turf ex_act. The z_spread_dir token keeps the cascade outward-only (never bouncing back into a level it already
+hit) and self-limiting, so on a normal two-level station it resolves to exactly one hop up or one down depending on
+the originating explosion's location.</p>
+<p>Arguments:</p>
+<ul>
+<li><a href="turf.html" title="/turf">epicenter</a>: The turf the parent explosion was centered on.</li>
+<li>dev / heavy / light / flame / flash: The parent explosion's ranges.</li>
+<li><a href="atom.html" title="/atom">cause</a>: The atom blamed for the explosion, for logging.</li>
+<li>dir / arc: Directional explosion parameters, carried through unchanged.</li>
+<li>z_spread_dir: One of ZSPREAD_ORIGIN / ZSPREAD_UP / ZSPREAD_DOWN. Decides which vertical directions to walk.</li>
+</ul><h3 id="proc/propagate_blastwave"><aside class="declaration">proc </aside>propagate_blastwave<aside>(/<a href="atom.html">atom</a>/epicenter, devastation_range, heavy_impact_range, light_impact_range, flame_range, flash_range, adminlog, ignorecap, silent, smoke, protect_epicenter, /<a href="atom.html">atom</a>/explosion_cause, explosion_direction, explosion_arc, z_spread_dir)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L311"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 311"></a></aside></h3><p>Handles the effects of an explosion originating from a given point.</p>
+<p>Primarily handles popagating the blastwave of the explosion to the relevant turfs.
+Also handles the fireball from the explosion.
+Also handles the smoke cloud from the explosion.
+Also handles sfx and screenshake.</p>
+<p>Arguments:</p>
+<ul>
+<li><a href="atom.html" title="/atom">epicenter</a>: The location of the explosion rounded to the nearest turf.</li>
+<li>devastation_range: The range at which the effects of the explosion are at their strongest.</li>
+<li>heavy_impact_range: The range at which the effects of the explosion are relatively severe.</li>
+<li>light_impact_range: The range at which the effects of the explosion are relatively weak.</li>
+<li>flash_range: The range at which the explosion flashes people.</li>
+<li>adminlog: Whether to log the explosion/report it to the administration.</li>
+<li>ignorecap: Whether to ignore the relevant bombcap. Defaults to TRUE for some mysterious reason.</li>
+<li>flame_range: The range at which the explosion should produce hotspots.</li>
+<li>silent: Whether to generate/execute sound effects.</li>
+<li>smoke: Whether to generate a smoke cloud provided the explosion is powerful enough to warrant it.</li>
+<li>protect_epicenter: Whether to leave the epicenter turf unaffected by the explosion</li>
+<li>explosion_cause: [Optional] The atom that caused the explosion, when different to the origin. Used for logging.</li>
+<li>explosion_direction: The angle in which the explosion is pointed (for directional explosions.)</li>
+<li>explosion_arc: The angle of the arc covered by a directional explosion (if 360 the explosion is non-directional.)</li>
+</ul><h3 id="proc/shake_the_room"><aside class="declaration">proc </aside>shake_the_room<aside>(/<a href="turf.html">turf</a>/epicenter, near_distance, far_distance, quake_factor, echo_factor, creaking, /sound/near_sound, /sound/far_sound, /sound/echo_sound, /sound/creaking_sound, hull_creaking_sound)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L611"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 611"></a></aside></h3><p>Handles the sfx and screenshake caused by an explosion.</p>
+<p>Arguments:</p>
+<ul>
+<li><a href="turf.html" title="/turf">epicenter</a>: The location of the explosion.</li>
+<li>near_distance: How close to the explosion you need to be to get the full effect of the explosion.</li>
+<li>far_distance: How close to the explosion you need to be to hear more than echos.</li>
+<li>quake_factor: Main scaling factor for screenshake.</li>
+<li>echo_factor: Whether to make the explosion echo off of very distant parts of the station.</li>
+<li>creaking: Whether to make the station creak. Autoset if null.</li>
+<li><a href="https://www.byond.com/docs/ref/#/sound" title="/sound">near_sound</a>: The sound that plays if you are close to the explosion.</li>
+<li><a href="https://www.byond.com/docs/ref/#/sound" title="/sound">far_sound</a>: The sound that plays if you are far from the explosion.</li>
+<li><a href="https://www.byond.com/docs/ref/#/sound" title="/sound">echo_sound</a>: The sound that plays as echos for the explosion.</li>
+<li><a href="https://www.byond.com/docs/ref/#/sound" title="/sound">creaking_sound</a>: The sound that plays when the station creaks during the explosion.</li>
+<li><a href="https://www.byond.com/docs/ref/#/sound" title="/sound">hull_creaking_sound</a>: The sound that plays when the station creaks after the explosion.</li>
+</ul><h3 id="proc/z_spread_step"><aside class="declaration">proc </aside>z_spread_step<aside>(/<a href="turf.html">turf</a>/target, dev, heavy, light, flame, flash, /<a href="atom.html">atom</a>/cause, dir, arc, next_dir, damaging, falloff)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/code/controllers/subsystem/explosions.dm#L534"><img src="git.png" width="16" height="16" title="code/controllers/subsystem/explosions.dm 534"></a></aside></h3><p>Handles a single vertical hop of an explosion. See <a href="datum/controller/subsystem/explosions.html#proc/handle_z_spread" title="/datum/controller/subsystem/explosions">/datum/controller/subsystem/explosions/proc/handle_z_spread</a>.</p></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b0f141c26a35708ad038edf631f3d1ad0496b197">b0f141c</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>

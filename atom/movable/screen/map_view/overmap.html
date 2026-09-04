@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../../../"><link rel="stylesheet" href="dmdoc.css"><title>/atom/movable/screen/map_view/overmap - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a> — <a href="atom/movable/screen/map_view/overmap.html#proc">Proc Details</a></header><main><h1>overmap <aside>/<a href="atom.html">atom</a>/<a href="atom/movable.html">movable</a>/<a href="atom/movable/screen.html">screen</a>/<a href="atom/movable/screen/map_view.html">map_view</a>/<a href="atom/movable/screen/map_view/overmap.html">overmap</a></aside> <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/modular_nova/modules/overmap/code/overmap_objects.dm#L341"><img src="git.png" width="16" height="16" title="modular_nova/modules/overmap/code/overmap_objects.dm 341"></a></h1><p>Overmap map_view subtype, mirroring <code>/atom/movable/screen/map_view/camera</code>.</p>
+<p><code>cam_background</code> sits BELOW the turf vis_contents on the animated
+<code>scanline2</code> state. Anywhere the visible turfs don't reach within the bbox
+(opacity blockers, edge clipping, off-grid float) the CRT static shows
+through - that's the WS-style &quot;edge static&quot; sensor fuzz, free of charge.</p>
+<p>The sensor_range coupling is implicit: <code>update_screen()</code> sources its bbox
+from <code>view(sensor_range, ...)</code>, so a smaller sensor produces a tighter
+&quot;clear&quot; zone with proportionally more static visible at the edges.</p>
+<p>Stale plane-group guard: if a previous helm open's <code>hide_from</code> cleanup
+was bypassed (e.g. user briefly disconnected so <code>user.client</code> was null
+when <code>ui_close</code> ran, skipping <code>cam_screen.hide_from(user)</code>), the popup
+plane group can survive on the user's hud. The next open's parent
+<code>attach_to()</code> would then fire a <code>Hey brother, our key ... is already in use</code> runtime. We sniff for that case at the top of <code>display_to_client</code>
+and reuse the existing group instead.</p><table class="summary" cellspacing="0"><tr><td colspan="2"><h2>Procs</h2></td></tr><tr><th><a href="atom/movable/screen/map_view/overmap.html#proc/show_camera">show_camera</a></th><td>Render the live view: turfs in vis_contents, transparent background
+just defines the popup widget bounds (turfs paint on FLOOR_PLANE which
+is below GAME_PLANE — an opaque background would cover them).</td></tr><tr><th><a href="atom/movable/screen/map_view/overmap.html#proc/show_camera_static">show_camera_static</a></th><td>Sized fallback rect of static when there's nothing visible (off-grid
+ship). cam_background's <code>scanline2</code> state shows through wherever
+vis_contents doesn't paint, giving us a visible widget instead of a
+collapsed 0px popup.</td></tr></table><h2 id="proc">Proc Details</h2><h3 id="proc/show_camera"><aside class="declaration">proc </aside>show_camera<aside>(/list/visible_turfs, size_x, size_y)  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/modular_nova/modules/overmap/code/overmap_objects.dm#L381"><img src="git.png" width="16" height="16" title="modular_nova/modules/overmap/code/overmap_objects.dm 381"></a></aside></h3><p>Render the live view: turfs in vis_contents, transparent background
+just defines the popup widget bounds (turfs paint on FLOOR_PLANE which
+is below GAME_PLANE — an opaque background would cover them).</p><h3 id="proc/show_camera_static"><aside class="declaration">proc </aside>show_camera_static<aside>()  <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b0f141c26a35708ad038edf631f3d1ad0496b197/modular_nova/modules/overmap/code/overmap_objects.dm#L390"><img src="git.png" width="16" height="16" title="modular_nova/modules/overmap/code/overmap_objects.dm 390"></a></aside></h3><p>Sized fallback rect of static when there's nothing visible (off-grid
+ship). cam_background's <code>scanline2</code> state shows through wherever
+vis_contents doesn't paint, giving us a visible widget instead of a
+collapsed 0px popup.</p></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b0f141c26a35708ad038edf631f3d1ad0496b197">b0f141c</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>
