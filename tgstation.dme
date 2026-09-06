@@ -7479,6 +7479,7 @@
 #include "modular_nova\master_files\code\modules\mining\boulder_processing\brm.dm"
 #include "modular_nova\master_files\code\modules\mining\equipment\explorer_gear.dm"
 #include "modular_nova\master_files\code\modules\mining\equipment\survival_pod.dm"
+#include "modular_nova\master_files\code\modules\mining\equipment\wormhole_jaunter.dm"
 #include "modular_nova\master_files\code\modules\mining\equipment\monster_organs\monster_organ.dm"
 #include "modular_nova\master_files\code\modules\mob\login.dm"
 #include "modular_nova\master_files\code\modules\mob\mob.dm"
@@ -7859,11 +7860,18 @@
 #include "modular_nova\modules\bitrunning\code\virtual_domains\syndicate_assault\mod.dm"
 #include "modular_nova\modules\bitrunning\code\virtual_domains\syndicate_assault\outfit.dm"
 #include "modular_nova\modules\bitrunning\code\virtual_domains\syndicate_assault\virtual_domain.dm"
+#include "modular_nova\modules\blastwave_bluespace\code\teleport_jam.dm"
+#include "modular_nova\modules\blastwave_bluespace\code\unstable_bluespace_field.dm"
+#include "modular_nova\modules\blastwave_bluespace\code\unstable_field_generator.dm"
 #include "modular_nova\modules\blastwave_outfits\code\cargo_packs.dm"
 #include "modular_nova\modules\blastwave_outfits\code\clothing\blastwave_head.dm"
 #include "modular_nova\modules\blastwave_outfits\code\clothing\blastwave_mask.dm"
 #include "modular_nova\modules\blastwave_outfits\code\clothing\blastwave_suit.dm"
 #include "modular_nova\modules\blastwave_outfits\code\clothing\blastwave_uniform.dm"
+#include "modular_nova\modules\blastwave_synths\code\coolant_blood.dm"
+#include "modular_nova\modules\blastwave_synths\code\cyborg_lookalike.dm"
+#include "modular_nova\modules\blastwave_synths\code\species_military_synth.dm"
+#include "modular_nova\modules\blastwave_synths\code\trooper_synth.dm"
 #include "modular_nova\modules\blooper\atoms_movable.dm"
 #include "modular_nova\modules\blooper\bark.dm"
 #include "modular_nova\modules\blooper\bark_list.dm"
@@ -9263,6 +9271,7 @@
 #include "modular_nova\modules\overmap\code\overmap_factions.dm"
 #include "modular_nova\modules\overmap\code\overmap_fuel_injector.dm"
 #include "modular_nova\modules\overmap\code\overmap_heater.dm"
+#include "modular_nova\modules\overmap\code\overmap_hangar_lockdown.dm"
 #include "modular_nova\modules\overmap\code\overmap_helm.dm"
 #include "modular_nova\modules\overmap\code\overmap_hull_icon.dm"
 #include "modular_nova\modules\overmap\code\overmap_landing_beacon.dm"
@@ -9787,3 +9796,21 @@
 #include "modular_nova\modules\xenomorph\alien.dm"
 #include "modular_nova\modules\xenomorph\queen.dm"
 // END_INCLUDE
+
+// Private content pack (Blastwave-content), opt-in and absent from this repo.
+//
+// TGS production overlays that repo onto the game root and appends its own
+// `#include "TailInclude.dm"`, so it must NOT define BLASTWAVE_CONTENT or the
+// pack is included twice.
+//
+// Locally, junction the three overlay paths onto the game root to match what TGS
+// does, then compile with the define:
+//   mklink /J modular_blastwave  ..\Blastwave-content\modular_blastwave
+//   mklink /J _maps\BlastwaveRuins  ..\Blastwave-content\_maps\BlastwaveRuins
+//   mklink /H TailInclude.dm  ..\Blastwave-content\TailInclude.dm
+//   bun tools/build/build.ts dm -D BLASTWAVE_CONTENT
+//
+// Kept below END_INCLUDE so ticked-file enforcement never sees it.
+#ifdef BLASTWAVE_CONTENT
+#include "TailInclude.dm"
+#endif

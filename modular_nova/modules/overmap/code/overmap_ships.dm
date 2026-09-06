@@ -1181,6 +1181,9 @@
 	set_nav_target(null, null, null)
 	update_screen(TRUE)
 	sync_helm_gps_beacons()
+	// Touchdown is the only reliable "we have arrived" event. Set pieces that react to a landing
+	// (hangar lockdowns, greeters, alarms) hang off this rather than polling landing zones.
+	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_OVERMAP_SHIP_DOCKED, src, docked, shuttle?.get_overlapping_landing_zone())
 
 /// Active radar sweep. Finds all overmap objects within sensor_range using
 /// pixel-distance (accounts for sub-tile positions from pixel movement).

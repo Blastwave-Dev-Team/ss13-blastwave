@@ -181,7 +181,8 @@
 	animate(victim, alpha = 0, time = 0.2 SECONDS, easing = SINE_EASING|EASE_OUT)
 	sleep(0.2 SECONDS)
 	victim.visible_message(span_hierophant_warning("[victim] fades out!"))
-	var/success = do_teleport(victim, target_turf, no_effects = TRUE, channel = TELEPORT_CHANNEL_MAGIC)
+	// BLASTWAVE EDIT - BLASTWAVE_BLUESPACE - the club is the one player-facing teleport that punches through bluespace interdiction. It still eats the unstable field.
+	var/success = do_teleport(victim, target_turf, no_effects = TRUE, channel = TELEPORT_CHANNEL_MAGIC, bypass_jam = TRUE) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: var/success = do_teleport(victim, target_turf, no_effects = TRUE, channel = TELEPORT_CHANNEL_MAGIC)
 	animate(victim, alpha = 255, time = 0.2 SECONDS, SINE_EASING|EASE_OUT)
 	victim.visible_message(span_hierophant_warning("[victim] fades in!"))
 	if (user != victim && success)

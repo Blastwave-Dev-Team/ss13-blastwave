@@ -7,7 +7,8 @@
 // asoundout: soundfile to play after teleportation
 // no_effects: disable the default effectin/effectout of sparks
 // forced: whether or not to ignore no_teleport
-/proc/do_teleport(atom/movable/teleatom, atom/destination, precision=null, datum/effect_system/effectin=null, datum/effect_system/effectout=null, asoundin=null, asoundout=null, no_effects=FALSE, channel=TELEPORT_CHANNEL_BLUESPACE, forced = FALSE)
+// BLASTWAVE EDIT ADDITION - BLASTWAVE_BLUESPACE - bypass_jam: whether or not to ignore bluespace interdiction on the origin and destination Z. Does not skip any other validity check.
+/proc/do_teleport(atom/movable/teleatom, atom/destination, precision=null, datum/effect_system/effectin=null, datum/effect_system/effectout=null, asoundin=null, asoundout=null, no_effects=FALSE, channel=TELEPORT_CHANNEL_BLUESPACE, forced = FALSE, bypass_jam = FALSE) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: /proc/do_teleport(atom/movable/teleatom, atom/destination, precision=null, datum/effect_system/effectin=null, datum/effect_system/effectout=null, asoundin=null, asoundout=null, no_effects=FALSE, channel=TELEPORT_CHANNEL_BLUESPACE, forced = FALSE)
 	// teleporting most effects just deletes them
 	var/static/list/delete_atoms = zebra_typecacheof(list(
 		/obj/effect = TRUE,
@@ -68,7 +69,7 @@
 		return FALSE
 
 	if(!forced)
-		if(!check_teleport_valid(teleatom, destturf, channel, original_destination = destination))
+		if(!check_teleport_valid(teleatom, destturf, channel, original_destination = destination, bypass_jam = bypass_jam)) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: if(!check_teleport_valid(teleatom, destturf, channel, original_destination = destination))
 			if(ismob(teleatom))
 				teleatom.balloon_alert(teleatom, "something holds you back!")
 			return FALSE
@@ -100,6 +101,9 @@
 		M.cancel_camera()
 
 	SEND_SIGNAL(teleatom, COMSIG_MOVABLE_POST_TELEPORT, destination, channel)
+	// BLASTWAVE EDIT ADDITION START - BLASTWAVE_BLUESPACE - global hook so the unstable field can react without a component on every movable
+	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_MOVABLE_POST_TELEPORT, teleatom, destturf, channel, forced)
+	// BLASTWAVE EDIT ADDITION END
 
 	//We need to be sure that the buckled mobs can teleport too
 	if(teleatom.has_buckled_mobs())
@@ -107,7 +111,7 @@
 			//just in case it fails, but the mob gets unbuckled anyways even if it passes
 			teleatom.unbuckle_mob(rider, TRUE, FALSE)
 
-			var/rider_success = do_teleport(rider, destturf, precision, channel=channel, no_effects=TRUE)
+			var/rider_success = do_teleport(rider, destturf, precision, channel=channel, no_effects=TRUE, bypass_jam=bypass_jam) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: var/rider_success = do_teleport(rider, destturf, precision, channel=channel, no_effects=TRUE)
 			if(!rider_success)
 				continue
 
@@ -240,7 +244,7 @@
 		return pick(turfs)
 
 /// Validates that the teleport being attempted is valid or not
-/proc/check_teleport_valid(atom/teleported_atom, atom/destination, channel, atom/original_destination = null)
+/proc/check_teleport_valid(atom/teleported_atom, atom/destination, channel, atom/original_destination = null, bypass_jam = FALSE) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: /proc/check_teleport_valid(atom/teleported_atom, atom/destination, channel, atom/original_destination = null)
 	SHOULD_BE_PURE(TRUE)
 
 	if(isnull(destination))
@@ -253,6 +257,13 @@
 
 	if(HAS_TRAIT(teleported_atom, TRAIT_NO_TELEPORT))
 		return FALSE
+
+	// BLASTWAVE EDIT ADDITION START - BLASTWAVE_BLUESPACE - Bluespace interdiction. Both ends have to be clear, so you cannot portal into or out of a jammed level.
+	if(!bypass_jam)
+		var/turf/origin_turf = get_turf(teleported_atom)
+		if(is_teleport_jammed(origin_turf?.z) || is_teleport_jammed(destination_turf.z))
+			return FALSE
+	// BLASTWAVE EDIT ADDITION END
 
 	// prevent unprecise teleports from landing you outside of the destination's reserved area
 	if(is_reserved_level(destination_turf.z) && istype(original_destination) \

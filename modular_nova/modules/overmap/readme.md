@@ -67,6 +67,16 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `tgui/packages/tgui/interfaces/OvermapLandingController.tsx` - the
   landing controller UI (login gate, zone naming, corner validation,
   occupancy). Static mock: `tgui/prototypes/OvermapLandingController.html`.
+- `modular_nova/modules/overmap/code/overmap_hangar_lockdown.dm` -
+  `/obj/machinery/hangar_lockdown` + `/datum/wires/hangar_lockdown`. A mapped
+  controller that slams `id`-matched `/obj/machinery/door/poddoor` shut on
+  `COMSIG_GLOB_OVERMAP_SHIP_DOCKED` for its own Z, as a reusable trap set piece.
+  Screwdriver opens the panel; cutting `WIRE_LOCKDOWN` or `WIRE_POWER` opens the
+  doors and permanently stops it re-arming (mending both restores it). Pulsing is
+  deliberately inert so a multitool is not a free door toggle, and the machine has
+  no click-to-lift interface at all.
+  There is no software launch lock: the bay-exit raycast below is what actually
+  holds the ship, which keeps the trap positionally honest rather than Z-wide.
 - `modular_nova/modules/overmap/code/overmap_area_spawn.dm` -
   `/datum/area_spawn` entries for helm, nav, engines, and the wall-mount
   distress beacon.
@@ -79,9 +89,35 @@ versa in v1) until a deployable syndicate beacon is activated.
 - `tgui/packages/tgui/interfaces/HelmConsole.tsx` - the helm UI rewrite.
 - `tgui/packages/tgui/interfaces/DistressBeacon.tsx` - evac beacon TGUI.
 - `code/__DEFINES/~nova_defines/overmap.dm` - cross-file defines.
+- `code/__DEFINES/~nova_defines/signals.dm` -
+  `COMSIG_GLOB_OVERMAP_SHIP_DOCKED`, sent from `complete_dock()` with the ship,
+  the docked site, and the overlapping landing zone. Touchdown is the only
+  reliable "we have arrived" event, so landing-reactive set pieces hang off this
+  rather than polling landing zones.
 - `code/modules/unit_tests/~nova/overmap_ruins.dm` - unit tests for
   site POIs, stealth gating, crosslinked Z prevention, beacon, and the
   corpse spawner environment exemption.
+
+### Bay-exit correctness fix
+
+`overmap_bay_exit.dm` previously let a ship launch out of a fully sealed hangar.
+`overmap_bay_tile_is_clear()` counted *any* open turf as "reached the outside",
+and the tile beside a hull is always open floor, so the per-column raycast
+succeeded at depth 1 and `OVERMAP_BAY_EXIT_DEPTH` / `interior_run` were dead code.
+
+Now a column is clear only if it travels the full depth budget without hitting a
+wall, or reaches space sooner. Interior floor and open blast doors are traversed
+rather than treated as arrival, and **closed blast doors count as walls** (they
+cannot be opened by hand, so the helm's long-standing "open the bay doors before
+launching" message is finally true). Space short-circuits to success so station
+bays pass cheaply; planetary pads pass by clearing the depth budget, since they
+have no space turf nearby.
+
+`bay_exit_face_clear()` was deleted: the undesignated-exit fallback now runs the
+same raycast per cardinal instead of checking a single adjacent strip.
+
+Watch for maps where walls sit within `OVERMAP_BAY_EXIT_DEPTH` (10) tiles in
+every direction — those bays now correctly refuse launch until their doors open.
 
 ### master_files overrides
 

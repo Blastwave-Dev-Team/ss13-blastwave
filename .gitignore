@@ -268,3 +268,10 @@ rust_g64.dll
 # BLASTWAVE EDIT - ignore our automagic build tools tmpdir
 
 /buildtmp/
+
+# BLASTWAVE EDIT - private content pack overlay (Blastwave-content).
+# TGS copies these three paths onto the game root in production; locally they are
+# junctions/hardlinks created by hand. Either way they must never be committed here.
+/TailInclude.dm
+/modular_blastwave/
+/_maps/BlastwaveRuins/
