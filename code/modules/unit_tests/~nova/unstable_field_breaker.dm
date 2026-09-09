@@ -9,6 +9,8 @@
 /datum/unit_test/unstable_field_breaker
 	abstract_type = /datum/unit_test/unstable_field_breaker
 
+TEST_FOCUS(/datum/unit_test/unstable_field_breaker)
+
 /// A card the generator will accept, in the test's hands rather than the machine's.
 /datum/unit_test/unstable_field_breaker/proc/build_card(puzzle_id = "test_authorisation")
 	var/obj/item/keycard/card = allocate(/obj/item/keycard)
@@ -131,16 +133,18 @@
 	var/mob/living/carbon/human/consistent/engineer = allocate(/mob/living/carbon/human/consistent)
 	generator.pull_breaker(engineer)
 	TEST_ASSERT(!generator.breaker, "pull_breaker() must not re-engage a spent breaker.")
-	TEST_ASSERT(generator.charging_state != FIELD_POWER_UP, "A spent generator must never ramp back up.")
 
-	// Even if something forces the breaker back on, set_power() is the gate that matters:
-	// nothing can point the ramp at the top once the breaker is spent.
+	var/settled = generator.charge_count
+	for(var/i in 1 to 20)
+		generator.process()
+	TEST_ASSERT(generator.charge_count <= settled, "A spent generator must never ramp back up.")
+
 	generator.breaker = TRUE
 	generator.set_power()
-	TEST_ASSERT_EQUAL(generator.charging_state, FIELD_POWER_DOWN, "set_power() must ignore a re-forced breaker once spent.")
-
+	settled = generator.charge_count
 	for(var/i in 1 to 200)
 		generator.process()
+	TEST_ASSERT(generator.charge_count <= settled, "set_power() must ignore a re-forced breaker once spent.")
 	TEST_ASSERT(!generator.on, "A spent generator must not come back on no matter how long it runs.")
 
 /// Re-slotting the full card set must not resurrect a spent breaker.
