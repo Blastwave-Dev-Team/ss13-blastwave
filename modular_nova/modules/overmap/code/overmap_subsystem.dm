@@ -52,6 +52,9 @@ SUBSYSTEM_DEF(overmap)
 	var/last_encounter_spawn_error
 	/// Soft-cleared content Zs available for reuse by lazy dynamic encounters.
 	var/list/reusable_content_zs = list()
+	/// Site Zs that were deliberately left without seeded landing zones, because every ruin on
+	/// them brings its own. Tracked so callers can tell "suppressed" from "seeding went wrong".
+	var/list/unseeded_site_zs = list()
 	/// Helm → affiliation queued because the ship is not bound yet (ruin
 	/// hulls load in SSshuttle before SSovermap.bind_existing_shuttles).
 	var/list/pending_helm_affiliations = list()
@@ -616,9 +619,13 @@ SUBSYSTEM_DEF(overmap)
 			return FALSE
 	return TRUE
 
-/// Whether a stationary dock's footprint is safe to land on — open space / plating
-/// / lava / openspace / misc only, matching the nav console whitelist. Rejects
-/// ruin floors, walls, indestructible turfs, and dense anchored obstacles.
+/// Whether a stationary dock's footprint is safe to land on — open space / plating / lava /
+/// openspace / misc / indestructible only, matching the nav console whitelist. Rejects ordinary
+/// ruin floors, walls, and dense anchored obstacles.
+///
+/// Indestructible open turfs are on the list because that is what mapper-authored hangar bays are
+/// floored with: the deck has to survive players who would otherwise cut their way out through it,
+/// so a hand-drawn pad is unlandable if we treat "indestructible" as "not ground".
 /datum/controller/subsystem/overmap/proc/dock_footprint_is_clear(obj/docking_port/stationary/port)
 	if(!port)
 		return FALSE
@@ -628,6 +635,7 @@ SUBSYSTEM_DEF(overmap)
 		/turf/open/lava,
 		/turf/open/openspace,
 		/turf/open/misc,
+		/turf/open/indestructible,
 	))
 	for(var/turf/T in port.return_turfs())
 		if(!is_type_in_typecache(T.type, allowed_turfs))
@@ -966,7 +974,10 @@ SUBSYSTEM_DEF(overmap)
 		return null
 
 	var/display_name = length(templates) > 1 ? "Debris Field" : (templates[1].name || "Unknown Signal")
-	seed_site_landing_zones(site_z, display_name, placed_rects)
+	if(site_suppresses_seeded_landing_zones(loaded + chained))
+		unseeded_site_zs |= site_z
+	else
+		seed_site_landing_zones(site_z, display_name, placed_rects)
 
 	return list(
 		"z" = site_z,
@@ -1119,6 +1130,21 @@ SUBSYSTEM_DEF(overmap)
 			return FALSE
 	return TRUE
 
+/datum/map_template/ruin
+	/// Set on a ruin that ships its own mapped landing zone and wants to be the only way in.
+	/// A site Z is only left unseeded when every ruin on it asks for that, since the seeded
+	/// zones are Z-wide and one ordinary neighbour would otherwise be left unreachable.
+	var/suppress_seeded_landing_zones = FALSE
+
+/// TRUE when every ruin sharing a site Z brings its own landing zone.
+/datum/controller/subsystem/overmap/proc/site_suppresses_seeded_landing_zones(list/datum/map_template/ruin/templates)
+	if(!length(templates))
+		return FALSE
+	for(var/datum/map_template/ruin/template as anything in templates)
+		if(!template.suppress_seeded_landing_zones)
+			return FALSE
+	return TRUE
+
 /// Seed `overmap_site_lz_count` landing zones on `site_z` clear of ruin rects.
 /datum/controller/subsystem/overmap/proc/seed_site_landing_zones(site_z, site_name, list/placed_rects)
 	var/lz_count = CONFIG_GET(number/overmap_site_lz_count)
@@ -1165,6 +1191,7 @@ SUBSYSTEM_DEF(overmap)
 		zone.zone_name = lz_count > 1 ? "[site_name] LZ [i]" : site_name
 		zone.zone_width = lz_side
 		zone.zone_height = lz_side
+		zone.seeded = TRUE
 
 // --- Cross-faction installation stealth (Phase 6) ---
 

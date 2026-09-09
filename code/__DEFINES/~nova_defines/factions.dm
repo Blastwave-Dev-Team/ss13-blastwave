@@ -14,3 +14,6 @@
 
 // Ruin Turret faction
 #define FACTION_MALF_TURRET "malf-turret"
+
+// Derelict Blastwave military hardware. Shared by the synth troopers and the cyborg chassis so they do not shoot each other.
+#define FACTION_BLASTWAVE_DERELICT "blastwave_derelict"

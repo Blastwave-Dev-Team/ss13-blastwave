@@ -885,7 +885,10 @@
 	for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
 		if(!(zone.z in target_zs))
 			continue
-		if(ship_w > zone.zone_width || ship_h > zone.zone_height)
+		// Rotation-aware: create_landing_zone_port() will turn the hull 90 degrees if that is
+		// what makes it fit, so offering only zones that fit the current facing would hide
+		// pads the ship can demonstrably use.
+		if(!zone.can_fit_shuttle(ship_w, ship_h))
 			continue
 		if(zone.get_occupant(shuttle))
 			continue
@@ -915,46 +918,55 @@
 	LAZYSET(assigned_landing_zones, site_ref, REF(picked))
 	return list(picked)
 
-/// Build a one-shot stationary docking port centered in `zone`, preserving the
-/// shuttle's current orientation. Returns the port, or null if the shuttle no
-/// longer fits / the zone is occupied. The port self-deletes after the shuttle
-/// next departs it (`delete_after`).
+/// Build a one-shot stationary docking port centered in `zone`. Tries the shuttle's current
+/// orientation first and only turns the hull 90 degrees when that is what makes it fit, so a
+/// hull that already fits lands exactly as it always did. Returns the port, or null if no
+/// orientation fits / the zone is occupied. The port self-deletes after the shuttle next
+/// departs it (`delete_after`).
+///
+/// Rotating on dock is ordinary shuttle behaviour: initiate_docking() derives the rotation from
+/// the difference between the two ports' dirs and every afterShuttleMove() callback re-orients
+/// its atom accordingly. `preferred_direction` is a preference, not a restriction.
 /obj/structure/overmap/ship/simulated/proc/create_landing_zone_port(obj/effect/landmark/overmap_landing_zone/zone)
-	var/list/bounds = shuttle.return_coords()
-	var/bbox_x1 = min(bounds[1], bounds[3])
-	var/bbox_y1 = min(bounds[2], bounds[4])
-	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
-	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
-	if(ship_w > zone.zone_width || ship_h > zone.zone_height)
-		return null
 	if(zone.get_occupant(shuttle))
 		return null
-	// Offset of the mobile port tile inside its own bbox. With the stationary
-	// port sharing the shuttle's dir and dimensions, landing reproduces the
-	// same bbox relative to the port tile, so this places the hull centered.
-	var/port_off_x = shuttle.x - bbox_x1
-	var/port_off_y = shuttle.y - bbox_y1
-	var/dest_x = zone.x + round((zone.zone_width - ship_w) / 2) + port_off_x
-	var/dest_y = zone.y + round((zone.zone_height - ship_h) / 2) + port_off_y
-	var/turf/dest = locate(dest_x, dest_y, zone.z)
-	if(!dest)
-		return null
-	var/obj/docking_port/stationary/port = new()
-	port.unregister()
-	port.delete_after = TRUE
-	port.name = zone.zone_name
-	port.shuttle_id = "[shuttle.shuttle_id]_lz"
-	port.width = shuttle.width
-	port.height = shuttle.height
-	port.dwidth = shuttle.dwidth
-	port.dheight = shuttle.dheight
-	port.register(TRUE)
-	port.setDir(shuttle.dir)
-	port.forceMove(dest)
-	if(!shuttle.check_dock(port, TRUE) || !SSovermap.dock_footprint_is_clear(port))
-		qdel(port)
-		return null
-	return port
+
+	for(var/try_dir in list(shuttle.dir, turn(shuttle.dir, 90), turn(shuttle.dir, -90)))
+		// Measure the hull in `try_dir` from a port tile at the origin. return_coords() is pure
+		// arithmetic, so the negated minimum is the port tile's offset inside its own footprint,
+		// which is what centres the hull once the stationary port carries the same dir.
+		var/list/rel = shuttle.return_coords(0, 0, try_dir)
+		var/rel_x1 = min(rel[1], rel[3])
+		var/rel_y1 = min(rel[2], rel[4])
+		var/ship_w = max(rel[1], rel[3]) - rel_x1 + 1
+		var/ship_h = max(rel[2], rel[4]) - rel_y1 + 1
+		if(ship_w > zone.zone_width || ship_h > zone.zone_height)
+			continue
+
+		var/dest_x = zone.x + round((zone.zone_width - ship_w) / 2) - rel_x1
+		var/dest_y = zone.y + round((zone.zone_height - ship_h) / 2) - rel_y1
+		var/turf/dest = locate(dest_x, dest_y, zone.z)
+		if(!dest)
+			continue
+
+		var/obj/docking_port/stationary/port = new()
+		port.unregister()
+		port.delete_after = TRUE
+		port.name = zone.zone_name
+		port.shuttle_id = "[shuttle.shuttle_id]_lz"
+		port.width = shuttle.width
+		port.height = shuttle.height
+		port.dwidth = shuttle.dwidth
+		port.dheight = shuttle.dheight
+		port.register(TRUE)
+		port.setDir(try_dir)
+		port.forceMove(dest)
+		if(!shuttle.check_dock(port, TRUE) || !SSovermap.dock_footprint_is_clear(port))
+			qdel(port)
+			continue
+		return port
+
+	return null
 
 /// Voluntarily land at the shared open-space site for the current overmap
 /// tile. A new blank site is created only when no level already owns it.
@@ -1181,6 +1193,9 @@
 	set_nav_target(null, null, null)
 	update_screen(TRUE)
 	sync_helm_gps_beacons()
+	// Touchdown is the only reliable "we have arrived" event. Set pieces that react to a landing
+	// (hangar lockdowns, greeters, alarms) hang off this rather than polling landing zones.
+	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_OVERMAP_SHIP_DOCKED, src, docked, shuttle?.get_overlapping_landing_zone())
 
 /// Active radar sweep. Finds all overmap objects within sensor_range using
 /// pixel-distance (accounts for sub-tile positions from pixel movement).

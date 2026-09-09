@@ -111,7 +111,7 @@
 	if(newloc.turf_flags & NOJAUNT)
 		to_chat(user, span_warning("Some strange aura is blocking the way."))
 		return
-	if(destination_area.area_flags & NOTELEPORT || SSmapping.level_trait(newloc.z, ZTRAIT_NOPHASE))
+	if(destination_area.area_flags & NOTELEPORT || SSmapping.level_trait(newloc.z, ZTRAIT_NOPHASE) || is_teleport_jammed(newloc.z)) // BLASTWAVE EDIT CHANGE - BLASTWAVE_BLUESPACE - ORIGINAL: if(destination_area.area_flags & NOTELEPORT || SSmapping.level_trait(newloc.z, ZTRAIT_NOPHASE))
 		to_chat(user, span_danger("Some dull, universal force is blocking the way. Its overwhelmingly oppressive force feels dangerous."))
 		return
 	if (direction == UP || direction == DOWN)
