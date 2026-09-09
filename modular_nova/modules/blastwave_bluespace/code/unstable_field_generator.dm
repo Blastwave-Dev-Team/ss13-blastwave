@@ -91,12 +91,24 @@
 	var/charge_count = 100
 	/// Tint applied to the whole housing so it reads as "not the gravity generator you know".
 	var/field_color = "#7B4FD1"
-	/// puzzle_id values that must all be swiped before the breaker will move. Mappers set this.
+	/// puzzle_id values that must all be slotted before the breaker will move. Mappers set this.
 	var/list/required_puzzle_ids = list()
-	/// Blast doors interlocked with the field. Mapper-set; matches the `id` on the doors themselves.
-	var/blast_door_id
-	/// puzzle_id values swiped so far.
-	var/list/accepted_puzzle_ids = list()
+	/// Blast doors interlocked with the field. Mapper-set; each entry matches the `id` on the doors themselves.
+	var/list/blast_door_ids
+	/// Set once the field has collapsed. The breaker is a one-way trip: the authorizations that
+	/// freed it are spent, and the whole point of the set piece is that shutting it down sticks.
+	var/breaker_spent = FALSE
+	/// Charge percent gained per process tick while climbing. Refilling a capacitor bank is the
+	/// slow direction, so a change of heart before the field drops costs real time.
+	var/charge_rate = 2
+	/// Charge percent shed per process tick while collapsing. SSmachines ticks every 2 seconds,
+	/// so 15 empties a full bank in about fifteen: fast enough to read as an event, slow enough
+	/// that there is still time to be somewhere else when it lets go.
+	var/discharge_rate = 15
+	/// Keycards physically sitting in the reader, oldest first. These *are* the authorisation:
+	/// pulling one back out re-locks its slot, so the state lives on the cards the machine is
+	/// actually holding rather than in a parallel list that could drift out of step with them.
+	var/list/obj/item/keycard/slotted_cards = list()
 	/// Which core overlay is currently applied.
 	var/current_overlay
 
@@ -106,13 +118,33 @@
 	if(on)
 		enable()
 	update_core_overlay()
+	register_context()
 
 /obj/machinery/unstable_field_generator/main/Destroy()
 	// A destroyed source counts as switched off. Nobody gets to keep the field up by exploding the machine.
 	disable()
+	// Spit the cards out rather than taking them with us. They are puzzle keys someone walked the
+	// length of the site for, and they are INDESTRUCTIBLE precisely so they cannot be lost.
+	var/turf/drop_turf = get_turf(src)
+	for(var/obj/item/keycard/card as anything in slotted_cards)
+		card.forceMove(drop_turf)
+	slotted_cards = null
 	QDEL_NULL(center_part)
 	QDEL_LIST(generator_parts)
 	return ..()
+
+/obj/machinery/unstable_field_generator/main/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
+	if(istype(held_item, /obj/item/keycard))
+		context[SCREENTIP_CONTEXT_LMB] = "Slot authorization card"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(!isnull(held_item))
+		return NONE
+
+	if(length(slotted_cards))
+		context[SCREENTIP_CONTEXT_LMB] = "Remove card"
+	if(!breaker_spent && !length(missing_puzzle_ids()))
+		context[SCREENTIP_CONTEXT_RMB] = breaker ? "Pull breaker" : "Engage breaker"
+	return length(context) ? CONTEXTUAL_SCREENTIP_SET : NONE
 
 /obj/machinery/unstable_field_generator/main/get_status()
 	return (on || charging_state != FIELD_POWER_IDLE) ? "on" : "off"
@@ -145,17 +177,31 @@
 	. = ..()
 	. += span_notice("The output gauge reads <b>[charge_count]%</b>, [charging_state == FIELD_POWER_DOWN ? "falling" : (charging_state == FIELD_POWER_UP ? "climbing" : "steady")].")
 
+	if(length(slotted_cards))
+		. += span_notice("[length(slotted_cards)] card\s [length(slotted_cards) == 1 ? "sits" : "sit"] in the reader.")
+
+	if(breaker_spent)
+		. += span_notice("The breaker has dropped out of its housing. Whatever it was holding closed is not going back.")
+		return
+
 	var/missing = missing_puzzle_ids()
 	if(length(missing))
-		. += span_warning("[length(missing)] of [length(required_puzzle_ids)] authorisation slots are still empty. The breaker will not move.")
+		. += span_warning("[length(missing)] of [length(required_puzzle_ids)] authorization slots are still empty. The breaker will not move.")
 		return
 	if(length(required_puzzle_ids))
 		. += span_notice("Every authorisation slot is filled. The breaker is free.")
-	. += span_notice("The breaker is <b>[breaker ? "engaged" : "pulled"]</b>.")
+	. += span_notice("The breaker is <b>[breaker ? "engaged" : "pulled"]</b>. <b>Right-click</b> to throw it.")
 
-/// Which required puzzle_ids have not been swiped yet.
+/// puzzle_ids of every card currently in the reader.
+/obj/machinery/unstable_field_generator/main/proc/accepted_puzzle_ids()
+	var/list/ids = list()
+	for(var/obj/item/keycard/card as anything in slotted_cards)
+		ids += card.puzzle_id
+	return ids
+
+/// Which required puzzle_ids have no card in their slot yet.
 /obj/machinery/unstable_field_generator/main/proc/missing_puzzle_ids()
-	return required_puzzle_ids - accepted_puzzle_ids
+	return required_puzzle_ids - accepted_puzzle_ids()
 
 /obj/machinery/unstable_field_generator/main/attackby(obj/item/weapon, mob/user, list/modifiers, list/attack_modifiers)
 	if(!istype(weapon, /obj/item/keycard))
@@ -166,11 +212,14 @@
 		balloon_alert(user, "card rejected")
 		playsound(src, 'sound/machines/buzz/buzz-sigh.ogg', 45, TRUE)
 		return TRUE
-	if(key.puzzle_id in accepted_puzzle_ids)
+	if(key.puzzle_id in accepted_puzzle_ids())
 		balloon_alert(user, "slot already filled")
 		return TRUE
+	if(!user.transferItemToLoc(key, src))
+		balloon_alert(user, "card won't budge")
+		return TRUE
 
-	accepted_puzzle_ids += key.puzzle_id
+	slotted_cards += key
 	playsound(src, 'sound/machines/card_slide.ogg', 45, TRUE)
 	var/remaining = length(missing_puzzle_ids())
 	balloon_alert(user, remaining ? "[remaining] slot\s left" : "breaker unlocked")
@@ -178,10 +227,50 @@
 		playsound(src, 'sound/machines/beep/beep.ogg', 45, TRUE)
 	return TRUE
 
+/// Keeps the slot list honest if a card leaves by any route other than eject_card() — admin
+/// yanking, the machine being taken apart, or anything else that empties our contents.
+/obj/machinery/unstable_field_generator/main/Exited(atom/movable/gone, direction)
+	. = ..()
+	slotted_cards -= gone
+
+/// Empty hand takes a card back out. The breaker is deliberately not on this input: throwing it
+/// is irreversible, and the click that fills the last slot must not also be the one that fires it.
 /obj/machinery/unstable_field_generator/main/interact(mob/user)
 	. = ..()
 	if(.)
 		return
+	return eject_card(user)
+
+/// Pops the most recently slotted card back into the user's hands, re-locking its slot.
+/obj/machinery/unstable_field_generator/main/proc/eject_card(mob/user)
+	if(!length(slotted_cards))
+		balloon_alert(user, "no cards slotted")
+		return TRUE
+
+	var/obj/item/keycard/card = slotted_cards[length(slotted_cards)]
+	slotted_cards -= card
+	card.forceMove(get_turf(src))
+	user.put_in_hands(card)
+	playsound(src, 'sound/machines/card_slide.ogg', 45, TRUE)
+	balloon_alert(user, "card removed")
+	return TRUE
+
+/obj/machinery/unstable_field_generator/main/attack_hand_secondary(mob/user, list/modifiers)
+	. = ..()
+	if(. == SECONDARY_ATTACK_CANCEL_ATTACK_CHAIN)
+		return
+	// interact() gets this for free from _try_interact; the secondary chain does not.
+	if(!can_interact(user))
+		return SECONDARY_ATTACK_CANCEL_ATTACK_CHAIN
+	pull_breaker(user)
+	return SECONDARY_ATTACK_CANCEL_ATTACK_CHAIN
+
+/// Throws the breaker, if every slot is filled and it has not already been spent.
+/obj/machinery/unstable_field_generator/main/proc/pull_breaker(mob/user)
+	if(breaker_spent)
+		balloon_alert(user, "breaker dead")
+		playsound(src, 'sound/machines/buzz/buzz-sigh.ogg', 45, TRUE)
+		return TRUE
 
 	var/missing = length(missing_puzzle_ids())
 	if(missing)
@@ -197,7 +286,7 @@
 
 /// Points the ramp at whichever end the breaker calls for.
 /obj/machinery/unstable_field_generator/main/proc/set_power()
-	charging_state = (breaker && !(machine_stat & BROKEN)) ? FIELD_POWER_UP : FIELD_POWER_DOWN
+	charging_state = (breaker && !breaker_spent && !(machine_stat & BROKEN)) ? FIELD_POWER_UP : FIELD_POWER_DOWN
 	update_appearance()
 
 /obj/machinery/unstable_field_generator/main/atom_break(damage_flag)
@@ -214,18 +303,20 @@
 /obj/machinery/unstable_field_generator/main/proc/disable()
 	charging_state = FIELD_POWER_IDLE
 	on = FALSE
+	breaker = FALSE
+	breaker_spent = TRUE
 	remove_unstable_bluespace_source(src)
 	release_blast_doors()
 	update_appearance()
 
 /obj/machinery/unstable_field_generator/main/proc/release_blast_doors()
-	if(isnull(blast_door_id))
+	if(!length(blast_door_ids))
 		return
 	var/turf/our_turf = get_turf(src)
 	if(isnull(our_turf))
 		return
 	for(var/obj/machinery/door/poddoor/door as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/door/poddoor))
-		if(door.id != blast_door_id || door.z != our_turf.z)
+		if(!(door.id in blast_door_ids) || door.z != our_turf.z)
 			continue
 		INVOKE_ASYNC(door, TYPE_PROC_REF(/obj/machinery/door, open))
 
@@ -233,18 +324,23 @@
 	if(charging_state == FIELD_POWER_IDLE)
 		return
 
-	if(charging_state == FIELD_POWER_UP && charge_count >= 100)
-		enable()
-		return
-	if(charging_state == FIELD_POWER_DOWN && charge_count <= 0)
-		announce_collapse()
-		disable()
-		return
+	var/climbing = (charging_state == FIELD_POWER_UP)
+	charge_count = clamp(charge_count + (climbing ? charge_rate : -discharge_rate), 0, 100)
 
-	charge_count += (charging_state == FIELD_POWER_UP) ? 2 : -2
-	if(charge_count % 4 == 0 && prob(75))
+	// Dumping is loud on every tick because it only lasts a handful of them. Climbing is spread
+	// out so a long spin-up does not turn into a continuous racket.
+	if(climbing ? (charge_count % 4 == 0 && prob(75)) : prob(75))
 		playsound(src, 'sound/effects/empulse.ogg', 100, TRUE)
 	update_core_overlay()
+
+	// Checked after the step, so the bank finishes on the tick it actually reaches the rail
+	// rather than idling through one more.
+	if(climbing && charge_count >= 100)
+		enable()
+		return
+	if(!climbing && charge_count <= 0)
+		announce_collapse()
+		disable()
 
 /// Mirrors the gravity generator's charge animation so the machine reads as the same hardware.
 /obj/machinery/unstable_field_generator/main/proc/update_core_overlay()

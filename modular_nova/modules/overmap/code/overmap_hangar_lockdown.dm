@@ -14,7 +14,11 @@
  * Hangar lockdown controller
  *
  * Mapped alongside `/obj/machinery/door/poddoor` sharing its `id`, the way blast door buttons are.
- * Arms itself when a ship lands on its Z and stays armed; cutting its wiring is the only way out.
+ * Arms itself when a ship lands in its own bay and stays armed; cutting its wiring is the only way out.
+ *
+ * Which bay is "ours" comes from a `/obj/effect/mapping_helpers/landing_zone/link` dropped on our
+ * tile carrying the same `link_id` as the bay's landing controller. Without one we never fire, since
+ * a controller that cannot tell its own bay from the rest of the Z is worse than an inert one.
  */
 /obj/machinery/hangar_lockdown
 	name = "hangar containment controller"
@@ -35,6 +39,11 @@
 	var/engaged = FALSE
 	/// Set when the wiring is cut. A disabled controller never re-arms, so later landings are free.
 	var/disabled = FALSE
+	/// The landing controller whose zone counts as "our" bay. Bound at mapload by a
+	/// `landing_zone/link` helper sharing the console's `link_id`.
+	var/datum/weakref/bay_console_ref
+	/// Keeps the unbound-controller mapping warning to one line per round.
+	var/warned_unbound = FALSE
 
 /obj/machinery/hangar_lockdown/Initialize(mapload)
 	. = ..()
@@ -42,6 +51,10 @@
 	RegisterSignal(SSdcs, COMSIG_GLOB_OVERMAP_SHIP_DOCKED, PROC_REF(on_ship_docked))
 	if(mapload && isnull(id))
 		log_mapping("[src] at [AREACOORD(src)] has no id and will never find its blast doors.")
+
+/// Points us at the bay we guard. Called by the landing zone link helper at mapload.
+/obj/machinery/hangar_lockdown/proc/bind_bay_console(obj/machinery/computer/landing_controller/console)
+	bay_console_ref = WEAKREF(console)
 
 /// Pre-armed variant, for bays that should already be sealed when players arrive.
 /obj/machinery/hangar_lockdown/engaged
@@ -86,8 +99,19 @@
 
 	if(disabled || engaged)
 		return
-	var/turf/our_turf = get_turf(src)
-	if(isnull(our_turf) || ship?.shuttle?.z != our_turf.z)
+	// Z is far too coarse to scope on: a solo site Z also carries the exterior landing zones
+	// SSovermap seeds, so a ship setting down in open space would seal a bay across the map.
+	// The signal hands us the exact zone that was landed in, so match against our own.
+	var/obj/machinery/computer/landing_controller/console = bay_console_ref?.resolve()
+	if(isnull(console))
+		// Only worth complaining about once something actually landed, which is the first
+		// moment the missing link helper has any consequence.
+		if(!warned_unbound)
+			warned_unbound = TRUE
+			log_mapping("[src] at [AREACOORD(src)] has no bay console and will never engage. \
+				It needs a landing_zone/link helper sharing its bay controller's link_id.")
+		return
+	if(isnull(zone) || zone != console.active_zone)
 		return
 	engage()
 

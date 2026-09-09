@@ -26,6 +26,12 @@ field says "teleporting at all is a bad idea right now".
 that sources the field, built as a main tile plus decorative part tiles, and
 shut down by feeding it keycards.
 
+Cards are held, not swiped: each one moves into the machine and only counts
+toward `required_puzzle_ids` while it is physically in there, so an empty hand
+takes the last one back out and re-locks its slot. The breaker sits on
+right-click rather than sharing the empty-hand input, because throwing it is
+irreversible and the click that fills the final slot must not also fire it.
+
 #### Why the jam lives in `check_teleport_valid()`
 
 Putting the check at that choke point is what makes quantum pads, hand

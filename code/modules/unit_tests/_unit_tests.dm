@@ -377,6 +377,7 @@
 #include "~nova\overmap_factions.dm"
 #include "~nova\overmap_fuel_injector.dm"
 #include "~nova\overmap_gps_recovery.dm"
+#include "~nova\overmap_hazard_scope.dm"
 #include "~nova\overmap_landing_controller.dm"
 #include "~nova\overmap_mapping_helpers.dm"
 #include "~nova\overmap_ruins.dm"
@@ -385,6 +386,7 @@
 #include "~nova\overmap_stop_settle.dm"
 #include "~nova\shuttle.dm"
 #include "~nova\station_treasury.dm"
+#include "~nova\unstable_field_breaker.dm"
 // NOVA EDIT END
 // END_INCLUDE
 #ifdef REFERENCE_TRACKING_DEBUG //Don't try and parse this file if ref tracking isn't turned on. IE: don't parse ref tracking please mr linter
