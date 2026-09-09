@@ -22,7 +22,11 @@ If you want to overwrite TG assets, place that in the AESTHETICS module.
 
 ### Included files that are not contained in this module:
 
-- N/A
+- `modular_nova/modules/cryosleep/icons/cryogenics.dmi` - `cryopod` / `cryopod-open`
+  states, used by `/obj/structure/fluff/cryostasis_pod` in `code/fluff.dm`. TG's
+  own non-functional pods are all open, horizontal and medical-looking, so there
+  is no core sprite for a sealed upright pod. Icon reference only, no code
+  dependency on the cryosleep module.
 
 ### Credits:
 

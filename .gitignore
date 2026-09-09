@@ -275,3 +275,8 @@ rust_g64.dll
 /TailInclude.dm
 /modular_blastwave/
 /_maps/BlastwaveRuins/
+# StrongDMM environment that sets BLASTWAVE_CONTENT, since SpacemanDMM cannot.
+/blastwave_local.dme
+/blastwave_local.dm[bs]
+/blastwave_local.rsc
+/blastwave_local.int

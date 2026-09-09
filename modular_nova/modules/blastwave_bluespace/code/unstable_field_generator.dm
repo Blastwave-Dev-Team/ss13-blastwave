@@ -93,6 +93,8 @@
 	var/field_color = "#7B4FD1"
 	/// puzzle_id values that must all be swiped before the breaker will move. Mappers set this.
 	var/list/required_puzzle_ids = list()
+	/// Blast doors interlocked with the field. Mapper-set; matches the `id` on the doors themselves.
+	var/blast_door_id
 	/// puzzle_id values swiped so far.
 	var/list/accepted_puzzle_ids = list()
 	/// Which core overlay is currently applied.
@@ -213,7 +215,19 @@
 	charging_state = FIELD_POWER_IDLE
 	on = FALSE
 	remove_unstable_bluespace_source(src)
+	release_blast_doors()
 	update_appearance()
+
+/obj/machinery/unstable_field_generator/main/proc/release_blast_doors()
+	if(isnull(blast_door_id))
+		return
+	var/turf/our_turf = get_turf(src)
+	if(isnull(our_turf))
+		return
+	for(var/obj/machinery/door/poddoor/door as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/door/poddoor))
+		if(door.id != blast_door_id || door.z != our_turf.z)
+			continue
+		INVOKE_ASYNC(door, TYPE_PROC_REF(/obj/machinery/door, open))
 
 /obj/machinery/unstable_field_generator/main/process()
 	if(charging_state == FIELD_POWER_IDLE)
