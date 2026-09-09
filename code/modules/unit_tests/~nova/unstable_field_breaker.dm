@@ -9,8 +9,6 @@
 /datum/unit_test/unstable_field_breaker
 	abstract_type = /datum/unit_test/unstable_field_breaker
 
-TEST_FOCUS(/datum/unit_test/unstable_field_breaker)
-
 /// A card the generator will accept, in the test's hands rather than the machine's.
 /datum/unit_test/unstable_field_breaker/proc/build_card(puzzle_id = "test_authorisation")
 	var/obj/item/keycard/card = allocate(/obj/item/keycard)
