@@ -91,12 +91,16 @@
 /obj/effect/decal/cleanable/blood/drip/coolant/get_default_blood_type()
 	return get_blood_type(BLOOD_TYPE_COOLANT)
 
-/obj/effect/decal/cleanable/blood/trail/coolant
-	name = "coolant trail"
-	desc = "A trail of coolant."
+/// The holder is the mappable half of the trail system: `/blood/trail` qdels itself
+/// unless its loc is a holder, and `add_dir_to_trail()` always builds components as
+/// the base type, so a `/blood/trail` subtype could never be reached. The components
+/// take their DNA from the holder, so overriding it here is what colours them.
+/obj/effect/decal/cleanable/blood/trail_holder/coolant
+	name = "trail of coolant"
+	desc = "Your instincts say you shouldn't be following these."
 	color = /datum/blood_type/coolant::color
 
-/obj/effect/decal/cleanable/blood/trail/coolant/get_default_blood_type()
+/obj/effect/decal/cleanable/blood/trail_holder/coolant/get_default_blood_type()
 	return get_blood_type(BLOOD_TYPE_COOLANT)
 
 /// Wheeled and treaded chassis dragging a leak. The parent nulls `base_name`, so this name sticks.

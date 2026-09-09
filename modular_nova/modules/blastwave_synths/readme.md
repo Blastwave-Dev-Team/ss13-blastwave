@@ -14,9 +14,10 @@ synths cannot be set on fire by their own blood. Dries to a chalky film rather
 than staying wet, which is how you tell a coolant pool from an oil pool.
 
 **Coolant decal variants** — `coolant` subtypes of `blood`, `blood/splatter`,
-`blood/old`, `blood/drip`, `blood/trail`, `blood/tracks`, `blood/footprints`,
-`blood/gibs`, `blood/gibs/old` and `blood/gibs/robot_debris` (plus the latter's
-`limb`/`up`/`down` shapes), and a `coolant/slippery` pool.
+`blood/old`, `blood/drip`, `blood/trail_holder`, `blood/tracks`,
+`blood/footprints`, `blood/gibs`, `blood/gibs/old` and
+`blood/gibs/robot_debris` (plus the latter's `limb`/`up`/`down` shapes), and a
+`coolant/slippery` pool.
 
 These are for **mappers only**. Every decal a synth bleeds at runtime is already
 coolant-coloured, because decals are built from the bleeding mob's blood type;
@@ -33,9 +34,17 @@ recolours from blood DNA, so both are overwritten on init unless a parent nulls
 
 `robot_debris` is the exception worth knowing: it nulls its own colour and skips
 `update_blood_color()`, so the coolant subtypes are visually identical to the
-oil originals. Only the reagent and blood DNA differ. `hitsplatter` and
-`trail_holder` have no coolant variants because they are runtime-only and never
-survive maploading; `innards` and `bubblegum` are organic.
+oil originals. Only the reagent and blood DNA differ. `innards` and `bubblegum`
+are organic, and `hitsplatter` is runtime-only and never survives maploading.
+
+Trails are the one place where the mappable type is not the obvious one. Map
+`blood/trail_holder/coolant`, never a `blood/trail` subtype: a `blood/trail`
+stack traces and qdels itself unless its `loc` is a holder, and the holder's
+`add_dir_to_trail()` always constructs components as the base `blood/trail`
+type, so a subtype of it is unreachable in the first place. The holder passes
+its own blood DNA into each component it builds, which is why overriding
+`get_default_blood_type()` on the holder is what actually tints the trail. The
+holder lays its first component from its mapped `dir` at mapload.
 
 **`/datum/species/synthetic/military`** — a corpse-and-mob-only chassis whose
 only real difference from the playable synth is `exotic_bloodtype`. Everything
