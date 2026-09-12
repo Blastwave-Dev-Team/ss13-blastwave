@@ -52,6 +52,7 @@
 	tool_behaviors = list(TOOL_SCREWDRIVER)
 	time = 15 SECONDS
 	category = CAT_WEAPON_RANGED
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/mosin_pro/New()
 	..()

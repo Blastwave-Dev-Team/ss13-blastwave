@@ -99,6 +99,10 @@
 		self_message = span_notice("You finish building \a [wall] on \the [structure]."),
 	)
 
+	if (istype(wall, /turf/closed/wall))
+		var/turf/closed/wall/built_wall = wall
+		built_wall.girder_type = structure.type
+
 	structure.transfer_fingerprints_to(wall)
 	qdel(structure)
 

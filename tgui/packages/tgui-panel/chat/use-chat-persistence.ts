@@ -89,6 +89,7 @@ export function useChatPersistence() {
 
     chatRenderer.processBatch(batch, {
       prepend: true,
+      suppressHighlightSound: true,
     });
 
     console.log(`Restored chat with ${messages.length} messages`);

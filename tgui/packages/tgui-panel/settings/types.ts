@@ -28,6 +28,9 @@ export type HighlightSetting = {
   matchCase: boolean;
   matchWord: boolean;
   enabled: boolean;
+  playSound: boolean;
+  soundFile: string;
+  soundVolume: number;
 };
 
 export type HighlightState = {

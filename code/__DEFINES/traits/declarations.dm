@@ -1660,4 +1660,7 @@ Remember to update _globalvars/traits.dm if you're adding/removing/renaming trai
 /// Makes the owner desensetized to death, but happy whenever someone gets blown to pieces (as a sacrifice to the necropolis) unless its another worshipper
 #define TRAIT_NECROPOLIS_WORSHIP "necropolis_worship"
 
+/// Turfs with this trait allow whispers to be projected over it when the whisperer is facing it
+#define TRAIT_TURF_PROJECTS_WHISPERS "turf_projects_whispers"
+
 // END TRAIT DEFINES

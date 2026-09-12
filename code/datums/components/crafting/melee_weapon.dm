@@ -104,6 +104,7 @@
 	)
 	time = 10 SECONDS
 	category = CAT_WEAPON_MELEE
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/balloon_mallet/check_requirements(mob/user, list/collected_requirements)
 	return HAS_TRAIT(user, TRAIT_BALLOON_SUTRA)
