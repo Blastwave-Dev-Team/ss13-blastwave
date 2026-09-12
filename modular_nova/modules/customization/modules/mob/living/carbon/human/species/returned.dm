@@ -36,6 +36,17 @@
 	bodytemp_heat_damage_limit = FIRE_MINIMUM_TEMPERATURE_TO_EXIST //Take damage at fire temp. Normally cells would start to suffer before this but undead.
 	bodytemp_cold_damage_limit = FIRE_SUIT_MIN_TEMP_PROTECT //Starts taking damage when it gets REALLY cold. Past this and you're probably in space already.
 
+/datum/species/returned/get_default_mutant_bodyparts()
+	return list(
+		FEATURE_TAIL = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_SNOUT = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_EARS = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_LEGS = MUTPART_BLUEPRINT(NORMAL_LEGS, is_randomizable = FALSE, is_feature = TRUE),
+		FEATURE_WINGS = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_TAUR = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+		FEATURE_HORNS = MUTPART_BLUEPRINT(SPRITE_ACCESSORY_NONE, is_randomizable = FALSE),
+	)
+
 //Returned do not stabilize their body temperature by default, leaving them cold-blooded.
 /datum/species/returned/body_temperature_core(mob/living/carbon/human/humi, seconds_per_tick)
 	return
