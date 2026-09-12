@@ -1,0 +1,4 @@
+author: "afaenamednoah"
+delete-after: True
+changes:
+  - bugfix: "returned get mutant parts and digitigrade legs now"
