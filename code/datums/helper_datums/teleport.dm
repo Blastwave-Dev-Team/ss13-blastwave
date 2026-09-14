@@ -261,7 +261,7 @@
 	// BLASTWAVE EDIT ADDITION START - BLASTWAVE_BLUESPACE - Bluespace interdiction. Both ends have to be clear, so you cannot portal into or out of a jammed level.
 	if(!bypass_jam)
 		var/turf/origin_turf = get_turf(teleported_atom)
-		if(is_teleport_jammed(origin_turf?.z) || is_teleport_jammed(destination_turf.z))
+		if(is_teleport_jammed(origin_turf) || is_teleport_jammed(destination_turf))
 			return FALSE
 	// BLASTWAVE EDIT ADDITION END
 

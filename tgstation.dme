@@ -7861,6 +7861,8 @@
 #include "modular_nova\modules\bitrunning\code\virtual_domains\syndicate_assault\outfit.dm"
 #include "modular_nova\modules\bitrunning\code\virtual_domains\syndicate_assault\virtual_domain.dm"
 #include "modular_nova\modules\blastwave_bluespace\code\teleport_jam.dm"
+#include "modular_nova\modules\blastwave_bluespace\code\teleport_jammer.dm"
+#include "modular_nova\modules\blastwave_bluespace\code\teleport_jammer_research.dm"
 #include "modular_nova\modules\blastwave_bluespace\code\unstable_bluespace_field.dm"
 #include "modular_nova\modules\blastwave_bluespace\code\unstable_field_generator.dm"
 #include "modular_nova\modules\blastwave_outfits\code\cargo_packs.dm"

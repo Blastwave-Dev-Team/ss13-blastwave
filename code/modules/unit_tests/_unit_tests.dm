@@ -386,6 +386,7 @@
 #include "~nova\overmap_stop_settle.dm"
 #include "~nova\shuttle.dm"
 #include "~nova\station_treasury.dm"
+#include "~nova\teleport_jam_range.dm"
 #include "~nova\unstable_field_breaker.dm"
 // NOVA EDIT END
 // END_INCLUDE

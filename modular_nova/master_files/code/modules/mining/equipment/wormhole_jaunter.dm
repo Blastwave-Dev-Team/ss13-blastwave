@@ -7,7 +7,7 @@
 	var/list/destinations = ..()
 	for(var/obj/item/beacon/beacon as anything in destinations)
 		var/turf/beacon_turf = get_turf(beacon)
-		if(isnull(beacon_turf) || is_teleport_jammed(beacon_turf.z))
+		if(isnull(beacon_turf) || is_teleport_jammed(beacon_turf))
 			destinations -= beacon
 
 	return destinations
