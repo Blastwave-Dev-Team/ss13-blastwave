@@ -28,9 +28,15 @@
 /obj/structure/overmap/event/proc/apply_effect()
 	if(!affect_multiple_times)
 		return
-	for(var/obj/structure/overmap/ship/simulated/S in close_overmap_objects)
+	// close_overmap_objects reaches a tile out, because that is the range docking and helm
+	// actions want. A hazard is not something you reach across a gap to touch: flying the lane
+	// beside a storm instead of through it is the entire manoeuvre, so only ships that actually
+	// share our tile take the hit.
+	for(var/obj/structure/overmap/ship/simulated/ship in close_overmap_objects)
+		if(ship.loc != loc)
+			continue
 		if(prob(chance_to_affect))
-			affect_ship(S)
+			affect_ship(ship)
 
 /// The main effect applied to a ship. Override in subtypes.
 /obj/structure/overmap/event/proc/affect_ship(obj/structure/overmap/ship/simulated/S)

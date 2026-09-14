@@ -24,6 +24,10 @@
 	var/corpse = /obj/effect/mob_spawn/corpse/human
 	/// Path of the mob spawner we base the mob's visuals off of.
 	var/mob_spawner = /obj/effect/mob_spawn/corpse/human
+	// BLASTWAVE EDIT ADDITION START - BLASTWAVE_SYNTHS - non-human trooper chassis
+	/// Species the living sprite is built from. The corpse carries its own species; this only drives the standing mob.
+	var/species_path = /datum/species/human
+	// BLASTWAVE EDIT ADDITION END
 	/// Path of the right hand held item we give to the mob's visuals.
 	var/r_hand
 	/// Path of the left hand held item we give to the mob's visuals.
@@ -31,7 +35,7 @@
 
 /mob/living/basic/trooper/Initialize(mapload)
 	. = ..()
-	apply_dynamic_human_appearance(src, mob_spawn_path = mob_spawner, r_hand = r_hand, l_hand = l_hand)
+	apply_dynamic_human_appearance(src, species_path = species_path, mob_spawn_path = mob_spawner, r_hand = r_hand, l_hand = l_hand) // BLASTWAVE EDIT CHANGE - BLASTWAVE_SYNTHS - ORIGINAL: apply_dynamic_human_appearance(src, mob_spawn_path = mob_spawner, r_hand = r_hand, l_hand = l_hand)
 	if(LAZYLEN(loot) || corpse)
 		LAZYOR(loot, corpse)
 		loot = string_list(loot)
