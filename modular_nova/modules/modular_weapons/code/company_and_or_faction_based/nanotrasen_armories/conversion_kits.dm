@@ -33,6 +33,7 @@
 	tool_behaviors = list(TOOL_SCREWDRIVER)
 	time = 15 SECONDS
 	category = CAT_WEAPON_RANGED
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/reclaimer_reverse/check_requirements(mob/user, list/collected_requirements)
 	var/obj/item/gun/ballistic/automatic/c20r/reclaimed/the_piece = collected_requirements[/obj/item/gun/ballistic/automatic/c20r/reclaimed][1]
@@ -74,6 +75,7 @@
 	tool_behaviors = list(TOOL_SCREWDRIVER)
 	time = 15 SECONDS
 	category = CAT_WEAPON_RANGED
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/c38_super/New()
 	..()
@@ -117,6 +119,7 @@
 	tool_behaviors = list(TOOL_SCREWDRIVER)
 	time = 10 SECONDS
 	category = CAT_WEAPON_RANGED
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/c38_speedloader_plus/New()
 	..()

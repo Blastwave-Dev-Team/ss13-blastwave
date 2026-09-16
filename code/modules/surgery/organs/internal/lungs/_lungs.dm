@@ -28,15 +28,15 @@
 	food_reagents = list(/datum/reagent/consumable/nutriment/organ_tissue = 5, /datum/reagent/medicine/salbutamol = 5)
 
 	/// Our previous breath's partial pressures, in the form gas id -> partial pressure
-	var/list/last_partial_pressures = list()
+	var/alist/last_partial_pressures = alist()
 	/// List of gas to treat as other gas, in the form list(inital_gas, treat_as, multiplier)
 	var/list/treat_as = list()
-	/// Assoc list of procs to run while a gas is present, in the form gas id -> proc_path
-	var/list/breath_present = list()
-	/// Assoc list of procs to run when a gas is immediately removed from the breath, in the form gas id -> proc_path
-	var/list/breath_lost = list()
-	/// Assoc list of procs to always run, in the form gas_id -> proc_path
-	var/list/breathe_always = list()
+	/// Alist of procs to run while a gas is present, in the form gas id -> proc_path
+	var/alist/breath_present = alist()
+	/// Alist of procs to run when a gas is immediately removed from the breath, in the form gas id -> proc_path
+	var/alist/breath_lost = alist()
+	/// Alist of procs to always run, in the form gas_id -> proc_path
+	var/alist/breathe_always = alist()
 
 	/// Gas mixture to breath out when we're done processing a breath
 	/// Will get emptied out when it's all done
@@ -178,12 +178,12 @@
 	// This is very "manual" I realize, but it's useful to ensure cleanup for gases we're removing happens
 	// Avoids stuck alerts and such
 	var/static/datum/gas_mixture/immutable/dummy = new(BREATH_VOLUME)
-	for(var/gas_id in last_partial_pressures)
+	for(var/gas_id, partial_pressure in last_partial_pressures)
 		var/on_loss = breath_lost[gas_id]
 		if(!on_loss)
 			continue
 
-		call(src, on_loss)(organ_owner, dummy, last_partial_pressures[gas_id])
+		call(src, on_loss)(organ_owner, dummy, partial_pressure)
 	dummy.garbage_collect()
 
 /**
@@ -648,15 +648,15 @@
 	var/old_euphoria = (n2o_euphoria == EUPHORIA_ACTIVE || healium_euphoria == EUPHORIA_ACTIVE)
 
 	// Cache for sonic speed
-	var/list/last_partial_pressures = src.last_partial_pressures
-	var/list/breathe_always = src.breathe_always
-	var/list/breath_present = src.breath_present
-	var/list/breath_lost = src.breath_lost
+	var/alist/last_partial_pressures = src.last_partial_pressures
+	var/alist/breathe_always = src.breathe_always
+	var/alist/breath_present = src.breath_present
+	var/alist/breath_lost = src.breath_lost
 
 	// Build out our partial pressures, for use as we go
-	var/list/partial_pressures = list()
-	for(var/gas_id in breath_gases)
-		partial_pressures[gas_id] = breath.get_breath_partial_pressure(breath_gases[gas_id][MOLES] * received_pressure_mult)
+	var/alist/partial_pressures = alist()
+	for(var/gas_id, gas_data in breath_gases)
+		partial_pressures[gas_id] = breath.get_breath_partial_pressure(gas_data[MOLES] * received_pressure_mult)
 
 	// Treat gas as other types of gas
 	for(var/list/conversion_packet in treat_as)
@@ -670,12 +670,11 @@
 
 	// First, we breathe the stuff that always wants to be processed
 	// This is typically things like o2, stuff the mob needs to live
-	for(var/breath_id in breathe_always)
+	for(var/breath_id, inhale in breathe_always)
 		var/partial_pressure = partial_pressures[breath_id] || 0
 		var/old_partial_pressure = last_partial_pressures[breath_id] || 0
 		// Ensures the gas will always be instanciated, so people can interact with it safely
 		ASSERT_GAS(breath_id, breath)
-		var/inhale = breathe_always[breath_id]
 		call(src, inhale)(breather, breath, partial_pressure, old_partial_pressure)
 
 	// Now we'll handle the callbacks that want to be run conditionally off our current breath
@@ -691,15 +690,15 @@
 				call(src, on_lose)(breather, breath, partial_pressures[breath_id], last_partial_pressures[breath_id])
 
 	// Finally, we'll run the callbacks that aren't in breath_gases, but WERE in our last breath
-	for(var/gas_lost in last_partial_pressures)
+	for(var/gas_id, partial_pressure in last_partial_pressures)
 		// If we still have it, go away
-		if(breath_gases[gas_lost])
+		if(breath_gases[gas_id])
 			continue
-		var/on_loss = breath_lost[gas_lost]
+		var/on_loss = breath_lost[gas_id]
 		if(!on_loss)
 			continue
 
-		call(src, on_loss)(breather, breath, last_partial_pressures[gas_lost])
+		call(src, on_loss)(breather, breath, partial_pressure)
 
 	src.last_partial_pressures = partial_pressures
 

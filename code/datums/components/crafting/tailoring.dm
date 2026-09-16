@@ -604,6 +604,7 @@
 	)
 	time = 4 SECONDS
 	category = CAT_CLOTHING
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/balloon_helmet/check_requirements(mob/user, list/collected_requirements)
 	return HAS_TRAIT(user, TRAIT_BALLOON_SUTRA)
@@ -615,6 +616,7 @@
 	)
 	time = 4 SECONDS
 	category = CAT_CLOTHING
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/balloon_tophat/check_requirements(mob/user, list/collected_requirements)
 	return HAS_TRAIT(user, TRAIT_BALLOON_SUTRA)
@@ -626,6 +628,7 @@
 	)
 	time = 8 SECONDS
 	category = CAT_CLOTHING
+	crafting_flags = parent_type::crafting_flags | CRAFT_COLLECT_REQUIREMENTS
 
 /datum/crafting_recipe/balloon_vest/check_requirements(mob/user, list/collected_requirements)
 	return HAS_TRAIT(user, TRAIT_BALLOON_SUTRA)
