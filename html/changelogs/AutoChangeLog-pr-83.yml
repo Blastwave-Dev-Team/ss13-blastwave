@@ -1,0 +1,11 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "You can whisper across a table you are facing. The person on the far side hears you clearly; people further out still only catch fragments."
+  - rscadd: "Chat highlights can play an optional sound when they match. This is off by default."
+  - qol: "Chem dispenser recipes show nested wiki popups on hover."
+  - qol: "TGUI windows (helm, examine, cameras, etc.) should refresh embedded maps more reliably after open or F5."
+  - bugfix: "Crafting menu no longer shows some conversion-kit / special recipes as craftable when they would fail on click."
+  - bugfix: "Walls built from non-iron girders remember that girder type when deconstructed."
+  - bugfix: "Syndicate stray cargo pods now drop syndicate crates."
+  - code_imp: "Bumped tgui-core to 6.1.3."
