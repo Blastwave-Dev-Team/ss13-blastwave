@@ -4,11 +4,16 @@
 // have a clear path to space along at least one edge of its bounding rectangle.
 //
 // If the shuttle is parked in a player-built landing zone whose controller
-// designated an exit direction, only that edge is validated (a per-column
-// raycast up to OVERMAP_BAY_EXIT_DEPTH tiles). Otherwise all four faces are
-// checked and any fully-clear face passes.
+// designated an exit direction, only that edge is validated. Otherwise all four
+// faces are tried and any one clear face passes. Both cases run the same
+// per-column raycast: a column is clear if it travels OVERMAP_BAY_EXIT_DEPTH
+// tiles without hitting a wall or closed blast door, or reaches space sooner.
+//
+// Interior open floor is traversed rather than counted as arrival. Treating it as
+// arrival is what previously let a ship launch out of a sealed hangar, since the
+// tile beside the hull is always open floor.
 
-/// How many tiles outward the per-column raycast probes for open space.
+/// How many tiles outward the per-column raycast probes before declaring a column clear.
 #define OVERMAP_BAY_EXIT_DEPTH 10
 
 /// Dense decor typepaths ignored by takeoff corridor / bay-exit checks.
@@ -23,15 +28,22 @@ GLOBAL_LIST_INIT(overmap_bay_exit_ignore, list(
 /proc/overmap_bay_exit_ignores(atom/thing)
 	return is_type_in_list(thing, GLOB.overmap_bay_exit_ignore)
 
-/// TRUE if `checked_turf` is a hard wall that blocks a launch path. Closed turfs
-/// and anchored dense structures block; doors (openable), open floors, and
-/// whitelisted decor (`GLOB.overmap_bay_exit_ignore`) do not.
+/// TRUE if `checked_turf` is a hard wall that blocks a launch path. Closed turfs,
+/// closed blast doors, and anchored dense structures block; ordinary doors
+/// (openable by hand), open floors, and whitelisted decor
+/// (`GLOB.overmap_bay_exit_ignore`) do not.
 /proc/overmap_bay_tile_is_wall(turf/checked_turf)
 	if(isclosedturf(checked_turf))
 		return TRUE
 	for(var/obj/blocker in checked_turf)
 		if(!blocker.density)
 			continue
+		// A closed blast door is a wall for launch purposes: it cannot be opened by hand, so a ship
+		// parked behind one genuinely cannot leave. The helm has always claimed as much ("open the bay
+		// doors before launching"); without this the raycast walks straight through it and the claim
+		// is a lie. Ordinary airlocks stay passable, since anyone aboard can just open them.
+		if(istype(blocker, /obj/machinery/door/poddoor))
+			return TRUE
 		if(istype(blocker, /obj/machinery/door))
 			continue
 		if(overmap_bay_exit_ignores(blocker))
@@ -40,22 +52,13 @@ GLOBAL_LIST_INIT(overmap_bay_exit_ignore, list(
 			return TRUE
 	return FALSE
 
-/// TRUE if `checked_turf` currently holds an open (non-dense) poddoor.
-/proc/overmap_bay_tile_has_open_poddoor(turf/checked_turf)
-	for(var/obj/machinery/door/poddoor/door in checked_turf)
-		if(!door.density)
-			return TRUE
-	return FALSE
-
-/// TRUE if the tile is a valid clear launch path (open space, open floor, or open poddoor).
-/proc/overmap_bay_tile_is_clear(turf/checked_turf)
-	if(isnull(checked_turf))
-		return FALSE
-	if(overmap_bay_tile_is_wall(checked_turf))
-		return FALSE
-	if(isspaceturf(checked_turf) || isopenturf(checked_turf))
-		return TRUE
-	return overmap_bay_tile_has_open_poddoor(checked_turf)
+/// TRUE if reaching `checked_turf` means the raycast is definitively outside and
+/// can stop early. Only space qualifies: interior floor is something a ray must
+/// travel *through*, not a destination, or a sealed bay reads as open at depth 1.
+/// Planetary pads have no space turf nearby and instead pass by clearing the
+/// full depth budget.
+/proc/overmap_bay_tile_is_outside(turf/checked_turf)
+	return isspaceturf(checked_turf)
 
 // Note: enforcement is intentionally scoped to the overmap `undock()` launch gate
 // rather than a global COMSIG_SHUTTLE_SHOULD_MOVE handler. A global block risks
@@ -126,14 +129,17 @@ GLOBAL_LIST_INIT(overmap_bay_exit_ignore, list(
 			interior_run = max(interior_run, 0)
 		return bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir, interior_run + OVERMAP_BAY_EXIT_DEPTH)
 
+	// No designated exit: any one face that raycasts clear is good enough. Same per-column
+	// probe as the designated case, so an enclosed bay fails in every direction.
 	for(var/cardinal in GLOB.cardinals)
-		if(bay_exit_face_clear(x1, y1, x2, y2, check_z, cardinal))
+		if(bay_exit_strip_clear(x1, y1, x2, y2, check_z, cardinal))
 			return TRUE
 	return FALSE
 
-/// Per-column raycast for a designated exit direction. Every column (or row) of
-/// the exit edge must reach an open turf (space, open floor, or open poddoor)
-/// within `max_depth` tiles without first hitting a hard wall.
+/// Per-column raycast. Every column (or row) of the exit edge must get `max_depth`
+/// tiles out without hitting a hard wall, or reach space sooner. Interior floor and
+/// open blast doors are traversed, not treated as arrival: that is what makes a
+/// sealed bay fail while an open pad or planet surface passes.
 /obj/docking_port/mobile/proc/bay_exit_strip_clear(x1, y1, x2, y2, check_z, exit_dir, max_depth = OVERMAP_BAY_EXIT_DEPTH)
 	var/dx = 0
 	var/dy = 0
@@ -156,38 +162,17 @@ GLOBAL_LIST_INIT(overmap_bay_exit_ignore, list(
 	for(var/along in edge_start to edge_end)
 		var/base_x = vertical ? along : (exit_dir == EAST ? x2 : x1)
 		var/base_y = vertical ? (exit_dir == NORTH ? y2 : y1) : along
-		var/column_clear = FALSE
+		var/column_clear = TRUE
 		for(var/depth in 1 to max_depth)
 			var/turf/probe = locate(base_x + dx * depth, base_y + dy * depth, check_z)
-			if(isnull(probe))
+			if(isnull(probe)) // Ran off the edge of the z-level with nothing in the way.
 				break
 			if(overmap_bay_tile_is_wall(probe))
+				column_clear = FALSE
 				break
-			if(overmap_bay_tile_is_clear(probe))
-				column_clear = TRUE
+			if(overmap_bay_tile_is_outside(probe))
 				break
 		if(!column_clear)
-			return FALSE
-	return TRUE
-
-/// Simple face check used when no exit direction is designated. The adjacent
-/// strip (one tile outside the bounds) passes if every tile is open (space,
-/// open floor, or open poddoor).
-/obj/docking_port/mobile/proc/bay_exit_face_clear(x1, y1, x2, y2, check_z, face_dir)
-	var/vertical = (face_dir == NORTH || face_dir == SOUTH)
-	var/edge_start = vertical ? x1 : y1
-	var/edge_end = vertical ? x2 : y2
-	for(var/along in edge_start to edge_end)
-		var/probe_x
-		var/probe_y
-		if(vertical)
-			probe_x = along
-			probe_y = (face_dir == NORTH ? y2 + 1 : y1 - 1)
-		else
-			probe_x = (face_dir == EAST ? x2 + 1 : x1 - 1)
-			probe_y = along
-		var/turf/probe = locate(probe_x, probe_y, check_z)
-		if(!overmap_bay_tile_is_clear(probe))
 			return FALSE
 	return TRUE
 

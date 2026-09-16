@@ -23,6 +23,9 @@
 	/// Overmap affiliation allowed to land here (`OVERMAP_AFFILIATION_*`).
 	/// Null/empty = open to any affiliation (seeded/mapped zones default open).
 	var/dock_affiliation
+	/// TRUE on zones SSovermap scattered across a site Z, as opposed to one a mapper placed or
+	/// a landing controller manages. Lets callers reason about the seeded set on its own.
+	var/seeded = FALSE
 
 /obj/effect/landmark/overmap_landing_zone/Initialize(mapload)
 	. = ..()

@@ -63,9 +63,10 @@
 ///
 /// Everything visible on the overmap: stations, ships, and (post-prototype)
 /// ruins, events, and dynamic encounters. Adjacency tracking uses
-/// `on_overmap_crossed` / `on_overmap_uncrossed`; the same-tile list
-/// close_overmap_objects is what helms surface in their radar and what
-/// enables docking via act_overmap.
+/// `on_overmap_crossed` / `on_overmap_uncrossed` to seed exact-tile peers, which
+/// `refresh_close_overmap_objects()` then widens to OVERMAP_INTERACTION_RANGE. The resulting
+/// close_overmap_objects list is what helms surface in their radar and what enables docking
+/// via act_overmap, so it deliberately includes neighbours you have not reached yet.
 /obj/structure/overmap
 	name = "celestial object"
 	desc = "An unknown celestial object."
@@ -85,7 +86,9 @@
 	var/integrity = 100
 	/// Armor reduces integrity damage taken.
 	var/overmap_armor = 1
-	/// Other overmap objects sharing the same turf.
+	/// Other overmap objects within OVERMAP_INTERACTION_RANGE — our own tile *and* its neighbours,
+	/// not just co-located ones. Anything that must be strictly same-tile has to compare `loc`
+	/// itself rather than trusting membership here.
 	var/list/close_overmap_objects
 	/// Velocity X component in tiles/second (positive = east).
 	var/vel_x = 0
