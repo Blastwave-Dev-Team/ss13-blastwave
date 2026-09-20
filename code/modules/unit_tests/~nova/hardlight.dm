@@ -289,8 +289,6 @@
 /// The racks hold a typepath until the matrix comes out, and then they do not hold it twice.
 /datum/unit_test/hardlight/garrison_wake
 
-TEST_FOCUS(/datum/unit_test/hardlight/garrison_wake)
-
 /datum/unit_test/hardlight/garrison_wake/Run()
 	var/turf/home = run_loc_floor_bottom_left
 	var/obj/machinery/hardlight_command_core/core = allocate(/obj/machinery/hardlight_command_core, home)
