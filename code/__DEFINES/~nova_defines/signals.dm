@@ -118,3 +118,12 @@
 
 /// An overmap ship finished setting down: (obj/structure/overmap/ship/simulated/ship, obj/structure/overmap/site, obj/effect/landmark/overmap_landing_zone/zone)
 #define COMSIG_GLOB_OVERMAP_SHIP_DOCKED "!overmap_ship_docked"
+
+/// A hard-light command matrix was pulled into a carrier: (obj/machinery/hardlight_command_core/core, mob/living/extractor)
+#define COMSIG_GLOB_HARDLIGHT_MATRIX_EXTRACTED "!hardlight_matrix_extracted"
+
+/// A hard-light command core moved between encounter phases: (obj/machinery/hardlight_command_core/core, new_phase, old_phase)
+#define COMSIG_GLOB_HARDLIGHT_PHASE_CHANGED "!hardlight_phase_changed"
+
+/// A hard-light projector ran out of charge and dropped whatever it was projecting: (obj/machinery/hardlight_projector/pad)
+#define COMSIG_HARDLIGHT_PAD_COLLAPSED "hardlight_pad_collapsed"

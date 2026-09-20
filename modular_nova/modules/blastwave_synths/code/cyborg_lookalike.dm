@@ -63,10 +63,17 @@
 	apply_damage(severity == EMP_HEAVY ? 60 : 30, BRUTE)
 	do_sparks(5, FALSE, src)
 
-/// Disabler-armed security chassis. The one you want covering an open room.
+/**
+ * Laser-armed security chassis. The one you want covering an open room.
+ *
+ * Lethal, not a disabler. These are not station security holding a suspect for questioning - the
+ * stand-down order never arrived, so what they are still running is a wartime rules of engagement
+ * against anyone the recognition tables do not know. A chassis that carefully stuns intruders is a
+ * chassis that has been told there are intruders rather than enemies, and nobody ever told it that.
+ */
 /mob/living/basic/blastwave_cyborg/security
 	name = "derelict security cyborg"
-	desc = "A security cyborg chassis, one arm ending in a disabler emitter that never got the stand-down order."
+	desc = "A security cyborg chassis, one arm ending in a laser emitter that never got the stand-down order."
 	icon_state = "sec"
 	icon_living = "sec"
 	icon_dead = "sec"
@@ -76,8 +83,8 @@
 	. = ..()
 	AddComponent(\
 		/datum/component/ranged_attacks,\
-		casing_type = /obj/item/ammo_casing/energy/disabler,\
-		projectile_sound = 'sound/items/weapons/taser2.ogg',\
+		casing_type = /obj/item/ammo_casing/energy/laser,\
+		projectile_sound = 'sound/items/weapons/laser.ogg',\
 		cooldown_time = 2 SECONDS,\
 	)
 
