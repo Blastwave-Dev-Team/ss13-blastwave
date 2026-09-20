@@ -58,6 +58,9 @@
 	dir = 8
 	},
 /obj/machinery/firealarm/directional/east,
+/obj/machinery/overmap_radar/bus/output{
+	id = "FOC Radar Output Bus"
+	},
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)
 "an" = (
@@ -113,8 +116,8 @@
 /area/station/command/flight_operations/server)
 "aw" = (
 /obj/structure/window/reinforced/spawner/directional/south,
-/obj/machinery/overmap_radar/bus{
-	id = "FOC Radar Bus"
+/obj/machinery/overmap_radar/bus/input{
+	id = "FOC Radar Input Bus"
 	},
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)

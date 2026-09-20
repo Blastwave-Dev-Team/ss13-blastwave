@@ -36,6 +36,62 @@
 	TEST_ASSERT_EQUAL(console.tracked_contacts["test"]["name"], "Contact Alpha", "Clean packet should keep the contact name.")
 	TEST_ASSERT_EQUAL(console.tracked_contacts["test"]["track"], "T1", "New contacts should receive a default track number.")
 
+/**
+ * A processor and a bus wired to each other must not volley the same packet between them.
+ *
+ * Each relays to the other's type, so with nothing tracking where a packet has been they pass it
+ * back and forth until BYOND aborts the sweep at a million stack frames. That took the whole
+ * ui_act() with it, which left the console holding contacts it had stored but never announced.
+ *
+ * Asserting on the transcript because the console appends to it once per packet it accepts, so a
+ * packet that arrives more than once is visible without instrumenting the relay.
+ */
+/datum/unit_test/overmap_radar_relay_does_not_bounce
+
+/datum/unit_test/overmap_radar_relay_does_not_bounce/Run()
+	var/turf/stage = run_loc_floor_bottom_left
+	var/datum/powernet/grid = new
+	var/obj/machinery/overmap_radar/dish/dish = allocate(/obj/machinery/overmap_radar/dish, stage)
+	var/obj/machinery/overmap_radar/bus/input/input_bus = allocate(/obj/machinery/overmap_radar/bus/input, stage)
+	var/obj/machinery/overmap_radar/processor/processor = allocate(/obj/machinery/overmap_radar/processor, stage)
+	var/obj/machinery/overmap_radar/bus/output/output_bus = allocate(/obj/machinery/overmap_radar/bus/output, stage)
+	var/obj/machinery/computer/overmap_radar/console = allocate(/obj/machinery/computer/overmap_radar, stage)
+	var/list/chain = list(dish, input_bus, processor, output_bus)
+	for(var/obj/machinery/overmap_radar/machine as anything in chain)
+		machine.forced_powernet = grid
+		machine.on = TRUE
+	console.forced_powernet = grid
+	console.on = TRUE
+
+	// Deliberately wired as a complete graph, which is what the old shared autolink token produced.
+	// Every pair is joined, including the processor to both buses, so the only thing keeping the
+	// packet moving forward is the stage ordering.
+	for(var/i in 1 to length(chain))
+		var/obj/machinery/overmap_radar/machine = chain[i]
+		for(var/j in (i + 1) to length(chain))
+			machine.add_radar_link(chain[j])
+		console.add_radar_link(machine)
+
+	var/datum/signal/overmap_radar/packet = new(dish, SSovermap.main)
+	packet.dest_console = console
+	packet.compression = OVERMAP_RADAR_DEFAULT_COMPRESSION
+	packet.contacts += list(list(
+		"ref" = "bounce",
+		"name" = "Contact Bounce",
+		"type" = "ship",
+		"x" = 10,
+		"y" = 12,
+		"bearing" = 90,
+		"distance" = 4,
+		"affiliation" = OVERMAP_AFFILIATION_NT,
+	))
+
+	dish.emit_packet(packet)
+
+	TEST_ASSERT(console.tracked_contacts["bounce"], "The console should have received the swept contact.")
+	TEST_ASSERT_EQUAL(console.tracked_contacts["bounce"]["compression"], 0, "The packet should have passed through the processor, which zeroes compression.")
+	TEST_ASSERT_EQUAL(length(console.transcript_log), 1, "The console logged [length(console.transcript_log)] sweeps for one packet. More than one means a role handed it on after another already had, and a packet that can arrive twice can also circulate.")
+
 /datum/unit_test/overmap_radar_powernet_gate
 
 /datum/unit_test/overmap_radar_powernet_gate/Run()
@@ -78,7 +134,9 @@
 		"distance" = 2,
 		"affiliation" = OVERMAP_AFFILIATION_NT,
 	))
-	dish.relay_radar_packet(packet, /obj/machinery/computer/overmap_radar)
+	// The real emit path. With no bus and no processor linked, the chain should fall all the way
+	// through to the console rather than giving up because its preferred next hop is missing.
+	dish.emit_packet(packet)
 	TEST_ASSERT(console.tracked_contacts["garbled"], "Console should still receive a compressed packet.")
 	TEST_ASSERT(console.tracked_contacts["garbled"]["compression"] > 0, "Missing processor should leave compression in place.")
 
@@ -246,7 +304,7 @@
 	TEST_ASSERT(console_a.track_label_in_use("BANDIT", "bravo"), "Renamed tracks should stay unique.")
 	TEST_ASSERT(!console_a.track_label_in_use("BANDIT", "alpha"), "A contact may keep its own track label.")
 
-/// Auto track serials keep incrementing across sweeps; operator names persist.
+/// An auto track serial is held for as long as the contact is, and operator names outrank it.
 /datum/unit_test/overmap_radar_track_serial_cumulative
 
 /datum/unit_test/overmap_radar_track_serial_cumulative/Run()
@@ -292,8 +350,8 @@
 		"affiliation" = OVERMAP_AFFILIATION_NT,
 	))
 	processor.receive_radar_packet(second, dish)
-	TEST_ASSERT_EQUAL(console.tracked_contacts["alpha"]["track"], "T2", "A later sweep should mint T2, not reuse T1.")
-	TEST_ASSERT_EQUAL(console.next_track_index, 3, "The auto-track serial should only move forward.")
+	TEST_ASSERT_EQUAL(console.tracked_contacts["alpha"]["track"], "T1", "Re-detecting a contact we already hold must keep its track number, not mint a new one.")
+	TEST_ASSERT_EQUAL(console.next_track_index, 2, "The serial should only advance for genuinely new contacts.")
 
 	console.manual_tracks["alpha"] = "BANDIT"
 	console.track_labels["alpha"] = "BANDIT"
@@ -323,4 +381,4 @@
 	)
 	processor.receive_radar_packet(third, dish)
 	TEST_ASSERT_EQUAL(console.tracked_contacts["alpha"]["track"], "BANDIT", "Operator track names should survive later sweeps.")
-	TEST_ASSERT_EQUAL(console.tracked_contacts["bravo"]["track"], "T3", "A new contact on a later sweep should continue the serial.")
+	TEST_ASSERT_EQUAL(console.tracked_contacts["bravo"]["track"], "T2", "A new contact should take the next unused serial, which T1 being held by alpha does not block.")

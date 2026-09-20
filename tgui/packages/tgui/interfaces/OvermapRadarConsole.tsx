@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Input,
@@ -24,10 +24,10 @@ type RadarContact = {
   y: number;
   bearing: number;
   distance: number;
-  affiliation: string;
+  /// Server clock stamp of the last sweep that painted this contact, in deciseconds. Ages are derived
+  /// from this against `serverTime` rather than sent per contact, so a contact whose position has not
+  /// changed serialises identically between pushes.
   last_seen: number;
-  age: number;
-  compression: number;
 };
 
 type Data = {
@@ -35,6 +35,9 @@ type Data = {
   viewerX: number | null;
   viewerY: number | null;
   gridSize: number;
+  /// Server clock at the moment this payload was built, in deciseconds. The client advances it locally
+  /// so contact fades keep moving between pushes instead of only on one.
+  serverTime: number;
   bearing: number;
   arcWidth: number;
   animBearing: number;
@@ -48,7 +51,15 @@ type Data = {
   scanCooldown: number;
   hasDish: BooleanLike;
   selectedId: string | null;
+  /// One batch, not the whole picture. The console pays its contact list out a batch per push to keep
+  /// any single write small, so these accumulate across pushes sharing a `drainSeq`.
   contacts: RadarContact[];
+  /// Payout cycle this batch belongs to. A change means a fresh picture is being sent.
+  drainSeq: number;
+  /// Whether this batch completes the cycle, at which point anything not resent has gone away.
+  drainDone: BooleanLike;
+  /// Contacts in the whole cycle, for reporting progress while a picture is still arriving.
+  contactTotal: number;
   decay: number;
 };
 
@@ -83,6 +94,61 @@ const CONTACT_COLOR: Record<string, string> = {
 };
 
 const formatScanAge = (ageDs: number) => `${Math.round(ageDs / 10)}s`;
+
+/// How stale a contact is, in deciseconds, against a server clock reading.
+const contactAge = (contact: RadarContact, serverNow: number) =>
+  Math.max(0, serverNow - contact.last_seen);
+
+type ContactAssembly = {
+  seq: number | null;
+  staging: Record<string, RadarContact>;
+  displayed: Record<string, RadarContact>;
+};
+
+/**
+ * Reassembles the console's batched contact payout into one picture.
+ *
+ * The console sends a slice of its contacts per push so that no single write to the game client is
+ * large enough to hitch it. That means a payload is not the whole truth, and a contact's absence from
+ * one cannot be read as the contact having gone away.
+ *
+ * So batches sharing a cycle are staged, and only a cycle that reports itself complete is promoted to
+ * the displayed picture. Anything missing from a complete cycle has genuinely gone and is retired
+ * then. A cycle abandoned partway through, which is what a fresh sweep mid-payout causes, is dropped
+ * rather than merged, so a stale half-picture can never be mistaken for a current one.
+ */
+const useAssembledContacts = (data: Data): RadarContact[] => {
+  const [assembly, setAssembly] = useState<ContactAssembly>({
+    seq: null,
+    staging: {},
+    displayed: {},
+  });
+
+  useEffect(() => {
+    setAssembly((prev) => {
+      const staging = prev.seq === data.drainSeq ? { ...prev.staging } : {};
+      for (const contact of data.contacts) {
+        // This runs inside a state update, so anything thrown here takes the whole window down with
+        // a fatal exception rather than dropping one contact. A batch is worth less than the console.
+        if (contact) {
+          staging[contact.id] = contact;
+        }
+      }
+      return {
+        seq: data.drainSeq,
+        staging,
+        displayed: data.drainDone ? staging : prev.displayed,
+      };
+    });
+  }, [data.contacts, data.drainSeq, data.drainDone]);
+
+  // Mid-cycle, what has arrived sits on top of the last complete picture, so a busy sector paints in
+  // nearest first rather than blanking until the final batch lands.
+  return useMemo(
+    () => Object.values({ ...assembly.displayed, ...assembly.staging }),
+    [assembly],
+  );
+};
 
 const CANVAS_SIZE = 512;
 const CONTACT_HIT_PX = 16;
@@ -137,6 +203,7 @@ const contactAtPointer = (
   canvas: HTMLCanvasElement,
   event: { clientX: number; clientY: number },
   data: Data,
+  contacts: RadarContact[],
 ) => {
   if (data.viewerX === null || data.viewerY === null) {
     return null;
@@ -148,7 +215,7 @@ const contactAtPointer = (
   const origin = originOnCanvas(data.viewerX, data.viewerY, data.gridSize);
   let closest: RadarContact | null = null;
   let closestDist = CONTACT_HIT_PX;
-  for (const contact of data.contacts) {
+  for (const contact of contacts) {
     const x = (contact.x - 0.5) * origin.scale;
     const y = CANVAS_SIZE - (contact.y - 0.5) * origin.scale;
     const dist = Math.hypot(point.x - x, point.y - y);
@@ -164,6 +231,8 @@ const drawRadar = (
   canvas: HTMLCanvasElement,
   data: Data,
   sweepT: number | null,
+  serverNow: number,
+  contacts: RadarContact[],
 ) => {
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -176,7 +245,6 @@ const drawRadar = (
     bearing,
     arcWidth,
     range,
-    contacts,
     decay,
     selectedId,
   } = data;
@@ -252,7 +320,8 @@ const drawRadar = (
   for (const contact of contacts) {
     const x = (contact.x - 0.5) * scale;
     const y = CANVAS_SIZE - (contact.y - 0.5) * scale;
-    const fade = Math.max(0.25, 1 - contact.age / decay);
+    const age = contactAge(contact, serverNow);
+    const fade = Math.max(0.25, 1 - age / decay);
     ctx.globalAlpha = fade;
     ctx.fillStyle = contactColor(contact.type);
     const size = contact.id === selectedId ? 6 : 4;
@@ -271,7 +340,7 @@ const drawRadar = (
     ctx.fillStyle = '#9ab4c8';
     ctx.font = '10px monospace';
     ctx.textBaseline = 'top';
-    ctx.fillText(formatScanAge(contact.age), x + 8, y + 4);
+    ctx.fillText(formatScanAge(age), x + 8, y + 4);
     ctx.globalAlpha = 1;
   }
 };
@@ -285,9 +354,40 @@ export const OvermapRadarConsole = () => {
   const sweepDurationMs = useRef(OVERMAP_SCAN_FALLBACK_MS);
   dataRef.current = data;
 
+  // Last server clock reading and the local time we took it at, so the clock can be advanced between
+  // pushes. The backend no longer sends an age per contact, and no longer pushes on a timer.
+  const clockRef = useRef({
+    serverTime: data.serverTime,
+    takenAtMs: performance.now(),
+  });
+  useEffect(() => {
+    clockRef.current = {
+      serverTime: data.serverTime,
+      takenAtMs: performance.now(),
+    };
+  }, [data.serverTime]);
+
+  const serverNow = () => {
+    const { serverTime, takenAtMs } = clockRef.current;
+    return serverTime + (performance.now() - takenAtMs) / DS_TO_MS;
+  };
+
+  // The track list prints ages as text, which React only repaints when it re-renders. Pushes are no
+  // longer on a timer, so tick locally to keep those labels honest. A re-render a second is far
+  // cheaper than the payload it replaces, and the scope itself is already redrawn by the RAF loop.
+  const [, setAgeTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setAgeTick((prev) => prev + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const contacts = useAssembledContacts(data);
+  const contactsRef = useRef(contacts);
+  contactsRef.current = contacts;
+
   const selected = useMemo(
-    () => data.contacts.find((contact) => contact.id === data.selectedId),
-    [data.contacts, data.selectedId],
+    () => contacts.find((contact) => contact.id === data.selectedId),
+    [contacts, data.selectedId],
   );
 
   useEffect(() => {
@@ -312,7 +412,13 @@ export const OvermapRadarConsole = () => {
     const tick = () => {
       const canvas = canvasRef.current;
       if (canvas) {
-        drawRadar(canvas, dataRef.current, currentSweepProgress());
+        drawRadar(
+          canvas,
+          dataRef.current,
+          currentSweepProgress(),
+          serverNow(),
+          contactsRef.current,
+        );
       }
       frame = requestAnimationFrame(tick);
     };
@@ -455,7 +561,12 @@ export const OvermapRadarConsole = () => {
                       height={CANVAS_SIZE}
                       onPointerDown={(event) => {
                         const canvas = event.currentTarget;
-                        const hit = contactAtPointer(canvas, event, data);
+                        const hit = contactAtPointer(
+                          canvas,
+                          event,
+                          data,
+                          contacts,
+                        );
                         if (hit) {
                           act('select', { id: hit.id });
                           return;
@@ -503,8 +614,10 @@ export const OvermapRadarConsole = () => {
           </Stack.Item>
           <Stack.Item width={26}>
             <Section fill scrollable title="Tracks">
-              {!data.contacts.length && 'No last-seen contacts.'}
-              {data.contacts.map((contact) => (
+              {!contacts.length && 'No last-seen contacts.'}
+              {contacts.length < data.contactTotal &&
+                `Receiving ${contacts.length} of ${data.contactTotal}...`}
+              {contacts.map((contact) => (
                 <Stack key={contact.id} mb={0.5}>
                   <Stack.Item>
                     <Input
@@ -527,7 +640,7 @@ export const OvermapRadarConsole = () => {
                       {contact.y}
                       <br />
                       {contact.bearing}° / {contact.distance} ·{' '}
-                      {formatScanAge(contact.age)}
+                      {formatScanAge(contactAge(contact, serverNow()))}
                     </Button>
                   </Stack.Item>
                 </Stack>

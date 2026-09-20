@@ -7,8 +7,7 @@
 /obj/structure/cable,
 /obj/machinery/overmap_radar/dish{
 	id = "Meta Radar Array";
-	network = "flightops";
-	autolinkers = list("foc")
+	network = "flightops"
 	},
 /turf/open/floor/plating/airless,
 /area/space/nearstation)

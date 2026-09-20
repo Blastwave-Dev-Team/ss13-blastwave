@@ -18,14 +18,20 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	circuit = null
 	/// Machines this unit is linked to.
 	var/list/links = list()
+	/// Linked machines bucketed by radar_type, so relaying to a role is a lookup and not a scan.
+	var/list/links_by_radar_type = list()
 	/// Mapped autolink tokens. Shared tokens link in post_machine_initialize.
-	var/list/autolinkers = list(OVERMAP_RADAR_AUTOLINK_FOC)
+	var/list/autolinkers
 	/// Identification string for linking UI / examine.
 	var/id = "NULL"
 	/// Network name; must match to autolink or manual-link.
 	var/network = OVERMAP_RADAR_NETWORK_FOC
 	/// Type path used to filter relay targets.
 	var/radar_type
+	/// Where this role sits in the chain. A packet only ever moves to a higher stage. See the defines.
+	var/radar_stage = OVERMAP_RADAR_STAGE_DISH
+	/// Roles this machine hands a packet to, nearest hop first. The first one that accepts it wins.
+	var/list/relay_chain
 	/// Whether the machine is meant to be on.
 	var/toggled = TRUE
 	/// Runtime on/off after power and EMP.
@@ -65,6 +71,7 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 			var/obj/machinery/computer/overmap_radar/console = other
 			console.radar_links -= src
 	links = list()
+	links_by_radar_type = list()
 	return ..()
 
 /obj/machinery/overmap_radar/process()
@@ -117,6 +124,8 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 		return FALSE
 	links |= other
 	other.links |= src
+	index_radar_link(other)
+	other.index_radar_link(src)
 	if(user)
 		user.log_message("linked [src] to [other].", LOG_GAME)
 	return TRUE
@@ -126,38 +135,98 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 		return FALSE
 	links -= other
 	other.links -= src
+	deindex_radar_link(other)
+	other.deindex_radar_link(src)
 	if(user)
 		user.log_message("unlinked [src] and [other].", LOG_GAME)
 	return TRUE
 
+/// Files a link under the other machine's role, so relaying to a role does not walk every link.
+/obj/machinery/overmap_radar/proc/index_radar_link(obj/machinery/overmap_radar/other)
+	var/list/bucket = links_by_radar_type[other.radar_type]
+	if(!bucket)
+		bucket = list()
+		links_by_radar_type[other.radar_type] = bucket
+	bucket |= other
+
+/obj/machinery/overmap_radar/proc/deindex_radar_link(obj/machinery/overmap_radar/other)
+	var/list/bucket = links_by_radar_type[other.radar_type]
+	if(!bucket)
+		return
+	bucket -= other
+	if(!length(bucket))
+		links_by_radar_type -= other.radar_type
+
 /obj/machinery/overmap_radar/proc/receive_radar_packet(datum/signal/overmap_radar/packet, obj/machinery/from_machine)
 	return
 
+/// Where a node sits in the chain. Consoles are the terminus and live on a different type branch.
+/proc/radar_node_stage(obj/machinery/node)
+	if(istype(node, /obj/machinery/overmap_radar))
+		var/obj/machinery/overmap_radar/machine = node
+		return machine.radar_stage
+	if(istype(node, /obj/machinery/computer/overmap_radar))
+		return OVERMAP_RADAR_STAGE_CONSOLE
+	return null
+
+/**
+ * Sends `packet` one hop down the chain, to the nearest role that will take it.
+ *
+ * Walking relay_chain in order is what lets a half-built array work: a dish with no bus and no
+ * processor still reaches a console, it just arrives compressed. Stopping at the first role that
+ * accepts is what stops a console wired to two upstream roles from being told the same sweep twice.
+ */
+/obj/machinery/overmap_radar/proc/dispatch_radar_packet(datum/signal/overmap_radar/packet)
+	for(var/next_hop in relay_chain)
+		var/sent
+		if(next_hop == /obj/machinery/computer/overmap_radar)
+			sent = deliver_to_consoles(packet)
+		else
+			sent = relay_radar_packet(packet, next_hop)
+		if(sent)
+			return sent
+	return 0
+
+/**
+ * Hands `packet` to every linked machine filed under `filter`, provided they are further downstream.
+ *
+ * The stage comparison is the thing that makes this a DAG. Links are bidirectional and an operator
+ * with a multitool can join any two machines, so direction cannot come from the edges. It comes from
+ * the roles: a packet only ever moves to a higher stage, which no wiring mistake can invert. Without
+ * it a processor and a bus linked to each other relayed the same packet back and forth until BYOND
+ * aborted the sweep a million frames deep, taking the whole ui_act() with it.
+ */
 /obj/machinery/overmap_radar/proc/relay_radar_packet(datum/signal/overmap_radar/packet, filter)
 	if(!on || !packet)
 		return 0
 	var/sent = 0
-	for(var/obj/machinery/overmap_radar/other in links)
+	for(var/obj/machinery/overmap_radar/other as anything in links_by_radar_type[filter])
 		if(!other.on)
 			continue
-		if(filter && !istype(other, filter))
+		if(other.radar_stage <= radar_stage)
 			continue
 		if(!shares_powernet_with(other))
 			continue
 		other.receive_radar_packet(packet, src)
 		sent++
-	if(!filter || ispath(filter, /obj/machinery/computer/overmap_radar))
-		for(var/obj/machinery/computer/overmap_radar/console as anything in GLOB.overmap_radar_consoles)
-			if(packet.dest_console && console != packet.dest_console)
-				continue
-			if(!console.on)
-				continue
-			if(!(src in console.radar_links) && !(console in links))
-				continue
-			if(!shares_powernet_with(console))
-				continue
-			console.receive_radar_packet(packet, src)
-			sent++
+	return sent
+
+/// Terminal hop. Consoles sit off the machine type tree, so they get their own delivery.
+/obj/machinery/overmap_radar/proc/deliver_to_consoles(datum/signal/overmap_radar/packet)
+	if(!on || !packet)
+		return 0
+	var/sent = 0
+	for(var/obj/machinery/computer/overmap_radar/console as anything in GLOB.overmap_radar_consoles)
+		if(packet.dest_console && console != packet.dest_console)
+			continue
+		if(!console.on)
+			continue
+		if(!(src in console.radar_links) && !(console in links))
+			continue
+		if(!shares_powernet_with(console))
+			continue
+		console.receive_radar_packet(packet, src)
+		sent++
 	return sent
 
 /obj/machinery/overmap_radar/multitool_act(mob/living/user, obj/item/tool)
@@ -230,19 +299,29 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	icon_state = "processor"
 	circuit = /obj/item/circuitboard/machine/overmap_radar/processor
 	radar_type = /obj/machinery/overmap_radar/processor
+	radar_stage = OVERMAP_RADAR_STAGE_PROCESSOR
+	autolinkers = list(OVERMAP_RADAR_AUTOLINK_PROCESSOR, OVERMAP_RADAR_AUTOLINK_OUTPUT, OVERMAP_RADAR_AUTOLINK_CONSOLE)
+	relay_chain = list(/obj/machinery/overmap_radar/bus/output, /obj/machinery/computer/overmap_radar)
 
 /obj/machinery/overmap_radar/processor/receive_radar_packet(datum/signal/overmap_radar/packet, obj/machinery/from_machine)
 	if(!on || !packet)
 		return
 	packet.compression = 0
-	relay_radar_packet(packet, /obj/machinery/computer/overmap_radar)
-	relay_radar_packet(packet, /obj/machinery/overmap_radar/bus)
+	dispatch_radar_packet(packet)
 
 // --- Bus ---
 
+/**
+ * Junctions for the radar chain, split by which side of the processor they sit on.
+ *
+ * One bus doing both jobs is what made the topology cyclic: it fed the processor and the processor
+ * fed it back. Two roles at fixed stages means the packet can only ever move forward, so the array
+ * an operator builds is a pipeline no matter how they wire it.
+ */
 /obj/machinery/overmap_radar/bus
 	name = "deep-space radar bus"
 	desc = "A junction for Flight Ops radar machines."
+	abstract_type = /obj/machinery/overmap_radar/bus
 	icon_state = "bus"
 	circuit = /obj/item/circuitboard/machine/overmap_radar/bus
 	radar_type = /obj/machinery/overmap_radar/bus
@@ -250,8 +329,31 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 /obj/machinery/overmap_radar/bus/receive_radar_packet(datum/signal/overmap_radar/packet, obj/machinery/from_machine)
 	if(!on || !packet)
 		return
-	relay_radar_packet(packet, /obj/machinery/overmap_radar/processor)
-	relay_radar_packet(packet, /obj/machinery/computer/overmap_radar)
+	dispatch_radar_packet(packet)
+
+/// Upstream junction: takes the dish's raw packet and feeds the processor.
+/obj/machinery/overmap_radar/bus/input
+	name = "deep-space radar input bus"
+	desc = "Collects raw sweeps from the array and feeds them to a processor."
+	circuit = /obj/item/circuitboard/machine/overmap_radar/bus/input
+	radar_type = /obj/machinery/overmap_radar/bus/input
+	radar_stage = OVERMAP_RADAR_STAGE_INPUT_BUS
+	autolinkers = list(OVERMAP_RADAR_AUTOLINK_DISH, OVERMAP_RADAR_AUTOLINK_PROCESSOR, OVERMAP_RADAR_AUTOLINK_CONSOLE)
+	relay_chain = list(
+		/obj/machinery/overmap_radar/processor,
+		/obj/machinery/overmap_radar/bus/output,
+		/obj/machinery/computer/overmap_radar,
+	)
+
+/// Downstream junction: fans the cleaned packet out to the consoles.
+/obj/machinery/overmap_radar/bus/output
+	name = "deep-space radar output bus"
+	desc = "Distributes processed sweeps to Flight Ops consoles."
+	circuit = /obj/item/circuitboard/machine/overmap_radar/bus/output
+	radar_type = /obj/machinery/overmap_radar/bus/output
+	radar_stage = OVERMAP_RADAR_STAGE_OUTPUT_BUS
+	autolinkers = list(OVERMAP_RADAR_AUTOLINK_OUTPUT, OVERMAP_RADAR_AUTOLINK_CONSOLE)
+	relay_chain = list(/obj/machinery/computer/overmap_radar)
 
 // --- Dish ---
 
@@ -269,6 +371,14 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	active_power_usage = BASE_MACHINE_ACTIVE_CONSUMPTION * 2
 	circuit = /obj/item/circuitboard/machine/overmap_radar/dish
 	radar_type = /obj/machinery/overmap_radar/dish
+	radar_stage = OVERMAP_RADAR_STAGE_DISH
+	autolinkers = list(OVERMAP_RADAR_AUTOLINK_DISH, OVERMAP_RADAR_AUTOLINK_CONSOLE)
+	relay_chain = list(
+		/obj/machinery/overmap_radar/bus/input,
+		/obj/machinery/overmap_radar/processor,
+		/obj/machinery/overmap_radar/bus/output,
+		/obj/machinery/computer/overmap_radar,
+	)
 	resistance_flags = FIRE_PROOF | UNACIDABLE
 	id = "Radar Array"
 	/// Hidden cable node that joins the station powernet.
@@ -363,13 +473,17 @@ GLOBAL_LIST_EMPTY(overmap_radar_machines)
 	sweeping = FALSE
 	update_appearance()
 
+/**
+ * Puts a fresh sweep onto the chain.
+ *
+ * The dish hands the packet to exactly one downstream role and lets that role carry it on, rather
+ * than trying to reach every kind of machine itself. A sweep that skips the processor arrives at the
+ * console still compressed, which is the degraded picture a half-built array is supposed to give.
+ */
 /obj/machinery/overmap_radar/dish/proc/emit_packet(datum/signal/overmap_radar/packet)
 	if(!packet)
 		return
-	var/sent = relay_radar_packet(packet, /obj/machinery/overmap_radar/processor)
-	sent += relay_radar_packet(packet, /obj/machinery/overmap_radar/bus)
-	if(!sent)
-		relay_radar_packet(packet, /obj/machinery/computer/overmap_radar)
+	dispatch_radar_packet(packet)
 
 /obj/machinery/power/overmap_radar_node
 	name = "radar array power node"

@@ -24,8 +24,17 @@
 
 /obj/item/circuitboard/machine/overmap_radar/bus
 	name = "Deep-Space Radar Bus"
-	desc = "A machine board. Junction for Flight Ops radar machines."
-	build_path = /obj/machinery/overmap_radar/bus
+	abstract_type = /obj/item/circuitboard/machine/overmap_radar/bus
+
+/obj/item/circuitboard/machine/overmap_radar/bus/input
+	name = "Deep-Space Radar Input Bus"
+	desc = "A machine board. Collects raw sweeps from the array and feeds them to a processor."
+	build_path = /obj/machinery/overmap_radar/bus/input
+
+/obj/item/circuitboard/machine/overmap_radar/bus/output
+	name = "Deep-Space Radar Output Bus"
+	desc = "A machine board. Distributes processed sweeps to Flight Ops consoles."
+	build_path = /obj/machinery/overmap_radar/bus/output
 
 /obj/item/circuitboard/machine/overmap_radar/dish
 	name = "Deep-Space Radar Array"
@@ -69,12 +78,23 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_SCIENCE
 
-/datum/design/board/overmap_radar_bus
-	name = "Deep-Space Radar Bus Board"
-	id = "overmap_radar_bus"
+/datum/design/board/overmap_radar_input_bus
+	name = "Deep-Space Radar Input Bus Board"
+	id = "overmap_radar_input_bus"
 	build_type = IMPRINTER
 	materials = list(/datum/material/glass = SHEET_MATERIAL_AMOUNT)
-	build_path = /obj/item/circuitboard/machine/overmap_radar/bus
+	build_path = /obj/item/circuitboard/machine/overmap_radar/bus/input
+	category = list(
+		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_TELECOMMS,
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_SCIENCE
+
+/datum/design/board/overmap_radar_output_bus
+	name = "Deep-Space Radar Output Bus Board"
+	id = "overmap_radar_output_bus"
+	build_type = IMPRINTER
+	materials = list(/datum/material/glass = SHEET_MATERIAL_AMOUNT)
+	build_path = /obj/item/circuitboard/machine/overmap_radar/bus/output
 	category = list(
 		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_TELECOMMS,
 	)
@@ -122,7 +142,8 @@
 	design_ids = list(
 		"overmap_radar_console",
 		"overmap_radar_processor",
-		"overmap_radar_bus",
+		"overmap_radar_input_bus",
+		"overmap_radar_output_bus",
 		"overmap_radar_dish",
 		"overmap_radio_antenna",
 		"overmap_encryptionkey",
