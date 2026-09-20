@@ -9,6 +9,7 @@
  * the encounter forward without every set piece needing a mapper-typed id to find the core by.
  */
 /proc/hardlight_core_on_z(z_level)
+	RETURN_TYPE(/obj/machinery/hardlight_command_core)
 	for(var/obj/machinery/hardlight_command_core/core as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/hardlight_command_core))
 		var/turf/core_turf = get_turf(core)
 		if(isnull(core_turf) || core_turf.z != z_level)

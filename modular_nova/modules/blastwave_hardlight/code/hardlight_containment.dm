@@ -182,6 +182,7 @@ GLOBAL_LIST_EMPTY(hardlight_containments)
 	core.set_priority_threat(null)
 
 /obj/machinery/hardlight_containment/proc/our_core()
+	RETURN_TYPE(/obj/machinery/hardlight_command_core)
 	var/turf/our_turf = get_turf(src)
 	return isnull(our_turf) ? null : hardlight_core_on_z(our_turf.z)
 
