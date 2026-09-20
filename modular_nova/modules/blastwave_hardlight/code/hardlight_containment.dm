@@ -1,6 +1,9 @@
 // MODULE ID: BLASTWAVE_HARDLIGHT
 // The wall in front of the core, and the only thing that gets through it.
 
+/// Every field in the world. A breach has to find its siblings to take them down with it.
+GLOBAL_LIST_EMPTY(hardlight_containments)
+
 /**
  * Hard-light containment field
  *
@@ -55,6 +58,7 @@
 	// singularity's own containment uses.
 	AddElement(/datum/element/blocks_explosives)
 	. = ..()
+	GLOB.hardlight_containments += src
 	if(isnull(puzzle_id))
 		raise()
 	else
@@ -62,6 +66,7 @@
 	update_appearance()
 
 /obj/machinery/hardlight_containment/Destroy()
+	GLOB.hardlight_containments -= src
 	clear_driver()
 	return ..()
 
@@ -180,7 +185,18 @@
 	var/turf/our_turf = get_turf(src)
 	return isnull(our_turf) ? null : hardlight_core_on_z(our_turf.z)
 
-/// The field comes down for good, and the core is reachable.
+/**
+ * The field comes down for good, and the core is reachable.
+ *
+ * Takes every other field on the Z with it rather than only the panel that was drilled. The ring
+ * is one field wearing several tiles, not several fields: it is held up by the core, so holing it
+ * anywhere is holing it. Making the crew drill each panel in turn would be the same objective
+ * repeated with the answer already known, which is a chore rather than a fight, and would also
+ * strand the phase - the core is already through to HARDLIGHT_PHASE_BREACHED after the first one.
+ *
+ * Deleted rather than lowered, because a breach is permanent and nothing should be able to raise()
+ * these again afterwards.
+ */
 /obj/machinery/hardlight_containment/proc/breach()
 	if(breached)
 		return
@@ -195,7 +211,41 @@
 	do_sparks(5, FALSE, src)
 	update_appearance()
 
+	// Before the ring goes: the core should know the wall is down while it is still being told by
+	// the panel that was actually drilled, rather than by the tail end of a pile of deletions.
 	our_core()?.set_phase(HARDLIGHT_PHASE_BREACHED)
+
+	var/turf/our_turf = get_turf(src)
+	if(isnull(our_turf))
+		return
+
+	// Snapshotted first. collapse() prunes the registry, and this would be iterating it.
+	var/list/ring = list()
+	for(var/obj/machinery/hardlight_containment/segment as anything in GLOB.hardlight_containments)
+		var/turf/segment_turf = get_turf(segment)
+		if(isnull(segment_turf) || segment_turf.z != our_turf.z)
+			continue
+		ring += segment
+
+	for(var/obj/machinery/hardlight_containment/segment as anything in ring)
+		segment.collapse()
+
+/**
+ * Drops one panel out of the world.
+ *
+ * Announced locally, because someone standing at the far side of the ring is nowhere near the
+ * drill and has to be told why the wall in front of them stopped existing. Silent if the panel was
+ * never up: there was nothing in anyone's way to comment on.
+ */
+/obj/machinery/hardlight_containment/proc/collapse()
+	if(raised)
+		visible_message(span_boldwarning("[src] loses whatever was holding it and comes apart."))
+		do_sparks(3, FALSE, src)
+		raised = FALSE
+		set_density(FALSE)
+		air_update_turf(TRUE, TRUE)
+
+	qdel(src)
 
 /obj/machinery/hardlight_containment/update_appearance(updates)
 	. = ..()

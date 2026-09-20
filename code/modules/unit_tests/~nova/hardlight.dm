@@ -252,6 +252,9 @@
 	TEST_ASSERT(field.raised, "A field with no puzzle id should come up at mapload.")
 	TEST_ASSERT(field.density, "A raised field should be in the way.")
 
+	// The rest of the ring. Never drilled, and has to come down regardless.
+	var/obj/machinery/hardlight_containment/sibling = allocate(/obj/machinery/hardlight_containment, home)
+
 	var/obj/machinery/power/emitter/drill = allocate(/obj/machinery/power/emitter, home)
 
 	// One short of the threshold, so we can check the last bolt is what does it.
@@ -267,6 +270,12 @@
 	TEST_ASSERT(!field.density, "A breached field should not be in the way.")
 	TEST_ASSERT_EQUAL(core.phase, HARDLIGHT_PHASE_BREACHED, "Breaching the field should push the core to its next phase.")
 	TEST_ASSERT(isnull(core.get_priority_threat()), "A finished drill should stop claiming the core's attention.")
+
+	// A hole anywhere is a hole in the whole ring. Leaving the undrilled panels standing would ask
+	// the crew to repeat a solved objective, and the core has already moved past the phase anyway.
+	TEST_ASSERT(QDELETED(sibling), "Breaching one panel should take the rest of the ring with it.")
+	TEST_ASSERT(QDELETED(field), "The drilled panel should go the same way as the ring it was part of.")
+	TEST_ASSERT(!(sibling in GLOB.hardlight_containments), "A collapsed panel should drop out of the registry.")
 
 	// Progress decays rather than resetting, so a lost round of defence costs ground and no more.
 	var/obj/machinery/hardlight_containment/second = allocate(/obj/machinery/hardlight_containment, home)
