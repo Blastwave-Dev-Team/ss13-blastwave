@@ -196,7 +196,7 @@
 			"bearing" = get_bearing_to(current_ship, other),
 			"distance" = get_dist(current_ship, other),
 			"adjacent" = TRUE,
-			"type" = get_contact_type(other),
+			"type" = other.contact_type,
 		)
 		// Adjacent POIs advertise their landing zones so the pilot can pick one to dock at.
 		if(lz_ship && istype(other, /obj/structure/overmap/level))
@@ -228,7 +228,7 @@
 				"bearing" = get_bearing_to(current_ship, scanned),
 				"distance" = get_dist(current_ship, scanned),
 				"adjacent" = FALSE,
-				"type" = get_contact_type(scanned),
+				"type" = scanned.contact_type,
 			))
 	var/atom/positional = istype(current_ship.loc, /obj/structure/overmap) ? current_ship.loc : current_ship
 	var/obj/structure/overmap/positional_object = istype(positional, /obj/structure/overmap) ? positional : null
@@ -438,25 +438,15 @@
 	viewer = TRUE
 	circuit = /obj/item/circuitboard/computer/shuttle/helm/viewscreen
 
-/// Returns the bearing in degrees (0=north, clockwise) from `origin` to `target`.
-/proc/get_bearing_to(atom/origin, atom/target)
-	var/dx = target.x - origin.x
-	var/dy = target.y - origin.y
+/// Nav bearing from a displacement (0=north, clockwise). `arctan(dx, dy)` is 0=east, CCW.
+/proc/overmap_nav_bearing(dx, dy)
 	if(!dx && !dy)
 		return 0
-	var/angle = arctan(dx, dy)
+	var/angle = 90 - arctan(dx, dy)
 	if(angle < 0)
 		angle += 360
-	return round(angle)
+	return angle
 
-/// Returns a string type classification for an overmap contact.
-/proc/get_contact_type(obj/structure/overmap/O)
-	if(istype(O, /obj/structure/overmap/dynamic))
-		return "dynamic"
-	if(istype(O, /obj/structure/overmap/event))
-		return "event"
-	if(istype(O, /obj/structure/overmap/ship))
-		return "ship"
-	if(istype(O, /obj/structure/overmap/level))
-		return "level"
-	return "unknown"
+/// Returns the bearing in degrees (0=north, clockwise) from `origin` to `target`.
+/proc/get_bearing_to(atom/origin, atom/target)
+	return round(overmap_nav_bearing(target.x - origin.x, target.y - origin.y))

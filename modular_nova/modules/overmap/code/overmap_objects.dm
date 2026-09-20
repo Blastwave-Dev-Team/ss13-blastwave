@@ -76,6 +76,10 @@
 	animate_movement = NO_STEPS
 	/// Identifier - used to resolve docks and look the object up.
 	var/id
+	/// Radar / helm contact classification. Subtypes set a more specific value.
+	var/contact_type = "unknown"
+	/// Player-facing contact class. TGUI displays this as-is.
+	var/contact_label = "Unknown"
 	/// Whether this object should render a viewscreen-style camera surface.
 	/// Levels and ships set this; events and decorations don't.
 	var/render_map = FALSE
@@ -485,6 +489,8 @@
 /// shared linkage machinery so M2's concrete subtypes (main, mining/lavaland,
 /// mining/ice) can stay declarative.
 /obj/structure/overmap/level
+	contact_type = "level"
+	contact_label = "POI"
 	/// Z-values this overmap tile maps to. Multi-Z mining maps populate
 	/// this with all `ZTRAIT_MINING` levels so a single icon represents the
 	/// entire body (Snowglobe, Icebox, etc).
@@ -515,6 +521,8 @@
 	id = MAIN_OVERMAP_OBJECT_ID
 	sensor_range = 6
 	installation_stealth = TRUE
+	contact_type = "station"
+	contact_label = "Station"
 
 /obj/structure/overmap/level/main/Initialize(mapload, _id, list/_zs)
 	if(SSovermap.main)
@@ -534,6 +542,8 @@
 	id = AWAY_OVERMAP_OBJECT_ID_MINING
 	icon_state = "globe"
 	sensor_range = 5
+	contact_type = "mining"
+	contact_label = "Mining"
 
 /obj/structure/overmap/level/mining/lavaland
 	name = "Lavaland"
@@ -554,6 +564,8 @@
 	desc = "A mid-sized orbital facility."
 	icon_state = "station"
 	sensor_range = 5
+	contact_type = "installation"
+	contact_label = "Installation"
 
 /// Small orbital structure. Its loaded map uses /area/overmap_structure/depot.
 /obj/structure/overmap/level/depot
@@ -561,6 +573,8 @@
 	desc = "A small orbital supply structure."
 	icon_state = "object"
 	sensor_range = 4
+	contact_type = "depot"
+	contact_label = "Depot"
 
 // NAMED RUIN SITES — created by SSovermap.seed_space_sites()
 
@@ -573,6 +587,8 @@
 	desc = "A point of interest in deep space."
 	icon_state = "object"
 	sensor_range = 4
+	contact_type = "site"
+	contact_label = "Site"
 	/// Primary ruin template when this is a solo site; null for anonymous clusters.
 	var/datum/map_template/ruin/ruin_template
 	/// All ruin templates loaded onto this site's Z (solo = one entry).
@@ -617,6 +633,8 @@
 	preloaded = TRUE
 	preserve_level = FALSE
 	controlled = TRUE
+	contact_type = "open_space"
+	contact_label = "Space"
 
 /// Hand the content Z back on a timer rather than with INVOKE_ASYNC.
 ///

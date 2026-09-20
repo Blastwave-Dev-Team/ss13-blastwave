@@ -34,5 +34,6 @@
 #define TECHWEB_NODE_ARMORY_MUNITIONS "armory_munitions"
 #define TECHWEB_NODE_ARMORY_ORDNANCE "armory_ordnance"
 #define TECHWEB_NODE_COMMANDER_MUNITIONS "commander_munitions"
+#define TECHWEB_NODE_OVERMAP "overmap"
 #define TECHWEB_NODE_OVERMAP_LANDING_PROGRAMMABLE "overmap_landing_programmable"
 #define TECHWEB_NODE_RBMK "rbmk2"
