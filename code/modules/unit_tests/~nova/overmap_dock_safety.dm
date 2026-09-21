@@ -174,7 +174,7 @@
 	var/obj/docking_port/stationary/wide_port = make_stationary_port(pad, size = 2)
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(wide_port), "Fully plated 2x2 footprint should be clear.")
 	var/turf/far_tile = locate(pad.x + 1, pad.y + 1, pad.z)
-	far_tile.ChangeTurf(/turf/open/floor/iron)
+	far_tile.ChangeTurf(/turf/closed/wall)
 	TEST_ASSERT(!SSovermap.dock_footprint_is_clear(wide_port), "One obstructed tile must fail a multi-tile footprint.")
 	far_tile.ChangeTurf(/turf/open/floor/plating)
 
@@ -578,7 +578,7 @@
 	zone.zone_width = zone_w
 	zone.zone_height = zone_h
 	TEST_ASSERT(zone.can_fit_shuttle(north_w, north_h), "Zone should accept the hull in a rotated orientation.")
-	TEST_ASSERT_EQUAL(zone.first_fitting_dir(cutter), EAST, "Dir order is current, +90, -90; NORTH +90 is EAST.")
+	TEST_ASSERT_EQUAL(zone.first_fitting_dir(cutter), WEST, "Dir order is current, +90, -90; turn(NORTH, 90) is WEST.")
 
 	var/obj/structure/overmap/ship/simulated/ship = allocate(
 		/obj/structure/overmap/ship/simulated,
@@ -590,7 +590,7 @@
 
 	var/obj/docking_port/stationary/port = ship.create_landing_zone_port(zone)
 	TEST_ASSERT(port, "Helm LZ dock must place a rotated port on an iron hangar.")
-	TEST_ASSERT_EQUAL(port.dir, EAST, "Placed port should use the first fitting rotation.")
+	TEST_ASSERT_EQUAL(port.dir, WEST, "Placed port should use the first fitting rotation.")
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(port), "Rotated iron hangar footprint must be clear.")
 	qdel(port)
 
