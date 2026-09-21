@@ -276,6 +276,7 @@
 #include "plantgrowth_tests.dm"
 #include "preference_species.dm"
 #include "preferences.dm"
+#include "priority_queue.dm"
 #include "projectiles.dm"
 #include "punpun.dm"
 #include "quirks.dm"

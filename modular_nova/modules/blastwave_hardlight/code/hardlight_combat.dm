@@ -21,33 +21,37 @@
 	return avatar.pad.coverage.covers_turf(get_turf(the_target))
 
 /**
- * Whatever the command core says matters most
+ * Hardlight's reading of the shared priority queue.
  *
- * Runs ahead of target-finding and writes straight into the current-target slot, so the attack
- * subtrees downstream treat a drilling emitter exactly like they would treat a person.
+ * Construction holograms may be a proxy for the wielder. Coverage is the "can we hit it now"
+ * check; the head of the queue stays the head even when the body is still walking to that room.
  */
-/datum/ai_planning_subtree/hardlight_priority_target
+/datum/ai_planning_subtree/target_from_priority_queue/hardlight
 
-/datum/ai_planning_subtree/hardlight_priority_target/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
-	var/atom/threat = controller.blackboard[BB_HARDLIGHT_PRIORITY_TARGET]
-	if(QDELETED(threat))
-		return
+/datum/ai_planning_subtree/target_from_priority_queue/hardlight/accept_entry(datum/ai_controller/controller, datum/item)
+	var/turf/here = get_turf(controller.pawn)
+	var/obj/machinery/hardlight_command_core/core = isnull(here) ? null : hardlight_core_on_z(here.z)
+	return core?.threat_is_actionable(item)
 
+/datum/ai_planning_subtree/target_from_priority_queue/hardlight/resolve_target(datum/ai_controller/controller, atom/queued)
+	if(istype(queued, /obj/effect/constructing_effect))
+		var/obj/effect/constructing_effect/hologram = queued
+		return hologram.priority_target()
+	return queued
+
+/datum/ai_planning_subtree/target_from_priority_queue/hardlight/valid_target(datum/ai_controller/controller, atom/target)
 	var/mob/living/basic/hardlight_avatar/avatar = controller.pawn
-	if(!istype(avatar) || !avatar.pad?.coverage?.covers_turf(get_turf(threat)))
-		return
-
-	controller.set_blackboard_key(BB_BASIC_MOB_CURRENT_TARGET, threat)
+	if(!istype(avatar) || isnull(avatar.pad?.coverage))
+		return FALSE
+	return avatar.pad.coverage.covers_turf(get_turf(target))
 
 /// Target-finding, suppressed while a priority threat is in reach so it cannot be distracted off it.
 /datum/ai_planning_subtree/simple_find_target/hardlight
 
 /datum/ai_planning_subtree/simple_find_target/hardlight/SelectBehaviors(datum/ai_controller/controller, seconds_per_tick)
-	var/atom/threat = controller.blackboard[BB_HARDLIGHT_PRIORITY_TARGET]
-	if(!QDELETED(threat))
-		var/mob/living/basic/hardlight_avatar/avatar = controller.pawn
-		if(istype(avatar) && avatar.pad?.coverage?.covers_turf(get_turf(threat)))
-			return
+	var/datum/ai_planning_subtree/target_from_priority_queue/hardlight/priority_tree = GLOB.ai_subtrees[/datum/ai_planning_subtree/target_from_priority_queue/hardlight]
+	if(!QDELETED(priority_tree?.select_target(controller)))
+		return
 
 	controller.queue_behavior(/datum/ai_behavior/find_potential_targets/hardlight, target_key, strategy_key, BB_BASIC_MOB_CURRENT_TARGET_HIDING_LOCATION)
 
@@ -134,11 +138,12 @@
 /datum/ai_controller/basic_controller/hardlight_avatar
 	blackboard = list(
 		BB_TARGETING_STRATEGY = /datum/targeting_strategy/basic/hardlight,
+		BB_PRIORITY_TARGET_QUEUE = null,
 	)
 	ai_movement = /datum/ai_movement/basic_avoidance
 	idle_behavior = /datum/idle_behavior/idle_random_walk
 	planning_subtrees = list(
-		/datum/ai_planning_subtree/hardlight_priority_target,
+		/datum/ai_planning_subtree/target_from_priority_queue/hardlight,
 		/datum/ai_planning_subtree/simple_find_target/hardlight,
 		// Before anything else: are we even in the right part of the room to be fighting from?
 		/datum/ai_planning_subtree/use_mob_ability/hardlight_recall,

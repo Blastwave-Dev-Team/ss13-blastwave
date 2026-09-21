@@ -334,6 +334,65 @@
 	TEST_ASSERT_EQUAL(third.drill_progress, 0, "Only an emitter should bank drill progress.")
 	TEST_ASSERT(isnull(third.driller_ref?.resolve()), "A rejected bolt should not nominate anything for the unit to chase.")
 
+	var/obj/machinery/hardlight_containment/orphaned = allocate(/obj/machinery/hardlight_containment, home)
+	var/obj/machinery/power/emitter/vanishing = allocate(/obj/machinery/power/emitter, home)
+	orphaned.set_driver(vanishing)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), vanishing, "A freshly nominated drill should be the head of the queue.")
+	qdel(vanishing)
+	TEST_ASSERT(isnull(core.get_priority_threat()), "A deleted drill should not peek as a live threat.")
+	orphaned.clear_driver()
+	var/dead_left = FALSE
+	for(var/datum/priority_queue_entry/entry as anything in core.threat_queue.entries)
+		if(entry.rank == HARDLIGHT_THREAT_EMITTER)
+			dead_left = TRUE
+	TEST_ASSERT(!dead_left, "clear_driver should dequeue a drill that no longer resolves.")
+
+/// An RCD construction hologram in coverage outranks the room list, but not an active drill.
+/datum/unit_test/hardlight/rcd_priority
+
+/datum/unit_test/hardlight/rcd_priority/Run()
+	var/turf/home = run_loc_floor_bottom_left
+	var/obj/machinery/hardlight_command_core/core = allocate(/obj/machinery/hardlight_command_core, home)
+	var/obj/machinery/hardlight_projector/pad = allocate(/obj/machinery/hardlight_projector, home)
+	TEST_ASSERT(pad.can_project(), "RCD priority test needs a live plate on the hologram's turf.")
+	core.set_phase(HARDLIGHT_PHASE_ACTIVE)
+	TEST_ASSERT(isnull(core.get_priority_threat()), "A fresh core should have no priority threat.")
+
+	var/obj/effect/constructing_effect/holo = allocate(/obj/effect/constructing_effect, home)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), holo, "An RCD hologram in coverage should enqueue as a priority threat.")
+
+	var/obj/machinery/power/emitter/drill = allocate(/obj/machinery/power/emitter, home)
+	core.set_priority_threat(drill)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), drill, "An emitter nomination must outrank an RCD hologram already on the queue.")
+
+	var/obj/structure/foamedmetal/foam = allocate(/obj/structure/foamedmetal, home)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), drill, "Metal foam must not outrank an emitter drilling the ring.")
+
+	var/mob/living/carbon/human/consistent/builder = allocate(/mob/living/carbon/human/consistent, home)
+	holo.obj_flags &= ~CAN_BE_HIT
+	holo.set_builder(builder)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), drill, "An anti-interrupt hologram must not steal the slot from an emitter.")
+
+	qdel(holo)
+	core.set_priority_threat(null)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), foam, "Clearing the emitter should let metal foam claim the slot.")
+
+	core.set_priority_threat(drill)
+	var/obj/effect/constructing_effect/second_holo = allocate(/obj/effect/constructing_effect, home)
+	second_holo.obj_flags &= ~CAN_BE_HIT
+	second_holo.set_builder(builder)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), drill, "A second construction hologram must not steal the slot from an emitter.")
+
+	core.set_priority_threat(null)
+	qdel(foam)
+	TEST_ASSERT_EQUAL(core.get_priority_threat(), second_holo, "Clearing the emitter and the foam should leave the construction hologram as the head.")
+	TEST_ASSERT_EQUAL(core.resolve_priority_attack_target(), builder, "An anti-interrupt hologram should send the avatar after the wielder once it is the head of the queue.")
+
+	var/mob/living/basic/hardlight_avatar/body = allocate(/mob/living/basic/hardlight_avatar, home)
+	second_holo.obj_flags |= CAN_BE_HIT
+	second_holo.attack_basic_mob(body)
+	TEST_ASSERT(QDELETED(second_holo), "Avatar melee should cancel the construction hologram.")
+
 /// The racks hold a typepath until the matrix comes out, and then they do not hold it twice.
 /datum/unit_test/hardlight/garrison_wake
 

@@ -82,6 +82,8 @@
 ///Targeting subtrees
 #define BB_BASIC_MOB_CURRENT_TARGET "BB_basic_current_target"
 #define BB_BASIC_MOB_CURRENT_TARGET_HIDING_LOCATION "BB_basic_current_target_hiding_location"
+/// /datum/priority_queue of things to prefer over living targets. See /datum/ai_planning_subtree/target_from_priority_queue.
+#define BB_PRIORITY_TARGET_QUEUE "BB_priority_target_queue"
 #define BB_TARGETING_STRATEGY "targeting_strategy"
 #define BB_HUNT_TARGETING_STRATEGY "hunt_targeting_strategy"
 ///some behaviors that check current_target also set this on deep crit mobs

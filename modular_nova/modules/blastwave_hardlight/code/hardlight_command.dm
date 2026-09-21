@@ -17,6 +17,15 @@
 		return core
 	return null
 
+/proc/hardlight_enqueue_threat(atom/threat, rank)
+	var/turf/here = get_turf(threat)
+	var/obj/machinery/hardlight_command_core/core = isnull(here) ? null : hardlight_core_on_z(here.z)
+	core?.enqueue_threat(threat, rank)
+
+/proc/hardlight_dequeue_threat(atom/threat, z_level)
+	var/obj/machinery/hardlight_command_core/core = hardlight_core_on_z(z_level)
+	core?.dequeue_threat(threat)
+
 /**
  * Hard-light command core
  *
@@ -26,7 +35,7 @@
  * fight whatever is in the room with it, which stock basic-mob behaviours already do well, and
  * "which room" becomes a small scoring problem solved somewhere it can see the whole map.
  *
- * Generic on purpose. It knows about ranked areas and a priority threat; it knows nothing about
+ * Generic on purpose. It knows about ranked areas and a threat queue; it knows nothing about
  * emitters, intellicards or the Sepulchure. Encounters subtype it and fill in area_priority.
  */
 /obj/machinery/hardlight_command_core
@@ -46,8 +55,8 @@
 	var/phase = HARDLIGHT_PHASE_DORMANT
 	/// The body we currently have up, if any.
 	var/mob/living/basic/hardlight_avatar/avatar
-	/// Something that outranks every room and every player. Weak: threats are usually destructible.
-	var/datum/weakref/priority_threat_ref
+	/// Shared with the avatar via BB_PRIORITY_TARGET_QUEUE. Ranks are HARDLIGHT_THREAT_*.
+	var/datum/priority_queue/threat_queue = new
 	/// Paces our re-scoring. Cheap as it is, there is no reason to do it every machine tick.
 	COOLDOWN_DECLARE(rescore_cooldown)
 	/// Which of the three phase-two objectives the crew has taken. See HARDLIGHT_OBJECTIVE_*.
@@ -68,7 +77,7 @@
 
 /obj/machinery/hardlight_command_core/Destroy()
 	banish()
-	priority_threat_ref = null
+	QDEL_NULL(threat_queue)
 	return ..()
 
 /**
@@ -151,8 +160,9 @@
 /**
  * Picks the projector the body should be standing on, or null for "nowhere worth being".
  *
- * A priority threat - something the encounter has declared more important than any room, such as an
- * emitter actively drilling the core - wins outright. Otherwise the best-ranked room that both
+ * The head of the threat queue wins outright. An emitter drilling the ring is the highest rank;
+ * RCD holograms and metal foam sit below it and stay queued until they leave. Otherwise the
+ * best-ranked room that both
  * contains a player and has a plate with charge left, which is what makes clearing a room mean
  * something: the unit walks away and goes and finds whoever is next.
  *
@@ -170,7 +180,7 @@
 	if(isnull(our_turf))
 		return null
 
-	var/atom/threat = priority_threat_ref?.resolve()
+	var/atom/threat = get_priority_threat()
 	if(!isnull(threat))
 		var/obj/machinery/hardlight_projector/threat_pad = pad_covering(get_turf(threat))
 		if(!isnull(threat_pad))
@@ -320,7 +330,7 @@
 		avatar.visible_message(span_danger("[avatar] unfolds out of [target]."))
 
 	avatar.set_pad(target)
-	push_threat_to_avatar()
+	bind_queue_to_avatar()
 	do_sparks(2, FALSE, target)
 	return TRUE
 
@@ -334,28 +344,72 @@
 	SIGNAL_HANDLER
 	avatar = null
 
-/**
- * Declares something more important than the room-preference list.
- *
- * Kept as a general slot rather than hardcoding the emitter it was written for, so later objectives
- * can claim the unit's attention the same way without touching this file.
- */
+/obj/machinery/hardlight_command_core/proc/enqueue_threat(atom/threat, rank)
+	threat_queue?.enqueue(threat, rank)
+	sync_priority_threat()
+
+/obj/machinery/hardlight_command_core/proc/dequeue_threat(atom/threat)
+	if(!threat_queue?.dequeue(threat))
+		return
+	sync_priority_threat()
+
+/obj/machinery/hardlight_command_core/proc/dequeue_threat_ref(datum/weakref/threat_ref)
+	if(!threat_queue?.dequeue_ref(threat_ref))
+		return
+	sync_priority_threat()
+
+/obj/machinery/hardlight_command_core/proc/dequeue_threats_of_rank(rank)
+	if(!threat_queue?.dequeue_rank(rank))
+		return
+	sync_priority_threat()
+
+/// Convenience for the containment ring: enqueue at emitter rank, or drop every emitter entry.
 /obj/machinery/hardlight_command_core/proc/set_priority_threat(atom/threat)
-	priority_threat_ref = isnull(threat) ? null : WEAKREF(threat)
-	push_threat_to_avatar()
-	// Do not wait out the timer. The whole point of a threat is that it is urgent.
+	if(isnull(threat))
+		dequeue_threats_of_rank(HARDLIGHT_THREAT_EMITTER)
+		return
+	enqueue_threat(threat, HARDLIGHT_THREAT_EMITTER)
+
+/// Highest-rank threat a live plate can actually reach. Nearest wins among equals.
+/obj/machinery/hardlight_command_core/proc/get_priority_threat()
+	return threat_queue?.peek(CALLBACK(src, PROC_REF(threat_is_actionable)), src)
+
+/// Emitters are always chaseable. Construction and foam have to sit on a live plate.
+/obj/machinery/hardlight_command_core/proc/threat_is_actionable(atom/threat)
+	if(istype(threat, /obj/machinery/power/emitter))
+		return TRUE
+	if(istype(threat, /obj/effect/constructing_effect))
+		var/obj/effect/constructing_effect/hologram = threat
+		if(isnull(pad_covering(get_turf(hologram))))
+			return FALSE
+		var/atom/attack_target = hologram.priority_target()
+		if(QDELETED(attack_target))
+			return FALSE
+		if(!(hologram.obj_flags & CAN_BE_HIT) && isnull(pad_covering(get_turf(attack_target))))
+			return FALSE
+		return TRUE
+	if(istype(threat, /obj/structure/foamedmetal))
+		return !isnull(pad_covering(get_turf(threat)))
+	return FALSE
+
+/obj/machinery/hardlight_command_core/proc/sync_priority_threat()
+	bind_queue_to_avatar()
 	if(phase == HARDLIGHT_PHASE_ACTIVE || phase == HARDLIGHT_PHASE_BREACHED)
 		reconsider()
 
-/// Whatever currently outranks the room preference list, or null.
-/obj/machinery/hardlight_command_core/proc/get_priority_threat()
-	return priority_threat_ref?.resolve()
-
-/// Hands the current threat down to the avatar's targeting, which prefers it over living targets.
-/obj/machinery/hardlight_command_core/proc/push_threat_to_avatar()
+/// Hands the queue itself to the avatar. The priority-queue subtree peeks it each plan.
+/obj/machinery/hardlight_command_core/proc/bind_queue_to_avatar()
 	if(QDELETED(avatar))
 		return
-	avatar.ai_controller?.set_blackboard_key(BB_HARDLIGHT_PRIORITY_TARGET, priority_threat_ref?.resolve())
+	avatar.ai_controller?.set_blackboard_key(BB_PRIORITY_TARGET_QUEUE, threat_queue)
+
+/// What the body should actually hit. The queue may hold a hologram whose builder is the real target.
+/obj/machinery/hardlight_command_core/proc/resolve_priority_attack_target()
+	var/atom/threat = get_priority_threat()
+	if(istype(threat, /obj/effect/constructing_effect))
+		var/obj/effect/constructing_effect/hologram = threat
+		return hologram.priority_target()
+	return threat
 
 /// Moves the encounter forward. Idempotent, so puzzle machinery can call it without coordinating.
 /obj/machinery/hardlight_command_core/proc/set_phase(new_phase)
@@ -387,3 +441,48 @@
 	set_phase(HARDLIGHT_PHASE_EXTRACTED)
 	SEND_GLOBAL_SIGNAL(COMSIG_GLOB_HARDLIGHT_MATRIX_EXTRACTED, src, extractor)
 	return TRUE
+
+/obj/effect/constructing_effect
+	/// Who started this build. Anti-interrupt holograms cannot be hit, so the director goes after them.
+	var/datum/weakref/builder_ref
+
+/// What the avatar should hit for this hologram: the effect if it can be interrupted, else the builder.
+/obj/effect/constructing_effect/proc/priority_target()
+	if(obj_flags & CAN_BE_HIT)
+		return src
+	return builder_ref?.resolve()
+
+/obj/effect/constructing_effect/proc/set_builder(mob/living/builder)
+	builder_ref = isnull(builder) ? null : WEAKREF(builder)
+	var/turf/here = get_turf(src)
+	var/obj/machinery/hardlight_command_core/core = isnull(here) ? null : hardlight_core_on_z(here.z)
+	core?.sync_priority_threat()
+
+/// Track construction holograms so the director can interrupt an RCD the way it interrupts a drill.
+/obj/effect/constructing_effect/Initialize(mapload, rcd_delay, rcd_status, rcd_upgrades)
+	. = ..()
+	if(. == INITIALIZE_HINT_QDEL)
+		return
+	hardlight_enqueue_threat(src, HARDLIGHT_THREAT_CONSTRUCTION)
+
+/obj/effect/constructing_effect/Destroy()
+	var/turf/here = get_turf(src)
+	hardlight_dequeue_threat(src, here?.z)
+	return ..()
+
+/// Avatar melee lands here rather than as generic obj_damage, so a lash cancels the build.
+/obj/effect/constructing_effect/attack_basic_mob(mob/user, list/modifiers)
+	. = ..()
+	if(isliving(user))
+		attacked(user)
+
+/obj/structure/foamedmetal/Initialize(mapload)
+	. = ..()
+	if(. == INITIALIZE_HINT_QDEL)
+		return
+	hardlight_enqueue_threat(src, HARDLIGHT_THREAT_FOAM)
+
+/obj/structure/foamedmetal/Destroy()
+	var/turf/here = get_turf(src)
+	hardlight_dequeue_threat(src, here?.z)
+	return ..()

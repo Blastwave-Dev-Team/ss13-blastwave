@@ -118,8 +118,10 @@
 #define HARDLIGHT_TAUNT_INTERVAL_MIN (90 SECONDS)
 #define HARDLIGHT_TAUNT_INTERVAL_MAX (150 SECONDS)
 
-/// Blackboard slot for something the director wants dead ahead of any living target.
-#define BB_HARDLIGHT_PRIORITY_TARGET "BB_hardlight_priority_target"
+/// Priority-queue ranks. Higher wins. Emitter stays above every opportunistic entry.
+#define HARDLIGHT_THREAT_FOAM 10
+#define HARDLIGHT_THREAT_CONSTRUCTION 10
+#define HARDLIGHT_THREAT_EMITTER 100
 /// Blackboard slot holding the plate-tether ability.
 #define BB_HARDLIGHT_TETHER "BB_hardlight_tether"
 /// Blackboard slot holding the snap-back-to-the-plate ability.

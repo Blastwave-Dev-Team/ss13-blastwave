@@ -166,20 +166,21 @@ GLOBAL_LIST_EMPTY(hardlight_containments)
 	// Standing an emitter up against the ring is the third of the phase-two objectives, and the
 	// only one the unit gets to watch happen rather than infer after the fact.
 	core.note_objective(HARDLIGHT_OBJECTIVE_EMITTER)
-	core.set_priority_threat(driller)
+	core.enqueue_threat(driller, HARDLIGHT_THREAT_EMITTER)
 
-/// Stands the nomination down, but only if it is still ours to stand down.
+/// Drops this drill from the queue. Foam and construction entries stay put.
 /obj/machinery/hardlight_containment/proc/clear_driver()
-	var/atom/driller = driller_ref?.resolve()
+	var/datum/weakref/held = driller_ref
+	var/atom/driller = held?.resolve()
 	driller_ref = null
-	if(isnull(driller))
-		return
 
 	var/obj/machinery/hardlight_command_core/core = our_core()
-	// Something else may have claimed the slot since. Do not clobber a newer nomination.
-	if(isnull(core) || core.get_priority_threat() != driller)
+	if(isnull(core))
 		return
-	core.set_priority_threat(null)
+	if(!isnull(driller))
+		core.dequeue_threat(driller)
+		return
+	core.dequeue_threat_ref(held)
 
 /obj/machinery/hardlight_containment/proc/our_core()
 	RETURN_TYPE(/obj/machinery/hardlight_command_core)
