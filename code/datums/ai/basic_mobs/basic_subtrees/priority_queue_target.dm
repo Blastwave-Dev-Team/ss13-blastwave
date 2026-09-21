@@ -19,7 +19,7 @@
 	controller.set_blackboard_key(target_key, target)
 
 /// The resolved, currently-actionable head, or null. Find-target subtrees use this to stand down.
-/datum/ai_planning_subtree/target_from_priority_queue/proc/select_target(datum/ai_controller/controller)
+/datum/ai_planning_subtree/target_from_priority_queue/proc/select_target(datum/ai_controller/controller) as /atom
 	var/datum/priority_queue/queue = controller.blackboard[queue_key]
 	if(isnull(queue))
 		return null
@@ -35,7 +35,7 @@
 /datum/ai_planning_subtree/target_from_priority_queue/proc/accept_entry(datum/ai_controller/controller, datum/item)
 	return TRUE
 
-/datum/ai_planning_subtree/target_from_priority_queue/proc/resolve_target(datum/ai_controller/controller, atom/queued)
+/datum/ai_planning_subtree/target_from_priority_queue/proc/resolve_target(datum/ai_controller/controller, atom/queued) as /atom
 	return queued
 
 /datum/ai_planning_subtree/target_from_priority_queue/proc/valid_target(datum/ai_controller/controller, atom/target)

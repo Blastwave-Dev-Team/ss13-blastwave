@@ -33,7 +33,7 @@
 	var/obj/machinery/hardlight_command_core/core = isnull(here) ? null : hardlight_core_on_z(here.z)
 	return core?.threat_is_actionable(item)
 
-/datum/ai_planning_subtree/target_from_priority_queue/hardlight/resolve_target(datum/ai_controller/controller, atom/queued)
+/datum/ai_planning_subtree/target_from_priority_queue/hardlight/resolve_target(datum/ai_controller/controller, atom/queued) as /atom
 	if(istype(queued, /obj/effect/constructing_effect))
 		var/obj/effect/constructing_effect/hologram = queued
 		return hologram.priority_target()

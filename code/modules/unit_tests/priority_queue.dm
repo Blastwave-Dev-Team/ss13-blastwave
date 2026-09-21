@@ -27,7 +27,7 @@
 	queue.enqueue(doomed, 40)
 	var/datum/weakref/held = WEAKREF(doomed)
 	qdel(doomed)
-	TEST_ASSERT(isnull(queue.peek()), "A deleted item should not peek.")
+	TEST_ASSERT_EQUAL(queue.peek(), low, "Peek should skip a deleted item and return the next live rank.")
 	TEST_ASSERT(queue.dequeue_ref(held), "dequeue_ref should drop an entry whose weakref no longer resolves.")
 	TEST_ASSERT_EQUAL(length(queue.entries), 1, "dequeue_ref should only drop the dead entry.")
 

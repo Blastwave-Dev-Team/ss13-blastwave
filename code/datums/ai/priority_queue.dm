@@ -74,7 +74,7 @@
  * Highest-rank item that still exists. `accept` can skip entries the caller cannot act on.
  * Among equal ranks, nearest to `origin` wins; without an origin the first at that rank wins.
  */
-/datum/priority_queue/proc/peek(datum/callback/accept, atom/origin)
+/datum/priority_queue/proc/peek(datum/callback/accept, atom/origin) as /datum
 	var/datum/best
 	var/best_rank = -1
 	var/best_dist = INFINITY
