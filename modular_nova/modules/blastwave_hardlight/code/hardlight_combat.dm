@@ -186,8 +186,8 @@
  * Plate tether
  *
  * Reaches out from the projector rather than from the body, so it works at plate range and not at
- * arm's length. Everything it does to the victim is undone by draining the pad, which keeps the
- * answer to every problem in this encounter pointed at the same place.
+ * arm's length. The loop dies when the body leaves that plate, so a hop or a kite is a release
+ * rather than a leftover cuff in an empty room.
  */
 /datum/action/cooldown/mob_cooldown/hardlight_tether
 	name = "Plate Tether"
@@ -209,7 +209,7 @@
 	if(victim.legcuffed)
 		return FALSE
 
-	new /obj/item/restraints/legcuffs/hardlight_tether(get_turf(victim), victim, avatar.pad)
+	new /obj/item/restraints/legcuffs/hardlight_tether(get_turf(victim), victim, avatar.pad, avatar)
 	StartCooldown()
 	return TRUE
 
@@ -382,9 +382,9 @@
  * Tether
  *
  * The goliath beat, rebuilt out of light: the victim is pinned where they stand, on a visible line
- * back to the plate that did it. They can still shoot, which matters, because draining the pad is
- * what releases them - along with everyone else it is holding. Every problem in this encounter
- * resolves to the same answer, and being rooted to the floor is the most pointed way of saying so.
+ * back to the plate that did it. They can still shoot. The loop lasts only while the body is still
+ * standing on that plate - drain it, hop it to another room, or walk it off, and the cuff comes
+ * apart. A pin that outlives the projection is a leftover, not a hold.
  */
 /obj/item/restraints/legcuffs/hardlight_tether
 	name = "hard-light tether"
@@ -397,20 +397,26 @@
 	max_integrity = 60
 	/// The plate we are anchored to.
 	var/obj/machinery/hardlight_projector/anchor
+	/// The body that threw this. The loop is its reach, not the plate's leftover.
+	var/mob/living/basic/hardlight_avatar/caster
 	/// Backstop for anything that moves the victim without walking them, such as a throw.
 	var/datum/component/leash/leash
 	/// Visible line back to the plate.
 	var/datum/beam/beam_effect
 
-/obj/item/restraints/legcuffs/hardlight_tether/Initialize(mapload, mob/living/carbon/target, obj/machinery/hardlight_projector/anchor)
+/obj/item/restraints/legcuffs/hardlight_tether/Initialize(mapload, mob/living/carbon/target, obj/machinery/hardlight_projector/anchor, mob/living/basic/hardlight_avatar/caster)
 	. = ..()
 	src.anchor = anchor
-	if(isnull(anchor) || !iscarbon(target))
+	src.caster = caster
+	if(isnull(anchor) || isnull(caster) || !iscarbon(target))
 		return INITIALIZE_HINT_QDEL
 	if(!target.equip_to_slot_if_possible(src, ITEM_SLOT_LEGCUFFED, disable_warning = TRUE, bypass_equip_delay_self = TRUE))
 		return INITIALIZE_HINT_QDEL
 
 /obj/item/restraints/legcuffs/hardlight_tether/Destroy(force)
+	if(!isnull(caster))
+		UnregisterSignal(caster, list(COMSIG_MOVABLE_MOVED, COMSIG_QDELETING, COMSIG_HARDLIGHT_AVATAR_PAD_CHANGED))
+	caster = null
 	. = ..()
 	QDEL_NULL(leash)
 	QDEL_NULL(beam_effect)
@@ -421,8 +427,8 @@
 	if(slot != ITEM_SLOT_LEGCUFFED || !isnull(leash) || isnull(anchor))
 		return
 
-	// Rooted, not merely slowed. Resisting out, a friend with a crowbar, or a dead pad are the ways
-	// off this, and the last of those is the one the encounter wants the crew to reach for.
+	// Rooted, not merely slowed. Resisting out, a dead pad, or the body leaving the plate are the
+	// ways off this; the last is the one that used to fail to fire.
 	ADD_TRAIT(user, TRAIT_IMMOBILIZED, REF(src))
 	leash = user.AddComponent(/datum/component/leash, owner = anchor, distance = 1, silent = TRUE)
 	beam_effect = user.Beam(anchor, icon_state = "b_beam", beam_color = HARDLIGHT_COLOUR)
@@ -435,6 +441,9 @@
 	RegisterSignal(anchor, COMSIG_HARDLIGHT_PAD_COLLAPSED, PROC_REF(on_anchor_lost))
 	RegisterSignal(anchor, COMSIG_QDELETING, PROC_REF(on_anchor_lost))
 	RegisterSignal(leash, COMSIG_QDELETING, PROC_REF(on_anchor_lost))
+	RegisterSignal(caster, COMSIG_MOVABLE_MOVED, PROC_REF(on_caster_moved))
+	RegisterSignal(caster, COMSIG_HARDLIGHT_AVATAR_PAD_CHANGED, PROC_REF(on_caster_pad_changed))
+	RegisterSignal(caster, COMSIG_QDELETING, PROC_REF(on_anchor_lost))
 
 /obj/item/restraints/legcuffs/hardlight_tether/dropped(mob/user, silent)
 	if(!isnull(user))
@@ -444,6 +453,20 @@
 /obj/item/restraints/legcuffs/hardlight_tether/proc/on_anchor_lost(datum/source)
 	SIGNAL_HANDLER
 	qdel(src)
+
+/// Drops the moment the body is no longer close enough to the plate to have thrown this.
+/obj/item/restraints/legcuffs/hardlight_tether/proc/on_caster_moved(atom/movable/source)
+	SIGNAL_HANDLER
+
+	if(QDELETED(caster) || get_dist(caster, anchor) > HARDLIGHT_TETHER_RANGE)
+		qdel(src)
+
+/// A hop to another plate is a leave even if the two plates sit inside the same reach.
+/obj/item/restraints/legcuffs/hardlight_tether/proc/on_caster_pad_changed(datum/source, obj/machinery/hardlight_projector/new_pad)
+	SIGNAL_HANDLER
+
+	if(new_pad != anchor)
+		qdel(src)
 
 // Avatar behaviour. Split from hardlight_avatar.dm so the mob file stays about damage plumbing and
 // this one stays about what the thing does to you; both halves are still the same type.

@@ -619,26 +619,23 @@ SUBSYSTEM_DEF(overmap)
 			return FALSE
 	return TRUE
 
-/// Whether a stationary dock's footprint is safe to land on — open space / plating / lava /
-/// openspace / misc / indestructible only, matching the nav console whitelist. Rejects ordinary
-/// ruin floors, walls, and dense anchored obstacles.
-///
-/// Indestructible open turfs are on the list because that is what mapper-authored hangar bays are
-/// floored with: the deck has to survive players who would otherwise cut their way out through it,
-/// so a hand-drawn pad is unlandable if we treat "indestructible" as "not ground".
+/// Closed turfs (walls, mineral, etc.) are the only ground we refuse. Hangar
+/// decks, station iron, plating, lava, and space all pass; dense anchored
+/// obstacles are a separate check in dock_footprint_is_clear(). Shared with
+/// the astrogation docker so helm LZ dock and camera designation agree.
+/datum/controller/subsystem/overmap/proc/dock_landing_turf_type_blocked(turf_type)
+	if(!turf_type)
+		return TRUE
+	var/static/list/blocked_turfs = typecacheof(list(/turf/closed))
+	return is_type_in_typecache(turf_type, blocked_turfs)
+
+/// Whether a stationary dock's footprint is safe to land on. Blacklists closed
+/// turfs and dense anchored obstacles (doors and docking ports excepted).
 /datum/controller/subsystem/overmap/proc/dock_footprint_is_clear(obj/docking_port/stationary/port)
 	if(!port)
 		return FALSE
-	var/static/list/allowed_turfs = typecacheof(list(
-		/turf/open/space,
-		/turf/open/floor/plating,
-		/turf/open/lava,
-		/turf/open/openspace,
-		/turf/open/misc,
-		/turf/open/indestructible,
-	))
 	for(var/turf/T in port.return_turfs())
-		if(!is_type_in_typecache(T.type, allowed_turfs))
+		if(dock_landing_turf_type_blocked(T.type))
 			return FALSE
 		for(var/obj/obstacle in T)
 			if(!obstacle.density || !obstacle.anchored)

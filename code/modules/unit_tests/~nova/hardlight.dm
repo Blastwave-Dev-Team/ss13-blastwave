@@ -44,6 +44,43 @@
 	TEST_ASSERT(!pad.collapsed, "Crossing the reactivation threshold should bring the pad back.")
 	TEST_ASSERT(pad.can_project(), "A recovered pad should be able to hold a body up again.")
 
+/// No APC in the room halves recovery; an area feeder restores the capacitor rate.
+/datum/unit_test/hardlight/pad_apc_trickle
+
+/datum/unit_test/hardlight/pad_apc_trickle/Run()
+	var/obj/machinery/hardlight_projector/pad = allocate(/obj/machinery/hardlight_projector, run_loc_floor_bottom_left)
+	var/area/here = get_area(pad)
+	TEST_ASSERT(here, "Pad should have an area for the APC trickle check.")
+	var/obj/machinery/power/apc/prior = here.apc
+
+	pad.recharge_rate = 10
+	pad.stored_charge = 0
+	here.apc = null
+	TEST_ASSERT(!pad.has_area_apc(), "Nulling the area APC should put the pad on trickle.")
+	TEST_ASSERT_EQUAL(pad.effective_recharge_rate(), 10 * HARDLIGHT_RECHARGE_NO_APC_MULT, "No APC should half the capacitor rate.")
+	pad.process(1)
+	TEST_ASSERT_EQUAL(pad.stored_charge, 10 * HARDLIGHT_RECHARGE_NO_APC_MULT, "Trickle process should apply the halved rate.")
+
+	if(prior && !QDELETED(prior))
+		here.apc = prior
+	else
+		here.apc = allocate(/obj/machinery/power/apc, run_loc_floor_bottom_left)
+	TEST_ASSERT(pad.has_area_apc(), "An area APC should restore full recovery.")
+	TEST_ASSERT_EQUAL(pad.effective_recharge_rate(), 10, "An area APC should use the capacitor rate.")
+	pad.stored_charge = 0
+	pad.process(1)
+	TEST_ASSERT_EQUAL(pad.stored_charge, 10, "Fed process should apply the full rate.")
+
+	if(here.apc != prior)
+		here.apc = prior
+
+	var/found_trickle = FALSE
+	for(var/entry in pad.examine(allocate(/mob/living/carbon/human/consistent, run_loc_floor_bottom_left)))
+		if(findtext(entry, "trickle-charge"))
+			found_trickle = TRUE
+			break
+	TEST_ASSERT(found_trickle, "Examine should mention trickle-charge, like energy weapons.")
+
 /// Below the destabilisation line a pad that has started losing keeps losing.
 /datum/unit_test/hardlight/pad_destabilisation
 
@@ -193,10 +230,12 @@
 	var/turf/home = run_loc_floor_bottom_left
 	var/obj/machinery/hardlight_command_core/core = allocate(/obj/machinery/hardlight_command_core, home)
 
-	// Two plates in one room, far enough apart that the margin cannot span the gap.
+	// Opposite corners of the unit-test room: same area, far enough that the
+	// repad margin cannot treat them as one plate.
 	var/turf/near_turf = home
-	var/turf/far_turf = locate(home.x + 10, home.y, home.z)
-	TEST_ASSERT(isfloorturf(far_turf), "Proximity test needs ten tiles of floor to work with.")
+	var/turf/far_turf = run_loc_floor_top_right
+	TEST_ASSERT(isfloorturf(far_turf), "Proximity test needs the unit-test room's far corner.")
+	TEST_ASSERT(get_dist(near_turf, far_turf) > HARDLIGHT_REPAD_MARGIN, "The two corners must sit farther apart than HARDLIGHT_REPAD_MARGIN.")
 	TEST_ASSERT_EQUAL(get_area(far_turf), get_area(home), "Both plates must share one area for this test to mean anything.")
 
 	var/obj/machinery/hardlight_projector/near_pad = allocate(/obj/machinery/hardlight_projector, near_turf)
@@ -370,3 +409,37 @@
 
 	speaker.set_on(FALSE)
 	TEST_ASSERT(!core.broadcast("test"), "A speaker the crew has switched off should not carry anything.")
+
+/// A tether is the body's reach. Walking off the plate, or hopping to another, has to let go.
+/datum/unit_test/hardlight/tether_releases
+
+/datum/unit_test/hardlight/tether_releases/Run()
+	var/turf/home = run_loc_floor_bottom_left
+	var/turf/away = locate(home.x + HARDLIGHT_TETHER_RANGE + 1, home.y, home.z)
+	TEST_ASSERT(!isnull(away) && !isclosedturf(away), "Need a walkable tile just past tether range.")
+
+	var/obj/machinery/hardlight_projector/pad = allocate(/obj/machinery/hardlight_projector, home)
+	var/mob/living/basic/hardlight_avatar/avatar = allocate(/mob/living/basic/hardlight_avatar, home)
+	avatar.set_pad(pad)
+
+	var/mob/living/carbon/human/victim = allocate(/mob/living/carbon/human/consistent, home)
+	var/obj/item/restraints/legcuffs/hardlight_tether/cuff = allocate(/obj/item/restraints/legcuffs/hardlight_tether, home, victim, pad, avatar)
+	TEST_ASSERT(!QDELETED(cuff), "A live pad and a body on it should throw a tether.")
+	TEST_ASSERT_EQUAL(victim.legcuffed, cuff, "The victim should be wearing the tether.")
+
+	avatar.forceMove(away)
+	TEST_ASSERT(QDELETED(cuff), "Walking the body off the plate should drop the tether.")
+	TEST_ASSERT(isnull(victim.legcuffed), "A dropped tether should leave the victim uncuffed.")
+
+	avatar.forceMove(home)
+	avatar.set_pad(pad)
+	var/obj/item/restraints/legcuffs/hardlight_tether/second = allocate(/obj/item/restraints/legcuffs/hardlight_tether, home, victim, pad, avatar)
+	TEST_ASSERT(!QDELETED(second), "Re-applying on a returned body should hold.")
+
+	var/turf/next_tile = get_step(home, EAST)
+	TEST_ASSERT(!isnull(next_tile) && !isclosedturf(next_tile), "Need a neighbouring tile for a one-step hop.")
+	var/obj/machinery/hardlight_projector/other = allocate(/obj/machinery/hardlight_projector, next_tile)
+	avatar.forceMove(next_tile)
+	TEST_ASSERT(!QDELETED(second), "A one-tile step is still inside the hold, and should not drop it.")
+	avatar.set_pad(other)
+	TEST_ASSERT(QDELETED(second), "Handing the body to another plate should drop the old tether.")

@@ -16,7 +16,7 @@
  */
 /obj/machinery/hardlight_projector
 	name = "hard-light projector"
-	desc = "A recessed floor emitter ringed with capacitor banks. The lensing is scarred from the inside, \
+	desc = "A recessed floor emitter ringed with trickle-charge capacitor banks. The lensing is scarred from the inside, \
 		as though something has been repeatedly pushed through it harder than it was meant to go."
 	icon = 'icons/obj/machines/floor.dmi'
 	icon_state = "holopad0"
@@ -26,7 +26,7 @@
 	density = FALSE
 	// Pads outlive their rooms. Nothing the crew carries is supposed to be an answer to the pad itself.
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
-	// Ruin hardware on its own isolated bus. There is no APC behind these and no breaker to pull.
+	// The bank self-charges either way; an area APC only changes the rate, it is not a breaker.
 	use_power = NO_POWER_USE
 	processing_flags = START_PROCESSING_ON_INIT
 	circuit = /obj/item/circuitboard/machine/hardlight_projector
@@ -75,11 +75,24 @@
 
 /obj/machinery/hardlight_projector/examine(mob/user)
 	. = ..()
-	. += span_notice("The capacitor bank reads <b>[round(charge_fraction() * 100)]%</b>, recovering roughly [recharge_rate] units a second.")
+	. += span_notice("Equipped with a trickle-charge capacitor bank. Recovers without an external feed. Don't expect it to keep up with heavy use.")
+	var/fed = has_area_apc()
+	. += span_notice("The capacitor bank reads <b>[round(charge_fraction() * 100)]%</b>, recovering roughly [effective_recharge_rate()] units a second[fed ? "" : " — half rate, no area feeder"].")
 	if(collapsed)
 		. += span_warning("Its lensing is dark and cold. Whatever it was holding up is gone, for now.")
 	else if(is_destabilised())
 		. += span_warning("The bank is low enough that the lensing is visibly stuttering.")
+
+/// Whether this room has an APC the bank can ride. Presence only; we do not draw from it.
+/obj/machinery/hardlight_projector/proc/has_area_apc()
+	var/area/here = get_area(src)
+	return !isnull(here?.apc) && !QDELETED(here.apc)
+
+/// Capacitor rate, halved when the room has no APC.
+/obj/machinery/hardlight_projector/proc/effective_recharge_rate()
+	if(has_area_apc())
+		return recharge_rate
+	return recharge_rate * HARDLIGHT_RECHARGE_NO_APC_MULT
 
 /// How full the bank is, 0 to 1. The single number everything else is expressed against.
 /obj/machinery/hardlight_projector/proc/charge_fraction()
@@ -134,7 +147,7 @@
 	if(stored_charge >= max_charge)
 		return
 
-	stored_charge = min(stored_charge + (recharge_rate * seconds_per_tick), max_charge)
+	stored_charge = min(stored_charge + (effective_recharge_rate() * seconds_per_tick), max_charge)
 
 	if(collapsed && stored_charge >= (max_charge * HARDLIGHT_REACTIVATE_FRACTION))
 		collapsed = FALSE

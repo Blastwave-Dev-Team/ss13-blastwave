@@ -15,6 +15,8 @@
 #define HARDLIGHT_RECHARGE_TIER_TWO 8
 #define HARDLIGHT_RECHARGE_TIER_THREE 15
 #define HARDLIGHT_RECHARGE_TIER_FOUR 25
+/// Rooms without an APC recover at this fraction of the capacitor rate.
+#define HARDLIGHT_RECHARGE_NO_APC_MULT 0.5
 
 /// Fraction of max charge a collapsed projector must recover before it can project again.
 #define HARDLIGHT_REACTIVATE_FRACTION 0.8

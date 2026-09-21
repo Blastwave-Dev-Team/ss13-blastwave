@@ -49,9 +49,9 @@
 	// rather have an unkillable boss than one that a single shotgun slug deletes.
 	damage_coeff = list(BRUTE = 0, BURN = 0, TOX = 0, STAMINA = 0, OXY = 0)
 	armor_type = /datum/armor/hardlight_avatar
-	melee_damage_lower = 12
-	melee_damage_upper = 18
-	melee_attack_cooldown = 1.5 SECONDS
+	melee_damage_lower = 6
+	melee_damage_upper = 12
+	melee_attack_cooldown = 2.5 SECONDS
 	obj_damage = 30
 	attack_verb_continuous = "lashes"
 	attack_verb_simple = "lash"
@@ -148,6 +148,7 @@
 		RegisterSignal(pad, COMSIG_QDELETING, PROC_REF(on_pad_deleted))
 		pad.coverage?.claim_avatar(src)
 
+	SEND_SIGNAL(src, COMSIG_HARDLIGHT_AVATAR_PAD_CHANGED, pad)
 	update_ray()
 
 /**

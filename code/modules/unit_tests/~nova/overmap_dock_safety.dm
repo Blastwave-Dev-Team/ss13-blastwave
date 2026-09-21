@@ -142,7 +142,9 @@
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(clear_port), "Plating footprint should be clear.")
 
 	pad.ChangeTurf(/turf/open/floor/iron)
-	TEST_ASSERT(!SSovermap.dock_footprint_is_clear(clear_port), "Iron floor is not in the nav landing whitelist.")
+	TEST_ASSERT(SSovermap.dock_footprint_is_clear(clear_port), "Iron hangar deck is landable under the closed-turf blacklist.")
+	TEST_ASSERT(!SSovermap.dock_landing_turf_type_blocked(/turf/open/floor/iron), "Iron must not be on the landing blacklist.")
+	TEST_ASSERT(SSovermap.dock_landing_turf_type_blocked(/turf/closed/wall), "Walls must stay on the landing blacklist.")
 
 	pad.ChangeTurf(/turf/open/floor/plating)
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(clear_port), "Plating should be clear again after restore.")
@@ -512,3 +514,86 @@
 	qdel(blocker)
 
 	qdel(occupant, force = TRUE)
+
+/// Helm create_landing_zone_port() must rotate an 18x12 cutter onto a 14x19
+/// iron hangar — the Sepulchure mapped-LZ case — instead of refusing the pad.
+/datum/unit_test/overmap_dock_safety/helm_rotate_iron_hangar
+
+/datum/unit_test/overmap_dock_safety/helm_rotate_iron_hangar/Run()
+	var/datum/map_template/shuttle/template = SSmapping.shuttle_templates["solfed_cutter"]
+	TEST_ASSERT(template, "solfed_cutter missing from SSmapping.shuttle_templates")
+	var/ship_w = template.width
+	var/ship_h = template.height
+	var/zone_w = 14
+	var/zone_h = 19
+	TEST_ASSERT(ship_w > zone_w, "Cutter width should exceed hangar width so rotation is required.")
+	TEST_ASSERT(ship_h <= zone_w && ship_w <= zone_h, "Rotated cutter must fit a 14x19 hangar.")
+
+	var/dwidth = round(ship_w / 2)
+	var/reserve_w = ship_w + zone_w + 8
+	var/reserve_h = max(ship_h, zone_h) + 4
+	cutter_reserve = SSmapping.request_turf_block_reservation(
+		reserve_w,
+		reserve_h,
+		1,
+		reservation_type = /datum/turf_reservation/transit,
+	)
+	TEST_ASSERT(cutter_reserve, "Failed to reserve block for helm_rotate_iron_hangar")
+
+	var/turf/origin = cutter_reserve.bottom_left_turfs[1]
+	for(var/turf/tile as anything in block(
+		origin.x,
+		origin.y,
+		origin.z,
+		origin.x + reserve_w - 1,
+		origin.y + reserve_h - 1,
+		origin.z,
+	))
+		tile.ChangeTurf(/turf/open/floor/iron)
+
+	var/turf/port_turf = locate(origin.x + dwidth, origin.y + 1, origin.z)
+	TEST_ASSERT(port_turf, "Failed to locate NORTH-facing cutter port turf")
+	cutter = new /obj/docking_port/mobile/overmap/frigate/solfed_cutter(port_turf)
+	cutter.width = ship_w
+	cutter.height = ship_h
+	cutter.dwidth = dwidth
+	cutter.dheight = 0
+	cutter.setDir(NORTH)
+	cutter.register(TRUE)
+	if(cutter.current_ship)
+		var/obj/structure/overmap/ship/simulated/auto_ship = cutter.current_ship
+		cutter.current_ship = null
+		auto_ship.shuttle = null
+		qdel(auto_ship)
+
+	var/list/north_bounds = cutter.return_coords()
+	var/north_w = abs(north_bounds[3] - north_bounds[1]) + 1
+	var/north_h = abs(north_bounds[4] - north_bounds[2]) + 1
+	TEST_ASSERT(north_w > zone_w, "NORTH-facing cutter should be too wide for the hangar.")
+
+	var/turf/hangar = locate(origin.x + ship_w + 3, origin.y, origin.z)
+	TEST_ASSERT(hangar, "Failed to locate iron hangar origin")
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, hangar)
+	zone.zone_name = "Test Hangar"
+	zone.zone_width = zone_w
+	zone.zone_height = zone_h
+	TEST_ASSERT(zone.can_fit_shuttle(north_w, north_h), "Zone should accept the hull in a rotated orientation.")
+	TEST_ASSERT_EQUAL(zone.first_fitting_dir(cutter), EAST, "Dir order is current, +90, -90; NORTH +90 is EAST.")
+
+	var/obj/structure/overmap/ship/simulated/ship = allocate(
+		/obj/structure/overmap/ship/simulated,
+		run_loc_floor_bottom_left,
+		cutter.shuttle_id,
+		cutter,
+	)
+	cutter.current_ship = ship
+
+	var/obj/docking_port/stationary/port = ship.create_landing_zone_port(zone)
+	TEST_ASSERT(port, "Helm LZ dock must place a rotated port on an iron hangar.")
+	TEST_ASSERT_EQUAL(port.dir, EAST, "Placed port should use the first fitting rotation.")
+	TEST_ASSERT(SSovermap.dock_footprint_is_clear(port), "Rotated iron hangar footprint must be clear.")
+	qdel(port)
+
+	if(cutter.current_ship == ship)
+		cutter.current_ship = null
+	ship.shuttle = null

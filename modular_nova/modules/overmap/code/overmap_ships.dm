@@ -931,6 +931,7 @@
 	if(zone.get_occupant(shuttle))
 		return null
 
+	// Same order as first_fitting_dir(): current facing, then ±90.
 	for(var/try_dir in list(shuttle.dir, turn(shuttle.dir, 90), turn(shuttle.dir, -90)))
 		// Measure the hull in `try_dir` from a port tile at the origin. return_coords() is pure
 		// arithmetic, so the negated minimum is the port tile's offset inside its own footprint,

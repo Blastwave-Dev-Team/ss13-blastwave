@@ -127,3 +127,6 @@
 
 /// A hard-light projector ran out of charge and dropped whatever it was projecting: (obj/machinery/hardlight_projector/pad)
 #define COMSIG_HARDLIGHT_PAD_COLLAPSED "hardlight_pad_collapsed"
+
+/// A hard-light avatar was bound to a different plate, or unbound: (obj/machinery/hardlight_projector/new_pad)
+#define COMSIG_HARDLIGHT_AVATAR_PAD_CHANGED "hardlight_avatar_pad_changed"
