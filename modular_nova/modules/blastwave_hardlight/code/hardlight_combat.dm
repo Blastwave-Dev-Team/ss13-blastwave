@@ -10,8 +10,9 @@
 /datum/targeting_strategy/basic/hardlight
 
 /datum/targeting_strategy/basic/hardlight/can_attack(mob/living/living_mob, atom/the_target, vision_range)
-	. = ..()
-	if(!.)
+	// The basic strategy only swings at mobs, mechs, and turrets. An emitter is none of those, so
+	// without this the body walks up to the drill and then declines to hit it.
+	if(!(..() || hardlight_melee_object(the_target)))
 		return FALSE
 
 	var/mob/living/basic/hardlight_avatar/avatar = living_mob
@@ -19,6 +20,13 @@
 		return TRUE
 
 	return avatar.pad.coverage.covers_turf(get_turf(the_target))
+
+/// Hardware the avatar's melee is meant to tear down rather than ignore.
+/datum/targeting_strategy/basic/hardlight/proc/hardlight_melee_object(atom/the_target)
+	return istype(the_target, /obj/machinery/power/emitter) \
+		|| istype(the_target, /obj/machinery/power/port_gen) \
+		|| istype(the_target, /obj/effect/constructing_effect) \
+		|| istype(the_target, /obj/structure/foamedmetal)
 
 /**
  * Hardlight's reading of the shared priority queue.

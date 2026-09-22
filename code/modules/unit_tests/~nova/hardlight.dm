@@ -347,6 +347,22 @@
 			dead_left = TRUE
 	TEST_ASSERT(!dead_left, "clear_driver should dequeue a drill that no longer resolves.")
 
+/// Melee has to accept an emitter. The stock strategy refuses anything that is not a mob.
+/datum/unit_test/hardlight/emitter_melee
+
+/datum/unit_test/hardlight/emitter_melee/Run()
+	var/turf/home = run_loc_floor_bottom_left
+	var/obj/machinery/hardlight_projector/pad = allocate(/obj/machinery/hardlight_projector, home)
+	var/mob/living/basic/hardlight_avatar/body = allocate(/mob/living/basic/hardlight_avatar, home)
+	body.set_pad(pad)
+	var/obj/machinery/power/emitter/welded/drill = allocate(/obj/machinery/power/emitter/welded, home)
+	TEST_ASSERT(drill.anchored, "The drill under test has to start bolted down.")
+
+	var/datum/targeting_strategy/strategy = GET_TARGETING_STRATEGY(/datum/targeting_strategy/basic/hardlight)
+	TEST_ASSERT(strategy.can_attack(body, drill), "The avatar should be willing to melee an emitter standing in its coverage.")
+	body.melee_attack(drill, list(), ignore_cooldown = TRUE)
+	TEST_ASSERT(!drill.anchored, "A landed melee should tear the emitter off its mounts.")
+
 /// An RCD construction hologram in coverage outranks the room list, but not an active drill.
 /datum/unit_test/hardlight/rcd_priority
 
