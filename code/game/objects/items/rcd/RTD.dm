@@ -289,6 +289,7 @@
 		return ITEM_INTERACT_BLOCKING
 	var/delay = CONSTRUCTION_TIME(selected_design.cost)
 	var/obj/effect/constructing_effect/rcd_effect = new(floor, delay, RCD_TURF)
+	rcd_effect.set_builder(user) // BLASTWAVE EDIT - HARDLIGHT - anti-interrupt holograms retarget the wielder
 	var/beam
 	if(ranged)
 		beam = user.Beam(floor, icon_state = "light_beam", time = delay)
@@ -358,6 +359,7 @@
 		return ITEM_INTERACT_BLOCKING
 	var/delay = DECONSTRUCTION_TIME(cost)
 	var/obj/effect/constructing_effect/rcd_effect = new(floor, delay, RCD_DECONSTRUCT)
+	rcd_effect.set_builder(user) // BLASTWAVE EDIT - HARDLIGHT - anti-interrupt holograms retarget the wielder
 	var/beam
 	if(ranged)
 		beam = user.Beam(floor, icon_state = "light_beam", time = delay)

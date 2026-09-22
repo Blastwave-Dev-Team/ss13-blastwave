@@ -112,3 +112,21 @@
 
 /// Signal sent whenever a gun with a barrel booster toggles its barrel booster.
 #define COMSIG_GUN_BOOSTER_TOGGLED "gun_booster_toggled"
+
+/// A do_teleport() succeeded anywhere in the world: (atom/movable/teleported, turf/destination, channel, forced)
+#define COMSIG_GLOB_MOVABLE_POST_TELEPORT "!movable_post_teleport"
+
+/// An overmap ship finished setting down: (obj/structure/overmap/ship/simulated/ship, obj/structure/overmap/site, obj/effect/landmark/overmap_landing_zone/zone)
+#define COMSIG_GLOB_OVERMAP_SHIP_DOCKED "!overmap_ship_docked"
+
+/// A hard-light command matrix was pulled into a carrier: (obj/machinery/hardlight_command_core/core, mob/living/extractor)
+#define COMSIG_GLOB_HARDLIGHT_MATRIX_EXTRACTED "!hardlight_matrix_extracted"
+
+/// A hard-light command core moved between encounter phases: (obj/machinery/hardlight_command_core/core, new_phase, old_phase)
+#define COMSIG_GLOB_HARDLIGHT_PHASE_CHANGED "!hardlight_phase_changed"
+
+/// A hard-light projector ran out of charge and dropped whatever it was projecting: (obj/machinery/hardlight_projector/pad)
+#define COMSIG_HARDLIGHT_PAD_COLLAPSED "hardlight_pad_collapsed"
+
+/// A hard-light avatar was bound to a different plate, or unbound: (obj/machinery/hardlight_projector/new_pad)
+#define COMSIG_HARDLIGHT_AVATAR_PAD_CHANGED "hardlight_avatar_pad_changed"

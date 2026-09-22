@@ -52,6 +52,7 @@
 /area/shuttle/overmap/frigate)
 "gw" = (
 /obj/machinery/overmap/fuel_injector,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "ij" = (
@@ -303,6 +304,7 @@
 	pipe_color = "#FF0000"
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
+/obj/structure/cable,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "VA" = (
@@ -315,6 +317,9 @@
 	name = "propellant gas mix"
 	},
 /obj/structure/cable,
+/obj/machinery/power/terminal{
+	dir = 4
+	},
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 "VT" = (
@@ -331,7 +336,6 @@
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
 "XR" = (
-/obj/structure/cable,
 /obj/machinery/computer/monitor{
 	dir = 4
 	},
@@ -350,7 +354,6 @@
 /obj/machinery/atmospherics/pipe/smart/manifold4w/green/hidden/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/orange/hidden/layer4,
-/obj/machinery/power/terminal,
 /turf/open/floor/engine,
 /area/shuttle/overmap/frigate)
 

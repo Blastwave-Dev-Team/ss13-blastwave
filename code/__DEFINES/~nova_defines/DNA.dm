@@ -171,6 +171,8 @@
 #define SPECIES_MAMMAL "mammal"
 #define SPECIES_PODPERSON_WEAK "podweak"
 #define SPECIES_SYNTH "synth"
+/// Military synth chassis. Corpse/mob species only, deliberately absent from prefs and roundstart races.
+#define SPECIES_SYNTH_MILITARY "synth_military"
 #define SPECIES_SLIMESTART "slimeperson"	//There's already SPECIES_SLIMEPERSON in tg
 #define SPECIES_SKRELL "skrell"
 #define SPECIES_TAJARAN "tajaran"

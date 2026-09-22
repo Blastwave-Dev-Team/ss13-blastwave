@@ -136,3 +136,42 @@
 	interaction_flags_atom = INTERACT_ATOM_ATTACK_HAND
 
 	light_color = LIGHT_COLOR_ELECTRIC_CYAN
+
+/**
+ * Micro reactor activation helper
+ *
+ * Drop on a reactor's tile and it comes up running. Reactors map in cold, which is correct for a
+ * derelict and wrong for anywhere the lights are meant to have been on since before the crew
+ * arrived; without this the only way to get one is a parallel `/active` subtype of every reactor
+ * variant, kept in step by hand.
+ *
+ * Applies to any `micro_reactor`, so the B.A.P.G.M. is covered by the same helper.
+ *
+ * Late because TogglePower() reaches for the soundloop the reactor builds in its own Initialize,
+ * and two atoms sharing a tile are initialised in whatever order the loader hands them over in.
+ */
+/obj/effect/mapping_helpers/micro_reactor_on
+	name = "micro reactor activation helper"
+	// Borrowed. There is no generator-flavoured helper sprite, and this one at least reads as
+	// power that is present rather than power that is wanted.
+	icon_state = "apc_full_charge_helper"
+	late = TRUE
+
+/obj/effect/mapping_helpers/micro_reactor_on/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars)
+	. = ..()
+	if(!mapload && !shipyard_target)
+		log_mapping("[src] spawned outside of mapload!")
+		return INITIALIZE_HINT_QDEL
+
+/obj/effect/mapping_helpers/micro_reactor_on/LateInitialize()
+	var/obj/machinery/power/micro_reactor/reactor = shipyard_target
+	if(!istype(reactor))
+		reactor = locate(/obj/machinery/power/micro_reactor) in loc
+	if(isnull(reactor))
+		log_mapping("[src] failed to find a micro reactor at [AREACOORD(src)].")
+		qdel(src)
+		return
+
+	if(!reactor.active)
+		reactor.TogglePower()
+	qdel(src)

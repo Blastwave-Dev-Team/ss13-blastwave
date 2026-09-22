@@ -56,11 +56,22 @@
 	for(var/obj/structure/overmap/level/site/site in SSovermap.overmap_objects)
 		var/site_z = site.linked_levels?[1]
 		TEST_ASSERT(site_z, "Site [site.id] missing linked Z.")
+		var/seeded_on_z = 0
 		var/zones_on_z = 0
 		for(var/obj/effect/landmark/overmap_landing_zone/zone as anything in SSovermap.landing_zones)
-			if(zone.z == site_z)
-				zones_on_z++
-		TEST_ASSERT_EQUAL(zones_on_z, lz_count, "Site [site.id] Z[site_z] expected [lz_count] LZs, got [zones_on_z].")
+			if(zone.z != site_z)
+				continue
+			zones_on_z++
+			if(zone.seeded)
+				seeded_on_z++
+		// A Z whose ruins all bring their own mapped bay is left unseeded on purpose. Counting
+		// the seeded set specifically keeps both cases exact instead of waving the suppressed
+		// one through: it must have none, and it must still offer somewhere to land.
+		if(site_z in SSovermap.unseeded_site_zs)
+			TEST_ASSERT_EQUAL(seeded_on_z, 0, "Site [site.id] Z[site_z] suppresses seeding but got [seeded_on_z] seeded LZs.")
+			TEST_ASSERT(zones_on_z > 0, "Site [site.id] Z[site_z] suppresses seeding and has no mapped LZ, so nothing can land.")
+		else
+			TEST_ASSERT_EQUAL(seeded_on_z, lz_count, "Site [site.id] Z[site_z] expected [lz_count] seeded LZs, got [seeded_on_z].")
 
 		for(var/obj/docking_port/stationary/port as anything in SSshuttle.stationary_docking_ports)
 			if(port.z != site_z)

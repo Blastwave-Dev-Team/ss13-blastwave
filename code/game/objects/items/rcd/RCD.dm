@@ -293,6 +293,7 @@
 	PRIVATE_PROC(TRUE)
 
 	var/obj/effect/constructing_effect/rcd_effect = new(get_turf(target), delay, rcd_results[RCD_DESIGN_MODE], construction_upgrades)
+	rcd_effect.set_builder(user) // BLASTWAVE EDIT - HARDLIGHT - anti-interrupt holograms retarget the wielder
 
 	//resource & structure placement sanity checks before & after delay along with beam effects
 	if(!useResource(rcd_results["cost"], user, TRUE) || !can_place(target, rcd_results, user))
