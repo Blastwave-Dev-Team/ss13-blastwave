@@ -119,6 +119,40 @@
 /// Recursion guard when replaying map spawners as concrete construction targets.
 #define SHIPYARD_EXPANSION_DEPTH 3
 
+// Who a mobile port belongs to, and so whether the registrar may file it away.
+/// Owned by one character. The only class that can be filed into a garage.
+#define SHIP_OWNERSHIP_PERSONAL "PERSONAL"
+/// Held by a department for the round. Never stored.
+#define SHIP_OWNERSHIP_DEPARTMENT "DEPARTMENT"
+/// Station property, which is every map-loaded and stock shuttle. Never stored.
+#define SHIP_OWNERSHIP_STATION "STATION"
+
+// Registry row states, matching the player_ships.status enum.
+#define SHIP_STATUS_FILED "FILED"
+#define SHIP_STATUS_CHECKED_OUT "CHECKED_OUT"
+#define SHIP_STATUS_LOST "LOST"
+
+// Why the registrar will not file a hull. The codes are the TGUI contract.
+#define SHIPYARD_REFUSAL_LIVING_MOB "living_mob"
+#define SHIPYARD_REFUSAL_OUTSIDE_ZONE "outside_zone"
+#define SHIPYARD_REFUSAL_NOT_IDLE "not_idle"
+#define SHIPYARD_REFUSAL_MID_BUILD "mid_build"
+#define SHIPYARD_REFUSAL_STATION_HULL "station_hull"
+#define SHIPYARD_REFUSAL_DEPARTMENT_HULL "department_hull"
+#define SHIPYARD_REFUSAL_OTHER_OWNER "other_owner"
+/// The hull cannot be described at all: no shuttle areas, or no tiles.
+#define SHIPYARD_REFUSAL_UNFILABLE "unfilable"
+
+// What happens to one hull tile when its ship is filed.
+/// Everything on it comes back.
+#define SHIPYARD_TILE_KEPT "kept"
+/// It holds the lockbox, whose contents come back.
+#define SHIPYARD_TILE_LOCKBOX "lockbox"
+/// Loose cargo on it is discarded.
+#define SHIPYARD_TILE_LOST "lost"
+/// Something on it has no construction route and will not come back.
+#define SHIPYARD_TILE_UNROUTED "unrouted"
+
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"
 #define OVERMAP_SHIP_FLYING "flying"

@@ -200,3 +200,15 @@ ATM_DEPOSIT_LIMIT 5000
 ## Max ordinary ATM withdraw from the persistent ledger into the round account, per character per round.
 ATM_WITHDRAW_LIMIT 5000
 EVAC_DEPOSIT_MULTIPLIER 3
+
+## Persistent ships: every fee is charged to the owner's persistent ledger and burned.
+## Filing a ship charges SHIP_STORAGE_BASE_FEE + SHIP_STORAGE_FEE_PER_TILE per hull tile + the lockbox appraisal fee.
+SHIP_STORAGE_BASE_FEE 150
+SHIP_STORAGE_FEE_PER_TILE 4
+## Share of the lockbox's appraised export value charged on filing, and the value given to an item that has none.
+SHIP_LOCKBOX_APPRAISAL_RATE 0.1
+SHIP_LOCKBOX_UNVALUED_FLOOR 25
+## An insured retrieval costs the hull's salvage estimate times this (at least 1). It is refunded against storage on the next filing.
+SHIP_INSURANCE_SALVAGE_MULTIPLIER 1.25
+## An uninsured retrieval costs this flat fee. An uninsured ship that is not filed again before round end is lost.
+SHIP_UNINSURED_RETRIEVE_FEE 50
