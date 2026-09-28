@@ -252,6 +252,10 @@
 	var/height = 0
 	var/shuttle_dir = NORTH
 	var/list/manifest = list()
+	/// Relative "x,y" to the shuttle area the blueprint mapped that tile into.
+	/// Kept out of the manifest because an area is not something the printer
+	/// builds; registration divides the finished hull up by it, once.
+	var/list/tile_areas = list()
 	var/list/skipped_contents = list()
 	var/list/material_cost = list()
 	var/list/required_parts = list()
@@ -407,6 +411,11 @@
 			skipped["x"] -= hull_min_x
 		if(isnum(skipped["y"]))
 			skipped["y"] -= hull_min_y
+	var/list/shifted_areas = list()
+	for(var/tile_key in tile_areas)
+		var/list/coords = splittext(tile_key, ",")
+		shifted_areas["[text2num(coords[1]) - hull_min_x],[text2num(coords[2]) - hull_min_y]"] = tile_areas[tile_key]
+	tile_areas = shifted_areas
 	width = hull_max_x - hull_min_x + 1
 	height = hull_max_y - hull_min_y + 1
 	return TRUE
@@ -652,12 +661,15 @@
 	var/list/member_attributes = model[2]
 	var/turf_path
 	var/list/turf_attributes
+	var/area_path
 	var/has_apc = FALSE
 	for(var/member_index in 1 to length(members))
 		var/member_path = members[member_index]
 		if(ispath(member_path, /turf))
 			turf_path = member_path
 			turf_attributes = member_attributes[member_index]
+		else if(ispath(member_path, /area))
+			area_path = member_path
 		else if(ispath(member_path, /obj/machinery/power/apc))
 			has_apc = TRUE
 		else if(ispath(member_path, /obj/docking_port/mobile))
@@ -667,6 +679,8 @@
 				shuttle_dir = native_direction
 	if(!turf_path || ispath(turf_path, /turf/open/space) || ispath(turf_path, /turf/template_noop))
 		return
+	if(ispath(area_path, /area/shuttle))
+		tile_areas["[rel_x],[rel_y]"] = area_path
 
 	add_operation(new /datum/ship_plan_op(
 		SHIPYARD_PHASE_RODS,
@@ -854,6 +868,19 @@
 	var/list/sanitized = list()
 	if(!islist(raw_vars))
 		return sanitized
+	for(var/var_name in shipyard_mapped_var_allowlist())
+		if(var_name in raw_vars)
+			sanitized[var_name] = raw_vars[var_name]
+	return sanitized
+
+/**
+ * Mapped variables that survive into a manifest, and back out of a teardown.
+ *
+ * One list serves both directions deliberately: a var the printer cannot read
+ * off a blueprint is a var teardown must not write into one, or a saved ship
+ * grows detail on every generation that its own build pass then discards.
+ */
+/proc/shipyard_mapped_var_allowlist()
 	var/static/list/allowed = list(
 		"alpha",
 		"anchored",
@@ -894,10 +921,7 @@
 		"sync_doors",
 		"welded",
 	)
-	for(var/var_name in allowed)
-		if(var_name in raw_vars)
-			sanitized[var_name] = raw_vars[var_name]
-	return sanitized
+	return allowed
 
 /// Stable phase-first ordering for manifest operations.
 /proc/cmp_ship_plan_ops(datum/ship_plan_op/left, datum/ship_plan_op/right)

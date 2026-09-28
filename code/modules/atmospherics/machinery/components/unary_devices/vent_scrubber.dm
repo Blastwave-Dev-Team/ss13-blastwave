@@ -47,7 +47,11 @@
 	AddElement(/datum/element/atmos_sensitive, mapload)
 
 /obj/machinery/atmospherics/components/unary/vent_scrubber/Destroy()
-	disconnect_from_area()
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - jumpToNullSpace() hands the turf to
+	// its underlying area before emptying it, so the current area is not ours.
+	// ORIGINAL: disconnect_from_area()
+	disconnect_from_area(assigned_area)
+	// BLASTWAVE EDIT CHANGE END
 	adjacent_turfs.Cut()
 	return ..()
 
