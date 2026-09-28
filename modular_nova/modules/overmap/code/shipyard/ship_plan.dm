@@ -99,9 +99,16 @@
 	var/list/result = source_vars?.Copy() || list()
 	if(!rotation)
 		return result
-	if(!("dir" in result) && ispath(atom_path, /atom))
+	if(ispath(atom_path, /atom))
 		var/atom/atom_type = atom_path
-		result["dir"] = initial(atom_type.dir)
+		if(!("dir" in result))
+			result["dir"] = initial(atom_type.dir)
+		// Directional subtypes hang on their wall through a pixel shift declared on
+		// the type, which has to turn with the dir or the fixture floats off the wall.
+		if(!("pixel_x" in result) && initial(atom_type.pixel_x))
+			result["pixel_x"] = initial(atom_type.pixel_x)
+		if(!("pixel_y" in result) && initial(atom_type.pixel_y))
+			result["pixel_y"] = initial(atom_type.pixel_y)
 	for(var/var_name in list("dir", "dpdir"))
 		if(var_name in result)
 			result[var_name] = shipyard_oriented_direction(result[var_name], rotation)

@@ -9292,6 +9292,7 @@
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_registrar.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_retrieval.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_serialization.dm"
+#include "modular_nova\modules\overmap\code\shipyard\shipyard_subsystem.dm"
 #include "modular_nova\modules\overmap\code\shipyard\shipyard_teardown.dm"
 #include "modular_nova\modules\oversized\code\oversized_quirk.dm"
 #include "modular_nova\modules\panicbunker\code\panicbunker.dm"

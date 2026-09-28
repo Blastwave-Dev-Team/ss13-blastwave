@@ -153,6 +153,13 @@
 /// Something on it has no construction route and will not come back.
 #define SHIPYARD_TILE_UNROUTED "unrouted"
 
+/// World mutations every shipyard fabricator together may spend in one SSshipyard fire.
+#define SHIPYARD_MUTATION_BUDGET_PER_FIRE 16
+/// Budget cost of laying a hull layer, frame, fixture, or paint.
+#define SHIPYARD_OP_COST_CHEAP 1
+/// Budget cost of initializing a generated object or finishing a board machine.
+#define SHIPYARD_OP_COST_GENERATE 4
+
 // Ship state machine.
 #define OVERMAP_SHIP_IDLE "idle"
 #define OVERMAP_SHIP_FLYING "flying"
