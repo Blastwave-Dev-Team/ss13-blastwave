@@ -719,25 +719,10 @@ For the other part of the code, check silicon say.dm. Particularly robot talk.*/
 /obj/machinery/holopad/proc/update_holoray(datum/holo_owner, turf/new_turf)
 	var/obj/effect/overlay/holo_pad_hologram/holo = masters[holo_owner]
 	var/obj/effect/overlay/holoray/ray = holorays[holo_owner]
-	var/disty = holo.y - ray.y
-	var/distx = holo.x - ray.x
-	var/newangle
-	if(!disty)
-		if(distx >= 0)
-			newangle = 90
-		else
-			newangle = 270
-	else
-		newangle = arctan(distx/disty)
-		if(disty < 0)
-			newangle += 180
-		else if(distx < 0)
-			newangle += 360
-	var/matrix/M = matrix()
-	if (get_dist(get_turf(holo),new_turf) <= 1)
-		animate(ray, transform = turn(M.Scale(1,sqrt(distx*distx+disty*disty)),newangle),time = 1)
-	else
-		ray.transform = turn(M.Scale(1,sqrt(distx*distx+disty*disty)),newangle)
+	// NOVA EDIT CHANGE - Original: the angle and scale maths was inlined here. Lifted onto the ray
+	// itself so the hard-light projector can aim one the same way instead of copying it.
+	ray.aim_at(holo, animate_time = (get_dist(get_turf(holo), new_turf) <= 1) ? 1 : 0)
+	// NOVA EDIT CHANGE END
 
 // RECORDED MESSAGES
 
@@ -908,6 +893,38 @@ For the other part of the code, check silicon say.dm. Particularly robot talk.*/
 	pixel_y = -32
 	alpha = 100
 	var/atom/movable/render_step/emissive/glow
+
+// NOVA EDIT ADDITION START - Shared with the hard-light projector, which stands a body on a plate
+// and needs the same beam to say which plate is holding it up.
+/**
+ * Points the ray from its own tile at `target`, stretched to reach it.
+ *
+ * The sprite is drawn pointing north and is scaled on one axis before being turned, so the length
+ * is the tile distance and the rotation is the bearing. A target on our own tile scales to nothing
+ * and the ray vanishes, which is correct: there is no gap to draw.
+ *
+ * `animate_time` of zero snaps. Callers animate short hops and snap long ones, because tweening a
+ * ray across a room reads as the beam sweeping through everything in between.
+ */
+/obj/effect/overlay/holoray/proc/aim_at(atom/target, animate_time = 0)
+	var/disty = target.y - y
+	var/distx = target.x - x
+	var/newangle
+	if(!disty)
+		newangle = (distx >= 0) ? 90 : 270
+	else
+		newangle = arctan(distx / disty)
+		if(disty < 0)
+			newangle += 180
+		else if(distx < 0)
+			newangle += 360
+
+	var/matrix/stretch = matrix().Scale(1, sqrt(distx * distx + disty * disty))
+	if(animate_time > 0)
+		animate(src, transform = turn(stretch, newangle), time = animate_time)
+	else
+		transform = turn(stretch, newangle)
+// NOVA EDIT ADDITION END
 
 /obj/effect/overlay/holoray/Initialize(mapload)
 	. = ..()

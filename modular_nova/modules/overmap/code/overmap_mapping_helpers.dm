@@ -82,7 +82,8 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 /obj/effect/mapping_helpers/landing_zone/link
 	name = "landing zone link helper"
 	icon_state = "airalarm_link_helper"
-	/// Shared id across the controller helper and the four corner helpers.
+	/// Shared id across the controller helper, the four corner helpers, and any
+	/// hangar lockdown controllers that guard this bay.
 	var/link_id
 
 /obj/effect/mapping_helpers/landing_zone/link/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars)
@@ -117,6 +118,7 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 	var/list/group = GLOB.overmap_lz_link_helpers[link_id]
 	var/obj/machinery/computer/landing_controller/console
 	var/list/obj/machinery/landing_corner/found_corners = list()
+	var/list/obj/machinery/hangar_lockdown/found_lockdowns = list()
 	for(var/obj/effect/mapping_helpers/landing_zone/link/helper as anything in group)
 		if(QDELETED(helper))
 			continue
@@ -131,7 +133,10 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 		var/obj/machinery/landing_corner/found_corner = locate() in helper_turf
 		if(found_corner && !(found_corner in found_corners))
 			found_corners += found_corner
-	return list("console" = console, "corners" = found_corners, "group" = group)
+		var/obj/machinery/hangar_lockdown/found_lockdown = locate() in helper_turf
+		if(found_lockdown && !(found_lockdown in found_lockdowns))
+			found_lockdowns += found_lockdown
+	return list("console" = console, "corners" = found_corners, "lockdowns" = found_lockdowns, "group" = group)
 
 /// Links the controller to its four corners once a `link_id` group is complete.
 /proc/resolve_mapped_landing_zone_link(link_id)
@@ -149,4 +154,8 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 	else
 		for(var/obj/machinery/landing_corner/corner as anything in found_corners)
 			console.toggle_corner(corner)
+	// Lockdowns are optional, but a bound one is useless without a console to name its bay.
+	if(!isnull(console))
+		for(var/obj/machinery/hangar_lockdown/lockdown as anything in collected["lockdowns"])
+			lockdown.bind_bay_console(console)
 	QDEL_LIST(group)
