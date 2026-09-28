@@ -1,0 +1,9 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "MetaStation now has a Flight Operations Center with a lobby, ops floor, and server room."
+  - rscadd: "Deep-Space radar consoles can sweep independently, name tracks, and print flight briefs."
+  - rscadd: "Deep-Space radio channel (:a). Blank keys can be opened or linked to a radio array cipher."
+  - rscadd: "Intercoms can be crafted with an encryption key already installed."
+  - map: "MetaStation barber overlay is disabled while Flight Ops occupies that footprint."
+  - map: "Exterior Deep-Space radar radome added off starboard-fore."
