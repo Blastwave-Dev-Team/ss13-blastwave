@@ -73,6 +73,13 @@
 		return FALSE
 	return satisfied(fabricator.get_operation_turf(src))
 
+/// What placing this operation spends from SSshipyard's per-fire budget.
+/datum/ship_plan_op/proc/placement_cost()
+	switch(op_type)
+		if(SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER)
+			return SHIPYARD_OP_COST_GENERATE
+	return SHIPYARD_OP_COST_CHEAP
+
 /**
  * Something standing where hull work has to happen, or null when the tile is clear.
  *
@@ -108,8 +115,6 @@
 		if(!fabricator.materials?.mat_container?.has_materials(material_cost, fabricator.material_cost_multiplier))
 			fabricator.paused_reason = "Ore silo lacks material for [op_type] at ([work_turf.x], [work_turf.y])."
 			return null
-
-	fabricator.play_placement_effect(work_turf)
 
 	var/result
 	var/list/oriented_vars = fabricator.oriented_operation_vars(src)

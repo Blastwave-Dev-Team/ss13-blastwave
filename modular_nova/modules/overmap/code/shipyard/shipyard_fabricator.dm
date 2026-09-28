@@ -13,6 +13,8 @@
 #define SHIPYARD_STEP_CONFIRMED "confirmed"
 /// The build stopped, whether finished, paused, or faulted.
 #define SHIPYARD_STEP_HALT "halt"
+/// The next step has to wait for a later fire: out of placements, budget, or the registration slot.
+#define SHIPYARD_STEP_DEFER "defer"
 /// Operations confirmed in a single tick while catching up to a resumed build.
 #define SHIPYARD_CONFIRMS_PER_TICK 100
 
@@ -62,6 +64,8 @@
 	idle_power_usage = BASE_MACHINE_IDLE_CONSUMPTION * 2
 	active_power_usage = SHIPYARD_ACTIVE_POWER_TIER_ONE
 	circuit = null
+	processing_flags = START_PROCESSING_MANUALLY
+	subsystem_type = /datum/controller/subsystem/processing/shipyard
 	/// Hard-required remote ore-silo connection.
 	var/datum/remote_materials/materials
 	/// Landing controller that supplies the claimed zone.
@@ -78,6 +82,8 @@
 	var/operation_index = 1
 	var/current_phase = 0
 	var/next_operation_at = 0
+	/// Tile the most recent real placement landed on, for aiming the dish.
+	var/turf/last_placement_turf
 	var/list/faults = list()
 	var/paused_reason
 	var/datum/weakref/claimed_zone
@@ -119,8 +125,18 @@
 
 /// Mappers opt into a shared web explicitly; no proximity fallback is allowed.
 /obj/machinery/shipyard_fabricator/mapped
+	circuit = /obj/item/circuitboard/machine/shipyard_fabricator
 	owns_techweb = FALSE
 	shared_techweb_type = /datum/techweb/science
+
+/// The board only stocks one half, so the second half's board and parts are
+/// added to match what a paired assembly holds and hands back when crowbarred.
+/obj/machinery/shipyard_fabricator/mapped/Initialize(mapload)
+	. = ..()
+	var/obj/item/circuitboard/machine/shipyard_fabricator/second_board = new(src)
+	component_parts += second_board
+	second_board.flatten_component_list(src)
+	RefreshParts()
 
 /obj/machinery/shipyard_fabricator/mapped/station
 
@@ -436,7 +452,7 @@
 	update_current_power_usage()
 
 /obj/machinery/shipyard_fabricator/Destroy()
-	STOP_PROCESSING(SSmachines, src)
+	end_processing()
 	clear_phase_projections()
 	release_zone()
 	QDEL_NULL(materials)
@@ -968,7 +984,8 @@
 	if(printed_width > zone.zone_width || printed_height > zone.zone_height)
 		paused_reason = "The blueprint does not fit inside the linked landing zone."
 		return FALSE
-	var/turf/far_corner = locate(zone.x + printed_width - 1, zone.y + printed_height - 1, zone.z)
+	var/list/origin = build_origin(zone, plan)
+	var/turf/far_corner = locate(origin[1] + printed_width - 1, origin[2] + printed_height - 1, zone.z)
 	if(!far_corner || get_dist(src, far_corner) > max_print_range)
 		paused_reason = "Scanner resolution limits this fabricator to [max_print_range] tiles; the far hull corner is out of range."
 		return FALSE
@@ -989,7 +1006,7 @@
 		project_phase(current_phase)
 	next_operation_at = world.time + (was_deployed ? 0 : SHIPYARD_DEPLOY_TIME)
 	update_use_power(ACTIVE_POWER_USE)
-	START_PROCESSING(SSmachines, src)
+	begin_processing()
 	return TRUE
 
 /obj/machinery/shipyard_fabricator/proc/resume_build(mob/living/user)
@@ -1002,7 +1019,7 @@
 	set_build_state(SHIPYARD_STATE_PAUSED)
 	set_dish_state(SHIPYARD_DISH_IDLE)
 	update_use_power(IDLE_POWER_USE)
-	STOP_PROCESSING(SSmachines, src)
+	end_processing()
 
 /obj/machinery/shipyard_fabricator/proc/fault_build(datum/ship_plan_op/operation, reason)
 	var/obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve()
@@ -1019,7 +1036,7 @@
 	set_build_state(SHIPYARD_STATE_FAULT)
 	set_dish_state(SHIPYARD_DISH_ERROR)
 	update_use_power(IDLE_POWER_USE)
-	STOP_PROCESSING(SSmachines, src)
+	end_processing()
 
 /**
  * Drops the faults the build has since worked past.
@@ -1048,7 +1065,7 @@
 	QDEL_NULL(fault_marker)
 
 /obj/machinery/shipyard_fabricator/proc/abort_build()
-	STOP_PROCESSING(SSmachines, src)
+	end_processing()
 	clear_phase_projections()
 	release_build_claim()
 	release_zone()
@@ -1107,36 +1124,71 @@
 		return PROCESS_KILL
 	if(world.time < next_operation_at)
 		return
+	var/placements_left = placements_per_fire(seconds_per_tick)
 	// Confirming work that already stands costs nothing to place, so a resumed
 	// build races back to where it left off instead of paying placement time per
 	// tile all over again.
-	for(var/step in 1 to SHIPYARD_CONFIRMS_PER_TICK)
-		var/outcome = advance_operation()
+	var/confirms_left = SHIPYARD_CONFIRMS_PER_TICK
+	var/list/placed_turfs = list()
+	while(TRUE)
+		var/outcome = advance_operation(placements_left > 0)
 		if(outcome == SHIPYARD_STEP_HALT)
+			play_placement_effects(placed_turfs)
 			return PROCESS_KILL
+		if(outcome == SHIPYARD_STEP_DEFER)
+			break
 		if(outcome == SHIPYARD_STEP_PLACED)
-			return
+			placements_left--
+			if(last_placement_turf)
+				placed_turfs |= last_placement_turf
+		else if(!--confirms_left)
+			break
+		if(SSshipyard.should_yield())
+			break
+	if(length(placed_turfs))
+		// A stamp is paced by its size, so the delay only has to keep the next
+		// fire from landing inside this one.
+		next_operation_at = world.time + min(fabrication_delay, seconds_per_tick * (1 SECONDS))
+		play_placement_effects(placed_turfs)
+
+/// One beam per distinct tile placed this fire; the dish ends aimed at the last.
+/obj/machinery/shipyard_fabricator/proc/play_placement_effects(list/turf/targets)
+	for(var/turf/target as anything in targets)
+		play_placement_effect(target)
+
+/// Operations this fabricator's parts can place in one fire of `seconds_per_tick`.
+/obj/machinery/shipyard_fabricator/proc/placements_per_fire(seconds_per_tick)
+	return max(1, round(seconds_per_tick / (fabrication_delay * 0.1), 1))
 
 /**
  * Runs the operation the build index points at and moves the index along.
  *
- * Returns SHIPYARD_STEP_PLACED when something was built and the placement delay
- * applies, SHIPYARD_STEP_CONFIRMED when the tile already held the work and the
- * next operation can run immediately, or SHIPYARD_STEP_HALT when the build
- * finished, paused, or faulted.
+ * Returns SHIPYARD_STEP_PLACED when something was built, SHIPYARD_STEP_CONFIRMED
+ * when the tile already held the work and the next operation can run
+ * immediately, SHIPYARD_STEP_DEFER when the next placement has to wait for a
+ * later fire, or SHIPYARD_STEP_HALT when the build finished, paused, or faulted.
+ * Without `can_place` only standing work is confirmed.
  */
-/obj/machinery/shipyard_fabricator/proc/advance_operation()
+/obj/machinery/shipyard_fabricator/proc/advance_operation(can_place = TRUE)
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
-	if(!plan || operation_index > length(plan.manifest))
+	if(!plan)
 		finish_build()
 		return SHIPYARD_STEP_HALT
+	if(operation_index > length(plan.manifest))
+		return finish_manifest()
 	var/datum/ship_plan_op/operation = plan.manifest[operation_index]
 	if(operation.phase != current_phase)
-		if(current_phase && !complete_phase(current_phase))
-			return SHIPYARD_STEP_HALT
+		if(current_phase)
+			var/completed = complete_phase(current_phase)
+			if(completed == SHIPYARD_STEP_DEFER)
+				return SHIPYARD_STEP_DEFER
+			if(!completed)
+				return SHIPYARD_STEP_HALT
 		current_phase = operation.phase
 		project_phase(current_phase)
 	var/confirming = operation.needs_no_work(src)
+	if(!confirming && (!can_place || !SSshipyard.try_consume(operation.placement_cost())))
+		return SHIPYARD_STEP_DEFER
 	var/result = operation.execute(src)
 	if(result != TRUE)
 		if(istext(result))
@@ -1148,15 +1200,23 @@
 	operation_index++
 	if(length(faults))
 		retire_resolved_faults()
+	if(!confirming)
+		last_placement_turf = get_operation_turf(operation)
+	var/outcome = confirming ? SHIPYARD_STEP_CONFIRMED : SHIPYARD_STEP_PLACED
 	if(operation_index > length(plan.manifest))
-		if(!complete_phase(current_phase))
-			return SHIPYARD_STEP_HALT
+		var/finished = finish_manifest()
+		// Registration waiting on another yard still leaves this step done.
+		return finished == SHIPYARD_STEP_DEFER ? outcome : finished
+	return outcome
+
+/// Completes the last phase and the build once the index has run off the manifest.
+/obj/machinery/shipyard_fabricator/proc/finish_manifest()
+	var/completed = complete_phase(current_phase)
+	if(completed == SHIPYARD_STEP_DEFER)
+		return SHIPYARD_STEP_DEFER
+	if(completed)
 		finish_build()
-		return SHIPYARD_STEP_HALT
-	if(confirming)
-		return SHIPYARD_STEP_CONFIRMED
-	next_operation_at = world.time + fabrication_delay
-	return SHIPYARD_STEP_PLACED
+	return SHIPYARD_STEP_HALT
 
 /obj/machinery/shipyard_fabricator/proc/get_operation_turf(datum/ship_plan_op/operation, obj/effect/landmark/overmap_landing_zone/zone = claimed_zone?.resolve())
 	if(!operation || !zone)
@@ -1168,7 +1228,19 @@
 		operation.rel_y,
 		plan_rotation(plan),
 	)
-	return locate(zone.x + oriented[1], zone.y + oriented[2], zone.z)
+	var/list/origin = build_origin(zone, plan)
+	return locate(origin[1] + oriented[1], origin[2] + oriented[2], zone.z)
+
+/// Bottom-left turf coordinates of the printed footprint, centered in `zone`
+/// the same way `shipyard_landing_pad_port()` centers a retrieved hull.
+/// Mapped bays often put the corner beacons in rows that face wall rather than
+/// the exit doors, so a corner-anchored hull cannot launch.
+/obj/machinery/shipyard_fabricator/proc/build_origin(obj/effect/landmark/overmap_landing_zone/zone, datum/ship_plan/plan)
+	var/list/oriented_dimensions = oriented_plan_dimensions(plan)
+	return list(
+		zone.x + round(max(zone.zone_width - oriented_dimensions[1], 0) / 2),
+		zone.y + round(max(zone.zone_height - oriented_dimensions[2], 0) / 2),
+	)
 
 /// Every tile the manifest lays hull plating on.
 /obj/machinery/shipyard_fabricator/proc/hull_turfs()
@@ -1185,9 +1257,13 @@
 			turfs |= hull
 	return turfs
 
+/// TRUE once `phase` is closed out, FALSE after faulting, or SHIPYARD_STEP_DEFER
+/// when another yard already registered a hull this fire.
 /obj/machinery/shipyard_fabricator/proc/complete_phase(phase)
 	if(phase != SHIPYARD_PHASE_PLATING || built_shuttle_ref?.resolve())
 		return TRUE
+	if(!SSshipyard.try_register())
+		return SHIPYARD_STEP_DEFER
 	var/datum/ship_plan/plan = blueprint_disk?.ship_plan
 	var/list/hull_turfs = hull_turfs()
 	if(!length(hull_turfs))
@@ -1323,6 +1399,7 @@
 #undef SHIPYARD_STEP_PLACED
 #undef SHIPYARD_STEP_CONFIRMED
 #undef SHIPYARD_STEP_HALT
+#undef SHIPYARD_STEP_DEFER
 #undef SHIPYARD_CONFIRMS_PER_TICK
 
 #undef SHIPYARD_ACTIVE_POWER_TIER_ONE

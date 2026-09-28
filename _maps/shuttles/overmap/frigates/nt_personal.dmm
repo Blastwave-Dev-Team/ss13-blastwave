@@ -242,7 +242,7 @@
 "NX" = (
 /obj/structure/cable,
 /obj/machinery/overmap/fuel_injector{
-	dir = 1
+	dir = 2
 	},
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
