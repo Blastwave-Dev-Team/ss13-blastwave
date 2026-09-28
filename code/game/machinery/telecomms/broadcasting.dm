@@ -158,6 +158,10 @@
 			for(var/obj/item/radio/independent_radio in GLOB.all_radios["[frequency]"])
 				if((independent_radio.special_channels & RADIO_SPECIAL_CENTCOM) && independent_radio.can_receive(frequency, signal_reaches_every_z_level))
 					radios += independent_radio
+				// NOVA EDIT ADDITION START - OVERMAP
+				else if(frequency == FREQ_OVERMAP && independent_radio.can_receive(frequency, signal_reaches_every_z_level) && independent_radio.can_hear_overmap_cipher(data["overmap_cipher"]))
+					radios += independent_radio
+				// NOVA EDIT ADDITION END
 
 	for(var/obj/item/radio/called_radio as anything in radios)
 		called_radio.on_receive_message(data)

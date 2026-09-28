@@ -8,6 +8,8 @@
 	name = "weak energy signature"
 	desc = "A very weak energy signal. It may not still be here if you leave it."
 	icon_state = "strange_event"
+	contact_type = "dynamic"
+	contact_label = "Signal"
 	/// Full content Z owned by this marker (one marker ↔ one Z).
 	var/list/linked_levels
 	/// Primary ruin when this encounter loaded a solo; null for clusters.

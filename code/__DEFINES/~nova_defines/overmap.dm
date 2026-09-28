@@ -146,6 +146,63 @@
 /// Time before a scanned contact fades from the radar if not re-scanned.
 #define OVERMAP_SCAN_DECAY (30 SECONDS)
 
+/// Station dish: full 360° sweep uses this short chebyshev/tile range.
+#define OVERMAP_RADAR_WIDE_RANGE 6
+/// Station dish: narrowest cone uses this long range.
+#define OVERMAP_RADAR_NARROW_RANGE 32
+/// Narrowest sweep cone the dish will accept, in degrees.
+#define OVERMAP_RADAR_MIN_ARC 30
+/// Default packet compression when no processor is in the path.
+#define OVERMAP_RADAR_DEFAULT_COMPRESSION 45
+/// Rolling sweep transcripts kept on the radar console.
+#define OVERMAP_RADAR_TRANSCRIPT_SWEEPS 5
+
+/**
+ * Contacts the console hands the interface in one push.
+ *
+ * tgui_window sends a payload as a single blocking write to the game client, so the cost an operator
+ * feels is the size of the largest push rather than the total traffic. A busy sector can hold far more
+ * contacts than fit in a comfortable write, so the console pays them out a batch at a time and the
+ * interface accumulates them. At roughly 260 encoded bytes a contact this keeps a push near 4 KB.
+ */
+#define OVERMAP_RADAR_DRAIN_BATCH 15
+
+/// Gap between batches while a console is paying out its contact list.
+#define OVERMAP_RADAR_DRAIN_INTERVAL (2)
+
+/// Pushes a payout may need before it is worth a debug log line. A quiet sector logs nothing.
+#define OVERMAP_RADAR_DRAIN_LOG_PUSHES 3
+/// Shared network id for mapped Flight Ops radar machines.
+#define OVERMAP_RADAR_NETWORK_FOC "flightops"
+
+/**
+ * Autolinker tokens, one per edge of the radar chain.
+ *
+ * A token is an edge, not a membership badge. Two machines link when they share one, so a single
+ * token worn by everything wires the array into a complete graph, which is what let a packet loop
+ * between the processor and the bus until it blew the stack. Each of these is held by exactly the
+ * two roles at either end of one hop, so the mapped array comes up as the pipeline it is drawn as.
+ */
+#define OVERMAP_RADAR_AUTOLINK_DISH "foc_radar_dish"
+#define OVERMAP_RADAR_AUTOLINK_PROCESSOR "foc_radar_processor"
+#define OVERMAP_RADAR_AUTOLINK_OUTPUT "foc_radar_output"
+#define OVERMAP_RADAR_AUTOLINK_CONSOLE "foc_radar_console"
+
+/**
+ * Position of a machine in the radar chain. A packet may only ever be handed to a higher stage.
+ *
+ * This is what makes the topology a DAG rather than a pipeline we promise not to wire in a circle.
+ * Links are bidirectional and the map can join anything to anything, so direction cannot come from
+ * the edges; it comes from the ordering of the roles, which no linking mistake can invert.
+ */
+#define OVERMAP_RADAR_STAGE_DISH 0
+#define OVERMAP_RADAR_STAGE_INPUT_BUS 1
+#define OVERMAP_RADAR_STAGE_PROCESSOR 2
+#define OVERMAP_RADAR_STAGE_OUTPUT_BUS 3
+#define OVERMAP_RADAR_STAGE_CONSOLE 4
+/// Max characters for an operator track label on a radar console.
+#define OVERMAP_RADAR_TRACK_NAME_MAX 12
+
 // --- Physics constants ---
 
 /// SSovermap global tick (events). Entity physics and orbits use SSfastprocess.wait (also 0.2s).

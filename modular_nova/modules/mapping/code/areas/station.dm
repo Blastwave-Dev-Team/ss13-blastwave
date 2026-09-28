@@ -42,6 +42,20 @@
 	name = "Bridge Officer Quarters"
 	icon = 'modular_nova/modules/mapping/icons/areas/areas_station.dmi'
 	icon_state = "nt_rep"
+
+// Flight Operations — station-side overmap interaction (landing authority, later radar).
+/area/station/command/flight_operations
+	name = "\improper Flight Operations Center"
+	icon_state = "bridge"
+
+/area/station/command/flight_operations/server
+	name = "\improper Flight Operations Server Room"
+	icon_state = "server"
+
+/area/station/command/flight_operations/lobby
+	name = "\improper Flight Operations Lobby"
+	icon_state = "bridge_hallway"
+
 /*
  * Department areas
  */
