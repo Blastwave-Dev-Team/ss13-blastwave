@@ -29,6 +29,7 @@
 
 /obj/machinery/overmap_radio/antenna/Initialize(mapload)
 	. = ..()
+	register_context()
 	if(!network_cipher)
 		network_cipher = generate_overmap_radio_cipher()
 	update_deploy_state()
@@ -39,7 +40,7 @@
 /obj/machinery/overmap_radio/antenna/proc/update_deploy_state()
 	var/was_on = on
 	if(toggled)
-		on = !(machine_stat & (BROKEN | NOPOWER | EMPED))
+		on = !(machine_stat & (BROKEN | NOPOWER | EMPED)) && !panel_open
 	else
 		on = FALSE
 	if(was_on == on)
@@ -69,8 +70,26 @@
 	else if(!on)
 		icon_state = base_icon_state
 	else
-		icon_state = "[base_icon_state]-idle"
+		icon_state = "[base_icon_state]-deployed_active"
 	return ..()
+
+/obj/machinery/overmap_radio/antenna/on_set_panel_open(old_value)
+	. = ..()
+	update_deploy_state()
+
+/obj/machinery/overmap_radio/antenna/add_context(atom/source, list/context, obj/item/held_item, mob/living/user)
+	. = ..()
+	if(isnull(held_item))
+		return
+	if(held_item.tool_behaviour == TOOL_SCREWDRIVER)
+		context[SCREENTIP_CONTEXT_LMB] = "[panel_open ? "Close" : "Open"] maintenance hatch"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_CROWBAR && panel_open)
+		context[SCREENTIP_CONTEXT_LMB] = "Deconstruct"
+		return CONTEXTUAL_SCREENTIP_SET
+	if(held_item.tool_behaviour == TOOL_MULTITOOL)
+		context[SCREENTIP_CONTEXT_LMB] = "Buffer / copy cipher"
+		return CONTEXTUAL_SCREENTIP_SET
 
 /obj/machinery/overmap_radio/antenna/examine(mob/user)
 	. = ..()
@@ -78,6 +97,7 @@
 		. += span_notice("The array is deployed. Use a multitool to buffer its network cipher.")
 	else
 		. += span_warning("The array is stowed.")
+	. += span_notice("A <i>screwdriver</i> [panel_open ? "closes" : "opens"] the maintenance hatch[panel_open ? ", and a <i>crowbar</i> deconstructs it" : ""].")
 
 /obj/machinery/overmap_radio/antenna/multitool_act(mob/living/user, obj/item/tool)
 	if(!istype(tool, /obj/item/multitool))
@@ -101,10 +121,10 @@
 	return ITEM_INTERACT_SUCCESS
 
 /obj/machinery/overmap_radio/antenna/screwdriver_act(mob/living/user, obj/item/tool)
-	return default_deconstruction_screwdriver(user, "[base_icon_state]-maintenance_hatch", on ? "[base_icon_state]-idle" : base_icon_state, tool)
+	return default_deconstruction_screwdriver(user, tool)
 
 /obj/machinery/overmap_radio/antenna/crowbar_act(mob/living/user, obj/item/tool)
-	return default_deconstruction_crowbar(tool)
+	return default_deconstruction_crowbar(user, tool)
 
 /proc/generate_overmap_radio_cipher()
 	return copytext_char(md5("[world.timeofday][rand(1, 999999)][GLOB.round_id]"), 1, 13)

@@ -162,6 +162,52 @@
 	radio.recalculateChannels()
 	TEST_ASSERT_EQUAL(radio.overmap_cipher, source.network_cipher, "Radio should inherit the key cipher.")
 
+/// The array has a deployed sprite, a stowed sprite, and a hatch sprite, and the tool paths that
+/// move between them have to keep icon and machine state agreeing with each other.
+/datum/unit_test/overmap_radio_antenna_panel
+
+/datum/unit_test/overmap_radio_antenna_panel/Run()
+	var/turf/stage = run_loc_floor_bottom_left
+	var/obj/machinery/overmap_radio/antenna/array = allocate(/obj/machinery/overmap_radio/antenna, stage)
+
+	array.set_machine_stat(array.machine_stat & ~NOPOWER)
+	array.update_deploy_state()
+	array.update_appearance()
+	TEST_ASSERT(array.on, "A powered array should come online.")
+	TEST_ASSERT_EQUAL(array.icon_state, "long_range_array-deployed_active", "An online array should wear the active deployed sprite.")
+
+	array.set_machine_stat(array.machine_stat | NOPOWER)
+	array.update_deploy_state()
+	array.update_appearance()
+	TEST_ASSERT(!array.on, "Losing power should take the array offline.")
+	TEST_ASSERT_EQUAL(array.icon_state, "long_range_array", "An unpowered array should stow.")
+
+	array.set_machine_stat(array.machine_stat & ~NOPOWER)
+	array.update_deploy_state()
+	array.update_appearance()
+
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, get_step(stage, SOUTH))
+	var/obj/item/screwdriver/driver = allocate(/obj/item/screwdriver)
+	var/obj/item/crowbar/lever = allocate(/obj/item/crowbar)
+
+	TEST_ASSERT_EQUAL(array.crowbar_act(user, lever), ITEM_INTERACT_BLOCKING, "A sealed array should refuse to come apart.")
+	TEST_ASSERT(!QDELETED(array), "A sealed array should survive a crowbar.")
+
+	TEST_ASSERT_EQUAL(array.screwdriver_act(user, driver), ITEM_INTERACT_SUCCESS, "A screwdriver should work the maintenance hatch.")
+	TEST_ASSERT(array.panel_open, "The first screwdriver pass should open the panel.")
+	TEST_ASSERT(!array.on, "An open hatch should stand the array down.")
+	TEST_ASSERT_EQUAL(array.icon_state, "long_range_array-maintenance_hatch", "An open panel should show the hatch sprite.")
+
+	TEST_ASSERT_EQUAL(array.screwdriver_act(user, driver), ITEM_INTERACT_SUCCESS, "A second screwdriver pass should close the hatch.")
+	TEST_ASSERT(!array.panel_open, "The second screwdriver pass should close the panel.")
+	TEST_ASSERT(array.on, "Closing the hatch on a powered array should bring it back online.")
+	TEST_ASSERT_EQUAL(array.icon_state, "long_range_array-deployed_active", "A closed hatch should return the array to its active sprite.")
+
+	array.screwdriver_act(user, driver)
+	TEST_ASSERT_EQUAL(array.crowbar_act(user, lever), ITEM_INTERACT_SUCCESS, "An open array should come apart under a crowbar.")
+	TEST_ASSERT(QDELETED(array), "Deconstructing the array should consume it.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in stage, "Deconstructing the array should hand back its machine frame.")
+
 /datum/unit_test/overmap_radio_cipher_hear
 
 /datum/unit_test/overmap_radio_cipher_hear/Run()

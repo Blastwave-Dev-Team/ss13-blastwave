@@ -43,14 +43,16 @@
 /obj/machinery/atmospherics/components/unary/passive_vent{
 	dir = 4
 	},
-/obj/machinery/overmap_radio/antenna,
+/obj/machinery/overmap_radar/processor{
+	id = "FOC Radar Processor"
+	},
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)
 "al" = (
 /obj/machinery/light/directional/north,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/general/hidden,
 /obj/machinery/airalarm/directional/north,
-/obj/effect/mapping_helpers/airalarm/tlv_cold_room,
+/obj/effect/mapping_helpers/airalarm/tlv_no_checks,
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)
 "am" = (
@@ -103,9 +105,7 @@
 /area/station/command/flight_operations/lobby)
 "au" = (
 /obj/structure/window/reinforced/spawner/directional/south,
-/obj/machinery/overmap_radar/processor{
-	id = "FOC Radar Processor"
-	},
+/obj/machinery/overmap_radio/antenna,
 /turf/open/floor/circuit/telecomms/server,
 /area/station/command/flight_operations/server)
 "av" = (
@@ -269,6 +269,12 @@
 	},
 /obj/machinery/power/apc/auto_name/directional/south,
 /obj/structure/cable,
+/obj/machinery/autolathe,
+/obj/item/stack/sheet/iron/fifty,
+/obj/item/stack/sheet/glass/fifty{
+	pixel_y = 5;
+	pixel_x = 5
+	},
 /turf/open/floor/iron/dark,
 /area/station/command/flight_operations/server)
 "aQ" = (
