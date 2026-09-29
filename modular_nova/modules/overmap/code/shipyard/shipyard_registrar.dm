@@ -51,6 +51,7 @@
 	. += session.examine_line()
 
 /obj/machinery/computer/ship_registrar/ui_interact(mob/user, datum/tgui/ui)
+	. = ..()
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(ui)
 		return
