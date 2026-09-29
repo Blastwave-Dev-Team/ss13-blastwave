@@ -915,6 +915,47 @@
 	LAZYSET(assigned_landing_zones, site_ref, REF(picked))
 	return list(picked)
 
+/// Build a one-shot stationary docking port centered in `zone`, preserving the
+/// shuttle's current orientation. Returns the port, or null if the shuttle no
+/// longer fits / the zone is occupied. The port self-deletes after the shuttle
+/// next departs it (`delete_after`).
+/obj/structure/overmap/ship/simulated/proc/create_landing_zone_port(obj/effect/landmark/overmap_landing_zone/zone)
+	var/list/bounds = shuttle.return_coords()
+	var/bbox_x1 = min(bounds[1], bounds[3])
+	var/bbox_y1 = min(bounds[2], bounds[4])
+	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
+	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
+	if(ship_w > zone.zone_width || ship_h > zone.zone_height)
+		return null
+	if(zone.get_occupant(shuttle))
+		return null
+	// Offset of the mobile port tile inside its own bbox. With the stationary
+	// port sharing the shuttle's dir and dimensions, landing reproduces the
+	// same bbox relative to the port tile, so this places the hull centered.
+	var/port_off_x = shuttle.x - bbox_x1
+	var/port_off_y = shuttle.y - bbox_y1
+	var/dest_x = zone.x + round((zone.zone_width - ship_w) / 2) + port_off_x
+	var/dest_y = zone.y + round((zone.zone_height - ship_h) / 2) + port_off_y
+	var/turf/dest = locate(dest_x, dest_y, zone.z)
+	if(!dest)
+		return null
+	var/obj/docking_port/stationary/port = new()
+	port.unregister()
+	port.delete_after = TRUE
+	port.name = zone.zone_name
+	port.shuttle_id = "[shuttle.shuttle_id]_lz"
+	port.width = shuttle.width
+	port.height = shuttle.height
+	port.dwidth = shuttle.dwidth
+	port.dheight = shuttle.dheight
+	port.register(TRUE)
+	port.setDir(shuttle.dir)
+	port.forceMove(dest)
+	if(!shuttle.check_dock(port, TRUE) || !SSovermap.dock_footprint_is_clear(port))
+		qdel(port)
+		return null
+	return port
+
 /// Voluntarily land at the shared open-space site for the current overmap
 /// tile. A new blank site is created only when no level already owns it.
 /obj/structure/overmap/ship/simulated/proc/land_in_open_space(lz_ref)

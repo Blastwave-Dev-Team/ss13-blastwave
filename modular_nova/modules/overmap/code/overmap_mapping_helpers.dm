@@ -82,7 +82,7 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 /obj/effect/mapping_helpers/landing_zone/link
 	name = "landing zone link helper"
 	icon_state = "airalarm_link_helper"
-	/// Shared id across the controller helper, the four corner helpers, and any registrar/broker/fabricator helpers.
+	/// Shared id across the controller helper and the four corner helpers.
 	var/link_id
 
 /obj/effect/mapping_helpers/landing_zone/link/Initialize(mapload, atom/movable/explicit_target, list/mapped_vars)
@@ -117,7 +117,6 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 	var/list/group = GLOB.overmap_lz_link_helpers[link_id]
 	var/obj/machinery/computer/landing_controller/console
 	var/list/obj/machinery/landing_corner/found_corners = list()
-	var/list/obj/machinery/found_shipyard = list()
 	for(var/obj/effect/mapping_helpers/landing_zone/link/helper as anything in group)
 		if(QDELETED(helper))
 			continue
@@ -132,21 +131,7 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 		var/obj/machinery/landing_corner/found_corner = locate() in helper_turf
 		if(found_corner && !(found_corner in found_corners))
 			found_corners += found_corner
-		for(var/obj/machinery/machine in helper_turf)
-			if(istype(machine, /obj/machinery/computer/ship_registrar) || istype(machine, /obj/machinery/computer/ship_broker) || istype(machine, /obj/machinery/shipyard_fabricator))
-				found_shipyard |= machine
-	return list("console" = console, "corners" = found_corners, "shipyard" = found_shipyard, "group" = group)
-
-/// Points a registrar, broker, or fabricator at the controller. FALSE when off-Z.
-/proc/link_mapped_shipyard_machine(obj/machinery/machine, obj/machinery/computer/landing_controller/console)
-	if(istype(machine, /obj/machinery/computer/ship_registrar))
-		var/obj/machinery/computer/ship_registrar/registrar = machine
-		return registrar.session.link_controller(console)
-	if(istype(machine, /obj/machinery/computer/ship_broker))
-		var/obj/machinery/computer/ship_broker/broker = machine
-		return broker.session.link_controller(console)
-	var/obj/machinery/shipyard_fabricator/fabricator = machine
-	return fabricator.link_controller(console)
+	return list("console" = console, "corners" = found_corners, "group" = group)
 
 /// Links the controller to its four corners once a `link_id` group is complete.
 /proc/resolve_mapped_landing_zone_link(link_id)
@@ -162,9 +147,34 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 	else if(length(found_corners) != 4)
 		log_mapping("Landing zone link [link_id] expected 4 corners, found [length(found_corners)].")
 	else
-		for(var/obj/machinery/landing_corner/corner as anything in found_corners)
-			console.toggle_corner(corner)
-		for(var/obj/machinery/machine as anything in collected["shipyard"])
+		for(var/obj/machinery/machine as anything in collect_mapped_shipyard_machines(group))
 			if(!link_mapped_shipyard_machine(machine, console))
 				log_mapping("Landing zone link [link_id]: [machine] at [AREACOORD(machine)] is off the controller's Z.")
+		for(var/obj/machinery/landing_corner/corner as anything in found_corners)
+			console.toggle_corner(corner)
 	QDEL_LIST(group)
+
+/// Registrars, brokers, and fabricators under a `link_id` group's helpers.
+/proc/collect_mapped_shipyard_machines(list/group)
+	var/list/obj/machinery/found_shipyard = list()
+	for(var/obj/effect/mapping_helpers/landing_zone/link/helper as anything in group)
+		if(QDELETED(helper))
+			continue
+		var/turf/helper_turf = get_turf(helper)
+		if(isnull(helper_turf))
+			continue
+		for(var/obj/machinery/machine in helper_turf)
+			if(istype(machine, /obj/machinery/computer/ship_registrar) || istype(machine, /obj/machinery/computer/ship_broker) || istype(machine, /obj/machinery/shipyard_fabricator))
+				found_shipyard |= machine
+	return found_shipyard
+
+/// Points a registrar, broker, or fabricator at the controller. FALSE when off-Z.
+/proc/link_mapped_shipyard_machine(obj/machinery/machine, obj/machinery/computer/landing_controller/console)
+	if(istype(machine, /obj/machinery/computer/ship_registrar))
+		var/obj/machinery/computer/ship_registrar/registrar = machine
+		return registrar.session.link_controller(console)
+	if(istype(machine, /obj/machinery/computer/ship_broker))
+		var/obj/machinery/computer/ship_broker/broker = machine
+		return broker.session.link_controller(console)
+	var/obj/machinery/shipyard_fabricator/fabricator = machine
+	return fabricator.link_controller(console)
