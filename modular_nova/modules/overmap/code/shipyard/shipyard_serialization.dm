@@ -35,6 +35,20 @@
 			continue
 		described_vars[var_name] = value
 
+/// The mapped link name, with this hull's `shuttle_id` prefix taken back off.
+/// `connect_to_shuttle()` adds that prefix on every load, so writing the live
+/// value would stack it on the next retrieve and the button would miss its door.
+/atom/proc/shipyard_unprefixed_link_id(value)
+	if(!istext(value))
+		return value
+	var/obj/docking_port/mobile/port = SSshuttle.get_containing_shuttle(src)
+	if(!port?.shuttle_id)
+		return value
+	var/prefix = "[port.shuttle_id]_"
+	if(findtext(value, prefix) != 1)
+		return value
+	return copytext(value, length(prefix) + 1)
+
 /**
  * Machinery reports the tier of the parts it was assembled with.
  *
@@ -45,6 +59,10 @@
  */
 /obj/machinery/shipyard_describe(list/described_vars, list/described_helpers)
 	. = ..()
+	if(described_vars["id"])
+		described_vars["id"] = shipyard_unprefixed_link_id(described_vars["id"])
+	if(described_vars["id_tag"])
+		described_vars["id_tag"] = shipyard_unprefixed_link_id(described_vars["id_tag"])
 	var/list/tiers = list()
 	var/upgraded = FALSE
 	for(var/datum/stock_part/part as anything in component_parts)

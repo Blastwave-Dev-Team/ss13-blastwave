@@ -50,3 +50,141 @@ $footprint-height: 12rem;
   vertical-align: middle;
   margin-right: 0.25rem;
 }
+
+// Garage slots: an explorer-style icon grid, one cell per slot the captain owns.
+.ShipRegistrar__slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.ShipRegistrar__slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.25rem 0.3rem;
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.3);
+  background: hsl(from var(--color-good) h s l / 0.06);
+  cursor: pointer;
+
+  &:hover {
+    border-color: hsl(from var(--color-good) h s l / 0.7);
+  }
+}
+
+.ShipRegistrar__slot--selected {
+  border-color: var(--color-good);
+  background: hsl(from var(--color-good) h s l / 0.2);
+}
+
+.ShipRegistrar__slot--deployed .ShipRegistrar__slot-icon {
+  opacity: 0.55;
+}
+
+.ShipRegistrar__slot--empty {
+  cursor: default;
+  border-style: dashed;
+  background: none;
+  color: var(--color-label);
+  justify-content: center;
+
+  &:hover {
+    border-color: hsl(from var(--color-good) h s l / 0.3);
+  }
+}
+
+.ShipRegistrar__slot--lost {
+  border-style: dashed;
+  border-color: hsl(from var(--color-bad) h s l / 0.6);
+
+  .ShipRegistrar__slot-icon {
+    filter: grayscale(1) brightness(0.5);
+  }
+}
+
+.ShipRegistrar__slot--over {
+  border-color: var(--color-bad);
+}
+
+.ShipRegistrar__slot-grant {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.3rem;
+}
+
+.ShipRegistrar__slot-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.3rem;
+}
+
+.ShipRegistrar__slot-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+  }
+}
+
+.ShipRegistrar__slot-icon--large {
+  width: 5rem;
+  height: 5rem;
+}
+
+.ShipRegistrar__slot-label {
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ShipRegistrar__detail-icon {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.ShipRegistrar__silhouette {
+  display: grid;
+  aspect-ratio: var(--w) / var(--h);
+  width: min(100cqw, calc(100cqh * var(--w) / var(--h)));
+  grid-template-columns: repeat(var(--w), 1fr);
+
+  > .on {
+    background-color: hsl(from var(--color-good) h s l / 0.7);
+  }
+}
+
+.ShipRegistrar__meter {
+  display: inline-flex;
+  gap: 2px;
+  vertical-align: middle;
+  margin-left: 0.4rem;
+
+  > span {
+    width: 0.45rem;
+    height: 0.8rem;
+    background: hsl(from var(--color-good) h s l / 0.18);
+  }
+
+  > span.on {
+    background: var(--color-good);
+  }
+
+  > span.over {
+    background: var(--color-bad);
+  }
+}

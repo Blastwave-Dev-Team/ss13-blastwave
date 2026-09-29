@@ -385,6 +385,7 @@
 #include "~nova\overmap_radar_payload.dm"
 #include "~nova\overmap_radar_radio.dm"
 #include "~nova\overmap_ruins.dm"
+#include "~nova\overmap_ship_garage.dm"
 #include "~nova\overmap_ship_persistence.dm"
 #include "~nova\overmap_shipyard_fabricator.dm"
 #include "~nova\overmap_site_seeding.dm"

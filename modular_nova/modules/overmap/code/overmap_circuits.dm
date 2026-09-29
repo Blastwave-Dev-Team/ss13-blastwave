@@ -77,6 +77,12 @@
 	greyscale_colors = CIRCUIT_COLOR_COMMAND
 	build_path = /obj/machinery/computer/ship_registrar
 
+/obj/item/circuitboard/computer/ship_broker
+	name = "Vessel Broker"
+	desc = "A computer board. Sells registered hulls against the buyer's ledger, delivered to their garage or straight onto a landing pad."
+	greyscale_colors = CIRCUIT_COLOR_COMMAND
+	build_path = /obj/machinery/computer/ship_broker
+
 /obj/item/circuitboard/computer/landing_controller
 	name = "Landing Zone Controller"
 	desc = "A computer board. Manages a field astrogation landing zone from four corner beacons. Open access; any vessel may land."

@@ -318,6 +318,40 @@
 	TEST_ASSERT(!button.panel_open, "Prepared door buttons should be closed and operational.")
 	qdel(button)
 
+	var/turf/desk = run_loc_floor_bottom_left
+	allocate(/obj/structure/table, desk)
+	var/datum/ship_plan_op/desktop_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		0,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/button/door,
+		null,
+		list("id" = "whiteship_windows", "name" = "Windows Blast Door Control"),
+	)
+	TEST_ASSERT_EQUAL(desktop_operation.execute_generated(desk), TRUE, "A table-top shutter button should generate.")
+	var/obj/machinery/button/door/desktop = locate(/obj/machinery/button/door) in desk
+	TEST_ASSERT(istype(desktop), "Generated desktop button should land on the table tile.")
+	TEST_ASSERT_NULL(desktop.GetComponent(/datum/component/atom_mounted), "A table-top shutter button must not hang as a wallmount.")
+	qdel(desktop)
+
+	var/turf/fixture_floor = get_step(desk, EAST)
+	var/turf/fixture_wall = get_step(fixture_floor, NORTH)
+	fixture_wall.ChangeTurf(/turf/closed/wall)
+	var/datum/ship_plan_op/wall_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		1,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/button/door/directional/north,
+		null,
+		list("id" = "wsnorthbolts", "pixel_y" = 24),
+	)
+	TEST_ASSERT_EQUAL(wall_operation.execute_generated(fixture_floor), TRUE, "A directional door button should generate.")
+	var/obj/machinery/button/door/directional/north/hung = locate() in fixture_floor
+	TEST_ASSERT(istype(hung), "Generated directional button should land on the floor tile.")
+	TEST_ASSERT(hung.GetComponent(/datum/component/atom_mounted), "A directional door button should hang on the neighbouring wall.")
+
 /datum/unit_test/overmap_shipyard_fabricator/solfed_disks
 
 /datum/unit_test/overmap_shipyard_fabricator/solfed_disks/Run()

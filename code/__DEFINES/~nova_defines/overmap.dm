@@ -132,6 +132,11 @@
 #define SHIP_STATUS_CHECKED_OUT "CHECKED_OUT"
 #define SHIP_STATUS_LOST "LOST"
 
+// Where an extra garage slot came from, matching the player_ship_slot_grants.kind enum.
+#define SHIP_SLOT_GRANT_DONATOR "DONATOR"
+#define SHIP_SLOT_GRANT_EVENT "EVENT"
+#define SHIP_SLOT_GRANT_ADMIN "ADMIN"
+
 // Why the registrar will not file a hull. The codes are the TGUI contract.
 #define SHIPYARD_REFUSAL_LIVING_MOB "living_mob"
 #define SHIPYARD_REFUSAL_OUTSIDE_ZONE "outside_zone"

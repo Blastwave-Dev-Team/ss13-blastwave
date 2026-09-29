@@ -599,14 +599,19 @@
 
 /obj/machinery/shipyard_fabricator/multitool_act(mob/living/user, obj/item/multitool/tool)
 	if(istype(tool.buffer, /obj/machinery/computer/landing_controller))
-		var/obj/machinery/computer/landing_controller/controller = tool.buffer
-		if(controller.z != z)
+		if(!link_controller(tool.buffer))
 			balloon_alert(user, "controller off-Z")
 			return ITEM_INTERACT_BLOCKING
-		linked_controller = WEAKREF(controller)
 		balloon_alert(user, "landing zone linked")
 		return ITEM_INTERACT_SUCCESS
 	return ..()
+
+/// Links a same-Z landing controller. FALSE when it sits on another Z.
+/obj/machinery/shipyard_fabricator/proc/link_controller(obj/machinery/computer/landing_controller/controller)
+	if(controller.z != z)
+		return FALSE
+	linked_controller = WEAKREF(controller)
+	return TRUE
 
 /obj/machinery/shipyard_fabricator/examine(mob/user)
 	. = ..()
@@ -1232,7 +1237,7 @@
 	return locate(origin[1] + oriented[1], origin[2] + oriented[2], zone.z)
 
 /// Bottom-left turf coordinates of the printed footprint, centered in `zone`
-/// the same way `shipyard_landing_pad_port()` centers a retrieved hull.
+/// the same way `overmap_centered_dock_turf()` centers a landing hull.
 /// Mapped bays often put the corner beacons in rows that face wall rather than
 /// the exit doors, so a corner-anchored hull cannot launch.
 /obj/machinery/shipyard_fabricator/proc/build_origin(obj/effect/landmark/overmap_landing_zone/zone, datum/ship_plan/plan)
@@ -1296,6 +1301,11 @@
 	if(owner_uuid)
 		registered.ship_ownership = SHIP_OWNERSHIP_PERSONAL
 		registered.ship_owner_id = owner_uuid
+		// A rebuild of a lost ship files back into the row it was lost from, but
+		// only for the owner: anyone else building it gets a hull of their own.
+		var/obj/item/ship_blueprint_disk/registry_rebuild/rebuild = blueprint_disk
+		if(istype(rebuild) && rebuild.registry_record_id && rebuild.registry_owner_uuid == owner_uuid)
+			registered.ship_registry_id = rebuild.registry_record_id
 	assign_mapped_areas(registered)
 	if(istype(registered, /obj/docking_port/mobile/custom))
 		var/obj/item/shuttle_blueprints/master = new(drop_location())

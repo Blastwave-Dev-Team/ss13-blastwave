@@ -416,7 +416,7 @@
 		return shipyard_refusal(SHIPYARD_REFUSAL_MID_BUILD, "The shipyard fabricator is still printing this hull. Wait for the print to finish.")
 	switch(port.ship_ownership)
 		if(SHIP_OWNERSHIP_DEPARTMENT)
-			return shipyard_refusal(SHIPYARD_REFUSAL_DEPARTMENT_HULL, "Department ships are round-local and cannot be filed.")
+			return shipyard_refusal(SHIPYARD_REFUSAL_DEPARTMENT_HULL, "Department ships are station property, assigned for this shift only. They cannot enter a private garage.")
 		if(SHIP_OWNERSHIP_PERSONAL)
 			if(!filer_uuid || port.ship_owner_id != filer_uuid)
 				return shipyard_refusal(SHIPYARD_REFUSAL_OTHER_OWNER, "This hull is registered to another captain. Only its owner can file it.")

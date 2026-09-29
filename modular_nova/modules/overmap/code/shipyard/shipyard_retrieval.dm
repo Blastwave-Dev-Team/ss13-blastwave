@@ -38,7 +38,8 @@
 		for(var/obj/docking_port/mobile/port in place)
 			port.shuttle_id = shuttle_id
 			port.name = name
-	return ..()
+	. = ..()
+	fit_loaded_ports_to_hull(turfs)
 
 /**
  * What a retrieval has taken out on loan, so that an abort can hand all of it
@@ -98,53 +99,6 @@
 	return found
 
 /**
- * A one-shot stationary port centered in `zone`, sized to the staged hull.
- *
- * The centering math is `create_landing_zone_port()` in overmap_ships.dm lifted
- * standalone, because that one hangs off an overmap ship that is already flyable
- * and a hull in transit space has no such thing yet. Returns null when the hull
- * does not fit or the pad is not clear, which is a refusal rather than a fault.
- */
-/proc/shipyard_landing_pad_port(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
-	if(!hull || !zone)
-		return null
-	var/list/bounds = hull.return_coords()
-	var/bbox_x1 = min(bounds[1], bounds[3])
-	var/bbox_y1 = min(bounds[2], bounds[4])
-	var/hull_width = max(bounds[1], bounds[3]) - bbox_x1 + 1
-	var/hull_height = max(bounds[2], bounds[4]) - bbox_y1 + 1
-	if(hull_width > zone.zone_width || hull_height > zone.zone_height)
-		return null
-	if(zone.get_occupant(hull))
-		return null
-	// Offset of the port tile inside its own bbox. With the pad sharing the
-	// hull's dir and dimensions, landing reproduces the same bbox relative to
-	// the port tile, so this places the ship centered in the zone.
-	var/port_off_x = hull.x - bbox_x1
-	var/port_off_y = hull.y - bbox_y1
-	var/dest_x = zone.x + round((zone.zone_width - hull_width) / 2) + port_off_x
-	var/dest_y = zone.y + round((zone.zone_height - hull_height) / 2) + port_off_y
-	var/turf/destination = locate(dest_x, dest_y, zone.z)
-	if(!destination)
-		return null
-	var/obj/docking_port/stationary/pad = new()
-	pad.unregister()
-	pad.delete_after = TRUE
-	pad.name = zone.zone_name
-	pad.shuttle_id = "[hull.shuttle_id]_lz"
-	pad.width = hull.width
-	pad.height = hull.height
-	pad.dwidth = hull.dwidth
-	pad.dheight = hull.dheight
-	pad.register(TRUE)
-	pad.setDir(hull.dir)
-	pad.forceMove(destination)
-	if(!hull.check_dock(pad, TRUE) || !SSovermap.dock_footprint_is_clear(pad))
-		qdel(pad)
-		return null
-	return pad
-
-/**
  * Register a staged hull and fly it onto its pad.
  *
  * This is the middle of `action_load()` copied deliberately, and every line of it
@@ -184,6 +138,7 @@
 		hull.unregister()
 		return null
 	hull.postregister()
+	remount_shuttle_wallmounts(hull.return_turfs())
 	return hull
 
 /// Put back what the lockbox was holding when the ship was filed. By type path
@@ -234,7 +189,7 @@
 		staging.abandon()
 		qdel(template)
 		return null
-	var/obj/docking_port/stationary/pad = shipyard_landing_pad_port(hull, zone)
+	var/obj/docking_port/stationary/pad = zone.create_landing_port(hull)
 	if(!pad)
 		staging.abandon()
 		qdel(template)
@@ -250,6 +205,86 @@
 	staging.release()
 	qdel(template)
 	return hull
+
+// --- Record delivery --------------------------------------------------------
+
+/// What `shipyard_deliver_record()` did, and the words to tell the player.
+/datum/shipyard_delivery
+	var/success = FALSE
+	var/obj/docking_port/mobile/hull
+	/// What the checkout was charged.
+	var/fee = 0
+	var/message
+
+/datum/shipyard_delivery/proc/refuse(text)
+	success = FALSE
+	message = text
+	return src
+
+/**
+ * Charge for a filed ship and set it down on a pad, checked out to its owner.
+ *
+ * The one path from a registry row to a ship in the world, shared by the
+ * registrar's retrieval and the broker's pad delivery. The fee is taken before
+ * anything loads and handed back if the hull does not land, and the row is
+ * flipped to checked-out only once a registered port exists, so a refusal
+ * leaves the record filed, the file untouched and the ledger where it was.
+ *
+ * `waive_uninsured_fee` is for a broker delivery, whose hull price already
+ * covers the trip to the pad; insurance is still its own charge.
+ */
+/proc/shipyard_deliver_record(datum/player_ship_record/record, obj/effect/landmark/overmap_landing_zone/zone, insured, owner_uuid, actor, waive_uninsured_fee = FALSE)
+	var/datum/shipyard_delivery/delivery = new()
+	if(!zone)
+		return delivery.refuse("No landing pad is linked. Use a multitool on a landing controller, then on this console.")
+	if(zone.get_occupant())
+		return delivery.refuse("[zone.zone_name] is occupied. Clear the pad first.")
+	if(!owner_uuid)
+		return delivery.refuse("No persistent identity is on record for this operator.")
+	if(!GLOB.ship_registry.is_online())
+		return delivery.refuse("The hangar registry is offline. Retrieval is unavailable.")
+	if(!SScharacter_ledger.is_available())
+		return delivery.refuse("The ledger is offline. Fees cannot be charged.")
+	if(!record)
+		return delivery.refuse("No such vessel is registered to you.")
+	switch(record.status)
+		if(SHIP_STATUS_CHECKED_OUT)
+			return delivery.refuse("[record.ship_name] is already deployed.")
+		if(SHIP_STATUS_LOST)
+			return delivery.refuse("[record.ship_name] was lost and cannot be retrieved.")
+	if(!record.is_retrievable())
+		return delivery.refuse("[record.ship_name] has no saved hull to retrieve.")
+	if(record.map_checksum && rustg_hash_file(RUSTG_HASH_SHA256, record.map_path) != record.map_checksum)
+		log_admin("Ship registry: [key_name(actor)] tried to retrieve [record.ship_name] (record [record.id]) but [record.map_path] does not match its checksum.")
+		return delivery.refuse("The stored hull for [record.ship_name] failed its integrity check. An administrator will need to look at it.")
+
+	var/fee = insured ? shipyard_insurance_fee(record.salvage_estimate) : (waive_uninsured_fee ? 0 : shipyard_uninsured_fee())
+	var/channel = insured ? LEDGER_CHANNEL_SHIP_INSURANCE : LEDGER_CHANNEL_SHIP_RETRIEVE
+	var/charge_reason = "Ship retrieval, [insured ? "insured" : "uninsured"]: [record.ship_name] (record [record.id], revision [record.revision])"
+	var/datum/character_ledger_result/charge = shipyard_charge_fee(owner_uuid, fee, channel, charge_reason, record.id, record.revision, "retrieve")
+	if(!charge.success)
+		return delivery.refuse("Retrieval refused: [shipyard_ledger_refusal_text(charge)]")
+
+	var/obj/docking_port/mobile/hull = shipyard_retrieve_hull(record.map_path, record.ship_name, zone, record.stored_contents)
+	if(!hull)
+		var/refunded = shipyard_refund_fee(owner_uuid, fee, channel, "Refund: [charge_reason]", record.id, record.revision, "retrieve")
+		return delivery.refuse("Retrieval refused: [record.ship_name] could not be set down on [zone.zone_name]. It may not fit the pad, or the pad may be obstructed.[fee > 0 ? (refunded ? " Your [fee] cr fee was refunded." : " Your fee could not be refunded automatically; an administrator has the record.") : ""]")
+	hull.ship_ownership = SHIP_OWNERSHIP_PERSONAL
+	hull.ship_owner_id = owner_uuid
+	hull.ship_registry_id = record.id
+	if(!GLOB.ship_registry.checkout(record.id, insured, insured ? fee : 0))
+		// A hull out in the world against a row that still says filed could be
+		// retrieved a second time. Undo the retrieval rather than allow that.
+		hull.jumpToNullSpace()
+		shipyard_refund_fee(owner_uuid, fee, channel, "Refund: [charge_reason]", record.id, record.revision, "retrieve")
+		log_admin("Ship registry: checkout of [record.ship_name] (record [record.id]) for [key_name(actor)] could not be recorded; the retrieval was undone.")
+		return delivery.refuse("The registry could not record the checkout, so [record.ship_name] was sent back to storage. Any fee was refunded.")
+	log_admin("Ship registry: [key_name(actor)] retrieved [record.ship_name] (record [record.id], revision [record.revision]) onto [zone.zone_name], [insured ? "insured" : "uninsured"], for [fee] cr.")
+	delivery.success = TRUE
+	delivery.hull = hull
+	delivery.fee = fee
+	delivery.message = "[record.ship_name] is landing on [zone.zone_name], [insured ? "insured" : "uninsured"]. Charged [fee] cr."
+	return delivery
 
 // --- Admin tooling ----------------------------------------------------------
 

@@ -36,6 +36,17 @@
 	integer = TRUE
 	min_val = 0
 
+/datum/config_entry/number/ship_scrap_rate
+	default = 0.4
+	integer = FALSE
+	min_val = 0
+	max_val = 1
+
+/datum/config_entry/number/ship_registration_fee
+	default = 150
+	integer = TRUE
+	min_val = 0
+
 // --- Valuation --------------------------------------------------------------
 
 /**
@@ -136,6 +147,35 @@
 /// What an uninsured checkout costs, which is a flat token.
 /proc/shipyard_uninsured_fee()
 	return CONFIG_GET(number/ship_uninsured_retrieve_fee)
+
+/**
+ * A stored lockbox roster appraised at today's prices.
+ *
+ * Priced again on every call rather than remembered from filing, so that an
+ * export repricing moves what a stored ship is worth. The roster only holds type
+ * paths, so each item is stood up in nullspace just long enough to appraise.
+ */
+/proc/shipyard_appraise_roster(list/stored_contents)
+	if(!length(stored_contents))
+		return 0
+	var/list/obj/item/stand_ins = list()
+	for(var/list/entry as anything in stored_contents)
+		var/obj/item/path = entry["path"]
+		if(ispath(path, /obj/item))
+			stand_ins += new path(null)
+	var/list/appraisal = shipyard_appraise_lockbox(stand_ins)
+	QDEL_LIST(stand_ins)
+	return appraisal["total"]
+
+/// What decommissioning a stored ship pays its owner.
+/proc/shipyard_scrap_value(datum/player_ship_record/record)
+	var/worth = record.salvage_estimate + shipyard_appraise_roster(record.stored_contents)
+	return round(worth * CONFIG_GET(number/ship_scrap_rate), 10)
+
+/// What printing a lost ship's rebuild blueprint costs: its storage fee, lockbox aside.
+/proc/shipyard_blueprint_fee(datum/player_ship_record/record)
+	var/list/quote = shipyard_storage_quote(record.tile_count, 0)
+	return quote["storage"]
 
 /// The retrieval price either way, for the garage list.
 /proc/shipyard_retrieval_quote(datum/player_ship_record/record)

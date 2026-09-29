@@ -906,6 +906,9 @@
 		"greyscale_colors",
 		"icon_state",
 		"id",
+		// Airlocks name themselves with this; door buttons look it up. Shuttle
+		// load prefixes both, so teardown has to write the mapped name back.
+		"id_tag",
 		"initialize_directions",
 		"layer",
 		"lighting",
