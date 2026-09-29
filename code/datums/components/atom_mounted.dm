@@ -166,13 +166,14 @@
 
 	return attachables
 
-/// A shuttle fixture must hang on that shuttle, not the hangar wall it is
-/// parked against. Takeoff otherwise rips the mount off and drops a frame.
+/// A shuttle fixture must hang on a shuttle-area support, not the hangar wall
+/// it is parked against. Port bounding boxes often omit perimeter walls, so
+/// this is area, not `get_containing_shuttle()`, or escape-pod intercoms
+/// fail maptest_log_mapping on every station.
 /obj/proc/atom_mounted_valid_support(atom/support)
-	var/obj/docking_port/mobile/our_shuttle = SSshuttle?.get_containing_shuttle(src)
-	if(!our_shuttle)
+	if(!is_area_shuttle(get_area(src)))
 		return TRUE
-	return SSshuttle.get_containing_shuttle(support) == our_shuttle
+	return is_area_shuttle(get_area(support))
 
 /**
  * Finds an support atom to hang this object on. If you need to mount the object on Late Initialize
