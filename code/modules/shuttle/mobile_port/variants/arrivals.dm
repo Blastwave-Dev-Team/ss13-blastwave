@@ -26,7 +26,7 @@
 	preferred_direction = dir
 	return INITIALIZE_HINT_LATELOAD //for latejoin list
 
-/obj/docking_port/mobile/arrivals/register()
+/obj/docking_port/mobile/arrivals/register(replace = FALSE, custom = FALSE) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/docking_port/mobile/arrivals/register()
 	..()
 	if(SSshuttle.arrivals)
 		log_mapping("More than one arrivals docking_port placed on map! Ignoring duplicates.")

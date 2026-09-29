@@ -53,6 +53,7 @@ GLOBAL_LIST_EMPTY(ship_listings)
 	return FALSE
 
 /datum/ship_listing/proc/get_template()
+	RETURN_TYPE(/datum/map_template/shuttle)
 	if(template)
 		return template
 	var/datum/map_template/shuttle/template_defaults = template_type
@@ -62,7 +63,8 @@ GLOBAL_LIST_EMPTY(ship_listings)
 	return template
 
 /datum/ship_listing/proc/map_path()
-	return get_template()?.mappath
+	var/datum/map_template/shuttle/loaded = get_template()
+	return loaded?.mappath
 
 /datum/ship_listing/proc/get_profile()
 	return shipyard_hull_profile(map_path())
