@@ -5,11 +5,7 @@
 // disk together. Teardown and retrieval know how to put a hull on and off the
 // disk, the registry knows who owns what, pricing knows what it costs; this
 // orders them. Ships belong to a character, by the UUID on their mind, rather
-// than to the player's ckey.
-
-/// How long an action holds the console. Loading a map sleeps, and a second
-/// click landing mid-load would otherwise run the whole action again.
-#define SHIP_REGISTRAR_BUSY_TIMEOUT (30 SECONDS)
+// than to the player's ckey; garage slots are the ckey's, shared by all of them.
 
 /obj/machinery/computer/ship_registrar
 	name = "ship registrar"
@@ -20,109 +16,88 @@
 	req_access = list()
 	req_one_access = list()
 	// `authenticated` is the parent's, and means the same thing here.
-	/// ID record captured at login, for the operator name on screen.
-	var/alist/operator_id_data
-	/// Character the session files and retrieves for.
-	var/operator_uuid
-	var/operator_ckey
-	var/character_name
-	/// Landing controller supplying the pad this console works over.
-	var/datum/weakref/linked_controller
+	/// Operator, ledger and pad state, shared with the broker.
+	var/datum/shipyard_session/session
 	/// Survey data for the last surveyed hull, in the shape the UI reads.
 	var/list/survey
 	var/datum/weakref/surveyed_hull
-	/// Owner's ship list and balance, refreshed on login and after anything that
-	/// changes them. Held rather than queried per `ui_data`, which runs every tick.
+	/// Owner's ship list, garage slots and derived prices, refreshed on login and
+	/// after anything that changes them. Held rather than queried per `ui_data`,
+	/// which runs every tick.
 	var/list/datum/player_ship_record/known_ships
-	var/ledger_balance
-	var/registry_online = FALSE
-	var/ledger_online = FALSE
+	var/list/slots
+	/// record id -> scrap payout, which appraises the lockbox roster item by item.
+	var/list/scrap_values
 	/// The occupant's refusal, rechecked at most once a second: it walks every
 	/// tile of the hull, which is too much to do on every UI tick.
 	var/list/cached_refusal
 	var/datum/weakref/refusal_hull
 	COOLDOWN_DECLARE(refusal_recheck)
-	/// list("kind" = "good" or "bad", "text" = ...), or null.
-	var/list/status_message
-	/// world.time until which a file or retrieve is still running.
-	var/busy_until = 0
+
+/obj/machinery/computer/ship_registrar/Initialize(mapload, obj/item/circuitboard/C)
+	. = ..()
+	session = new(src)
+
+/obj/machinery/computer/ship_registrar/Destroy()
+	QDEL_NULL(session)
+	return ..()
 
 /obj/machinery/computer/ship_registrar/multitool_act(mob/living/user, obj/item/multitool/tool)
-	if(istype(tool.buffer, /obj/machinery/computer/landing_controller))
-		var/obj/machinery/computer/landing_controller/controller = tool.buffer
-		if(controller.z != z)
-			balloon_alert(user, "controller off-Z")
-			return ITEM_INTERACT_BLOCKING
-		linked_controller = WEAKREF(controller)
-		balloon_alert(user, "landing zone linked")
-		return ITEM_INTERACT_SUCCESS
-	return ..()
+	var/result = session.try_link(user, tool)
+	return isnull(result) ? ..() : result
 
 /obj/machinery/computer/ship_registrar/examine(mob/user)
 	. = ..()
-	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
-	. += span_notice("Landing zone: [controller ? controller.zone_label : "unlinked"].")
+	. += session.examine_line()
 
 /obj/machinery/computer/ship_registrar/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 	if(ui)
 		return
+	// The login screen reports registry state too, and a login has not refreshed it yet.
+	session.refresh()
 	ui = new(user, src, "ShipRegistrar", name)
 	ui.open()
 
-/// Secure login mirroring the fabricator: checks reach, power and access.
-/obj/machinery/computer/ship_registrar/proc/secure_login(mob/user)
-	if(!user.can_perform_action(src, ALLOW_SILICON_REACH) || !is_operational)
-		return FALSE
-	if(!allowed(user))
-		balloon_alert(user, "access denied")
-		playsound(src, 'sound/machines/terminal/terminal_error.ogg', 70, TRUE)
-		return FALSE
-	balloon_alert(user, "logged in")
-	playsound(src, 'sound/machines/terminal/terminal_on.ogg', 70, TRUE)
-	return TRUE
+/obj/machinery/computer/ship_registrar/ui_close(mob/user)
+	. = ..()
+	session.on_operator_leave(user)
+	if(!authenticated)
+		known_ships = null
+		slots = null
+		scrap_values = null
+		survey = null
+		surveyed_hull = null
 
-/// Open a session for `user`'s character.
 /obj/machinery/computer/ship_registrar/proc/start_session(mob/user)
-	authenticated = TRUE
-	operator_id_data = ID_DATA(user)
-	operator_uuid = user.mind?.character_uuid
-	operator_ckey = user.ckey
-	character_name = user.real_name
-	status_message = null
-	if(!operator_uuid)
-		set_status(FALSE, "No persistent identity is on record for [user.real_name]. Filing and retrieval are unavailable.")
+	session.start(user)
 	refresh_session()
 
 /obj/machinery/computer/ship_registrar/proc/end_session()
-	authenticated = FALSE
-	operator_id_data = null
-	operator_uuid = null
-	operator_ckey = null
-	character_name = null
+	session.end()
 	known_ships = null
-	ledger_balance = null
+	slots = null
+	scrap_values = null
 	survey = null
 	surveyed_hull = null
-	status_message = null
 
 /// Re-read everything `ui_data` shows from the registry and the ledger.
 /obj/machinery/computer/ship_registrar/proc/refresh_session()
-	registry_online = GLOB.ship_registry.is_online()
-	ledger_online = SScharacter_ledger.is_available()
-	known_ships = registry_online ? GLOB.ship_registry.list_for_owner(operator_uuid) : list()
-	ledger_balance = (ledger_online && operator_uuid) ? SScharacter_ledger.get_balance(operator_uuid) : null
+	session.refresh()
+	known_ships = session.registry_online ? GLOB.ship_registry.list_for_owner(session.operator_uuid) : list()
+	slots = session.registry_online ? session.slot_usage() : null
+	scrap_values = list()
+	for(var/datum/player_ship_record/record as anything in known_ships)
+		if(record.status == SHIP_STATUS_FILED)
+			scrap_values["[record.id]"] = shipyard_scrap_value(record)
 	COOLDOWN_RESET(src, refusal_recheck)
 
 /obj/machinery/computer/ship_registrar/proc/set_status(good, text)
-	status_message = list("kind" = good ? "good" : "bad", "text" = text)
+	session.set_status(good, text)
 
 /// The pad this console works over, or null when nothing is linked.
 /obj/machinery/computer/ship_registrar/proc/active_zone()
-	var/obj/machinery/computer/landing_controller/controller = linked_controller?.resolve()
-	if(QDELETED(controller?.active_zone))
-		return null
-	return controller.active_zone
+	return session.active_zone()
 
 /// Why the hull on the pad cannot be filed by this operator, recomputed at most
 /// once a second.
@@ -131,34 +106,35 @@
 		return null
 	if(refusal_hull?.resolve() != hull || COOLDOWN_FINISHED(src, refusal_recheck))
 		refusal_hull = WEAKREF(hull)
-		cached_refusal = shipyard_file_refusal(hull, zone, operator_uuid)
+		cached_refusal = shipyard_file_refusal(hull, zone, session.operator_uuid)
 		COOLDOWN_START(src, refusal_recheck, 1 SECONDS)
 	return cached_refusal
 
-/obj/machinery/computer/ship_registrar/proc/has_session(mob/user)
-	return (authenticated && isliving(user)) || isAdminGhostAI(user)
+/// One of the operator's records from the last refresh, by id.
+/obj/machinery/computer/ship_registrar/proc/known_record(record_id)
+	record_id = text2num("[record_id]")
+	for(var/datum/player_ship_record/record as anything in known_ships)
+		if(record.id == record_id)
+			return record
+	return null
 
 /obj/machinery/computer/ship_registrar/ui_data(mob/user)
-	var/list/data = list()
-	var/session = has_session(user)
-	data["authenticated"] = session
-	data["operatorName"] = operator_id_data?["name"]
-	data["characterName"] = character_name
-	data["registryOnline"] = registry_online
-	data["ledgerOnline"] = ledger_online
-	if(!session)
+	var/list/data = session.base_ui_data(user)
+	if(!data["authenticated"])
 		return data
 
-	data["ledgerBalance"] = ledger_balance
+	data["ledgerBalance"] = session.ledger_balance
 	var/obj/effect/landmark/overmap_landing_zone/zone = active_zone()
 	var/obj/docking_port/mobile/hull = zone?.get_occupant()
 	var/list/occupant
 	if(hull)
+		var/datum/player_ship_record/occupant_record = hull.ship_registry_id ? known_record(hull.ship_registry_id) : null
 		occupant = list(
 			"name" = hull.name,
 			"ownership" = hull.ship_ownership,
-			"ownedByOperator" = !!(operator_uuid && hull.ship_owner_id == operator_uuid),
+			"ownedByOperator" = !!(session.operator_uuid && hull.ship_owner_id == session.operator_uuid),
 			"registryId" = hull.ship_registry_id,
+			"rebuilt" = occupant_record?.status == SHIP_STATUS_LOST,
 		)
 	data["zone"] = list(
 		"linked" = !!zone,
@@ -176,8 +152,23 @@
 	) : null
 	data["survey"] = (hull && !blocks_survey && surveyed_hull?.resolve() == hull) ? survey : null
 
+	var/list/grants = list()
+	var/list/grant_sources = list()
+	for(var/datum/ship_slot_grant/grant as anything in GLOB.ship_garage_slots.list_grants(session.operator_ckey))
+		grants += list(list("kind" = grant.kind, "source" = grant.source, "count" = grant.count))
+		grant_sources["[grant.id]"] = grant.source
+	data["slots"] = slots ? list(
+		"base" = slots["base"],
+		"grants" = grants,
+		"total" = slots["total"],
+		"used" = slots["used"],
+		// Held by the player's other characters, which this one cannot see.
+		"elsewhere" = max(0, slots["used"] - length(known_ships)),
+	) : list("base" = 0, "grants" = grants, "total" = 0, "used" = 0, "elsewhere" = 0)
+
 	var/list/ships = list()
 	for(var/datum/player_ship_record/record as anything in known_ships)
+		var/datum/hull_profile/profile = shipyard_hull_profile(record.map_path)
 		ships += list(list(
 			"id" = record.id,
 			"name" = record.ship_name,
@@ -190,9 +181,14 @@
 			"retrievedThisRound" = record.retrieved_this_round(),
 			"revertedFromLoss" = record.reverted_from_loss(),
 			"quote" = shipyard_retrieval_quote(record),
+			"silhouette" = profile?.silhouette_data(),
+			"scrapValue" = scrap_values?["[record.id]"] || 0,
+			"blueprintPrinted" = GLOB.ship_registry.blueprint_printed(record.id),
+			"blueprintFee" = shipyard_blueprint_fee(record),
+			"grant" = record.grant_id ? grant_sources["[record.grant_id]"] : null,
 		))
 	data["ships"] = ships
-	data["statusMessage"] = status_message
+	data["statusMessage"] = session.status_message
 	return data
 
 /obj/machinery/computer/ship_registrar/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/ui_state)
@@ -200,20 +196,18 @@
 	if(.)
 		return
 	var/mob/living/user = usr
+	if(session.is_busy())
+		return FALSE
 
-	switch(action)
-		if("login")
-			if(isAdminGhostAI(user) || secure_login(user))
-				start_session(user)
-			return TRUE
-		if("logout")
+	if(session.handle_login_act(action, user))
+		if(authenticated)
+			refresh_session()
+		else
 			end_session()
-			balloon_alert(user, "logged out")
-			playsound(src, 'sound/machines/terminal/terminal_off.ogg', 70, TRUE)
-			return TRUE
+		return TRUE
 
 	// Mirror ui_data: admin ghosts can act without a living login session.
-	if(!has_session(user))
+	if(!session.has_session(user))
 		return FALSE
 
 	switch(action)
@@ -221,17 +215,38 @@
 			refresh_session()
 			return TRUE
 		if("survey")
-			status_message = null
+			session.status_message = null
 			run_survey(docked_hull(), active_zone())
 			return TRUE
 		if("file")
-			status_message = null
+			session.status_message = null
+			if(!session.require_pin(user, params["pin"]))
+				return TRUE
 			file_hull(docked_hull(), active_zone(), user)
 			refresh_session()
 			return TRUE
 		if("retrieve")
-			status_message = null
+			session.status_message = null
+			if(!session.require_pin(user, params["pin"]))
+				return TRUE
 			retrieve_record(params["id"], !!text2num("[params["insured"]]"), active_zone(), user)
+			refresh_session()
+			return TRUE
+		if("decommission")
+			session.status_message = null
+			decommission_record(params["id"], user)
+			refresh_session()
+			return TRUE
+		if("print_blueprint")
+			session.status_message = null
+			if(!session.require_pin(user, params["pin"]))
+				return TRUE
+			print_blueprint(params["id"], user)
+			refresh_session()
+			return TRUE
+		if("clear_slot")
+			session.status_message = null
+			clear_slot(params["id"], user)
 			refresh_session()
 			return TRUE
 
@@ -261,7 +276,7 @@
 	if(!hull)
 		set_status(FALSE, "No vessel is standing on the pad.")
 		return FALSE
-	var/list/refusal = shipyard_file_refusal(hull, zone, operator_uuid)
+	var/list/refusal = shipyard_file_refusal(hull, zone, session.operator_uuid)
 	if(refusal && shipyard_refusal_blocks_survey(refusal["code"]))
 		set_status(FALSE, refusal["text"])
 		return FALSE
@@ -270,7 +285,7 @@
 		set_status(FALSE, "This vessel cannot be filed: [teardown.refusal].")
 		qdel(teardown)
 		return FALSE
-	var/datum/player_ship_record/record = hull.ship_registry_id ? GLOB.ship_registry.get_record(hull.ship_registry_id, operator_uuid) : null
+	var/datum/player_ship_record/record = hull.ship_registry_id ? GLOB.ship_registry.get_record(hull.ship_registry_id, session.operator_uuid) : null
 	survey = build_survey(teardown, pending_insurance_refund(record))
 	surveyed_hull = WEAKREF(hull)
 	qdel(teardown)
@@ -310,6 +325,23 @@
 	return lines
 
 /**
+ * Why a hull cannot take or keep a garage slot, or null when it can.
+ *
+ * A first filing needs a free slot. A hull filing back into its own row already
+ * holds one, and is only turned away when the garage is over its limit: that is
+ * how a player with more ships than slots is made to let one go.
+ */
+/obj/machinery/computer/ship_registrar/proc/slot_refusal(datum/player_ship_record/record)
+	var/list/usage = session.slot_usage()
+	if(!record)
+		if(GLOB.ship_garage_slots.can_add(session.operator_ckey))
+			return null
+		return "Your garage is full ([usage["used"]] / [usage["total"]] slots). Clear or decommission a ship to free a slot."
+	if(GLOB.ship_garage_slots.can_refile(session.operator_ckey, record))
+		return null
+	return "Garage over its slot limit ([usage["used"]] / [usage["total"]]). Clear or decommission another ship before filing this one back in."
+
+/**
  * Serialize a hull, charge for it, record where it went, and take it out of the
  * world.
  *
@@ -320,15 +352,14 @@
  * the pad. Returns TRUE when the hull was filed.
  */
 /obj/machinery/computer/ship_registrar/proc/file_hull(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
-	if(world.time < busy_until)
-		set_status(FALSE, "The registrar is still working on the last request.")
+	if(!session.begin_busy("Filing [hull?.name || "the vessel"] into storage..."))
 		return FALSE
-	busy_until = world.time + SHIP_REGISTRAR_BUSY_TIMEOUT
 	. = do_file_hull(hull, zone, user)
-	busy_until = 0
+	session.end_busy()
 
 /obj/machinery/computer/ship_registrar/proc/do_file_hull(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
 	PRIVATE_PROC(TRUE)
+	var/operator_uuid = session.operator_uuid
 	if(!hull)
 		set_status(FALSE, "No vessel is standing on the pad.")
 		return FALSE
@@ -348,6 +379,14 @@
 	if(refusal)
 		set_status(FALSE, refusal["text"])
 		return FALSE
+	// A ship that was retrieved from a row, or rebuilt from one, goes back into
+	// that row as its next revision. Without this every trip through the
+	// registrar would leave another record behind.
+	var/datum/player_ship_record/record = hull.ship_registry_id ? GLOB.ship_registry.get_record(hull.ship_registry_id, operator_uuid) : null
+	var/slot_text = slot_refusal(record)
+	if(slot_text)
+		set_status(FALSE, slot_text)
+		return FALSE
 	var/datum/ship_teardown/teardown = new(hull)
 	if(teardown.refusal)
 		set_status(FALSE, "This vessel cannot be filed: [teardown.refusal].")
@@ -356,17 +395,13 @@
 
 	var/hull_name = teardown.name
 	var/tile_count = length(teardown.cells)
-	// A ship that was retrieved from a row goes back into that row as its next
-	// revision. Without this every trip through the registrar would leave
-	// another record behind.
-	var/datum/player_ship_record/record = hull.ship_registry_id ? GLOB.ship_registry.get_record(hull.ship_registry_id, operator_uuid) : null
 	var/record_id = record?.id
 	var/revision = record ? record.revision + 1 : 1
 	var/list/appraisal = shipyard_appraise_lockbox(teardown.lockbox_items)
 	var/list/quote = shipyard_storage_quote(tile_count, appraisal["total"], pending_insurance_refund(record))
 	var/net = quote["net"]
 	if(!record_id)
-		record_id = GLOB.ship_registry.insert_record(operator_uuid, operator_ckey, hull_name)
+		record_id = GLOB.ship_registry.insert_record(operator_uuid, session.operator_ckey, hull_name)
 		if(!record_id)
 			set_status(FALSE, "The registry would not accept a new record.")
 			qdel(teardown)
@@ -418,85 +453,118 @@
 	return TRUE
 
 /**
- * Charge for a filed ship and call it back onto the pad.
- *
- * The fee is taken before anything loads and handed back if the hull does not
- * land, and the row is flipped to checked-out only once a registered port
- * exists, so a refusal leaves the record filed, the file untouched and the
- * ledger where it was. Returns the retrieved port, or null.
+ * Charge for a filed ship and call it back onto the pad. The work is
+ * `shipyard_deliver_record()`, which the broker shares. Returns the retrieved
+ * port, or null.
  */
 /obj/machinery/computer/ship_registrar/proc/retrieve_record(record_id, insured, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
-	if(world.time < busy_until)
-		set_status(FALSE, "The registrar is still working on the last request.")
+	var/datum/player_ship_record/record = known_record(record_id)
+	if(!session.begin_busy("Retrieving [record?.ship_name || "the vessel"] to [zone?.zone_name || "the pad"]..."))
 		return null
-	busy_until = world.time + SHIP_REGISTRAR_BUSY_TIMEOUT
 	. = do_retrieve_record(record_id, insured, zone, user)
-	busy_until = 0
+	session.end_busy()
 
 /obj/machinery/computer/ship_registrar/proc/do_retrieve_record(record_id, insured, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
 	PRIVATE_PROC(TRUE)
-	if(!zone)
-		set_status(FALSE, "No landing pad is linked. Use a multitool on a landing controller, then on this console.")
+	var/operator_uuid = session.operator_uuid
+	var/datum/player_ship_record/record = (operator_uuid && GLOB.ship_registry.is_online()) ? GLOB.ship_registry.get_record(record_id, operator_uuid) : null
+	var/datum/shipyard_delivery/delivery = shipyard_deliver_record(record, zone, insured, operator_uuid, user)
+	set_status(delivery.success, delivery.message)
+	if(!delivery.success)
 		return null
-	if(zone.get_occupant())
-		set_status(FALSE, "[zone.zone_name] is occupied. Clear the pad first.")
-		return null
-	if(!operator_uuid)
+	playsound(src, 'sound/machines/terminal/terminal_success.ogg', 50, TRUE)
+	return delivery.hull
+
+/// A stored record of the operator's, or null with the reason already on screen.
+/obj/machinery/computer/ship_registrar/proc/owned_record(record_id, required_status)
+	if(!session.operator_uuid)
 		set_status(FALSE, "No persistent identity is on record for this operator.")
 		return null
 	if(!GLOB.ship_registry.is_online())
-		set_status(FALSE, "The hangar registry is offline. Retrieval is unavailable.")
+		set_status(FALSE, "The hangar registry is offline.")
 		return null
-	if(!SScharacter_ledger.is_available())
-		set_status(FALSE, "The ledger is offline. Fees cannot be charged.")
-		return null
-	var/datum/player_ship_record/record = GLOB.ship_registry.get_record(record_id, operator_uuid)
+	var/datum/player_ship_record/record = GLOB.ship_registry.get_record(record_id, session.operator_uuid)
 	if(!record)
 		set_status(FALSE, "No such vessel is registered to you.")
 		return null
-	switch(record.status)
-		if(SHIP_STATUS_CHECKED_OUT)
-			set_status(FALSE, "[record.ship_name] is already deployed.")
-			return null
-		if(SHIP_STATUS_LOST)
-			set_status(FALSE, "[record.ship_name] was lost and cannot be retrieved.")
-			return null
-	if(!record.is_retrievable())
-		set_status(FALSE, "[record.ship_name] has no saved hull to retrieve.")
+	if(record.status != required_status)
+		switch(required_status)
+			if(SHIP_STATUS_FILED)
+				set_status(FALSE, "[record.ship_name] has to be in the garage for that.")
+			if(SHIP_STATUS_LOST)
+				set_status(FALSE, "[record.ship_name] is not lost.")
 		return null
-	if(record.map_checksum && rustg_hash_file(RUSTG_HASH_SHA256, record.map_path) != record.map_checksum)
-		log_admin("Ship registry: [key_name(user)] tried to retrieve [record.ship_name] (record [record.id]) but [record.map_path] does not match its checksum.")
-		set_status(FALSE, "The stored hull for [record.ship_name] failed its integrity check. An administrator will need to look at it.")
-		return null
+	return record
 
-	var/fee = insured ? shipyard_insurance_fee(record.salvage_estimate) : shipyard_uninsured_fee()
-	var/channel = insured ? LEDGER_CHANNEL_SHIP_INSURANCE : LEDGER_CHANNEL_SHIP_RETRIEVE
-	var/charge_reason = "Ship retrieval, [insured ? "insured" : "uninsured"]: [record.ship_name] (record [record.id], revision [record.revision])"
-	var/datum/character_ledger_result/charge = shipyard_charge_fee(operator_uuid, fee, channel, charge_reason, record.id, record.revision, "retrieve")
-	if(!charge.success)
-		set_status(FALSE, "Retrieval refused: [shipyard_ledger_refusal_text(charge)]")
-		return null
-
-	var/obj/docking_port/mobile/hull = shipyard_retrieve_hull(record.map_path, record.ship_name, zone, record.stored_contents)
-	if(!hull)
-		var/refunded = shipyard_refund_fee(operator_uuid, fee, channel, "Refund: [charge_reason]", record.id, record.revision, "retrieve")
-		set_status(FALSE, "Retrieval refused: [record.ship_name] could not be set down on [zone.zone_name]. It may not fit the pad, or the pad may be obstructed.[fee > 0 ? (refunded ? " Your [fee] cr fee was refunded." : " Your fee could not be refunded automatically; an administrator has the record.") : ""]")
-		return null
-	hull.ship_ownership = SHIP_OWNERSHIP_PERSONAL
-	hull.ship_owner_id = operator_uuid
-	hull.ship_registry_id = record.id
-	if(!GLOB.ship_registry.checkout(record.id, insured, insured ? fee : 0))
-		// A hull out in the world against a row that still says filed could be
-		// retrieved a second time. Undo the retrieval rather than allow that.
-		hull.jumpToNullSpace()
-		shipyard_refund_fee(operator_uuid, fee, channel, "Refund: [charge_reason]", record.id, record.revision, "retrieve")
-		log_admin("Ship registry: checkout of [record.ship_name] (record [record.id]) for [key_name(user)] could not be recorded; the retrieval was undone.")
-		set_status(FALSE, "The registry could not record the checkout, so [record.ship_name] was sent back to storage. Any fee was refunded.")
-		return null
-	log_admin("Ship registry: [key_name(user)] retrieved [record.ship_name] (record [record.id], revision [record.revision]) onto [zone.zone_name], [insured ? "insured" : "uninsured"], for [fee] cr.")
-	set_status(TRUE, "[record.ship_name] is landing on [zone.zone_name], [insured ? "insured" : "uninsured"]. Charged [fee] cr.")
+/**
+ * Scrap a stored ship for a share of what it is worth, and free its slot.
+ *
+ * The payout is credited before the row goes, under a key that makes a retry
+ * after a failed discard a duplicate rather than a second payment.
+ */
+/obj/machinery/computer/ship_registrar/proc/decommission_record(record_id, mob/user)
+	var/datum/player_ship_record/record = owned_record(record_id, SHIP_STATUS_FILED)
+	if(!record)
+		return FALSE
+	if(!SScharacter_ledger.is_available())
+		set_status(FALSE, "The ledger is offline. The scrap payout cannot be credited.")
+		return FALSE
+	var/payout = shipyard_scrap_value(record)
+	var/reason = "Ship decommissioned: [record.ship_name] (record [record.id], revision [record.revision])"
+	var/datum/character_ledger_result/credit = shipyard_credit_fee(session.operator_uuid, payout, LEDGER_CHANNEL_SHIP_STORAGE, reason, record.id, record.revision, "scrap")
+	if(!credit.success)
+		set_status(FALSE, "Decommission refused: [shipyard_ledger_refusal_text(credit)]")
+		return FALSE
+	if(!GLOB.ship_registry.discard(record.id))
+		message_admins("Ship registry: [record.ship_name] (record [record.id]) was scrapped for [payout] cr but its row could not be cleared.")
+		set_status(FALSE, "[record.ship_name] was paid out, but the registry did not clear its slot. An administrator has been notified.")
+		return FALSE
+	log_admin("Ship registry: [key_name(user)] decommissioned [record.ship_name] (record [record.id], revision [record.revision]) for [payout] cr.")
+	set_status(TRUE, "[record.ship_name] was scrapped for [payout] cr. Its garage slot is free.")
 	playsound(src, 'sound/machines/terminal/terminal_success.ogg', 50, TRUE)
-	return hull
+	return TRUE
+
+/**
+ * Print a lost ship's last filed revision onto a rebuild disk, once a shift.
+ *
+ * Costs the storage fee without the lockbox part, since nothing in the lockbox
+ * comes back. A hull the owner builds from the disk files back into this row.
+ */
+/obj/machinery/computer/ship_registrar/proc/print_blueprint(record_id, mob/user)
+	var/datum/player_ship_record/record = owned_record(record_id, SHIP_STATUS_LOST)
+	if(!record)
+		return null
+	if(GLOB.ship_registry.blueprint_printed(record.id))
+		set_status(FALSE, "A blueprint for [record.ship_name] has already been printed this shift.")
+		return null
+	if(!length(record.map_path) || !fexists(record.map_path))
+		set_status(FALSE, "No filed survey of [record.ship_name] survives to print from.")
+		return null
+	var/fee = shipyard_blueprint_fee(record)
+	var/reason = "Ship blueprint: [record.ship_name] (record [record.id], revision [record.revision])"
+	var/datum/character_ledger_result/charge = shipyard_charge_fee(session.operator_uuid, fee, LEDGER_CHANNEL_SHIP_STORAGE, reason, record.id, record.revision, "blueprint")
+	if(!charge.success)
+		set_status(FALSE, "Printing refused: [shipyard_ledger_refusal_text(charge)]")
+		return null
+	var/obj/item/ship_blueprint_disk/registry_rebuild/disk = new(drop_location())
+	disk.imprint(record)
+	GLOB.ship_registry.note_blueprint_printed(record.id)
+	log_admin("Ship registry: [key_name(user)] printed a rebuild blueprint of [record.ship_name] (record [record.id], revision [record.revision]) for [fee] cr.")
+	set_status(TRUE, "A blueprint disk for [record.ship_name] (revision [record.revision]) was dispensed. Lockbox contents are not included. Charged [fee] cr. Build it at a shipyard fabricator and file it here to restore the slot.")
+	playsound(src, 'sound/machines/terminal/terminal_success.ogg', 50, TRUE)
+	return disk
+
+/// Delete a lost ship's record, which is the only way its slot comes free.
+/obj/machinery/computer/ship_registrar/proc/clear_slot(record_id, mob/user)
+	var/datum/player_ship_record/record = owned_record(record_id, SHIP_STATUS_LOST)
+	if(!record)
+		return FALSE
+	if(!GLOB.ship_registry.discard(record.id))
+		set_status(FALSE, "The registry could not clear [record.ship_name]'s record.")
+		return FALSE
+	log_admin("Ship registry: [key_name(user)] cleared the record of lost ship [record.ship_name] (record [record.id]).")
+	set_status(TRUE, "[record.ship_name]'s record was cleared. Its garage slot is free.")
+	return TRUE
 
 /// A ledger refusal in words a player can act on.
 /proc/shipyard_ledger_refusal_text(datum/character_ledger_result/result)
@@ -509,4 +577,3 @@
 			return "no ledger identity is registered for this character."
 	return result.reason || "the ledger refused the charge."
 
-#undef SHIP_REGISTRAR_BUSY_TIMEOUT

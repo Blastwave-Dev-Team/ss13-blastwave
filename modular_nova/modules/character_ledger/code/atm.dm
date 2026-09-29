@@ -146,12 +146,7 @@ A large warning reads: \"NT Corporate Regulations restrict withdrawals and depos
 	return personal
 
 /obj/machinery/atm/proc/pin_matches(mob/living/carbon/human/human, submitted)
-	if(isnull(human.mind?.atm_pin))
-		return FALSE
-	var/entered = isnum(submitted) ? submitted : text2num(submitted)
-	if(isnull(entered))
-		return FALSE
-	return entered == human.mind.atm_pin
+	return atm_pin_matches(human, submitted)
 
 /obj/machinery/atm/proc/try_deposit(mob/living/carbon/human/human, amount)
 	if(busy)

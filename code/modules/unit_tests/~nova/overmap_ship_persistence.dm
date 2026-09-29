@@ -99,14 +99,17 @@
 		TEST_ASSERT(seed.success, "Seeding the test ledger should succeed, got '[seed.status]'.")
 	var/obj/machinery/computer/ship_registrar/console = allocate(/obj/machinery/computer/ship_registrar)
 	console.authenticated = TRUE
-	console.operator_uuid = owner_uuid
-	console.operator_ckey = "shippersistencetest"
+	console.session.operator_uuid = owner_uuid
+	// One ckey per character: garage slots are a ckey pool, and cases sharing
+	// one would fill each other's garage.
+	console.session.operator_ckey = ckey("spt[owner_uuid]")
 	console.refresh_session()
 	return console
 
 /// The registrar's last message, for a failure to quote.
 /datum/unit_test/overmap_ship_persistence/proc/console_says(obj/machinery/computer/ship_registrar/console)
-	return console.status_message ? console.status_message["text"] : "nothing"
+	var/list/message = console.session.status_message
+	return message ? message["text"] : "nothing"
 
 /// The single ship a character owns, or null.
 /datum/unit_test/overmap_ship_persistence/proc/only_record(owner_uuid)
@@ -293,6 +296,10 @@
 	var/obj/docking_port/mobile/staged = shipyard_stage_hull(source_template, staging)
 	TEST_ASSERT(staged, "The stock blueprint should stage into a reservation of its own.")
 	hulls += staged
+	var/datum/hull_profile/profile = shipyard_hull_profile(source_template.mappath)
+	var/list/bounds = staged.return_coords()
+	TEST_ASSERT_EQUAL(abs(bounds[3] - bounds[1]) + 1, profile.width, "A staged stock hull's port should span the hull, not the map's space padding.")
+	TEST_ASSERT_EQUAL(abs(bounds[4] - bounds[2]) + 1, profile.height, "A staged stock hull's port should span the hull, not the map's space padding.")
 
 	var/datum/ship_teardown/teardown = new(staged)
 	TEST_ASSERT(!teardown.refusal, "A staged stock hull should tear down, got '[teardown.refusal]'.")

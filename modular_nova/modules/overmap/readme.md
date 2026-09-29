@@ -151,6 +151,10 @@ versa in v1) until a deployable syndicate beacon is activated.
   to remain safely in nullspace until atomic shipyard placement.
 - `code/modules/power/power.dm` - ignores deferred cable icon refreshes whose
   turf was deleted during shuttle/test cleanup.
+- `code/game/machinery/buttons.dm` - desktop door buttons (no hang offset,
+  not in a wall turf) refuse `find_and_mount_on_atom`, so shipyard GENERATE
+  cannot glue NT Personal's table-top shutter control to the table and shed
+  a frame on takeoff (BLASTWAVE EDIT ADDITION - OVERMAP).
 
 ### Config (map JSON, not .dmm)
 

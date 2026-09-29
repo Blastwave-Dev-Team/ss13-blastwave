@@ -2,19 +2,46 @@ Any time you make a change to the schema files, remember to increment the databa
 
 Make sure to also update `DB_MAJOR_VERSION` and `DB_MINOR_VERSION`, which can be found in `code/__DEFINES/subsystem.dm`.
 
-The latest database version is 5.41 (5.34 for /tg/); The query to update the schema revision table is:
+The latest database version is 5.42 (5.34 for /tg/); The query to update the schema revision table is:
 
 ```sql
-INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 41);
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 42);
 ```
 
 or
 
 ```sql
-INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 41);
+INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 42);
 ```
 
 In any query remember to add a prefix to the table names if you use one.
+
+---
+
+Version 5.42, 29 September 2026, by Maldaris
+Adds garage slots for persistent ships. `player_ship_slot_grants` holds extra
+slots awarded to a ckey on top of the configured base (donator, event and admin
+awards). `player_ships.grant_id` ties an awarded ship to the grant that came
+with it.
+
+```sql
+ALTER TABLE `player_ships`
+  ADD COLUMN `grant_id` INT(11) UNSIGNED NULL AFTER `deleted`,
+  ADD KEY `idx_player_ships_ckey` (`ckey`, `deleted`);
+CREATE TABLE `player_ship_slot_grants` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ckey` VARCHAR(32) NOT NULL,
+  `kind` ENUM('DONATOR','EVENT','ADMIN') NOT NULL,
+  `source` VARCHAR(128) NOT NULL DEFAULT '',
+  `count` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `granted_by` VARCHAR(32) NOT NULL DEFAULT '',
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (`id`),
+  KEY `idx_slot_grants_ckey` (`ckey`, `revoked`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 42);
+```
 
 ---
 

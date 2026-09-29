@@ -1,0 +1,1304 @@
+<!doctype html>
+<html class="theme-nanotrasen">
+<head>
+<meta charset="utf-8">
+<title>Vessel Registrar - UI prototype</title>
+<link rel="stylesheet" href="../../../tgui/public/tgui.bundle.css">
+<link rel="stylesheet" href="../../../html/font-awesome/css/all.min.css">
+<link rel="stylesheet" href="../../../html/font-awesome/css/v4-shims.min.css">
+<style>
+/* Font Awesome's CSS expects its fonts next to it (flat asset namespace in game). */
+@font-face { font-family: "Font Awesome 6 Free"; font-style: normal; font-weight: 900; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-solid-900.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 6 Free"; font-style: normal; font-weight: 400; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-regular-400.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 5 Free"; font-style: normal; font-weight: 900; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-solid-900.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 5 Free"; font-style: normal; font-weight: 400; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-regular-400.ttf) format("truetype"); }
+
+/* Page chrome only: stands in for the BYOND browser window. */
+body { background: #111; }
+.proto-page {
+  display: flex;
+  gap: 12px;
+  height: 100vh;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.proto-frame {
+  position: relative;
+  flex: 0 0 auto;
+  transform: translateZ(0); /* makes the Window's position:fixed resolve to this frame */
+  box-shadow: 0 0 0 1px #000, 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.proto-frame .TitleBar { width: 100%; }
+.proto-strip {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px dashed #555;
+  color: #aaa;
+}
+.proto-strip h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+.proto-strip .row { margin: 0 0 10px; }
+.proto-strip .row > span.lbl { display: block; margin-bottom: 3px; color: #888; }
+.proto-strip .Button { margin: 0 2px 2px 0; }
+/* Stand-in for tgui's Floating portal; the .Tooltip class does the styling. */
+#proto-tooltip { position: fixed; z-index: 1000; display: none; white-space: pre-line; }
+
+/* The one custom component: survey footprint. No tgui component draws a per-tile grid. */
+/* Fixed box; tiles scale to fit so hull size never changes the layout. */
+.registrar-footprint {
+  container-type: inline-size;
+  height: 12rem;
+  margin: 0.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.registrar-footprint__grid {
+  --tile: min(
+    calc((100cqw - (var(--w) - 1) * 1px) / var(--w)),
+    calc((12rem - (var(--h) - 1) * 1px) / var(--h)),
+    1.2rem
+  );
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(var(--w), var(--tile));
+  grid-auto-rows: var(--tile);
+}
+.registrar-footprint__tile--kept { background-color: hsl(from var(--color-good) h s l / 0.35); }
+.registrar-footprint__tile--lockbox { background-color: hsl(from var(--color-blue) h s l / 0.9); }
+.registrar-footprint__tile--lost { background-color: hsl(from var(--color-average) h s l / 0.85); }
+.registrar-footprint__tile--unrouted { background-color: hsl(from var(--color-bad) h s l / 0.9); }
+.registrar-footprint__tile:hover { outline: 1px solid var(--color-white); }
+.registrar-footprint__swatch { display: inline-block; width: 0.75rem; height: 0.75rem; vertical-align: middle; margin-right: 0.25rem; }
+
+/* Garage slots: an explorer-style icon grid, one cell per slot the captain owns. */
+.registrar-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: 0.5rem;
+}
+.registrar-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.4rem 0.25rem 0.3rem;
+  box-sizing: border-box;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.3);
+  background: hsl(from var(--color-good) h s l / 0.06);
+  cursor: pointer;
+  min-width: 0;
+}
+.registrar-slot:hover { border-color: hsl(from var(--color-good) h s l / 0.7); }
+.registrar-slot--selected { border-color: var(--color-good); background: hsl(from var(--color-good) h s l / 0.2); }
+.registrar-slot--deployed .registrar-slot__icon { opacity: 0.55; }
+.registrar-slot--empty { cursor: default; border-style: dashed; background: none; color: var(--color-label); justify-content: center; }
+.registrar-slot--empty:hover { border-color: hsl(from var(--color-good) h s l / 0.3); }
+.registrar-slot--over { border-color: var(--color-bad); }
+.registrar-slot--lost .registrar-slot__icon { filter: grayscale(1) brightness(0.5); }
+.registrar-slot--lost { border-style: dashed; border-color: hsl(from var(--color-bad) h s l / 0.6); }
+.registrar-slot__grant { position: absolute; top: 0.25rem; left: 0.3rem; }
+.registrar-slot__icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.registrar-slot__icon img { width: 100%; height: 100%; image-rendering: pixelated; }
+.registrar-slot__badge { position: absolute; top: 0.25rem; right: 0.3rem; }
+.registrar-slot__label { width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registrar-silhouette {
+  display: grid;
+  aspect-ratio: var(--w) / var(--h);
+  width: min(100cqw, calc(100cqh * var(--w) / var(--h)));
+  grid-template-columns: repeat(var(--w), 1fr);
+}
+.registrar-silhouette > .on { background-color: hsl(from var(--color-good) h s l / 0.7); }
+.registrar-meter { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 0.4rem; }
+.registrar-meter > span { width: 0.45rem; height: 0.8rem; background: hsl(from var(--color-good) h s l / 0.18); }
+.registrar-meter > span.on { background: var(--color-good); }
+.registrar-meter > span.over { background: var(--color-bad); }
+</style>
+</head>
+<body>
+<div class="proto-page">
+  <div class="proto-frame" id="frame"><div id="root"></div></div>
+  <div class="proto-strip" id="proto"></div>
+</div>
+<div id="proto-tooltip" class="Tooltip"></div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------
+// ui_data contract. ShipRegistrar.tsx's Data type is this, verbatim.
+// ---------------------------------------------------------------------------
+/** @typedef {'FILED'|'CHECKED_OUT'|'LOST'} ShipStatus */
+/** @typedef {'PERSONAL'|'DEPARTMENT'|'STATION'} Ownership */
+/** @typedef {'living_mob'|'outside_zone'|'not_idle'|'mid_build'|'station_hull'|'department_hull'|'other_owner'} RefusalCode */
+/** @typedef {'kept'|'lockbox'|'lost'|'unrouted'} TileFate */
+/** @typedef {{ id:number, name:string, revision:number, tiles:number,
+ *   lockboxCount:number, salvageEstimate:number, status:ShipStatus,
+ *   insured:boolean, retrievedThisRound:boolean, revertedFromLoss:boolean,
+ *   quote:{ insured:number, uninsured:number },
+ *   icon:string|null,   32 px overmap token from generate_hull; null when the DLL/SO is missing or pending
+ *   silhouette:{ width:number, height:number, cells:boolean[] },
+ *   scrapValue:number,   decommission payout: SCRAP_RATE x (hull value + lockbox appraisal)
+ *   blueprintPrinted:boolean,   LOST only: a rebuild disk was already dispensed this shift
+ *   blueprintFee:number,   shipyard_storage_quote(tiles, 0).storage: the disk carries no lockbox contents
+ *   grant:string|null }} ShipEntry   set when the hull itself was awarded (event reward) */
+/** @typedef {'DONATOR'|'EVENT'|'ADMIN'} SlotGrantKind */
+/** @typedef {{ kind:SlotGrantKind, source:string, count:number }} SlotGrant   per-ckey rows, admin-awarded */
+/** @typedef {{ name:string, count:number, appraisal:number, floored:boolean }} LockboxLine */
+/** @typedef {{ tiles:number, kept:string[], lost:string[], unrouted:string[],
+ *   lostDecals:number, lockbox:LockboxLine[],
+ *   footprint:{ width:number, height:number, tiles:(null|{ fate:TileFate, objects:string[] })[] },
+ *   quote:{ base:number, tileFee:number, lockboxFee:number, storage:number,
+ *     insuranceRefund:number, net:number } }} Survey */
+/** @typedef {{ authenticated:boolean, operatorName:string|null,
+ *   characterName:string|null, ledgerBalance:number|null,
+ *   registryOnline:boolean, ledgerOnline:boolean,
+ *   zone:{ linked:boolean, name:string|null, width:number, height:number,
+ *     occupant:null|{ name:string, ownership:Ownership,
+ *       ownedByOperator:boolean, registryId:number|null } },
+ *   refusal:null|{ code:RefusalCode, text:string, blocksSurvey:boolean },
+ *   survey:null|Survey,
+ *   slots:{ base:number, grants:SlotGrant[], total:number, used:number },
+ *     every row holds a slot, LOST included, until the captain clears it
+ *   ships:ShipEntry[], statusMessage:null|{ kind:'good'|'bad', text:string } }} Data */
+
+// ---------------------------------------------------------------------------
+// Mock config, standing in for the Stage 4 config entries.
+// ---------------------------------------------------------------------------
+const STORAGE_BASE_FEE = 150;
+const STORAGE_FEE_PER_TILE = 4;
+const LOCKBOX_APPRAISAL_RATE = 0.1;
+const UNVALUED_ITEM_FLOOR = 25;
+const INSURANCE_SALVAGE_MULTIPLIER = 1.25;
+const UNINSURED_RETRIEVE_FEE = 50;
+const GARAGE_SLOTS = 6;   // config baseline; per-ckey grants add to it
+const SCRAP_RATE = 0.4;
+
+const OPERATOR = { name: 'Mira Okafor', job: 'Shipwright' };
+const ZONE = { name: 'Shipyard Pad A', width: 15, height: 15 };
+
+// ---------------------------------------------------------------------------
+// Mock hulls. Each glyph is one tile; the survey is derived from the drawing.
+// ---------------------------------------------------------------------------
+const GLYPHS = {
+  '#': { fate: 'kept', objects: ['Shuttle wall'] },
+  '.': { fate: 'kept', objects: ['Shuttle floor'] },
+  'H': { fate: 'kept', objects: ['Helm console', 'Shuttle floor'] },
+  '=': { fate: 'kept', objects: ['Ion engine (tier 2 parts)', 'Engine heater'] },
+  'B': { fate: 'lockbox', objects: ['Ship lockbox (contents kept)', 'Shuttle floor'] },
+  'L': { fate: 'lost', objects: [] },
+  'D': { fate: 'lost', objects: ['Warning stripe decal (not recognised, dropped)', 'Shuttle floor'] },
+  'U': { fate: 'unrouted', objects: ['Hydroponics tray (no construction route, destroyed)', 'Shuttle floor'] },
+};
+
+const HULLS = {
+  wren: {
+    art: [
+      '    #####',
+      '   ##.H.##',
+      '  ##.....##',
+      '  #..L.D..#',
+      ' ##.......##',
+      ' #..B...U..#',
+      ' #....L....#',
+      ' ##...D...##',
+      '  #..###..#',
+      '  ##=# #=##',
+      '   ##   ##',
+    ],
+    loose: ['Toolbox', 'Crowbar'],
+    extraLost: ['Closet contents: 3 items (only the lockbox keeps items)'],
+    kept: ['Helm console', 'Ion engines x2 (tier 2 parts)', 'APC, wiring and air alarm', 'Ship lockbox'],
+    lockbox: [
+      { name: 'Emergency oxygen tank', count: 2, value: 40 },
+      { name: 'Plasma cutter', count: 1, value: 300 },
+      { name: 'Medkit', count: 1, value: 120 },
+      { name: 'Strange relic', count: 1, value: null },
+    ],
+  },
+  kite: {
+    art: [
+      '   ###',
+      '  ##H##',
+      ' ##...##',
+      ' #..B..#',
+      ' #L...D#',
+      ' ##...##',
+      '  #=.=#',
+      '  ## ##',
+    ],
+    loose: ['Welding tool'],
+    extraLost: [],
+    kept: ['Helm console', 'Ion engines x2 (tier 1 parts)', 'APC and wiring', 'Ship lockbox'],
+    lockbox: [
+      { name: 'Toolbox', count: 1, value: 60 },
+      { name: 'Iron sheets', count: 20, value: 5 },
+    ],
+  },
+  freighter: {
+    art: freighterArt(48, 30),
+    loose: ['Toolbox', 'Crowbar', 'Space suit', 'Oxygen tank'],
+    extraLost: ['Closet contents: 14 items (only the lockbox keeps items)'],
+    kept: ['Helm console', 'Ion engines x2 (tier 3 parts)', 'APCs, wiring and air alarms', 'Ship lockbox'],
+    lockbox: [
+      { name: 'Plasma sheets', count: 30, value: 20 },
+      { name: 'Mining drill', count: 2, value: 150 },
+    ],
+  },
+};
+
+// A large elliptical freighter, to prove the footprint box does not grow with the hull.
+function freighterArt(width, height) {
+  const inside = (x, y) => ((x - (width - 1) / 2) / (width / 2)) ** 2 + ((y - (height - 1) / 2) / (height / 2)) ** 2 <= 1;
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    let row = '';
+    for (let x = 0; x < width; x++) {
+      if (!inside(x, y)) { row += ' '; continue; }
+      const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
+      const roll = (x * 31 + y * 17) % 89;
+      row += edge ? '#' : roll === 0 ? 'L' : roll === 7 ? 'D' : roll === 13 ? 'U' : '.';
+    }
+    rows.push(row);
+  }
+  const mid = Math.floor(height / 2);
+  rows[mid] = `${rows[mid].slice(0, 3)}==${rows[mid].slice(5, width - 4)}H${rows[mid].slice(width - 3)}`;
+  rows[mid + 2] = `${rows[mid + 2].slice(0, 10)}B${rows[mid + 2].slice(11)}`;
+  return rows;
+}
+
+function hullTiles(hull) {
+  const width = Math.max(...hull.art.map((r) => r.length));
+  const tiles = [];
+  let loose = 0;
+  for (const row of hull.art) {
+    for (const ch of row.padEnd(width, ' ')) {
+      const glyph = GLYPHS[ch];
+      if (!glyph) { tiles.push(null); continue; }
+      const objects = ch === 'L'
+        ? [`${hull.loose[loose++ % hull.loose.length]} (loose item, destroyed)`, 'Shuttle floor']
+        : glyph.objects;
+      tiles.push({ fate: glyph.fate, objects, glyph: ch });
+    }
+  }
+  return { width, height: hull.art.length, tiles };
+}
+const tileCount = (hull) => hullTiles(hull).tiles.filter(Boolean).length;
+
+// ---------------------------------------------------------------------------
+// Mock server: what the DM console and SQL rows hold. uiData() below is ui_data.
+// ---------------------------------------------------------------------------
+const BASE_ROWS = [
+  { id: 1, name: 'Kestrel', revision: 3, hull: 'kite', lockboxCount: 4, salvage: 3800, status: 'FILED' },
+  { id: 2, name: "Wren's Folly", revision: 1, hull: 'wren', lockboxCount: 5, salvage: 3200, status: 'CHECKED_OUT', insured: true, insuranceFeePaid: 4000, retrievedThisRound: true },
+  { id: 3, name: 'Tern', revision: 2, hull: 'kite', lockboxCount: 1, salvage: 1900, status: 'CHECKED_OUT', insured: false, retrievedThisRound: true },
+  { id: 4, name: 'Heron', revision: 5, hull: 'wren', lockboxCount: 7, salvage: 5400, status: 'FILED', revertedFromLoss: true },
+  { id: 5, name: 'Magpie', revision: 1, hull: 'kite', lockboxCount: 0, salvage: 2100, status: 'LOST' },
+];
+const EXTRA_NAMES = ['Plover', 'Sandpiper', 'Curlew', 'Dunlin', 'Godwit', 'Whimbrel', 'Turnstone'];
+
+const OCCUPANTS = {
+  wren: { name: "Wren's Folly", hull: 'wren', ownership: 'PERSONAL', ownedByOperator: true, registryId: 2, refusal: null },
+  fresh: { name: 'Kite-class cutter (new print)', hull: 'kite', ownership: 'PERSONAL', ownedByOperator: true, registryId: null, refusal: null },
+  rebuilt: { name: 'Magpie', hull: 'kite', ownership: 'PERSONAL', ownedByOperator: true, registryId: 5, rebuilt: true, refusal: null },
+  freighter: { name: 'Albatross (bulk freighter)', hull: 'freighter', ownership: 'PERSONAL', ownedByOperator: true, registryId: null, refusal: null },
+};
+
+const REFUSALS = {
+  living_mob: { text: 'Someone is still aboard (1 living crew member). Everyone has to step off before the hull can be filed.', blocksSurvey: false },
+  outside_zone: { text: `Part of the hull sits outside ${ZONE.name}. Land it fully inside the pad beacons.`, blocksSurvey: false },
+  not_idle: { text: 'The ship is still flying. Land and power down before filing.', blocksSurvey: false },
+  mid_build: { text: 'The shipyard fabricator is still printing this hull. Wait for the print to finish.', blocksSurvey: true },
+  station_hull: { text: 'This hull is station property and cannot enter a private garage.', blocksSurvey: true },
+  department_hull: { text: 'Department ships are station property, assigned for this shift only. They cannot enter a private garage.', blocksSurvey: true },
+  other_owner: { text: 'This hull is registered to another captain (Dax Venn). Only its owner can file it.', blocksSurvey: true },
+};
+
+const REFUSAL_OCCUPANTS = {
+  living_mob: { ...OCCUPANTS.wren, refusal: 'living_mob' },
+  outside_zone: { ...OCCUPANTS.wren, refusal: 'outside_zone' },
+  not_idle: { ...OCCUPANTS.wren, refusal: 'not_idle' },
+  mid_build: { ...OCCUPANTS.fresh, name: 'Kite-class cutter (printing)', refusal: 'mid_build' },
+  station_hull: { name: 'NTV Courier', hull: 'kite', ownership: 'STATION', ownedByOperator: false, registryId: null, refusal: 'station_hull' },
+  department_hull: { name: 'Cargo Hauler Mk II', hull: 'wren', ownership: 'DEPARTMENT', ownedByOperator: false, registryId: null, refusal: 'department_hull' },
+  other_owner: { name: 'Red Kestrel', hull: 'kite', ownership: 'PERSONAL', ownedByOperator: false, registryId: null, refusal: 'other_owner' },
+};
+
+let server;
+function freshServer() {
+  return {
+    authenticated: true,
+    balance: 25000,
+    registryOnline: true,
+    ledgerOnline: true,
+    zoneLinked: true,
+    occupant: { ...OCCUPANTS.wren },
+    surveyed: false,
+    rows: garageRows(5),
+    nextId: 20,
+    statusMessage: null,
+    failNextRetrieve: false,
+    slotBase: GARAGE_SLOTS,
+    slotGrants: [],
+    rendererOnline: true,
+  };
+}
+
+const GRANTS_DEMO = [
+  { kind: 'DONATOR', source: 'Donator tier 2', count: 2 },
+  { kind: 'EVENT', source: 'Frontier Gala 2026', count: 1 },
+];
+const AWARDED_ROW = { id: 30, name: 'Gala Runner', revision: 1, hull: 'wren', lockboxCount: 0, salvage: 4200, status: 'FILED', grant: 'Frontier Gala 2026' };
+
+const usedSlots = () => server.rows.length;
+const totalSlots = () => server.slotBase + server.slotGrants.reduce((a, g) => a + g.count, 0);
+const lockboxValue = (row) => lockboxLines(HULLS[row.hull]).reduce((a, l) => a + l.appraisal, 0) * (row.lockboxCount ? 1 : 0);
+const scrapValue = (row) => roundTo(SCRAP_RATE * (row.salvage + lockboxValue(row)), 10);
+const blueprintFee = (row) => STORAGE_BASE_FEE + tileCount(HULLS[row.hull]) * STORAGE_FEE_PER_TILE;
+
+// Stand-in for generate_hull: the 32 px overmap token, scaled down for big hulls.
+const TOKEN_PX = 32;
+const TOKEN_COLORS = { '#': '#3c4351', '=': '#ff9a3c', H: '#6fb7d6', B: '#4f7fd6' };
+const tokenCache = {};
+function hullToken(hullKey) {
+  if (tokenCache[hullKey]) return tokenCache[hullKey];
+  const fp = hullTiles(HULLS[hullKey]);
+  const scale = TOKEN_PX / Math.max(fp.width, fp.height);
+  const ox = (TOKEN_PX - fp.width * scale) / 2;
+  const oy = (TOKEN_PX - fp.height * scale) / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = TOKEN_PX;
+  canvas.height = TOKEN_PX;
+  const g = canvas.getContext('2d');
+  fp.tiles.forEach((t, i) => {
+    if (!t) return;
+    g.fillStyle = TOKEN_COLORS[t.glyph] || '#8b929e';
+    g.fillRect(ox + (i % fp.width) * scale, oy + Math.floor(i / fp.width) * scale, Math.ceil(scale), Math.ceil(scale));
+  });
+  tokenCache[hullKey] = canvas.toDataURL();
+  return tokenCache[hullKey];
+}
+
+function hullSilhouette(hullKey) {
+  const fp = hullTiles(HULLS[hullKey]);
+  return { width: fp.width, height: fp.height, cells: fp.tiles.map(Boolean) };
+}
+
+function garageRows(size) {
+  if (size === 0) return [];
+  const base = BASE_ROWS.map((r) => ({ insured: false, insuranceFeePaid: 0, retrievedThisRound: false, revertedFromLoss: false, blueprintPrinted: false, grant: null, ...r }));
+  if (size <= base.length) return base.slice(0, size);
+  const extra = EXTRA_NAMES.slice(0, size - base.length).map((name, i) => ({
+    id: 6 + i, name, revision: 1 + (i % 3), hull: i % 2 ? 'wren' : 'kite', lockboxCount: i % 4, salvage: 1500 + i * 350,
+    status: 'FILED', insured: false, insuranceFeePaid: 0, retrievedThisRound: false, revertedFromLoss: false, blueprintPrinted: false, grant: null,
+  }));
+  return base.concat(extra);
+}
+
+const roundTo = (v, step) => Math.round(v / step) * step;
+const insuranceFor = (row) => roundTo(row.salvage * INSURANCE_SALVAGE_MULTIPLIER, 10);
+const credits = (n) => `${Math.round(n).toLocaleString('en-US')} cr`;
+
+function lockboxLines(hull) {
+  return hull.lockbox.map((it) => ({
+    name: it.name,
+    count: it.count,
+    appraisal: (it.value ?? UNVALUED_ITEM_FLOOR) * it.count,
+    floored: it.value === null,
+  }));
+}
+
+function buildSurvey(occ) {
+  const hull = HULLS[occ.hull];
+  const footprint = hullTiles(hull);
+  const tiles = footprint.tiles.filter(Boolean);
+  const lockbox = lockboxLines(hull);
+  const appraisal = lockbox.reduce((a, l) => a + l.appraisal, 0);
+  const base = STORAGE_BASE_FEE;
+  const tileFee = tiles.length * STORAGE_FEE_PER_TILE;
+  const lockboxFee = Math.round(appraisal * LOCKBOX_APPRAISAL_RATE);
+  const storage = base + tileFee + lockboxFee;
+  const row = server.rows.find((r) => r.id === occ.registryId);
+  const insuranceRefund = row && row.status === 'CHECKED_OUT' && row.insured ? row.insuranceFeePaid : 0;
+  return {
+    tiles: tiles.length,
+    kept: [`Hull and floors: ${tiles.filter((t) => t.fate !== 'unrouted').length} tiles`, ...hull.kept],
+    lost: [...tiles.filter((t) => t.glyph === 'L').map((t) => t.objects[0]), ...hull.extraLost],
+    unrouted: tiles.filter((t) => t.fate === 'unrouted').map((t) => t.objects[0]),
+    lostDecals: tiles.filter((t) => t.glyph === 'D').length,
+    lockbox,
+    footprint: { width: footprint.width, height: footprint.height, tiles: footprint.tiles.map((t) => t && { fate: t.fate, objects: t.objects }) },
+    quote: { base, tileFee, lockboxFee, storage, insuranceRefund, net: Math.max(0, storage - insuranceRefund) },
+  };
+}
+
+function shipEntry(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    revision: row.revision,
+    tiles: tileCount(HULLS[row.hull]),
+    lockboxCount: row.lockboxCount,
+    salvageEstimate: row.salvage,
+    status: row.status,
+    insured: row.insured,
+    retrievedThisRound: row.retrievedThisRound,
+    revertedFromLoss: row.revertedFromLoss,
+    quote: { insured: insuranceFor(row), uninsured: UNINSURED_RETRIEVE_FEE },
+    icon: server.rendererOnline ? hullToken(row.hull) : null,
+    silhouette: hullSilhouette(row.hull),
+    scrapValue: scrapValue(row),
+    blueprintPrinted: !!row.blueprintPrinted,
+    blueprintFee: blueprintFee(row),
+    grant: row.grant || null,
+  };
+}
+
+/** @returns {Data} */
+function uiData() {
+  const occ = server.zoneLinked ? server.occupant : null;
+  const refusal = occ?.refusal ? { code: occ.refusal, ...REFUSALS[occ.refusal] } : null;
+  return {
+    authenticated: server.authenticated,
+    operatorName: server.authenticated ? `${OPERATOR.name} (${OPERATOR.job})` : null,
+    characterName: server.authenticated ? OPERATOR.name : null,
+    ledgerBalance: server.ledgerOnline ? server.balance : null,
+    registryOnline: server.registryOnline,
+    ledgerOnline: server.ledgerOnline,
+    zone: {
+      linked: server.zoneLinked,
+      name: server.zoneLinked ? ZONE.name : null,
+      width: server.zoneLinked ? ZONE.width : 0,
+      height: server.zoneLinked ? ZONE.height : 0,
+      occupant: occ && { name: occ.name, ownership: occ.ownership, ownedByOperator: occ.ownedByOperator, registryId: occ.registryId, rebuilt: !!occ.rebuilt },
+    },
+    refusal,
+    survey: occ && server.surveyed && !refusal?.blocksSurvey ? buildSurvey(occ) : null,
+    slots: { base: server.slotBase, grants: server.slotGrants, total: totalSlots(), used: usedSlots() },
+    ships: server.registryOnline ? server.rows.map(shipEntry) : [],
+    statusMessage: server.statusMessage,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ui_act. Server actions mutate `server`; client-only state lives in `ui`
+// (useState in the TSX: tab, selected slot, staged retrieval, collapsibles, confirm arm).
+// ---------------------------------------------------------------------------
+/** @typedef {'PAD'|'GARAGE'} Tab */
+const UI_DEFAULTS = () => ({ confirm: null, open: {}, tab: 'PAD', selected: null, staged: null });
+const ui = { ...UI_DEFAULTS(), preset: 'surveyed', overrides: {}, frame: 720, frameHeight: 620 };
+
+const ACTIONS = {
+  login: () => { server.authenticated = true; },
+  logout: () => { server.authenticated = false; server.surveyed = false; ui.staged = null; },
+  survey: () => {
+    const occ = server.occupant;
+    if (occ && !(occ.refusal && REFUSALS[occ.refusal].blocksSurvey)) server.surveyed = true;
+  },
+  file: () => {
+    const data = uiData();
+    const occ = server.occupant;
+    if (!occ || !data.survey || data.refusal || !server.registryOnline || !server.ledgerOnline) return;
+    const { net } = data.survey.quote;
+    if (server.balance < net) return;
+    server.balance -= net;
+    let row = server.rows.find((r) => r.id === occ.registryId);
+    // Refiling keeps its slot; only a first filing needs a free one. Over the limit,
+    // ships can leave the garage but not come back in.
+    if (!row && usedSlots() >= totalSlots()) return;
+    if (row && row.status !== 'FILED' && usedSlots() > totalSlots()) return;
+    if (row) {
+      row.revision += 1;
+    } else {
+      row = { id: server.nextId++, name: occ.name.replace(/ \(new print\)$/, ''), revision: 1, hull: occ.hull, salvage: 2600 };
+      server.rows.unshift(row);
+    }
+    Object.assign(row, {
+      status: 'FILED', insured: false, insuranceFeePaid: 0, retrievedThisRound: false, revertedFromLoss: false, blueprintPrinted: false,
+      lockboxCount: HULLS[occ.hull].lockbox.reduce((a, l) => a + l.count, 0),
+    });
+    server.occupant = null;
+    server.surveyed = false;
+    server.statusMessage = { kind: 'good', text: `${row.name} filed as revision ${row.revision}. Charged ${credits(net)}.` };
+  },
+  retrieve: ({ id, insured }) => {
+    const row = server.rows.find((r) => r.id === id);
+    ui.staged = null;
+    if (!row || row.status !== 'FILED' || server.occupant || !server.zoneLinked) return;
+    const fee = insured ? insuranceFor(row) : UNINSURED_RETRIEVE_FEE;
+    if (!server.ledgerOnline || server.balance < fee) return;
+    if (server.failNextRetrieve) {
+      server.failNextRetrieve = false;
+      server.statusMessage = { kind: 'bad', text: `Retrieval refused: ${row.name} (19 x 23) does not fit ${ZONE.name} (${ZONE.width} x ${ZONE.height}). Your ${credits(fee)} fee was refunded.` };
+      return;
+    }
+    server.balance -= fee;
+    Object.assign(row, { status: 'CHECKED_OUT', insured, insuranceFeePaid: insured ? fee : 0, retrievedThisRound: true, revertedFromLoss: false });
+    server.occupant = { name: row.name, hull: row.hull, ownership: 'PERSONAL', ownedByOperator: true, registryId: row.id, refusal: null };
+    server.surveyed = false;
+    server.statusMessage = { kind: 'good', text: `${row.name} is landing on ${ZONE.name}, ${insured ? 'insured' : 'uninsured'}. Charged ${credits(fee)}.` };
+  },
+  decommission: ({ id }) => {
+    const row = server.rows.find((r) => r.id === id);
+    if (!row || row.status !== 'FILED' || !server.registryOnline || !server.ledgerOnline) return;
+    const payout = scrapValue(row);
+    server.balance += payout;
+    server.rows = server.rows.filter((r) => r !== row);
+    if (ui.staged?.id === id) ui.staged = null;
+    ui.selected = null;
+    server.statusMessage = { kind: 'good', text: `${row.name} was scrapped for ${credits(payout)}. Its garage slot is free.` };
+  },
+  print_blueprint: ({ id }) => {
+    const row = server.rows.find((r) => r.id === id);
+    if (!row || row.status !== 'LOST' || row.blueprintPrinted || !server.registryOnline || !server.ledgerOnline) return;
+    const fee = blueprintFee(row);
+    if (server.balance < fee) return;
+    server.balance -= fee;
+    row.blueprintPrinted = true;
+    server.statusMessage = { kind: 'good', text: `A blueprint disk for ${row.name} (revision ${row.revision}) was dispensed. Lockbox contents are not included. Charged ${credits(fee)}. Build it at a shipyard fabricator and file it here to restore the slot.` };
+  },
+  clear_slot: ({ id }) => {
+    const row = server.rows.find((r) => r.id === id);
+    if (!row || row.status !== 'LOST' || !server.registryOnline) return;
+    server.rows = server.rows.filter((r) => r !== row);
+    ui.selected = null;
+    server.statusMessage = { kind: 'good', text: `${row.name}'s record was cleared. Its garage slot is free.` };
+  },
+  // Client-only below this line.
+  set_tab: ({ tab }) => { ui.tab = tab; },
+  select_ship: ({ id }) => { ui.selected = id; },
+  // Staging is only a hand-off to the pad tab; nothing is charged until confirmed there.
+  stage_retrieve: ({ id }) => { ui.staged = { id, insured: null }; ui.tab = 'PAD'; },
+  unstage: () => { ui.staged = null; },
+  select_coverage: ({ insured }) => { if (ui.staged) ui.staged.insured = insured; },
+  toggle_collapse: ({ key }) => { ui.open[key] = !ui.open[key]; },
+};
+
+const SERVER_ACTIONS = ['login', 'logout', 'survey', 'file', 'retrieve', 'decommission', 'print_blueprint', 'clear_slot'];
+
+function act(name, args = {}) {
+  if (SERVER_ACTIONS.includes(name)) server.statusMessage = null;
+  const fn = ACTIONS[name] || PROTO_ACTIONS[name];
+  if (fn) fn(args);
+  render();
+}
+
+// ---------------------------------------------------------------------------
+// tgui-core markup helpers (copied from the crystal fabricator prototype, plus
+// Tabs, Modal, Dimmer and Divider). Class names match tgui-core's output.
+// ---------------------------------------------------------------------------
+const CSS_COLORS = ['average', 'bad', 'black', 'blue', 'brown', 'good', 'green', 'grey', 'label', 'olive', 'orange', 'pink', 'purple', 'red', 'teal', 'transparent', 'violet', 'white', 'yellow'];
+const cx = (...c) => c.filter(Boolean).join(' ');
+const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const half = (v) => `${v * 0.5}rem`;
+const unit = (v) => (typeof v === 'number' ? `${v}rem` : typeof v === 'string' && v.endsWith('px') ? `${parseFloat(v) / 12}rem` : v);
+const colorClass = (c) => (c && CSS_COLORS.includes(c) ? `color-${c}` : '');
+const colorStyle = (c) => (c && !CSS_COLORS.includes(c) ? `color:${c};` : '');
+function boxStyle(p) {
+  let st = '';
+  for (const [k, css] of [['mt', 'margin-top'], ['mb', 'margin-bottom'], ['ml', 'margin-left'], ['mr', 'margin-right']]) {
+    if (p[k] !== undefined) st += `${css}:${half(p[k])};`;
+  }
+  if (p.bold) st += 'font-weight:bold;';
+  if (p.italic) st += 'font-style:italic;';
+  if (p.inline) st += 'display:inline-block;';
+  if (p.nowrap) st += 'white-space:nowrap;';
+  if (p.fontSize) st += `font-size:${unit(p.fontSize)};`;
+  if (p.opacity !== undefined) st += `opacity:${p.opacity};`;
+  if (p.width) st += `width:${unit(p.width)};`;
+  if (p.height) st += `height:${unit(p.height)};`;
+  if (p.textAlign) st += `text-align:${p.textAlign};`;
+  return st + colorStyle(p.color) + (p.style || '');
+}
+const actAttr = (name, args) => (name ? ` data-act="${name}" data-args='${esc(JSON.stringify(args || {}))}'` : '');
+const tipAttr = (tip) => (tip ? ` data-tooltip="${esc(tip)}"` : '');
+
+function Box(children, p = {}) {
+  const tag = p.as || 'div';
+  return `<${tag} class="${cx(colorClass(p.color), p.className)}" style="${boxStyle(p)}"${tipAttr(p.tooltip)}>${children}</${tag}>`;
+}
+
+function Icon(name, p = {}) {
+  const regular = /-o$/.test(name);
+  const base = name.replace(/-o$/, '');
+  let st = colorStyle(p.color);
+  if (p.size) st += `font-size:${p.size * 100}%;`;
+  return `<i class="${cx('Icon', regular ? 'far' : 'fas', `fa-${base}`, p.spin && 'fa-spin', p.className, colorClass(p.color))}" style="${st}"></i>`;
+}
+
+function Button(p) {
+  const content = p.content || '';
+  const attrs = p.disabled ? '' : actAttr(p.act, p.args);
+  return `<div class="${cx('Button', p.fluid && 'Button--fluid', p.disabled && 'Button--disabled',
+    p.selected && 'Button--selected', p.compact && 'Button--compact', !content && 'Button--empty',
+    p.icon && 'Button--hasIcon', `Button--color--${p.color || 'default'}`)}"${attrs}${tipAttr(p.tooltip)} style="${boxStyle(p)}" tabindex="${p.disabled ? '' : 0}">`
+    + `<div class="Button__content">${p.icon ? Icon(p.icon, { className: 'Button--icon' }) : ''}${content}</div></div>`;
+}
+
+// Button.Confirm keeps its "Confirm?" state locally, same as tgui-core.
+function ConfirmButton(p) {
+  const key = `${p.act}:${JSON.stringify(p.args || {})}`;
+  const armed = ui.confirm === key;
+  if (p.disabled) return Button(p);
+  return Button({ ...p, act: '__confirm', args: { key, act: p.act, args: p.args || {} }, color: armed ? 'bad' : p.color, icon: armed ? 'check' : p.icon, content: armed ? 'Confirm?' : p.content });
+}
+
+function LabeledList(items) {
+  const rows = items.filter(Boolean).map((it) => {
+    const label = typeof it.label === 'string' ? `${it.label}:` : it.label;
+    return `<tr class="LabeledList__row"><td class="${cx('LabeledList__cell', 'LabeledList__label--nowrap', colorClass(it.labelColor || 'label'))}" style="vertical-align:baseline">${label}</td>`
+      + `<td class="${cx('LabeledList__cell', colorClass(it.color))}" style="vertical-align:baseline;${colorStyle(it.color)}"${it.buttons ? '' : ' colspan="2"'}>${it.content}</td>`
+      + (it.buttons ? `<td class="LabeledList__cell LabeledList__buttons">${it.buttons}</td>` : '')
+      + '</tr>';
+  });
+  return `<table class="LabeledList"><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function NoticeBox(children, p = {}) {
+  return `<div class="${cx('NoticeBox', p.color && `NoticeBox--color--${p.color}`, p.info && 'NoticeBox--type--info', p.success && 'NoticeBox--type--success', p.danger && 'NoticeBox--type--danger')}" style="${boxStyle(p)}">${children}</div>`;
+}
+
+function Section(p, children) {
+  const hasTitle = p.title || p.buttons;
+  return `<div class="${cx('Section', p.fill && 'Section--fill', p.scrollable && 'Section--scrollable')}" style="${boxStyle(p)}">`
+    + (hasTitle ? `<div class="Section__title"><span class="Section__titleText">${p.title || ''}</span><div class="Section__buttons">${p.buttons || ''}</div></div>` : '')
+    + `<div class="Section__rest"><div class="Section__content"${p.scrollKey ? ` data-scroll="${p.scrollKey}"` : ''}>${children}</div></div></div>`;
+}
+
+function Stack(p, items) {
+  const dir = p.vertical ? 'column' : 'row';
+  return `<div class="${cx('Stack', p.fill && 'Stack--fill', p.vertical ? 'Stack--vertical' : 'Stack--horizontal', 'Flex')}" style="flex-direction:${dir};${p.align ? `align-items:${p.align};` : ''}${boxStyle(p)}">${items.join('')}</div>`;
+}
+function StackItem(p, children) {
+  const basis = p.basis ?? (p.grow !== undefined ? 0 : undefined);
+  let st = '';
+  if (basis !== undefined) st += `flex-basis:${unit(basis)};`;
+  if (p.grow !== undefined) st += `flex-grow:${Number(p.grow)};`;
+  if (p.align) st += `align-self:${p.align};`;
+  return `<div class="Stack__item" style="${st}${boxStyle(p)}">${children}</div>`;
+}
+
+function Collapsible(p, children) {
+  const open = !!ui.open[p.key];
+  return `<div style="margin-bottom:0.5rem"><div class="Table"><div class="Table__cell">`
+    + Button({ fluid: true, icon: open ? 'chevron-down' : 'chevron-right', content: p.title, act: 'toggle_collapse', args: { key: p.key }, color: p.color })
+    + `</div></div>${open ? `<div style="margin-top:0.5rem">${children}</div>` : ''}</div>`;
+}
+
+function Table(rows) {
+  return `<table class="Table"><tbody>${rows.join('')}</tbody></table>`;
+}
+function TableRow(cells, p = {}) {
+  return `<tr class="${cx('Table__row', p.header && 'Table__row--header')}">${cells.join('')}</tr>`;
+}
+function TableCell(children, p = {}) {
+  return `<td class="${cx('Table__cell', p.collapsing && 'Table__cell--collapsing', p.header && 'Table__cell--header', colorClass(p.color))}" style="${boxStyle(p)}">${children}</td>`;
+}
+
+function Tabs(tabs) {
+  return `<div class="Tabs Tabs--horizontal">${tabs.map((t) => `<div class="${cx('Tab', 'Tabs__Tab', `Tab--color--${t.color || 'default'}`, t.selected && 'Tab--selected')}"${actAttr(t.act, t.args)}>`
+    + (t.icon ? `<div class="Tab__left">${Icon(t.icon)}</div>` : '')
+    + `<div class="Tab__text">${t.content}</div></div>`).join('')}</div>`;
+}
+
+function Divider(p = {}) {
+  return `<div class="${cx('Divider', p.vertical ? 'Divider--vertical' : 'Divider--horizontal')}"></div>`;
+}
+
+function Modal(p, children) {
+  return `<div class="Dimmer Modal__dimmer"><div class="Dimmer__inner"><div class="Modal" style="${boxStyle(p)}">${children}</div></div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Views. One function per future TSX component.
+// ---------------------------------------------------------------------------
+function LoginView(data) {
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({ grow: 1 }, ''),
+    StackItem({ align: 'center' }, Icon('anchor', { size: 9, color: 'good' })),
+    StackItem({ align: 'center' }, Box('Nanotrasen Vessel Registry', { color: 'good', fontSize: '18px', bold: true, mt: 2 })),
+    StackItem({ align: 'center' }, Box('Swipe an ID to file ships and open your garage.', { color: 'label', italic: true })),
+    !data.registryOnline && StackItem({ align: 'center' }, NoticeBox('Hangar registry offline. Filing and retrieval are unavailable.', { danger: true, mt: 1 })),
+    StackItem({ align: 'center' }, Button({ icon: 'sign-in-alt', content: 'Log in', act: 'login', mt: 1 })),
+    StackItem({ grow: 1 }, ''),
+  ].filter(Boolean));
+}
+
+function HeaderView(data) {
+  const balance = data.ledgerOnline
+    ? Box(credits(data.ledgerBalance), { bold: true })
+    : Box(`${Icon('exclamation-triangle')} Ledger offline`, { color: 'average' });
+  return Section({},
+    Stack({ align: 'center' }, [
+      StackItem({}, Icon('id-card', { color: 'good', size: 1.5 })),
+      StackItem({ grow: 1 }, Box(esc(data.characterName), { bold: true }) + Box(esc(data.operatorName), { color: 'label', fontSize: '0.9em' })),
+      StackItem({}, balance),
+      StackItem({}, Button({ icon: 'sign-out-alt', content: 'Log out', act: 'logout' })),
+    ])
+    + (!data.registryOnline ? NoticeBox('Hangar registry offline. Surveys still work, but nothing can be filed or retrieved.', { danger: true, mt: 1 }) : '')
+    + (data.statusMessage ? NoticeBox(esc(data.statusMessage.text), { success: data.statusMessage.kind === 'good', danger: data.statusMessage.kind === 'bad', mt: 1 }) : ''));
+}
+
+function OwnershipLabel(occ) {
+  switch (occ.ownership) {
+    case 'PERSONAL':
+      return occ.ownedByOperator
+        ? Box(`${Icon('user')} Personal, yours`, { inline: true, color: 'good' })
+        : Box(`${Icon('user-lock')} Personal, another captain`, { inline: true, color: 'bad' });
+    case 'DEPARTMENT':
+      return Box(`${Icon('users')} Department, station property`, { inline: true, color: 'average' });
+    case 'STATION':
+      return Box(`${Icon('building')} Station property`, { inline: true, color: 'average' });
+    default:
+      throw new Error(`unhandled ownership ${occ.ownership}`);
+  }
+}
+
+function surveyDisabledReason(data) {
+  const occ = data.zone.occupant;
+  if (!data.zone.linked) return 'No landing pad linked. Use a multitool on a landing controller.';
+  if (!occ) return 'The pad is empty.';
+  if (data.refusal?.blocksSurvey) return data.refusal.text;
+  return null;
+}
+
+function fileDisabledReason(data) {
+  if (!data.registryOnline) return 'Hangar registry offline.';
+  if (!data.ledgerOnline) return 'Ledger offline. Fees cannot be charged.';
+  if (!data.zone.occupant) return 'The pad is empty.';
+  if (data.refusal) return data.refusal.text;
+  const { used, total } = data.slots;
+  const own = data.ships.find((s) => s.id === data.zone.occupant.registryId);
+  if (!own && used >= total) return `Garage full (${used} / ${total} slots). Decommission a stored ship or clear a lost one to free a slot.`;
+  if (own && own.status !== 'FILED' && used > total) return `Garage over its slot limit (${used} / ${total}). Clear or decommission another ship before filing this one back in.`;
+  if (!data.survey) return 'Run a survey first so you can see what will be kept and what will be lost.';
+  if (data.ledgerBalance < data.survey.quote.net) return `Not enough credits. Filing costs ${credits(data.survey.quote.net)}.`;
+  return null;
+}
+
+function PadTab(data) {
+  const occ = data.zone.occupant;
+  const surveyBlock = surveyDisabledReason(data);
+  const surveyButton = Button({ icon: 'search', content: data.survey ? 'Re-survey' : 'Survey', act: 'survey', disabled: !!surveyBlock, tooltip: surveyBlock });
+  if (!data.zone.linked) {
+    return Section({ title: 'Landing Pad', fill: true },
+      NoticeBox('No landing pad linked. Use a multitool on a landing controller, then on this console.', { info: true }));
+  }
+  const registry = occ
+    ? (occ.registryId
+      ? `Registry #${occ.registryId}${occ.rebuilt ? ` ${Box('rebuilt from blueprint', { inline: true, color: 'label' })}` : ''}`
+      : Box('Not registered yet, first filing', { inline: true, color: 'label', italic: true }))
+    : '';
+  const body = LabeledList([
+    { label: 'Pad', content: `${esc(data.zone.name)} ${Box(`${data.zone.width} x ${data.zone.height}`, { inline: true, color: 'label' })}` },
+    { label: 'Occupant', content: occ ? Box(esc(occ.name), { bold: true, inline: true }) : Box('Empty', { color: 'label', italic: true, inline: true }) },
+    occ && { label: 'Ownership', content: OwnershipLabel(occ) },
+    occ && { label: 'Registry', content: registry },
+  ])
+    + (data.refusal ? NoticeBox(`${Icon('ban')} ${esc(data.refusal.text)}`, { danger: true, mt: 1 }) : '')
+    + (occ && ui.staged ? StagedBehindOccupant(data) : '')
+    + (data.survey ? SurveySummary(data.survey) : '')
+    + (occ ? FileControls(data) : '');
+  const side = occ
+    ? (data.survey
+      ? Section({ title: 'Survey details', fill: true, scrollable: true, scrollKey: 'survey' }, SurveyDetails(data.survey))
+      : Section({ title: 'Survey details', fill: true }, Box('Run a survey to see what is kept, what is destroyed, and the lockbox appraisal.', { color: 'label', italic: true })))
+    : RetrievalPanel(data);
+  return Stack({ fill: true }, [
+    StackItem({ basis: '50%' }, Section({ title: 'Landing Pad', fill: true, scrollable: true, scrollKey: 'pad', buttons: occ ? surveyButton : '' }, body)),
+    StackItem({ grow: 1 }, side),
+  ]);
+}
+
+function StagedBehindOccupant(data) {
+  const ship = data.ships.find((s) => s.id === ui.staged.id);
+  if (!ship) return '';
+  return NoticeBox(`${Icon('hourglass-half')} ${esc(ship.name)} is waiting to be retrieved. File or launch ${esc(data.zone.occupant.name)} to clear the pad first. `
+    + Button({ content: 'Cancel', compact: true, act: 'unstage' }), { color: 'average', mt: 1 });
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function SurveySummary(sv) {
+  return Section({ title: 'Survey', mt: 1 },
+    LabeledList([
+      { label: 'Tiles', content: sv.tiles },
+      { label: 'Kept', content: plural(sv.kept.length, 'group'), color: 'good' },
+      { label: 'Destroyed', content: plural(sv.lost.length, 'object'), color: sv.lost.length ? 'average' : undefined },
+      { label: 'No route', content: plural(sv.unrouted.length, 'object'), color: sv.unrouted.length ? 'bad' : undefined },
+      { label: 'Lost decals', content: sv.lostDecals, color: sv.lostDecals ? 'average' : undefined },
+      { label: 'Lockbox', content: `${plural(sv.lockbox.reduce((a, l) => a + l.count, 0), 'item')} kept`, color: 'good' },
+    ]));
+}
+
+function SurveyDetails(sv) {
+  const list = (items, color) => items.map((t) => Box(`${Icon('angle-right')} ${esc(t)}`, { color })).join('');
+  const lockbox = sv.lockbox.map((l) => TableRow([
+    TableCell(`${esc(l.name)}${l.count > 1 ? ` ${Box(`x${l.count}`, { inline: true, color: 'label' })}` : ''}`),
+    TableCell(l.floored
+      ? Box(credits(l.appraisal), { inline: true, color: 'average', tooltip: `No export value. Charged at the ${credits(UNVALUED_ITEM_FLOOR)} floor per item.` })
+      : credits(l.appraisal), { collapsing: true, textAlign: 'right' }),
+  ]));
+  return (
+    Collapsible({ key: 'kept', title: `Kept (${sv.kept.length})` }, list(sv.kept, 'good'))
+    + (sv.lost.length ? Collapsible({ key: 'lost', title: `Destroyed on filing (${sv.lost.length})` }, list(sv.lost, 'average')) : '')
+    + (sv.unrouted.length ? Collapsible({ key: 'unrouted', title: `No construction route (${sv.unrouted.length})` }, list(sv.unrouted, 'bad')) : '')
+    + Collapsible({ key: 'lockbox', title: 'Lockbox appraisal' }, Table(lockbox))
+    + Collapsible({ key: 'footprint', title: 'Footprint' }, Footprint(sv.footprint)));
+}
+
+function Footprint(fp) {
+  const cells = fp.tiles.map((t, i) => {
+    if (!t) return '<div class="registrar-footprint__tile"></div>';
+    const x = (i % fp.width) + 1;
+    const y = Math.floor(i / fp.width) + 1;
+    return `<div class="registrar-footprint__tile registrar-footprint__tile--${t.fate}"${tipAttr(`Tile ${x}, ${y}\n${t.objects.join('\n')}`)}></div>`;
+  });
+  const swatch = (fate, label) => Box(`<span class="registrar-footprint__tile registrar-footprint__tile--${fate} registrar-footprint__swatch"></span>${label}`, { inline: true, mr: 1, color: 'label' });
+  return `<div class="registrar-footprint"><div class="registrar-footprint__grid" style="--w:${fp.width};--h:${fp.height}">${cells.join('')}</div></div>`
+    + Box([swatch('kept', 'Kept'), swatch('lockbox', 'Lockbox'), swatch('lost', 'Detail lost'), swatch('unrouted', 'No route')].join(''), { textAlign: 'center' });
+}
+
+function FileControls(data) {
+  const reason = fileDisabledReason(data);
+  const q = data.survey?.quote;
+  const { used, total } = data.slots;
+  const own = data.ships.find((s) => s.id === data.zone.occupant.registryId);
+  let slotLine;
+  if (!own) {
+    slotLine = used >= total
+      ? { label: 'Garage slot', content: `Garage full, ${used} / ${total}`, color: 'bad' }
+      : { label: 'Garage slot', content: `Takes 1 of ${total - used} free (${used} / ${total} used)` };
+  } else if (own.status !== 'FILED' && used > total) {
+    slotLine = { label: 'Garage slot', content: `Over the limit, ${used} / ${total}. Cannot be filed back in.`, color: 'bad' };
+  } else if (own.status === 'LOST') {
+    slotLine = { label: 'Garage slot', content: 'Restores its lost slot', color: 'good' };
+  } else {
+    slotLine = { label: 'Garage slot', content: `Refiles into its own slot (${used} / ${total} used)` };
+  }
+  const fees = q ? LabeledList([
+    slotLine,
+    { label: 'Storage fee', content: `${credits(q.storage)} ${Box(`(${q.base.toLocaleString('en-US')} base + ${q.tileFee.toLocaleString('en-US')} hull + ${q.lockboxFee.toLocaleString('en-US')} lockbox)`, { inline: true, color: 'label' })}` },
+    q.insuranceRefund > 0 && {
+      label: 'Insurance refund',
+      content: Box(`${credits(q.insuranceRefund)}, applied up to the storage fee`, { inline: true, color: 'good', tooltip: 'Refunded insurance only offsets this storage fee. Any remainder is not returned.' }),
+    },
+    { label: 'Net charge', content: Box(credits(q.net), { bold: true, inline: true }) },
+    data.ledgerOnline && { label: 'Balance after', content: credits(data.ledgerBalance - q.net), color: data.ledgerBalance < q.net ? 'bad' : undefined },
+  ]) : '';
+  return Section({ title: 'File to garage', mt: 1 },
+    fees
+    + Box('Filing removes the hull from the pad. Anything not kept is destroyed.', { color: 'label', italic: true, mt: q ? 1 : 0, mb: 1 })
+    + ConfirmButton({ fluid: true, icon: 'archive', content: 'File ship', color: 'good', act: 'file', disabled: !!reason, tooltip: reason, textAlign: 'center' }));
+}
+
+function StatusCell(ship) {
+  const line = (icon, text, color, detail) => Box(`${Icon(icon)} ${text}`, { color, nowrap: true })
+    + (detail ? Box(detail, { color: 'label', fontSize: '0.9em' }) : '');
+  switch (ship.status) {
+    case 'FILED':
+      return line('warehouse', 'In storage', 'good', ship.revertedFromLoss ? 'Reverted to last filing after an insured loss' : null);
+    case 'CHECKED_OUT':
+      return ship.insured
+        ? line('shield-alt', 'Deployed, insured', 'good', `A loss restores revision ${ship.revision}`)
+        : line('exclamation-triangle', 'Deployed, uninsured', 'average', 'File before the shift ends or it is lost');
+    case 'LOST':
+      return line('skull', 'Lost', 'bad', ship.blueprintPrinted
+        ? 'Blueprint printed. Rebuild it and file it here to restore this slot.'
+        : 'Deployed uninsured and never filed. The slot stays taken until you clear it.');
+    default:
+      throw new Error(`unhandled ship status ${ship.status}`);
+  }
+}
+
+function retrieveDisabledReason(data, ship) {
+  if (ship.status === 'CHECKED_OUT') return 'Already deployed this shift.';
+  if (ship.status === 'LOST') return 'This hull was lost.';
+  if (!data.ledgerOnline) return 'Ledger offline. Fees cannot be charged.';
+  if (!data.zone.linked) return 'No landing pad linked.';
+  if (data.zone.occupant) return `${data.zone.name} is occupied. Clear the pad first.`;
+  return null;
+}
+
+function SlotBadge(ship) {
+  switch (ship.status) {
+    case 'FILED':
+      return ship.revertedFromLoss
+        ? Icon('history', { color: 'blue' })
+        : Icon('warehouse', { color: 'good' });
+    case 'CHECKED_OUT':
+      return ship.insured ? Icon('shield-alt', { color: 'good' }) : Icon('exclamation-triangle', { color: 'average' });
+    case 'LOST':
+      return Icon('skull', { color: 'bad' });
+    default:
+      throw new Error(`unhandled ship status ${ship.status}`);
+  }
+}
+
+function SlotTooltip(ship) {
+  switch (ship.status) {
+    case 'FILED': return `${ship.name}, rev ${ship.revision}\nIn storage${ship.revertedFromLoss ? ', reverted after an insured loss' : ''}`;
+    case 'CHECKED_OUT': return `${ship.name}, rev ${ship.revision}\nDeployed, ${ship.insured ? 'insured' : 'uninsured'}`;
+    case 'LOST': return `${ship.name}, rev ${ship.revision}\nLost, still holding its slot`;
+    default: throw new Error(`unhandled ship status ${ship.status}`);
+  }
+}
+
+function SlotIcon(ship) {
+  if (ship.icon) return `<img src="${ship.icon}" alt="">`;
+  const s = ship.silhouette;
+  return `<div class="registrar-silhouette" style="--w:${s.width};--h:${s.height}">${s.cells.map((on) => `<div${on ? ' class="on"' : ''}></div>`).join('')}</div>`;
+}
+
+function SlotMeter(used, total) {
+  const cells = Array.from({ length: Math.max(used, total) }, (_, i) => `<span class="${i >= total ? 'over' : i < used ? 'on' : ''}"></span>`);
+  return `<span class="registrar-meter">${cells.join('')}</span>`;
+}
+
+// Explorer-style icon view: one cell per owned slot, filled or empty. Slots past the
+// limit only appear if the limit dropped under a captain who already had more ships.
+function SlotGrid(data, selectedId) {
+  const { used, total } = data.slots;
+  const cells = [];
+  for (let i = 0; i < Math.max(total, used); i++) {
+    const ship = data.ships[i];
+    if (!ship) {
+      cells.push(`<div class="registrar-slot registrar-slot--empty">${Box(Icon('plus', { size: 1.5, color: 'label' }), { opacity: 0.5 })}<div class="registrar-slot__label">Empty slot</div></div>`);
+      continue;
+    }
+    const over = i >= total;
+    cells.push(`<div class="${cx('registrar-slot', ship.id === selectedId && 'registrar-slot--selected', ship.status === 'CHECKED_OUT' && 'registrar-slot--deployed', ship.status === 'LOST' && 'registrar-slot--lost', over && 'registrar-slot--over')}"`
+      + `${actAttr('select_ship', { id: ship.id })}${tipAttr(`${SlotTooltip(ship)}${ship.grant ? `\nAwarded: ${ship.grant}` : ''}${over ? '\nGarage over its limit' : ''}`)}>`
+      + (ship.grant ? `<div class="registrar-slot__grant">${Icon('gift', { color: 'purple' })}</div>` : '')
+      + `<div class="registrar-slot__badge">${SlotBadge(ship)}</div>`
+      + `<div class="registrar-slot__icon">${SlotIcon(ship)}</div>`
+      + `<div class="registrar-slot__label">${Box(esc(ship.name), { bold: true, inline: true })}</div>`
+      + Box(`rev ${ship.revision}`, { color: 'label', fontSize: '0.85em' })
+      + '</div>');
+  }
+  const grantIcon = (kind) => {
+    switch (kind) {
+      case 'DONATOR': return Icon('star', { color: 'yellow' });
+      case 'EVENT': return Icon('gift', { color: 'purple' });
+      case 'ADMIN': return Icon('user-shield', { color: 'blue' });
+      default: throw new Error(`unhandled grant kind ${kind}`);
+    }
+  };
+  const breakdown = Box([`${data.slots.base} base`, ...data.slots.grants.map((g) => `${grantIcon(g.kind)} ${g.count} ${esc(g.source)}`)].join(' · '), { color: 'label', mt: 1 })
+    + (used > total ? NoticeBox(`Over the slot limit by ${used - total}. Ships can still leave the garage, but ones that leave cannot be filed back in until you are under the limit.`, { color: 'average', mt: 1 }) : '');
+  const hint = !data.ships.length
+    ? NoticeBox('Your garage is empty. Print or buy a hull, land it on the pad, and file it from the Landing Pad tab.', { info: true, mb: 1 })
+    : '';
+  return Section({
+    title: `Garage ${Box(`${used} / ${total} slots`, { inline: true, color: used > total ? 'bad' : 'label' })}${SlotMeter(used, total)}`,
+    fill: true, scrollable: true, scrollKey: 'garage',
+  }, hint + `<div class="registrar-slots">${cells.join('')}</div>` + breakdown);
+}
+
+function ShipDetail(data, ship) {
+  if (!ship) {
+    return Section({ title: 'Details', fill: true }, Box('Select a ship to see its record.', { color: 'label', italic: true }));
+  }
+  const reason = retrieveDisabledReason(data, ship);
+  const staged = ui.staged?.id === ship.id;
+  const retrieve = Button({
+    fluid: true, textAlign: 'center', icon: 'plane-arrival', color: 'good', mb: 0.5,
+    content: staged ? 'Waiting on the pad tab' : 'Retrieve to pad',
+    act: staged ? 'set_tab' : 'stage_retrieve', args: staged ? { tab: 'PAD' } : { id: ship.id },
+    disabled: !!reason && !staged, tooltip: reason || 'Choose coverage and confirm on the Landing Pad tab.',
+  });
+  const scrapBlock = !data.ledgerOnline ? 'Ledger offline. The payout cannot be credited.' : null;
+  const decommission = ship.status === 'FILED'
+    ? ConfirmButton({
+      fluid: true, textAlign: 'center', icon: 'trash', content: `Scrap for ${credits(ship.scrapValue)}`, act: 'decommission', args: { id: ship.id },
+      disabled: !!scrapBlock, tooltip: scrapBlock || `Pays ${Math.round(SCRAP_RATE * 100)}% of the hull and lockbox value, then frees the slot. This cannot be undone.`,
+    })
+    : '';
+  let printBlock = null;
+  if (ship.blueprintPrinted) printBlock = 'A disk was already dispensed this shift.';
+  else if (!data.ledgerOnline) printBlock = 'Ledger offline. The fee cannot be charged.';
+  else if (data.ledgerBalance < ship.blueprintFee) printBlock = `Not enough credits. The blueprint costs ${credits(ship.blueprintFee)}.`;
+  const lostActions = ship.status === 'LOST'
+    ? Button({
+      fluid: true, textAlign: 'center', icon: 'compact-disc', color: 'good', mb: 0.5,
+      content: ship.blueprintPrinted ? 'Blueprint printed' : `Print blueprint for ${credits(ship.blueprintFee)}`, act: 'print_blueprint', args: { id: ship.id },
+      disabled: !!printBlock, tooltip: printBlock
+        || `Dispenses a blueprint of revision ${ship.revision}, without lockbox contents. Costs the hull's storage fee. Build it at a shipyard fabricator and file it here to restore this slot.`,
+    })
+    + ConfirmButton({ fluid: true, textAlign: 'center', icon: 'eraser', content: 'Clear slot', act: 'clear_slot', args: { id: ship.id }, tooltip: 'Delete this record and free the slot. A printed blueprint still builds the hull, but filing it will need a free slot.' })
+    : '';
+  const cannotReturn = ship.status !== 'FILED' && data.slots.used > data.slots.total
+    ? NoticeBox(`The garage is over its limit, so ${esc(ship.name)} cannot be filed back in yet.`, { color: 'average', mb: 1 })
+    : '';
+  return Section({ title: `${esc(ship.name)} ${Box(`#${ship.id}`, { inline: true, color: 'label' })}`, fill: true, scrollable: true, scrollKey: 'detail' },
+    `<div class="registrar-footprint" style="height:6rem">${Box(SlotIcon(ship), { style: 'width:5rem;height:5rem;container-type:size;display:flex;align-items:center;justify-content:center' })}</div>`
+    + LabeledList([
+      { label: 'Revision', content: ship.revision },
+      { label: 'Tiles', content: ship.tiles },
+      { label: 'Lockbox', content: plural(ship.lockboxCount, 'item') },
+      { label: 'Salvage', content: credits(ship.salvageEstimate) },
+    ])
+    + (ship.grant ? Box(`${Icon('gift', { color: 'purple' })} Awarded: ${esc(ship.grant)}`, { mt: 1 }) : '')
+    + Box(StatusCell(ship), { mt: 1, mb: 1 })
+    + cannotReturn
+    + (ship.status === 'LOST' ? lostActions : retrieve + decommission));
+}
+
+function GarageTab(data) {
+  if (!data.registryOnline) {
+    return Section({ title: 'Garage', fill: true }, NoticeBox('Hangar registry offline.', { danger: true }));
+  }
+  const selected = data.ships.find((s) => s.id === ui.selected) || data.ships[0] || null;
+  return Stack({ fill: true }, [
+    StackItem({ grow: 1 }, SlotGrid(data, selected?.id)),
+    StackItem({ basis: '15rem' }, ShipDetail(data, selected)),
+  ]);
+}
+
+// Right column of the pad tab when the pad is clear: the retrieval hand-off from the garage.
+function RetrievalPanel(data) {
+  const ship = ui.staged && data.ships.find((s) => s.id === ui.staged.id);
+  if (!ship) {
+    return Section({ title: 'Retrieve', fill: true },
+      NoticeBox('The pad is clear. Pick a ship in the Garage and choose Retrieve to pad.', { info: true })
+      + Button({ icon: 'warehouse', content: 'Open garage', act: 'set_tab', args: { tab: 'GARAGE' } }));
+  }
+  const pick = ui.staged.insured;
+  const option = (insured) => {
+    const fee = insured ? ship.quote.insured : ship.quote.uninsured;
+    const short = data.ledgerBalance < fee;
+    const rule = insured
+      ? `If the hull is lost, the garage keeps revision ${ship.revision}. Filing it again refunds the fee against storage.`
+      : 'If the hull is lost, or not filed before the shift ends, the ship is gone for good.';
+    return Button({
+      fluid: true, selected: pick === insured, act: 'select_coverage', args: { insured }, disabled: short, mb: 0.5,
+      tooltip: short ? `Not enough credits. You need ${credits(fee)}.` : rule,
+      content: `${Icon(insured ? 'shield-alt' : 'exclamation-triangle')} ${insured ? 'Insured' : 'Uninsured'} ${Box(credits(fee), { inline: true, bold: true, ml: 0.5 })}`,
+    });
+  };
+  const fee = pick === null ? null : (pick ? ship.quote.insured : ship.quote.uninsured);
+  const reason = retrieveDisabledReason(data, ship) || (pick === null ? 'Choose coverage first.' : null);
+  const confirm = Button({
+    fluid: true, textAlign: 'center', icon: 'plane-arrival', color: 'good',
+    content: fee === null ? 'Retrieve' : `Retrieve for ${credits(fee)}`,
+    act: 'retrieve', args: { id: ship.id, insured: pick }, disabled: !!reason, tooltip: reason,
+  });
+  return Section({ title: `Retrieve ${esc(ship.name)}`, fill: true, scrollable: true, scrollKey: 'retrieve', buttons: Button({ icon: 'times', content: 'Cancel', act: 'unstage' }) },
+    LabeledList([
+      { label: 'Destination', content: `${esc(data.zone.name)} ${Box(`${data.zone.width} x ${data.zone.height}`, { inline: true, color: 'label' })}` },
+      { label: 'Revision', content: `${ship.revision}, ${ship.tiles} tiles, ${plural(ship.lockboxCount, 'lockbox item')}` },
+      { label: 'Salvage estimate', content: credits(ship.salvageEstimate) },
+      { label: 'Ledger balance', content: credits(data.ledgerBalance) },
+      fee !== null && { label: 'Balance after', content: credits(data.ledgerBalance - fee) },
+    ])
+    + Box('Coverage', { bold: true, mt: 1, mb: 0.5 })
+    + option(true) + option(false)
+    + (pick !== null ? Box(pick
+      ? `If the hull is lost, the garage keeps revision ${ship.revision}. Filing it again refunds the fee against storage.`
+      : 'If the hull is lost, or not filed before the shift ends, the ship is gone for good.', { color: 'label', mb: 1 }) : '')
+    + (pick === false ? NoticeBox(`If ${esc(ship.name)} is not filed before the shift ends, it is marked lost. It keeps its slot until you clear it or rebuild it from a blueprint.`, { color: 'average', mb: 1 }) : '')
+    + confirm);
+}
+
+function PadTabLabel(data) {
+  const occ = data.zone.occupant;
+  if (!data.zone.linked) return `Landing Pad ${Box(Icon('unlink'), { inline: true, color: 'average' })}`;
+  if (occ) return `Landing Pad ${Box(esc(occ.name), { inline: true, color: 'label' })}`;
+  if (ui.staged) return `Landing Pad ${Box(`${Icon('hourglass-half')} retrieval pending`, { inline: true, color: 'average' })}`;
+  return `Landing Pad ${Box('clear', { inline: true, color: 'label' })}`;
+}
+
+function Interface(data) {
+  if (!data.authenticated) return LoginView(data);
+  const tabs = Tabs([
+    { icon: 'plane-arrival', content: PadTabLabel(data), selected: ui.tab === 'PAD', act: 'set_tab', args: { tab: 'PAD' } },
+    { icon: 'warehouse', content: `Garage ${Box(`${data.slots.used} / ${data.slots.total}`, { inline: true, color: 'label' })}`, selected: ui.tab === 'GARAGE', act: 'set_tab', args: { tab: 'GARAGE' } },
+  ]);
+  let body;
+  switch (ui.tab) {
+    case 'PAD': body = PadTab(data); break;
+    case 'GARAGE': body = GarageTab(data); break;
+    default: throw new Error(`unhandled tab ${ui.tab}`);
+  }
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({}, HeaderView(data)),
+    StackItem({}, tabs),
+    StackItem({ grow: 1 }, body),
+  ]);
+}
+
+function WindowFrame(title, content, overlay) {
+  return `<div class="theme-nanotrasen"><div class="Layout Window">`
+    + `<div class="TitleBar"><div class="TitleBar__dragZone"></div>${Icon('eye', { className: 'TitleBar__statusIcon', color: 'good' })}`
+    + `<div class="TitleBar__title">${title}</div>`
+    + `<div class="TitleBar__close">${Icon('times', { className: 'TitleBar__close--icon' })}</div></div>`
+    + `<div class="Window__rest"><div class="Layout__content Window__content">`
+    + `<div class="Window__contentPadding">${content}</div></div>${overlay || ''}</div></div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Prototype-only controls: world events and scenarios the UI cannot cause.
+// ---------------------------------------------------------------------------
+const PRESETS = {
+  logged_out: { group: 'Session', label: 'Logged out', apply: (sv) => { sv.authenticated = false; } },
+  registry_offline: { group: 'Session', label: 'Registry offline', apply: (sv) => { sv.registryOnline = false; } },
+  ledger_offline: { group: 'Session', label: 'Ledger offline', apply: (sv) => { sv.ledgerOnline = false; sv.surveyed = true; } },
+  no_zone: { group: 'Pad', label: 'No zone linked', apply: (sv) => { sv.zoneLinked = false; } },
+  empty_pad: { group: 'Pad', label: 'Empty pad', apply: (sv) => { sv.occupant = null; } },
+  own_hull: { group: 'Pad', label: 'Own hull, not surveyed', apply: () => {} },
+  surveyed: { group: 'Pad', label: 'Surveyed, with losses', apply: (sv) => { sv.surveyed = true; } },
+  first_filing: { group: 'Pad', label: 'First filing (new print)', apply: (sv) => { sv.occupant = { ...OCCUPANTS.fresh }; sv.surveyed = true; } },
+  large_hull: { group: 'Pad', label: 'Large hull (48 x 30)', apply: (sv) => { sv.occupant = { ...OCCUPANTS.freighter }; sv.surveyed = true; ui.open.footprint = true; } },
+  ...Object.fromEntries(Object.keys(REFUSAL_OCCUPANTS).map((code) => [`refusal_${code}`, {
+    group: 'Refusals', label: code.replace(/_/g, ' '), apply: (sv) => { sv.occupant = { ...REFUSAL_OCCUPANTS[code] }; sv.surveyed = true; },
+  }])),
+  mixed_garage: { group: 'Garage', label: 'Mixed garage', apply: (sv) => { sv.occupant = null; ui.tab = 'GARAGE'; } },
+  empty_garage: { group: 'Garage', label: 'Empty garage', apply: (sv) => { sv.rows = []; sv.occupant = { ...OCCUPANTS.fresh }; ui.tab = 'GARAGE'; } },
+  garage_full: { group: 'Garage', label: 'Full, new hull on pad', apply: (sv) => { sv.slotBase = 5; sv.occupant = { ...OCCUPANTS.fresh }; sv.surveyed = true; } },
+  over_limit: { group: 'Garage', label: 'Over the slot limit', apply: (sv) => { sv.rows = garageRows(8); sv.occupant = null; ui.tab = 'GARAGE'; } },
+  over_limit_refile: { group: 'Garage', label: 'Over limit, refile refused', apply: (sv) => { sv.rows = garageRows(8); sv.surveyed = true; } },
+  grants: { group: 'Garage', label: 'Donator + event grants', apply: (sv) => { sv.slotGrants = GRANTS_DEMO.map((g) => ({ ...g })); sv.rows = [...garageRows(5), { ...AWARDED_ROW }]; sv.occupant = null; ui.tab = 'GARAGE'; } },
+  lost_selected: { group: 'Lost ships', label: 'Lost ship selected', apply: (sv) => { sv.occupant = null; ui.tab = 'GARAGE'; ui.selected = 5; } },
+  blueprint_printed: { group: 'Lost ships', label: 'Blueprint printed', apply: (sv) => { sv.occupant = null; ui.tab = 'GARAGE'; ui.selected = 5; ACTIONS.print_blueprint({ id: 5 }); } },
+  rebuilt_on_pad: { group: 'Lost ships', label: 'Rebuilt hull on pad', apply: (sv) => { sv.rows.find((r) => r.id === 5).blueprintPrinted = true; sv.occupant = { ...OCCUPANTS.rebuilt }; sv.surveyed = true; } },
+  no_renderer: { group: 'Garage', label: 'Renderer missing (silhouettes)', apply: (sv) => { sv.rendererOnline = false; sv.occupant = null; ui.tab = 'GARAGE'; } },
+  low_balance: { group: 'Garage', label: 'Low balance', apply: (sv) => { sv.balance = 300; sv.occupant = { ...OCCUPANTS.fresh }; sv.surveyed = true; } },
+  staged: { group: 'Retrieval', label: 'Staged on pad tab', apply: (sv) => { sv.occupant = null; ui.staged = { id: 1, insured: null }; } },
+  staged_insured: { group: 'Retrieval', label: 'Staged, insured picked', apply: (sv) => { sv.occupant = null; ui.staged = { id: 1, insured: true }; } },
+  staged_blocked: { group: 'Retrieval', label: 'Staged, pad occupied', apply: () => { ui.staged = { id: 1, insured: null }; } },
+  retrieve_success: { group: 'Retrieval', label: 'Retrieve success', apply: (sv) => { sv.occupant = null; ACTIONS.retrieve({ id: 1, insured: true }); } },
+  retrieve_refused: { group: 'Retrieval', label: 'Hull too large', apply: (sv) => { sv.occupant = null; sv.failNextRetrieve = true; ACTIONS.retrieve({ id: 1, insured: true }); } },
+};
+
+const TOGGLES = {
+  reg: (v) => { server.registryOnline = v === '1'; },
+  ledger: (v) => { server.ledgerOnline = v === '1'; },
+  zone: (v) => { server.zoneLinked = v === '1'; },
+  balance: (v) => { server.balance = Number(v); },
+  garage: (v) => { server.rows = garageRows(Number(v)); },
+  fail: (v) => { server.failNextRetrieve = v === '1'; },
+  slots: (v) => { server.slotBase = Number(v); },
+  grants: (v) => { server.slotGrants = v === '1' ? GRANTS_DEMO.map((g) => ({ ...g })) : []; },
+  renderer: (v) => { server.rendererOnline = v === '1'; },
+  tab: (v) => { ui.tab = v; },
+  frame: (v) => { ui.frame = Number(v); },
+  height: (v) => { ui.frameHeight = Number(v); },
+  open: (v) => { for (const key of v.split(',')) ui.open[key] = true; },
+};
+
+function applyPreset(id) {
+  server = freshServer();
+  // Window size is a viewing choice, so it survives scenario switches.
+  const overrides = Object.fromEntries(Object.entries(ui.overrides).filter(([k]) => k === 'frame' || k === 'height'));
+  Object.assign(ui, UI_DEFAULTS(), { preset: id, overrides });
+  PRESETS[id].apply(server);
+}
+
+function setOverride(key, value) {
+  ui.overrides[key] = String(value);
+  TOGGLES[key](String(value));
+}
+
+const PROTO_ACTIONS = {
+  p_preset: ({ id }) => applyPreset(id),
+  p_toggle: ({ key, value }) => setOverride(key, value),
+  p_reset: () => applyPreset('surveyed'),
+};
+
+function ProtoStrip() {
+  const b = (content, act, args, extra = {}) => Button({ content, act, args, ...extra });
+  const groups = {};
+  for (const [id, p] of Object.entries(PRESETS)) {
+    (groups[p.group] ||= []).push(b(p.label, 'p_preset', { id }, { selected: ui.preset === id }));
+  }
+  const flag = (label, key, on) => b(label, 'p_toggle', { key, value: on ? 0 : 1 }, { selected: on, icon: on ? 'check-square' : 'square-o' });
+  const choice = (key, values, current, fmt = String) => values.map((v) => b(fmt(v), 'p_toggle', { key, value: v }, { selected: current === v })).join('');
+  return `<h4>Prototype controls (scenarios, not part of the UI)</h4>`
+    + Object.entries(groups).map(([g, btns]) => `<div class="row"><span class="lbl">${g}</span>${btns.join('')}</div>`).join('')
+    + `<div class="row"><span class="lbl">World state</span>`
+    + flag('Registry online', 'reg', server.registryOnline) + flag('Ledger online', 'ledger', server.ledgerOnline)
+    + flag('Zone linked', 'zone', server.zoneLinked) + flag('Next retrieve fails', 'fail', server.failNextRetrieve)
+    + flag('Hull renderer', 'renderer', server.rendererOnline) + '</div>'
+    + `<div class="row"><span class="lbl">Base garage slots</span>${choice('slots', [3, 5, 6, 9], server.slotBase)}`
+    + flag('Donator + event grants', 'grants', server.slotGrants.length > 0) + '</div>'
+    + `<div class="row"><span class="lbl">Ledger balance</span>${choice('balance', [0, 300, 25000], server.balance, credits)}</div>`
+    + `<div class="row"><span class="lbl">Garage rows</span>${choice('garage', [0, 3, 5, 12], server.rows.length)}</div>`
+    + `<div class="row"><span class="lbl">Window width</span>${choice('frame', [720, 560], ui.frame, (v) => `${v} px`)}</div>`
+    + `<div class="row"><span class="lbl">Window height</span>${choice('height', [620, 900, 1200], ui.frameHeight, (v) => `${v} px`)}</div>`
+    + `<div class="row">${b('Reset', 'p_reset', {}, { icon: 'undo' })}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering, input, deep links
+// ---------------------------------------------------------------------------
+const root = document.getElementById('root');
+const frame = document.getElementById('frame');
+const proto = document.getElementById('proto');
+const tooltip = document.getElementById('proto-tooltip');
+
+function writeHash() {
+  const h = new URLSearchParams({ preset: ui.preset, ...ui.overrides });
+  history.replaceState(null, '', `#${h}`);
+}
+
+function render() {
+  const scroll = {};
+  root.querySelectorAll('[data-scroll]').forEach((el) => { scroll[el.dataset.scroll] = el.scrollTop; });
+  frame.style.width = `${ui.frame}px`;
+  frame.style.height = `${ui.frameHeight}px`;
+  const data = uiData();
+  root.innerHTML = WindowFrame('Vessel Registrar', Interface(data));
+  root.querySelectorAll('[data-scroll]').forEach((el) => { el.scrollTop = scroll[el.dataset.scroll] || 0; });
+  proto.innerHTML = ProtoStrip();
+  tooltip.style.display = 'none';
+  writeHash();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) { if (ui.confirm) { ui.confirm = null; render(); } return; }
+  const name = el.dataset.act;
+  const args = JSON.parse(el.dataset.args || '{}');
+  if (name === '__confirm') {
+    if (ui.confirm === args.key) { ui.confirm = null; act(args.act, args.args); } else { ui.confirm = args.key; render(); }
+    return;
+  }
+  ui.confirm = null;
+  act(name, args);
+});
+
+document.addEventListener('pointerover', (e) => {
+  const el = e.target.closest('[data-tooltip]');
+  if (!el) { tooltip.style.display = 'none'; return; }
+  tooltip.textContent = el.dataset.tooltip;
+  tooltip.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  const t = tooltip.getBoundingClientRect();
+  tooltip.style.left = `${Math.min(r.left, window.innerWidth - t.width - 8)}px`;
+  tooltip.style.top = `${r.bottom + t.height + 6 > window.innerHeight ? r.top - t.height - 6 : r.bottom + 6}px`;
+});
+
+// e.g. #preset=low_balance&garage=12&frame=560&open=footprint,lockbox
+function applyHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  applyPreset(PRESETS[h.get('preset')] ? h.get('preset') : 'surveyed');
+  for (const [key, value] of h) {
+    if (TOGGLES[key]) setOverride(key, value);
+  }
+}
+
+applyHash();
+render();
+</script>
+</body>
+</html>

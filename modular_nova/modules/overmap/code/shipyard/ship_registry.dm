@@ -14,7 +14,8 @@
 #define PLAYER_SHIPS_TABLE_NAME "player_ships"
 
 /// The shared projection, so every read builds a record the same way.
-#define SHIP_RECORD_COLUMNS "id, owner_uuid, ckey, ship_name, revision, map_path, map_checksum, tile_count, salvage_estimate, lockbox, status, insured, insurance_fee_paid, filed_round_id, retrieved_round_id"
+// MariaDB stores JSON as utf8mb4_bin LONGTEXT, which the driver hands back as bytes rather than text.
+#define SHIP_RECORD_COLUMNS "id, owner_uuid, ckey, ship_name, revision, map_path, map_checksum, tile_count, salvage_estimate, CAST(lockbox AS CHAR) AS lockbox, status, insured, insurance_fee_paid, filed_round_id, retrieved_round_id, grant_id"
 
 GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 
@@ -43,10 +44,12 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	var/filed_round_id
 	var/retrieved_round_id
 	var/deleted = FALSE
+	/// The slot grant an awarded ship arrived with, or null for a bought or built one.
+	var/grant_id
 
 /datum/player_ship_record/proc/copy()
 	var/datum/player_ship_record/duplicate = new()
-	for(var/var_name in list("id", "owner_uuid", "ckey", "ship_name", "revision", "map_path", "map_checksum", "tile_count", "salvage_estimate", "status", "insured", "insurance_fee_paid", "filed_round_id", "retrieved_round_id", "deleted"))
+	for(var/var_name in list("id", "owner_uuid", "ckey", "ship_name", "revision", "map_path", "map_checksum", "tile_count", "salvage_estimate", "status", "insured", "insurance_fee_paid", "filed_round_id", "retrieved_round_id", "deleted", "grant_id"))
 		duplicate.vars[var_name] = vars[var_name]
 	duplicate.stored_contents = deep_copy_list(stored_contents)
 	return duplicate
@@ -80,6 +83,9 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	/// id -> /datum/player_ship_record
 	var/list/memory_rows = list()
 	var/next_memory_id = 1
+	/// Record ids whose rebuild blueprint has been printed this shift. Round-local
+	/// on purpose: the limit is one print per shift, not one ever.
+	var/list/blueprints_printed = list()
 
 /datum/ship_registry/New()
 	. = ..()
@@ -121,6 +127,42 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	for(var/datum/player_ship_record/record as anything in records)
 		resolve_stale_checkout(record)
 	return records
+
+/**
+ * How many garage slots a player's ships take up, across every character.
+ *
+ * Slots are a ckey pool, so this counts every row the player holds rather than
+ * one character's. Lost rows count: a lost ship keeps its slot until the owner
+ * clears it. A row whose first filing never landed has no hull and does not.
+ */
+/datum/ship_registry/proc/count_for_ckey(owner_ckey)
+	owner_ckey = ckey(owner_ckey)
+	if(!owner_ckey || !is_online())
+		return 0
+	if(use_memory_store)
+		var/count = 0
+		for(var/id in memory_rows)
+			var/datum/player_ship_record/row = memory_rows[id]
+			if(row.ckey == owner_ckey && !row.deleted && length(row.map_path))
+				count++
+		return count
+	var/datum/db_query/query = SSdbcore.NewQuery(
+		"SELECT COUNT(*) FROM [format_table_name(PLAYER_SHIPS_TABLE_NAME)] \
+		WHERE ckey = :ckey AND deleted = 0 AND map_path <> ''",
+		list("ckey" = owner_ckey),
+	)
+	var/count = 0
+	if(query.warn_execute() && query.NextRow())
+		count = text2num("[query.item[1]]") || 0
+	qdel(query)
+	return count
+
+/// Mark a record's rebuild blueprint as printed for this shift.
+/datum/ship_registry/proc/note_blueprint_printed(record_id)
+	blueprints_printed["[record_id]"] = TRUE
+
+/datum/ship_registry/proc/blueprint_printed(record_id)
+	return !!blueprints_printed["[record_id]"]
 
 /// One record by id, or null. Owner is checked here so a spoofed console action
 /// cannot reach a ship the logged-in operator does not own.
@@ -181,10 +223,11 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
  * a moment where a record exists with no map behind it. `map_path` stays empty
  * until the write lands, which is what keeps the row out of every listing.
  */
-/datum/ship_registry/proc/insert_record(owner_uuid, owner_ckey, ship_name)
+/datum/ship_registry/proc/insert_record(owner_uuid, owner_ckey, ship_name, grant_id = null)
 	if(!owner_uuid || !is_online())
 		return null
 	ship_name = copytext(ship_name || "Unnamed vessel", 1, 64)
+	grant_id = text2num("[grant_id]")
 	if(use_memory_store)
 		var/datum/player_ship_record/row = new()
 		row.id = next_memory_id++
@@ -192,16 +235,18 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		row.ckey = ckey(owner_ckey)
 		row.ship_name = ship_name
 		row.filed_round_id = shipyard_current_round_id()
+		row.grant_id = grant_id
 		memory_rows["[row.id]"] = row
 		return row.id
 	var/datum/db_query/query = SSdbcore.NewQuery(
-		"INSERT INTO [format_table_name(PLAYER_SHIPS_TABLE_NAME)] (owner_uuid, ckey, ship_name, filed_round_id) \
-		VALUES (:owner, :ckey, :ship_name, :round_id)",
+		"INSERT INTO [format_table_name(PLAYER_SHIPS_TABLE_NAME)] (owner_uuid, ckey, ship_name, filed_round_id, grant_id) \
+		VALUES (:owner, :ckey, :ship_name, :round_id, :grant_id)",
 		list(
 			"owner" = owner_uuid,
 			"ckey" = ckey(owner_ckey) || "",
 			"ship_name" = ship_name,
 			"round_id" = shipyard_current_round_id(),
+			"grant_id" = grant_id,
 		),
 	)
 	if(!query.warn_execute())
@@ -349,15 +394,18 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	record.tile_count = text2num("[query.item[8]]") || 0
 	record.salvage_estimate = text2num("[query.item[9]]") || 0
 	var/lockbox_json = query.item[10]
-	if(lockbox_json)
+	if(istext(lockbox_json) && rustg_json_is_valid(lockbox_json))
 		var/list/decoded = json_decode(lockbox_json)
 		if(islist(decoded))
 			record.stored_contents = shipyard_decode_roster(decoded)
+	else if(!isnull(lockbox_json))
+		log_runtime("Ship registry: record [record.id] has an unreadable lockbox ([lockbox_json]); reading it as empty.")
 	record.status = query.item[11]
 	record.insured = !!text2num("[query.item[12]]")
 	record.insurance_fee_paid = text2num("[query.item[13]]") || 0
 	record.filed_round_id = text2num("[query.item[14]]")
 	record.retrieved_round_id = text2num("[query.item[15]]")
+	record.grant_id = text2num("[query.item[16]]")
 	return record
 
 /// JSON carries type paths as text; hand them back as paths.

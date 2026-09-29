@@ -63,6 +63,61 @@
 			return port
 	return null
 
+/**
+ * A one-shot stationary port centered in this zone for `shuttle`, facing the
+ * zone's `exit_direction` (or the shuttle's current heading when the zone has
+ * none), so the hull is rotated to launch out of the bay. The one landing path
+ * shared by the helm, the registrar and the broker. Null when the shuttle does
+ * not fit, the zone is occupied, or the footprint is blocked. The port deletes
+ * itself after the shuttle next departs.
+ */
+/obj/effect/landmark/overmap_landing_zone/proc/create_landing_port(obj/docking_port/mobile/shuttle)
+	if(!shuttle || get_occupant(shuttle))
+		return null
+	var/obj/docking_port/stationary/port = new()
+	port.unregister()
+	port.delete_after = TRUE
+	port.name = zone_name
+	port.shuttle_id = "[shuttle.shuttle_id]_lz"
+	port.width = shuttle.width
+	port.height = shuttle.height
+	port.dwidth = shuttle.dwidth
+	port.dheight = shuttle.dheight
+	port.register(TRUE)
+	port.setDir((exit_direction in GLOB.cardinals) ? exit_direction : shuttle.dir)
+	port.forceMove(get_turf(src))
+	var/turf/dest = overmap_centered_dock_turf(port, get_turf(src), zone_width, zone_height)
+	if(!dest)
+		qdel(port)
+		return null
+	port.forceMove(dest)
+	if(!shuttle.check_dock(port, TRUE) || !SSovermap.dock_footprint_is_clear(port))
+		qdel(port)
+		return null
+	return port
+
+/**
+ * Where `port` must stand for its footprint, in its current dir, to sit centered
+ * in the `width` x `height` rectangle whose bottom-left is `origin`. `port` only
+ * has to be on the map somewhere so its footprint can be measured around it.
+ * Null when it does not fit.
+ */
+/proc/overmap_centered_dock_turf(obj/docking_port/port, turf/origin, width, height)
+	if(!port || !origin || !port.x)
+		return null
+	var/list/bounds = port.return_coords()
+	var/bbox_x1 = min(bounds[1], bounds[3])
+	var/bbox_y1 = min(bounds[2], bounds[4])
+	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
+	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
+	if(ship_w > width || ship_h > height)
+		return null
+	return locate(
+		origin.x + round((width - ship_w) / 2) + port.x - bbox_x1,
+		origin.y + round((height - ship_h) / 2) + port.y - bbox_y1,
+		origin.z,
+	)
+
 /// Returns TRUE if the given bounding box (x1,y1 to x2,y2) is entirely within this zone.
 /obj/effect/landmark/overmap_landing_zone/proc/contains_bbox(x1, y1, x2, y2, check_z)
 	if(check_z != z)

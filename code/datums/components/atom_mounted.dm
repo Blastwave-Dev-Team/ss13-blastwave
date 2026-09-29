@@ -2,6 +2,19 @@
 /datum/component/atom_mounted
 	/// The closed turf our object is currently linked to.
 	var/atom/hanging_support_atom
+	/// Detach/remount across shuttle moves. Remembered so Unregister matches
+	/// what Register attached, even if the area type changes later.
+	var/uses_shuttle_hooks = FALSE
+
+/// TRUE when this atom should detach before a shuttle move. Area type alone
+/// misses a hull tile that still has a mobile port but is not `/area/shuttle`
+/// (or the reverse after a pad remount).
+/proc/atom_mounted_uses_shuttle_hooks(atom/target)
+	if(!target)
+		return FALSE
+	if(is_area_shuttle(get_area(target)))
+		return TRUE
+	return !!SSshuttle?.get_containing_shuttle(target)
 
 /datum/component/atom_mounted/Initialize(target_structure)
 	if(!isobj(parent) || !isatom(target_structure))
@@ -17,14 +30,15 @@
 
 /datum/component/atom_mounted/RegisterWithParent()
 	ADD_TRAIT(parent, TRAIT_WALLMOUNTED, INNATE_TRAIT)
-	if(is_area_shuttle(get_area(parent)))
+	uses_shuttle_hooks = atom_mounted_uses_shuttle_hooks(parent)
+	if(uses_shuttle_hooks)
 		RegisterSignal(parent, COMSIG_ATOM_BEFORE_SHUTTLE_MOVE, PROC_REF(detach))
 	RegisterSignal(parent, COMSIG_MOVABLE_MOVED, PROC_REF(on_move))
 
 /datum/component/atom_mounted/UnregisterFromParent()
 	REMOVE_TRAIT(parent, TRAIT_WALLMOUNTED, INNATE_TRAIT)
 	var/list/signals = list(COMSIG_MOVABLE_MOVED)
-	if(is_area_shuttle(get_area(parent)))
+	if(uses_shuttle_hooks)
 		signals += COMSIG_ATOM_BEFORE_SHUTTLE_MOVE
 	UnregisterSignal(parent, signals)
 
@@ -152,6 +166,14 @@
 
 	return attachables
 
+/// A shuttle fixture must hang on that shuttle, not the hangar wall it is
+/// parked against. Takeoff otherwise rips the mount off and drops a frame.
+/obj/proc/atom_mounted_valid_support(atom/support)
+	var/obj/docking_port/mobile/our_shuttle = SSshuttle?.get_containing_shuttle(src)
+	if(!our_shuttle)
+		return TRUE
+	return SSshuttle.get_containing_shuttle(support) == our_shuttle
+
 /**
  * Finds an support atom to hang this object on. If you need to mount the object on Late Initialize
  * then pass TRUE inside Initialize() but not in LateInitialize().
@@ -186,9 +208,9 @@
 				if(is_type_in_list(attachable, attachables))
 					attachable_atom = attachable
 					break
-		if(attachable_atom)
+		if(attachable_atom && atom_mounted_valid_support(attachable_atom))
 			AddComponent(/datum/component/atom_mounted, attachable_atom)
-			if(is_area_shuttle(location))
+			if(atom_mounted_uses_shuttle_hooks(src))
 				RegisterSignal(src, COMSIG_ATOM_AFTER_SHUTTLE_MOVE, PROC_REF(remount), override = TRUE)
 			return TRUE
 		if(msg)
