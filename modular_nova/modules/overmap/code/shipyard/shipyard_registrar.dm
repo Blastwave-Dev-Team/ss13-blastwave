@@ -33,6 +33,9 @@
 	var/list/cached_refusal
 	var/datum/weakref/refusal_hull
 	COOLDOWN_DECLARE(refusal_recheck)
+	/// Survey walks every object aboard without yielding, so clicks sent while it
+	/// runs are queued and arrive after it has finished; this swallows them.
+	COOLDOWN_DECLARE(survey_repeat)
 
 /obj/machinery/computer/ship_registrar/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
@@ -216,8 +219,11 @@
 			refresh_session()
 			return TRUE
 		if("survey")
+			if(!COOLDOWN_FINISHED(src, survey_repeat))
+				return FALSE
 			session.status_message = null
 			run_survey(docked_hull(), active_zone())
+			COOLDOWN_START(src, survey_repeat, 5 SECONDS)
 			return TRUE
 		if("file")
 			session.status_message = null
@@ -272,6 +278,13 @@
  * of loose cargo to a single click.
  */
 /obj/machinery/computer/ship_registrar/proc/run_survey(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
+	if(!session.begin_busy("Surveying [hull?.name || "the vessel"]..."))
+		return FALSE
+	. = do_run_survey(hull, zone)
+	session.end_busy()
+
+/obj/machinery/computer/ship_registrar/proc/do_run_survey(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
+	PRIVATE_PROC(TRUE)
 	survey = null
 	surveyed_hull = null
 	if(!hull)

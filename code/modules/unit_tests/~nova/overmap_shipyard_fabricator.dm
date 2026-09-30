@@ -1717,6 +1717,32 @@
 	TEST_ASSERT(plating.satisfied(decked), "A resumed build should still find its hull under a finished deck.")
 	TEST_ASSERT(deck.satisfied(decked), "A finished deck should not be tiled a second time.")
 
+/// A printed wall stands on the hull plating, so tearing it down leaves the tile
+/// in the ship instead of dropping it through to the pad.
+/datum/unit_test/overmap_shipyard_fabricator/wall_teardown
+
+/datum/unit_test/overmap_shipyard_fabricator/wall_teardown/Run()
+	var/turf/pad = get_step(run_loc_floor_top_right, SOUTH)
+	TEST_ASSERT(!shipyard_hull_turf(pad), "Wall teardown test requires a pad no earlier test built a hull on.")
+	var/datum/ship_plan_op/rods = new(SHIPYARD_PHASE_RODS, 0, 0, SHIPYARD_OP_RODS, /turf/open/floor/plating)
+	var/datum/ship_plan_op/plating = new(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating)
+	var/datum/ship_plan_op/girder = new(SHIPYARD_PHASE_FRAMES, 0, 0, SHIPYARD_OP_GIRDER, /obj/structure/girder)
+	var/datum/ship_plan_op/wall = new(SHIPYARD_PHASE_STRUCTURE, 0, 0, SHIPYARD_OP_TURF, /turf/closed/wall)
+
+	TEST_ASSERT_EQUAL(rods.execute_rods(pad), TRUE, "Frame rods should anchor on the landing pad.")
+	TEST_ASSERT_EQUAL(plating.execute_plating(pad), TRUE, "Hull plating should cover the rods.")
+	var/obj/docking_port/mobile/hull = allocate(/obj/docking_port/mobile, pad)
+	insert_shuttle_skipover(pad)
+	SEND_SIGNAL(pad, COMSIG_TURF_ADDED_TO_SHUTTLE, hull)
+	TEST_ASSERT_EQUAL(girder.execute_girder(pad), TRUE, "A girder should go up on the hull plating.")
+	TEST_ASSERT_EQUAL(wall.execute_wall(pad), TRUE, "The wall should be raised on the girder.")
+	var/turf/walled = get_turf(pad)
+	TEST_ASSERT(istype(walled, /turf/closed/wall), "The wall should be the turf the blueprint mapped, got [walled.type].")
+
+	var/turf/torn_down = walled.ScrapeAway()
+	TEST_ASSERT(istype(torn_down, /turf/open/floor/plating), "Tearing down a printed wall should leave hull plating, got [torn_down.type].")
+	TEST_ASSERT(shipyard_hull_turf(torn_down), "Tearing down a printed wall should leave the tile in the ship.")
+
 /// Decks are billed for the tile they are laid with, the hull layer is never
 /// tiled over itself, and paint is applied after the floor it sits on.
 /datum/unit_test/overmap_shipyard_fabricator/deck_manifest
