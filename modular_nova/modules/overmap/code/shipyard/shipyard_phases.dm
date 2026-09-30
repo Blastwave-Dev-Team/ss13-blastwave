@@ -252,12 +252,14 @@
 		return execute_wall(work_turf)
 	return execute_deck(work_turf, oriented_vars)
 
+/// Stacked on the hull plating like a crew-built wall, so tearing it down leaves
+/// the tile in the ship rather than scraping through the skipover to the pad.
 /datum/ship_plan_op/proc/execute_wall(turf/work_turf)
 	var/obj/structure/girder/girder = locate() in work_turf
 	if(!girder)
 		return "Wall construction requires a girder."
 	qdel(girder)
-	work_turf.ChangeTurf(target_path, null, CHANGETURF_INHERIT_AIR)
+	work_turf.place_on_top(target_path, flags = CHANGETURF_INHERIT_AIR)
 	return istype(get_turf(work_turf), target_path) ? TRUE : "Wall construction failed."
 
 /**

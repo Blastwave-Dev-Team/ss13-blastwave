@@ -281,6 +281,8 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 	/// Read in reverse by `describe()` to re-emit helpers a teardown cannot
 	/// otherwise recover, since a helper deletes itself once it has fired.
 	var/list/helper_reversal
+	/// Target type to the `helper_reversal` vars it declares.
+	var/list/reversal_vars_by_type = list()
 	/// Construction phase for direct generation and placement.
 	var/phase = SHIPYARD_PHASE_FINAL
 	/// Suppress a standalone terminal when its tile already contains an APC.
@@ -423,8 +425,8 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 
 	var/list/described_vars = list()
 	var/list/described_helpers = list()
-	for(var/var_name in helper_reversal)
-		if(!(var_name in target.vars) || !target.vars[var_name])
+	for(var/var_name in helper_reversal_vars(target))
+		if(!target.vars[var_name])
 			continue
 		described_helpers += list(list("path" = helper_reversal[var_name], "vars" = list()))
 	target.shipyard_describe(described_vars, described_helpers)
@@ -433,6 +435,19 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		"vars" = described_vars,
 		"helpers" = described_helpers,
 	)
+
+/// `helper_reversal` narrowed to the vars this target's type declares, worked out
+/// once per type rather than by rebuilding its `vars` list on every describe.
+/datum/shipyard_route/proc/helper_reversal_vars(atom/target)
+	var/list/names = reversal_vars_by_type[target.type]
+	if(names)
+		return names
+	names = list()
+	for(var/var_name in helper_reversal)
+		if(var_name in target.vars)
+			names += var_name
+	reversal_vars_by_type[target.type] = names
+	return names
 
 /// Spawner path to the concrete types it expands into, for collapsing a
 /// standing set of structures back into the single entry a mapper wrote.

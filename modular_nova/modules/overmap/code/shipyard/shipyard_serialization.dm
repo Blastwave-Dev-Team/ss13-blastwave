@@ -14,16 +14,14 @@
  * so the knowledge lives on the type rather than in a serializer registry.
  */
 /atom/proc/shipyard_describe(list/described_vars, list/described_helpers)
-	for(var/var_name in shipyard_mapped_var_allowlist())
-		if(!(var_name in vars))
-			continue
+	for(var/var_name in shipyard_describable_vars())
 		// A smoothed atom rewrites its own appearance from its neighbours on
 		// every load, so recording the result bakes one arrangement of
 		// neighbours into a hull that will be rebuilt somewhere else.
 		if(smoothing_flags && (var_name == "icon" || var_name == "icon_state"))
 			continue
 		var/value = vars[var_name]
-		if(isnull(value) || !issaved(vars[var_name]))
+		if(isnull(value))
 			continue
 		if(islist(value))
 			var/list/list_value = value
@@ -34,6 +32,24 @@
 		if(value == initial(vars[var_name]))
 			continue
 		described_vars[var_name] = value
+
+/**
+ * The allowlisted vars this type declares and would save, worked out once per type.
+ *
+ * Declaration is fixed per type, and testing membership against `vars` rebuilds
+ * that list every time, which was most of what a survey spent.
+ */
+/atom/proc/shipyard_describable_vars()
+	var/static/list/by_type = list()
+	var/list/names = by_type[type]
+	if(names)
+		return names
+	names = list()
+	for(var/var_name in shipyard_mapped_var_allowlist())
+		if((var_name in vars) && issaved(vars[var_name]))
+			names += var_name
+	by_type[type] = names
+	return names
 
 /// The mapped link name, with this hull's `shuttle_id` prefix taken back off.
 /// `connect_to_shuttle()` adds that prefix on every load, so writing the live
