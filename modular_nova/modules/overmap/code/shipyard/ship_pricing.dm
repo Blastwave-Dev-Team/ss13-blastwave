@@ -152,17 +152,17 @@
  * A stored lockbox roster appraised at today's prices.
  *
  * Priced again on every call rather than remembered from filing, so that an
- * export repricing moves what a stored ship is worth. The roster only holds type
- * paths, so each item is stood up in nullspace just long enough to appraise.
+ * export repricing moves what a stored ship is worth. Each item is stood up in
+ * nullspace, contents and stack size included, just long enough to appraise.
  */
 /proc/shipyard_appraise_roster(list/stored_contents)
 	if(!length(stored_contents))
 		return 0
 	var/list/obj/item/stand_ins = list()
 	for(var/list/entry as anything in stored_contents)
-		var/obj/item/path = entry["path"]
-		if(ispath(path, /obj/item))
-			stand_ins += new path(null)
+		var/obj/item/stand_in = shipyard_restore_roster_entry(entry, null)
+		if(stand_in)
+			stand_ins += stand_in
 	var/list/appraisal = shipyard_appraise_lockbox(stand_ins)
 	QDEL_LIST(stand_ins)
 	return appraisal["total"]

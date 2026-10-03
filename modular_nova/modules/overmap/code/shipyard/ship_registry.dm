@@ -415,7 +415,12 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		var/path = text2path("[entry["path"]]")
 		if(!ispath(path, /obj/item))
 			continue
-		roster += list(list("path" = path, "name" = entry["name"]))
+		var/list/decoded_entry = list("path" = path, "name" = entry["name"])
+		if(isnum(entry["amount"]))
+			decoded_entry["amount"] = entry["amount"]
+		if(islist(entry["contents"]))
+			decoded_entry["contents"] = shipyard_decode_roster(entry["contents"])
+		roster += list(decoded_entry)
 	return roster
 
 #undef PLAYER_SHIPS_TABLE_NAME

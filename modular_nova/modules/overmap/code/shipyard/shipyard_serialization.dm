@@ -395,3 +395,47 @@ GLOBAL_VAR_INIT(shipyard_decal_index_seeded, FALSE)
 	name = "ship lockbox"
 	desc = "A registry-sealed hold. Whatever is inside it when a vessel is filed away comes back out with the vessel; whatever is not, does not."
 	locked = FALSE
+
+/**
+ * One lockbox item as a roster entry: `list("path", "name")`, plus `"amount"`
+ * for a stack and `"contents"` (more entries) for anything with storage.
+ *
+ * Only what is held in storage is followed. Other contents are the item's own
+ * parts - a gun's pin, a light's cell - which the item builds for itself.
+ */
+/proc/shipyard_roster_entry(obj/item/item)
+	var/list/entry = list("path" = item.type, "name" = item.name)
+	if(isstack(item))
+		var/obj/item/stack/stack = item
+		entry["amount"] = stack.amount
+	var/atom/held_in = item.atom_storage?.real_location
+	if(held_in)
+		var/list/contents = list()
+		for(var/obj/item/held in held_in)
+			contents += list(shipyard_roster_entry(held))
+		entry["contents"] = contents
+	return entry
+
+/**
+ * Build a roster entry back into an item at `destination`.
+ *
+ * A container starts out with whatever it normally spawns holding, so that is
+ * cleared before the roster's own contents go back in; otherwise every load
+ * would hand out a fresh set.
+ */
+/proc/shipyard_restore_roster_entry(list/entry, atom/destination)
+	var/obj/item/path = entry["path"]
+	if(!ispath(path, /obj/item))
+		return null
+	var/obj/item/item
+	if(ispath(path, /obj/item/stack))
+		item = new path(destination, max(entry["amount"], 1), FALSE)
+	else
+		item = new path(destination)
+	var/atom/held_in = item.atom_storage?.real_location
+	if(held_in)
+		for(var/obj/item/spawned in held_in)
+			qdel(spawned)
+		for(var/list/held_entry in entry["contents"])
+			shipyard_restore_roster_entry(held_entry, held_in)
+	return item
