@@ -21,7 +21,8 @@
 
 /obj/docking_port/mobile/custom/Destroy(force)
 	. = ..()
-	qdel(default_area)
+	// BLASTWAVE EDIT CHANGE - the area is queued for GC ahead of us, so a held ref fails its check
+	QDEL_NULL(default_area)
 
 /obj/docking_port/mobile/custom/canMove()
 	return ..() && (current_engine_power > 0)

@@ -51,6 +51,8 @@
 	RegisterSignal(connected_machine, COMSIG_MACHINERY_DEFAULT_ROTATE_WRENCH, PROC_REF(wrenched_connected_machine))
 	RegisterSignal(connected_machine, COMSIG_OBJ_DECONSTRUCT, PROC_REF(deconstruct_connected_machine))
 	RegisterSignal(connected_machine, COMSIG_QDELETING, PROC_REF(destroy_connected_machine))
+	// BLASTWAVE EDIT ADDITION - OVERMAP
+	RegisterSignal(connected_machine, COMSIG_ATOM_AFTER_SHUTTLE_MOVE, PROC_REF(shuttle_moved_connected_machine))
 
 /**
  * Unregister the signals previously registered
@@ -61,8 +63,29 @@
 		COMSIG_MOVABLE_PRE_MOVE,
 		COMSIG_MACHINERY_DEFAULT_ROTATE_WRENCH,
 		COMSIG_OBJ_DECONSTRUCT,
-		COMSIG_QDELETING
+		COMSIG_QDELETING,
+		COMSIG_ATOM_AFTER_SHUTTLE_MOVE, // BLASTWAVE EDIT ADDITION - OVERMAP
 	))
+
+// BLASTWAVE EDIT ADDITION START - OVERMAP
+/// The facing the hidden port should have for the machine's current facing.
+/datum/gas_machine_connector/proc/connector_dir()
+	return connected_machine.dir
+
+/**
+ * The machine carries the connector along before the shuttle reaches the connector's
+ * turf, so the shuttle skips it: a rotated landing leaves the port facing the old way,
+ * half-linked to pipes that were turned. Re-seat it the way a wrench rotation would.
+ * Only when turned, though - re-seating a port that is already linked strands the
+ * pipeline it was in.
+ */
+/datum/gas_machine_connector/proc/shuttle_moved_connected_machine()
+	SIGNAL_HANDLER
+	if(gas_connector.dir == connector_dir())
+		return
+	disconnect_connector()
+	reconnect_connector()
+// BLASTWAVE EDIT ADDITION END
 
 /**
  * Called when the machine has been moved, reconnect to the pipe network
