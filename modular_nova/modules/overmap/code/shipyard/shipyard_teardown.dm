@@ -224,10 +224,7 @@
 /// locker, is left behind when the ship is filed away.
 /datum/ship_teardown/proc/collect_stored_contents(obj/structure/closet/secure_closet/ship_lockbox/lockbox)
 	for(var/obj/item/stored in lockbox)
-		stored_contents += list(list(
-			"path" = stored.type,
-			"name" = stored.name,
-		))
+		stored_contents += list(shipyard_roster_entry(stored))
 		lockbox_items += stored
 
 /// Operator-facing summary of what the walk could and could not account for.

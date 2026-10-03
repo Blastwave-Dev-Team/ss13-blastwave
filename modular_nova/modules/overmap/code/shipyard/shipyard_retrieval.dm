@@ -141,8 +141,9 @@
 	remount_shuttle_wallmounts(hull.return_turfs())
 	return hull
 
-/// Put back what the lockbox was holding when the ship was filed. By type path
-/// only: an item's own state is not part of what a ship remembers yet.
+/// Put back what the lockbox was holding when the ship was filed: each item by
+/// type, with its stack size and whatever its storage held. Any other state an
+/// item had is not part of what a ship remembers yet.
 /proc/shipyard_restore_stored_contents(obj/docking_port/mobile/hull, list/stored_contents)
 	if(!length(stored_contents))
 		return 0
@@ -160,11 +161,8 @@
 		return 0
 	var/restored = 0
 	for(var/list/entry as anything in stored_contents)
-		var/obj/item/path = entry["path"]
-		if(!ispath(path, /obj/item))
-			continue
-		new path(target)
-		restored++
+		if(shipyard_restore_roster_entry(entry, target))
+			restored++
 	return restored
 
 /**

@@ -517,3 +517,28 @@
 	TEST_ASSERT(first.success && !first.duplicate, "The first charge should go through.")
 	TEST_ASSERT(second.duplicate, "The same charge again should be recognised as a replay.")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(owner_uuid), balance_before - 10, "A replayed charge should not be taken twice.")
+
+/// A lockbox roster survives the database with stack sizes and container
+/// contents, and a container holds what it held rather than what it spawns with.
+/datum/unit_test/overmap_ship_persistence/lockbox_roster
+
+/datum/unit_test/overmap_ship_persistence/lockbox_roster/Run()
+	var/obj/item/stack/sheet/iron/iron = allocate(/obj/item/stack/sheet/iron, null, 50)
+	var/obj/item/storage/box/survival/box = allocate(/obj/item/storage/box/survival)
+	var/spawned_count = length(box.contents)
+	TEST_ASSERT(spawned_count > 1, "The fixture box should spawn holding more than one item to tell a refill apart.")
+	for(var/obj/item/spawned in box)
+		qdel(spawned)
+	var/obj/item/pen/pen = allocate(/obj/item/pen)
+	pen.forceMove(box)
+
+	var/list/roster = list(shipyard_roster_entry(iron), shipyard_roster_entry(box))
+	roster = shipyard_decode_roster(json_decode(json_encode(roster)))
+
+	var/obj/item/stack/sheet/iron/restored_iron = shipyard_restore_roster_entry(roster[1], run_loc_floor_top_right)
+	var/obj/item/storage/box/restored_box = shipyard_restore_roster_entry(roster[2], run_loc_floor_top_right)
+	allocated += list(restored_iron, restored_box)
+	TEST_ASSERT_EQUAL(restored_iron?.amount, 50, "A stack of 50 should come back as 50.")
+	var/held_count = length(restored_box?.contents)
+	TEST_ASSERT_EQUAL(held_count, 1, "A box should come back holding what it was filed with, not its spawn contents.")
+	TEST_ASSERT(locate(/obj/item/pen) in restored_box, "The box should still hold its pen.")
