@@ -143,8 +143,9 @@
 		ship.docked = prior_docked
 		return
 
-	var/obj/docking_port/stationary/port = ship.create_landing_zone_port(zones[1])
-	TEST_ASSERT(port, "create_landing_zone_port should succeed for site LZ.")
+	var/obj/effect/landmark/overmap_landing_zone/zone = zones[1]
+	var/obj/docking_port/stationary/port = zone.create_landing_port(ship.shuttle)
+	TEST_ASSERT(port, "create_landing_port should succeed for site LZ.")
 	TEST_ASSERT(SSovermap.dock_footprint_is_clear(port), "Auto LZ port footprint should be clear.")
 	qdel(port)
 

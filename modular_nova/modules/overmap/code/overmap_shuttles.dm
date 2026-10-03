@@ -24,6 +24,24 @@
 /datum/map_template/shuttle/overmap
 	who_can_purchase = null // admin / manipulator only
 
+/datum/map_template/shuttle/overmap/dispatch(list/turfs, register = TRUE)
+	. = ..()
+	fit_loaded_ports_to_hull(turfs)
+
+/**
+ * Size each freshly loaded mobile port to its own shuttle areas, the way
+ * `create_shuttle()` sizes a fabricated hull.
+ *
+ * `dispatch()` sizes a port from its template, which is the whole map with any
+ * space padding around the hull, and a padded port is refused by landing zones
+ * the hull itself fits.
+ */
+/proc/fit_loaded_ports_to_hull(list/turfs)
+	for(var/turf/place as anything in turfs)
+		for(var/obj/docking_port/mobile/port in place)
+			if(length(port.shuttle_areas))
+				port.calculate_docking_port_information()
+
 /datum/map_template/shuttle/overmap/frigate
 	port_id = "overmap_frigate" // parent; skipped (no suffix)
 

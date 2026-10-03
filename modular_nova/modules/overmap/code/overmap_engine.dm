@@ -25,8 +25,11 @@
 	disconnect_connector()
 	reconnect_connector()
 
+/datum/gas_machine_connector/reversed/connector_dir()
+	return turn(connected_machine.dir, 180)
+
 /datum/gas_machine_connector/reversed/reconnect_connector()
-	gas_connector.dir = turn(connected_machine.dir, 180)
+	gas_connector.dir = connector_dir()
 	gas_connector.piping_layer = piping_layer
 	gas_connector.set_init_directions()
 	gas_connector.atmos_init()
