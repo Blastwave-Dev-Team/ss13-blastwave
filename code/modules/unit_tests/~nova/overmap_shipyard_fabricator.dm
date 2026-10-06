@@ -332,7 +332,8 @@
 	TEST_ASSERT_EQUAL(desktop_operation.execute_generated(desk), TRUE, "A table-top shutter button should generate.")
 	var/obj/machinery/button/door/desktop = locate(/obj/machinery/button/door) in desk
 	TEST_ASSERT(istype(desktop), "Generated desktop button should land on the table tile.")
-	TEST_ASSERT_NULL(desktop.GetComponent(/datum/component/atom_mounted), "A table-top shutter button must not hang as a wallmount.")
+	var/datum/component/atom_mounted/desktop_mount = desktop.GetComponent(/datum/component/atom_mounted)
+	TEST_ASSERT(istype(desktop_mount?.hanging_support_atom, /obj/structure/table), "A table-top shutter button should hang on its table, as it does when mapped.")
 	qdel(desktop)
 
 	var/turf/fixture_floor = get_step(desk, EAST)

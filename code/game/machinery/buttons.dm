@@ -65,20 +65,6 @@
 		find_and_mount_on_atom()
 	register_context()
 
-// BLASTWAVE EDIT ADDITION START - OVERMAP - desktop buttons must not hang on tables
-/// A frame-hung button always has a 24px shift toward its support
-/// (`/obj/item/wallframe/button.pixel_shift`). Desktop buttons mapped onto a
-/// table have none; hanging those on the table skips that check, and takeoff
-/// then treats the table as a torn-away wall and drops a frame.
-/obj/machinery/button/find_and_mount_on_atom(mark_for_late_init = FALSE, late_init = FALSE)
-	if(!button_has_wall_offset() && !isclosedturf(loc))
-		return FALSE
-	return ..()
-
-/obj/machinery/button/proc/button_has_wall_offset()
-	return abs(pixel_x) > ICON_SIZE_X / 2 || abs(pixel_y) > ICON_SIZE_Y / 2
-// BLASTWAVE EDIT ADDITION END
-
 /obj/machinery/button/Destroy()
 	QDEL_NULL(device)
 	QDEL_NULL(board)
