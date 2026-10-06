@@ -321,9 +321,6 @@ GLOBAL_LIST_EMPTY(shipyard_board_requirements)
 		if(istype(powered))
 			powered.connect_to_network()
 	// Wall-frame families are hung here because GENERATE skips Initialize(mapload).
-	// find_and_mount itself decides whether this instance is actually a fixture:
-	// a desktop door button shares `/obj/item/wallframe/button` but has no hang
-	// offset, and must not be glued to its table.
 	if(wall_mounted || get_shipyard_wallframe(target.type))
 		var/obj/mountable = target
 		if(isobj(mountable))
@@ -848,9 +845,6 @@ GLOBAL_LIST_INIT(shipyard_spawner_signatures, build_shipyard_spawner_signatures(
 	)
 
 /// Door buttons share the ordinary button frame recipe.
-///
-/// Only directional / offset instances are wall fixtures. NT Personal's shutter
-/// control is the base type sitting on a table; GENERATE must not hang that.
 /datum/shipyard_route/door_button
 	target_type = /obj/machinery/button/door
 	materials = list(/datum/material/iron = SHEET_MATERIAL_AMOUNT)
