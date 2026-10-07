@@ -11,13 +11,9 @@
 	name = "astrogation landing console"
 	desc = "Designates a landing pad on whatever astrogation body the bound shuttle is currently next to."
 	circuit = /obj/item/circuitboard/computer/shuttle/overmap_nav
-	whitelist_turfs = list(
-		/turf/open/space,
-		/turf/open/floor/plating,
-		/turf/open/lava,
-		/turf/open/openspace,
-		/turf/open/misc,
-	)
+	// Empty: parent checkLandingTurf skips the TG whitelist. We blacklist
+	// closed turfs in our override so hangar iron / station decks are landable.
+	whitelist_turfs = list()
 	locked_traits = list(ZTRAIT_RESERVED, ZTRAIT_CENTCOM)
 	/// The mobile docking port this nav is bound to. Set by `link_shuttle()`.
 	var/obj/docking_port/mobile/linked_port
@@ -60,9 +56,11 @@
 		sync_from_ship(ship)
 	. = ..()
 	if(eyeobj && length(target_zones))
-		var/turf/center = target_zones[1].get_center_turf()
+		var/obj/effect/landmark/overmap_landing_zone/zone = target_zones[1]
+		var/turf/center = zone.get_center_turf()
 		if(center)
 			eyeobj.setLoc(center, TRUE)
+		orient_eye_to_zone(zone)
 
 /// Read the ship's pending docking state and configure this console's
 /// z_lock, jump_to_ports, and landing zone cache accordingly.
@@ -129,6 +127,31 @@
 		if(zone.contains_bbox(bounds[1], bounds[2], bounds[3], bounds[4], eyeturf.z))
 			return SHUTTLE_DOCKER_LANDING_CLEAR
 	return SHUTTLE_DOCKER_BLOCKED
+
+/// Parent whitelist is empty; reject closed turfs the same way helm LZ dock does.
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/checkLandingTurf(turf/T, list/overlappers)
+	. = ..()
+	if(. == SHUTTLE_DOCKER_BLOCKED)
+		return
+	var/list/hidden_turf_info
+	if(!see_hidden)
+		hidden_turf_info = SSshuttle.hidden_shuttle_turfs[T]
+	var/turf_type = hidden_turf_info ? hidden_turf_info[2] : T?.type
+	if(SSovermap.dock_landing_turf_type_blocked(turf_type))
+		return SHUTTLE_DOCKER_BLOCKED
+
+/// Turn the docker eye to the first dir that fits `zone`, same order as helm
+/// create_landing_zone_port() (current facing, then ±90).
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/proc/orient_eye_to_zone(obj/effect/landmark/overmap_landing_zone/zone)
+	if(!eyeobj || !shuttle_port || !zone)
+		return
+	var/want = zone.first_fitting_dir(shuttle_port)
+	if(!want || eyeobj.dir == want)
+		return
+	var/guard = 0
+	while(eyeobj.dir != want && guard < 4)
+		rotateLandingSpot()
+		guard++
 
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav/CreateEye()
 	shuttle_port = SSshuttle.getShuttle(shuttleId)
@@ -248,6 +271,7 @@
 
 	playsound(console, 'sound/machines/terminal/terminal_prompt_confirm.ogg', 25, FALSE)
 	remote_eye.setLoc(center)
+	console.orient_eye_to_zone(chosen)
 	to_chat(owner, span_notice("Jumped to [chosen.zone_name]."))
 	owner.overlay_fullscreen("flash", /atom/movable/screen/fullscreen/flash/static)
 	owner.clear_fullscreen("flash", 3)

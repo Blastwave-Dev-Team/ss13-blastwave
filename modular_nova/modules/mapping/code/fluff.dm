@@ -49,10 +49,86 @@
 		38 SECONDS,
 	)
 
+//Handheld counterpart to /obj/machinery/computer/terminal, for lore you want found on a body, a
+//desk, or in a locker rather than bolted to a wall. Opens the same read-only Terminal window, so
+//players cannot edit it the way they can a modular computer's notepad, and there is no NTNet on it.
+//Subtype it and set the three vars below; nothing else needs touching.
+/obj/item/lore_datapad
+	name = "datapad"
+	desc = "A slab of ruggedised optical hardware with a cracked bezel. Local storage only."
+	icon = 'icons/obj/devices/modular_pda.dmi'
+	icon_state = "pda"
+	inhand_icon_state = "electronic"
+	lefthand_file = 'icons/mob/inhands/items/devices_lefthand.dmi'
+	righthand_file = 'icons/mob/inhands/items/devices_righthand.dmi'
+	w_class = WEIGHT_CLASS_SMALL
+	///Header line above the entries, same role as the terminal's upperinfo.
+	var/upperinfo = "LOCAL STORAGE - NO NETWORK"
+	///Entries shown in the window. One list element per screenful, exactly like the terminal's content.
+	var/list/content = list("The screen wakes, shows an empty document tree, and waits.")
+	///TGUI theme. Matches the terminal default so ruin lore reads consistently.
+	var/tguitheme = "hackerman"
+
+///Held, not adjacent: these get looted off bodies and read somewhere safer.
+/obj/item/lore_datapad/ui_state(mob/user)
+	return GLOB.hands_state
+
+/obj/item/lore_datapad/ui_interact(mob/user, datum/tgui/ui)
+	. = ..()
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "Terminal", name)
+		ui.open()
+
+/obj/item/lore_datapad/ui_static_data(mob/user)
+	return list(
+		"messages" = content,
+		"uppertext" = upperinfo,
+		"tguitheme" = tguitheme,
+	)
+
 
 /* ----------------- Fluff/Paper ----------------- */
 
 
+
+/* ----------------- Fluff/Spent brass ----------------- */
+//Spent casings are how you show a fight already happened, so they are worth getting right: a casing
+//with a projectile_type spawns a LIVE round, renders with the "-live" sprite showing an intact
+//bullet, and can be looted and fired. Nulling projectile_type is the whole trick - TG does the same
+//for c45/spent, c357/spent and shotgun/buckshot/spent - and it also makes update_desc() append
+//"This one is spent."
+//
+//TG only ships those three plus the generic /obj/item/ammo_casing/spent, whose "s-casing" sprite is
+//a stubby pistol case. 7mm is the only rifle-length casing sprite in ammo.dmi ("762-casing"), so it
+//is what you want on the floor under a machine gun.
+/obj/item/ammo_casing/m7mm/spent
+	projectile_type = null
+
+/* ----------------- Fluff/Cryostasis ----------------- */
+//A cryo pod that has stopped, for ruins. TG's three non-functional pods
+///obj/structure/fluff/empty_sleeper, /empty_sleeper/nanotrasen and /empty_cryostasis_sleeper - are
+//all left behind by ghost roles climbing out at runtime, so they are all open, horizontal, and
+//medical-looking. None of them work as a sealed upright pod standing in a row.
+//
+//Borrows the upright sprite from the cryosleep module and multiplies it down to an unlit grey so it
+//reads as dead rather than merely vacant. The pod is fluff, not a container: nothing can be put in
+//it, and it wrenches down to a sheet of iron like any other fluff structure.
+/obj/structure/fluff/cryostasis_pod
+	name = "dead cryostasis pod"
+	desc = "An upright stasis pod, sealed and dark. The window has gone the colour of pond water, and \
+		whatever cycle it was most of the way through is not going to finish."
+	icon = 'modular_nova/modules/cryosleep/icons/cryogenics.dmi'
+	icon_state = "cryopod"
+	color = "#6E7680" //Multiplied over the sprite; the stock one is lit green and reads as working.
+	density = TRUE
+
+/// Standing open. Reads as something having got out, rather than as a pod that merely failed.
+/obj/structure/fluff/cryostasis_pod/open
+	name = "opened cryostasis pod"
+	desc = "An upright stasis pod, standing open and dark. The gasket is split all down one side, \
+		which is what happens when a pod is opened without power rather than with it."
+	icon_state = "cryopod-open"
 
 /* ----------------- Fluff/Decor ----------------- */
 /obj/structure/decorative/fluff/ai_node //Budding AI's way of interfacing with stuff it couldn't normally do so with. Needed to be placed by a willing human, before borgs were created. Used in any ruins regarding pre-bluespace, self-aware AIs

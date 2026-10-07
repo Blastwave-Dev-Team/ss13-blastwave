@@ -23,6 +23,9 @@
 	/// Overmap affiliation allowed to land here (`OVERMAP_AFFILIATION_*`).
 	/// Null/empty = open to any affiliation (seeded/mapped zones default open).
 	var/dock_affiliation
+	/// TRUE on zones SSovermap scattered across a site Z, as opposed to one a mapper placed or
+	/// a landing controller manages. Lets callers reason about the seeded set on its own.
+	var/seeded = FALSE
 
 /obj/effect/landmark/overmap_landing_zone/Initialize(mapload)
 	. = ..()
@@ -40,6 +43,19 @@
 	if(shuttle_height <= zone_width && shuttle_width <= zone_height)
 		return TRUE
 	return FALSE
+
+/// First dir `shuttle` can sit in this zone, preferring the current facing
+/// and then ±90. Same order as create_landing_zone_port(). NONE if none fit.
+/obj/effect/landmark/overmap_landing_zone/proc/first_fitting_dir(obj/docking_port/mobile/shuttle)
+	if(!shuttle)
+		return NONE
+	for(var/try_dir in list(shuttle.dir, turn(shuttle.dir, 90), turn(shuttle.dir, -90)))
+		var/list/rel = shuttle.return_coords(0, 0, try_dir)
+		var/ship_w = abs(rel[3] - rel[1]) + 1
+		var/ship_h = abs(rel[4] - rel[2]) + 1
+		if(ship_w <= zone_width && ship_h <= zone_height)
+			return try_dir
+	return NONE
 
 /// Returns the center turf of this zone for camera eye placement.
 /obj/effect/landmark/overmap_landing_zone/proc/get_center_turf()
