@@ -1,0 +1,8 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "Ships can no longer launch out of a sealed hangar. The bay doors have to be open, and closed blast doors now count as walls."
+  - code_imp: "Added a bluespace interdiction framework, covering Z-level teleport jamming and a global unstable-bluespace field, with reusable jammer and field-generator machines."
+  - code_imp: "Added coolant blood, a non-playable military synth chassis, and derelict synth mobs for ruin use."
+  - code_imp: "Added a reusable hangar lockdown set piece, opened by unscrewing its panel and cutting wires."
+  - map: "Added coolant blood decals, lore datapads, dead cryostasis pods and spent casings for mappers."
