@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../"><link rel="stylesheet" href="dmdoc.css"><title>modular_nova/modules/blastwave_bluespace/readme.md - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a></header><main><h1>modular_nova/modules/blastwave_bluespace/readme.md <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b30fb4e4b8759a52e75d33484edfe562a37c7737/modular_nova/modules/blastwave_bluespace/readme.md"><img src="git.png" width="16" height="16" title="modular_nova/modules/blastwave_bluespace/readme.md"></a></h1><table class="summary" cellspacing="0"><tr><td colspan="2"><h2 id="title-bluespace-interdiction-and-unstable-bluespace">Title: Bluespace interdiction and unstable bluespace</h2>
+<p>MODULE ID: BLASTWAVE_BLUESPACE</p>
+<h3 id="description">Description:</h3>
+<p>Two cooperating hazards used to fence players into an encounter.</p>
+<p><strong>Z-level teleport jam</strong> — a refcounted registry (<code>GLOB.teleport_jam_sources</code>)
+of sources interdicting a given Z. While a Z is jammed, nothing may teleport
+into or out of it. <code>add_teleport_jam()</code> / <code>remove_teleport_jam()</code> take a source
+so overlapping jammers do not clobber each other, and <code>is_teleport_jammed()</code>
+also honours the static <code>ZTRAIT_NO_TELEPORT</code> Z-trait for mapped-in dead zones.
+<code>/obj/machinery/teleport_jammer</code> is the reusable machine wrapper; it drops its
+jam when it loses power, breaks, or moves off-Z.</p>
+<p><strong>Unstable bluespace field</strong> — a global singleton
+(<code>/datum/unstable_bluespace_field</code>) that listens on
+<code>COMSIG_GLOB_MOVABLE_POST_TELEPORT</code> and scatters, hurts, or misdelivers anything
+that completes a teleport anywhere in the world while at least one source is
+active. It deliberately watches <em>successful</em> teleports rather than gating them,
+so it stacks on top of the jam: the jam says &quot;you cannot leave this Z&quot;, the
+field says &quot;teleporting at all is a bad idea right now&quot;.</p>
+<p><code>/obj/machinery/unstable_field_generator</code> is the gravity-generator lookalike
+that sources the field, built as a main tile plus decorative part tiles, and
+shut down by feeding it keycards.</p>
+<p>Cards are held, not swiped: each one moves into the machine and only counts
+toward <code>required_puzzle_ids</code> while it is physically in there, so an empty hand
+takes the last one back out and re-locks its slot. The breaker sits on
+right-click rather than sharing the empty-hand input, because throwing it is
+irreversible and the click that fills the final slot must not also fire it.</p>
+<h4 id="why-the-jam-lives-in">Why the jam lives in <code>check_teleport_valid()</code></h4>
+<p>Putting the check at that choke point is what makes quantum pads, hand
+teleporters, bags of holding, and syndicate teleporters all obey it for free,
+because they route through <code>do_teleport()</code> without <code>forced</code>. Anything passing
+<code>forced = TRUE</code> (admin moves, ghost movement, gateways) is intentionally
+unaffected.</p>
+<p>The new <code>bypass_jam</code> argument exists so a single deliberate exception — the
+hierophant club — can punch through interdiction while still being exposed to
+the unstable field. It defaults to <code>FALSE</code>, so no existing caller changes
+behaviour.</p>
+<h3 id="tg-proc-file-changes">TG Proc/File Changes:</h3>
+<ul>
+<li><code>code/datums/helper_datums/teleport.dm</code>: <code>proc/do_teleport</code> (new <code>bypass_jam</code>
+arg, forwarded to <code>check_teleport_valid()</code> and to buckled riders; new
+<code>SEND_GLOBAL_SIGNAL(COMSIG_GLOB_MOVABLE_POST_TELEPORT)</code> next to the existing
+per-atom <code>COMSIG_MOVABLE_POST_TELEPORT</code>), <code>proc/check_teleport_valid</code> (new
+<code>bypass_jam</code> arg and the interdiction check itself)</li>
+<li><code>code/game/objects/effects/phased_mob.dm</code>: <code>proc/try_move_adjacent</code> — jaunt
+movement never calls <code>do_teleport()</code>, so it needs its own check alongside the
+existing <code>ZTRAIT_NOPHASE</code> one</li>
+<li><code>code/modules/mining/lavaland/mining_loot/megafauna/hierophant.dm</code>:
+<code>proc/teleport_mob</code> — passes <code>bypass_jam = TRUE</code>, the one player-facing
+exception</li>
+</ul>
+<h3 id="master-file-additions">Master file additions</h3>
+<ul>
+<li>#NEW <code>modular_nova/master_files/code/modules/mining/equipment/wormhole_jaunter.dm</code>:
+<code>/obj/item/wormhole_jaunter/get_destinations</code> — the jaunter picks its own exit
+before teleporting, so it never reaches the <code>check_teleport_valid()</code> gate.
+Filters interdicted beacons out of the parent's candidate list.</li>
+</ul>
+<h3 id="defines">Defines:</h3>
+<ul>
+<li><code>code/__DEFINES/~nova_defines/maps.dm</code>: <code>ZTRAIT_NO_TELEPORT</code></li>
+<li><code>code/__DEFINES/~nova_defines/signals.dm</code>: <code>COMSIG_GLOB_MOVABLE_POST_TELEPORT</code></li>
+</ul>
+<h3 id="included-files-that-are-not-contained-in-this-module">Included files that are not contained in this module:</h3>
+<ul>
+<li>N/A</li>
+</ul>
+<h3 id="credits">Credits:</h3>
+<p>Blastwave.</p></td></tr></table></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b30fb4e4b8759a52e75d33484edfe562a37c7737">b30fb4e</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>

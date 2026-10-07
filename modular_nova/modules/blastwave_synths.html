@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><base href="../../"><link rel="stylesheet" href="dmdoc.css"><title>modular_nova/modules/blastwave_synths/readme.md - /tg/ Station 13</title></head><body><header><a href="index.html">/tg/ Station 13</a> - <a href="index.html#modules">Modules</a> - <a href="index.html#types">Types</a></header><main><h1>modular_nova/modules/blastwave_synths/readme.md <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/blob/b30fb4e4b8759a52e75d33484edfe562a37c7737/modular_nova/modules/blastwave_synths/readme.md"><img src="git.png" width="16" height="16" title="modular_nova/modules/blastwave_synths/readme.md"></a></h1><table class="summary" cellspacing="0"><tr><td colspan="2"><h2 id="title-derelict-military-synths">Title: Derelict military synths</h2>
+<p>MODULE ID: BLASTWAVE_SYNTHS</p>
+<h3 id="description">Description:</h3>
+<p>Hostile derelict hardware for ruins, plus the coolant blood that makes it read
+as a distinct hardware line from the playable oil-blooded synth.</p>
+<p><strong>Coolant blood</strong> — <code>/datum/blood_type/coolant</code> and <code>/datum/reagent/coolant</code>.
+Milky cyan-white (<code>BLOOD_COLOR_COOLANT</code>, deliberately not <code>#FFFFFF</code>, which
+vanishes on light floors), and unlike oil it is not a fuel subtype, so military
+synths cannot be set on fire by their own blood. Dries to a chalky film rather
+than staying wet, which is how you tell a coolant pool from an oil pool.</p>
+<p><strong>Coolant decal variants</strong> — <code>coolant</code> subtypes of <code>blood</code>, <code>blood/splatter</code>,
+<code>blood/old</code>, <code>blood/drip</code>, <code>blood/trail_holder</code>, <code>blood/tracks</code>,
+<code>blood/footprints</code>, <code>blood/gibs</code>, <code>blood/gibs/old</code> and
+<code>blood/gibs/robot_debris</code> (plus the latter's <code>limb</code>/<code>up</code>/<code>down</code> shapes), and a
+<code>coolant/slippery</code> pool.</p>
+<p>These are for <strong>mappers only</strong>. Every decal a synth bleeds at runtime is already
+coolant-coloured, because decals are built from the bleeding mob's blood type;
+these exist so a ruin can be dressed with a fight that happened before the round
+started. Each one carries a <code>get_default_blood_type()</code> override — that cannot be
+shared, since DM has no multiple inheritance, so it is restated per decal
+exactly as upstream's oil variants do it.</p>
+<p>Their <code>name</code> and <code>color</code> are StrongDMM previews rather than runtime values:
+<code>update_name()</code> rebuilds the name from <code>base_name</code>/<code>base_suffix</code> plus the blood
+type (giving &quot;pool of coolant&quot;, &quot;drop of coolant&quot;) and <code>update_blood_color()</code>
+recolours from blood DNA, so both are overwritten on init unless a parent nulls
+<code>base_name</code>. They are set regardless, or the ruin previews as red puddles.</p>
+<p><code>robot_debris</code> is the exception worth knowing: it nulls its own colour and skips
+<code>update_blood_color()</code>, so the coolant subtypes are visually identical to the
+oil originals. Only the reagent and blood DNA differ. <code>innards</code> and <code>bubblegum</code>
+are organic, and <code>hitsplatter</code> is runtime-only and never survives maploading.</p>
+<p>Trails are the one place where the mappable type is not the obvious one. Map
+<code>blood/trail_holder/coolant</code>, never a <code>blood/trail</code> subtype: a <code>blood/trail</code>
+stack traces and qdels itself unless its <code>loc</code> is a holder, and the holder's
+<code>add_dir_to_trail()</code> always constructs components as the base <code>blood/trail</code>
+type, so a subtype of it is unreachable in the first place. The holder passes
+its own blood DNA into each component it builds, which is why overriding
+<code>get_default_blood_type()</code> on the holder is what actually tints the trail. The
+holder lays its first component from its mapped <code>dir</code> at mapload.</p>
+<p><strong><code>/datum/species/synthetic/military</code></strong> — a corpse-and-mob-only chassis whose
+only real difference from the playable synth is <code>exotic_bloodtype</code>. Everything
+else (synth organs, synth bodyparts, <code>TRAIT_ROBOTIC_DNA_ORGANS</code>) is inherited,
+so surgery on a body still yields real synth organs. It is locked out of player
+hands three ways, because the point is that ruin bodies read as military
+hardware, not that anyone can play one:</p>
+<ul>
+<li><code>check_roundstart_eligible()</code> returns <code>FALSE</code>, so it is never a roundstart race</li>
+<li><code>always_customizable = FALSE</code> keeps it out of character preferences</li>
+<li><code>changesource_flags = MIRROR_BADMIN</code> narrows the parent's flags so it cannot
+leak out through pride mirrors, slime extracts, race swaps or ERT spawns</li>
+</ul>
+<p>It also needs its own <code>id</code> (<code>SPECIES_SYNTH_MILITARY</code>): <code>GLOB.species_list</code> is
+keyed on <code>id</code>, so reusing <code>SPECIES_SYNTH</code> would collide with the playable synth.</p>
+<p><strong><code>/mob/living/basic/trooper/blastwave_synth</code></strong> and
+<strong><code>/mob/living/basic/blastwave_cyborg</code></strong> — the actual ruin mobs, sharing
+<code>FACTION_BLASTWAVE_DERELICT</code> so they do not shoot each other.</p>
+<p>These mobs are deliberately voiceless here. They use TG's stock trooper
+controllers, which means on a server without the private content pack they say
+nothing of their own and still inherit the parent blackboard's
+<code>BB_REINFORCEMENTS_SAY</code> of <code>&quot;411 in progress, requesting backup!&quot;</code> when calling
+reinforcements — a Nanotrasen security radio code, which is wrong for them but
+harmless without the encounter it belongs to.</p>
+<p>The content pack supplies the barks by reopening these types and repointing
+<code>ai_controller</code> at its own controllers. If you change the <code>ai_controller</code> values
+below, the pack's overrides need updating in step or they will silently keep
+pointing at the old ones.</p>
+<h4 id="why-the-trooper-overrides">Why the trooper overrides <code>get_bloodtype()</code></h4>
+<p>Setting <code>exotic_bloodtype</code> on the species is not sufficient, because
+<code>/mob/living/basic</code> mobs never consult species for combat blood.
+<code>/mob/living/get_bloodtype()</code> routes anything <code>MOB_ROBOTIC</code> straight to oil.
+Overriding it on the trooper is what actually colours the flying splatter
+(<code>temp_visual</code>), the floor decal (<code>make_blood_splatter</code>), and blood left on
+weapons and clothing (<code>get_blood_dna_list</code>). The global robotic-to-oil fallback
+is left alone on purpose.</p>
+<p>Separately, <code>/mob/living/basic</code> inherits <code>default_blood_volume = 0</code>, which makes
+<code>CAN_HAVE_BLOOD</code> false and suppresses every splatter regardless of blood type,
+so the trooper sets <code>default_blood_volume = BLOOD_VOLUME_NORMAL</code>.</p>
+<h3 id="tg-proc-file-changes">TG Proc/File Changes:</h3>
+<ul>
+<li><code>code/modules/mob/living/basic/trooper/trooper.dm</code>: new
+<code>var/species_path = /datum/species/human</code>, forwarded to
+<code>apply_dynamic_human_appearance()</code> in <code>Initialize()</code>. The trooper mob builds
+its sprite from a generated human dummy, and there is no hook to influence
+that species without either this two-line change or generating the appearance
+twice per spawn. Defaults to human, so no existing trooper changes.</li>
+</ul>
+<h3 id="master-file-additions">Master file additions</h3>
+<ul>
+<li>N/A</li>
+</ul>
+<h3 id="defines">Defines:</h3>
+<ul>
+<li><code>code/__DEFINES/~nova_defines/blood.dm</code>: <code>BLOOD_TYPE_COOLANT</code>,
+<code>BLOOD_COLOR_COOLANT</code></li>
+<li><code>code/__DEFINES/~nova_defines/DNA.dm</code>: <code>SPECIES_SYNTH_MILITARY</code></li>
+<li><code>code/__DEFINES/~nova_defines/factions.dm</code>: <code>FACTION_BLASTWAVE_DERELICT</code></li>
+</ul>
+<h3 id="included-files-that-are-not-contained-in-this-module">Included files that are not contained in this module:</h3>
+<ul>
+<li>N/A</li>
+</ul>
+<h3 id="credits">Credits:</h3>
+<p>Blastwave.</p></td></tr></table></main><footer>tgstation.dme <a href="https://github.com/Blastwave-Dev-Team/ss13-blastwave/tree/b30fb4e4b8759a52e75d33484edfe562a37c7737">b30fb4e</a> (master) — <a href="https://github.com/SpaceManiac/SpacemanDMM/blob/master/crates/dmdoc/README.md">dmdoc 1.11.0</a></footer></body></html>
