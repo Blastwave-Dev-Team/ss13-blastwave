@@ -332,6 +332,8 @@
 	hitsound = 'sound/items/weapons/sonic_jackhammer.ogg'
 	/// Tiles a living target is thrown on impact.
 	var/throw_distance = 4
+	/// Percent chance an unarmoured hit fractures the struck limb. Armour scales it down.
+	var/fracture_chance = 10
 
 /obj/projectile/energy/hardlight_lance/on_hit(atom/target, blocked = 0, pierce_hit)
 	. = ..()
@@ -341,28 +343,32 @@
 		return .
 
 	if(isliving(target))
-		displace(target)
+		displace(target, blocked)
 	else
 		hardlight_unmoor(target, firer)
 
 	return .
 
-/// Hurls a living target along our line of travel and cracks something on the way out.
-/obj/projectile/energy/hardlight_lance/proc/displace(mob/living/victim)
+/// Hurls a living target along our line of travel, and may crack the struck limb on the way out.
+/obj/projectile/energy/hardlight_lance/proc/displace(mob/living/victim, blocked = 0)
 	var/direction = isnull(firer) ? dir : get_dir(firer, victim)
-	victim.safe_throw_at(get_edge_target_turf(victim, direction), throw_distance, 3, firer)
+	victim.safe_throw_at(get_edge_target_turf(victim, direction), throw_distance, 2, firer)
 
 	if(!iscarbon(victim))
 		return
 
-	// A blunt fracture is the point: it is a wound a field medic can splint, so a lance hit costs the
+	// A hairline fracture is the point: it is a wound a field medic can splint, so a lance hit costs the
 	// crew a minute of triage rather than a body. Anything lethal here would make the room unholdable.
+	// apply_wound() never consults armour, so the armour that softened the hit has to soften the odds.
+	if(!prob(fracture_chance * (100 - blocked) / 100))
+		return
+
 	var/mob/living/carbon/carbon_victim = victim
-	var/obj/item/bodypart/struck = pick(carbon_victim.get_bodyparts())
+	var/obj/item/bodypart/struck = carbon_victim.get_bodypart(check_zone(def_zone)) || pick(carbon_victim.get_bodyparts())
 	if(isnull(struck))
 		return
 
-	var/datum/wound/blunt/bone/moderate/fracture = new()
+	var/datum/wound/blunt/bone/severe/fracture = new()
 	fracture.apply_wound(struck, wound_source = "hard-light displacement", attack_direction = direction)
 
 /**
