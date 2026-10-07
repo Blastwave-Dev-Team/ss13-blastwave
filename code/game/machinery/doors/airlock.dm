@@ -224,7 +224,12 @@
 
 /obj/machinery/door/airlock/connect_to_shuttle(mapload, obj/docking_port/mobile/port, obj/docking_port/stationary/dock)
 	if(id_tag)
+		// BLASTWAVE EDIT ADDITION START - OVERMAP - Destroy() unregisters by the renamed tag
+		if(GLOB.objects_by_id_tag[id_tag] == src)
+			GLOB.objects_by_id_tag -= id_tag
+		// BLASTWAVE EDIT ADDITION END
 		id_tag = "[port.shuttle_id]_[id_tag]"
+		GLOB.objects_by_id_tag[id_tag] = src // BLASTWAVE EDIT ADDITION - OVERMAP
 
 /obj/machinery/door/airlock/proc/update_other_id()
 	for(var/obj/machinery/door/airlock/Airlock as anything in SSmachines.get_machines_by_type_and_subtypes(/obj/machinery/door/airlock))

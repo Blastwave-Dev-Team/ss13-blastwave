@@ -187,6 +187,10 @@ every direction — those bays now correctly refuse launch until their doors ope
   to remain safely in nullspace until atomic shipyard placement.
 - `code/modules/power/power.dm` - ignores deferred cable icon refreshes whose
   turf was deleted during shuttle/test cleanup.
+- `code/modules/shuttle/mobile_port/variants/{supply,emergency,arrivals}.dm`
+  and `modular_nova/modules/pod_locking/pod_locking.dm` - `register()`
+  overrides take `replace` and `custom` to match the mobile port signature
+  (BLASTWAVE EDIT CHANGE - OVERMAP).
 
 ### Config (map JSON, not .dmm)
 

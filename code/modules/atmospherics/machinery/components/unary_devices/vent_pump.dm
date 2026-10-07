@@ -129,7 +129,11 @@
 	return ..()
 
 /obj/machinery/atmospherics/components/unary/vent_pump/Destroy()
-	disconnect_from_area()
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - jumpToNullSpace() hands the turf to
+	// its underlying area before emptying it, so the current area is not ours.
+	// ORIGINAL: disconnect_from_area()
+	disconnect_from_area(assigned_area)
+	// BLASTWAVE EDIT CHANGE END
 	QDEL_NULL(sound_loop)
 
 	var/area/vent_area = get_area(src)

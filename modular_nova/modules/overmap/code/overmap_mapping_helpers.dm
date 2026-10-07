@@ -152,6 +152,9 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 	else if(length(found_corners) != 4)
 		log_mapping("Landing zone link [link_id] expected 4 corners, found [length(found_corners)].")
 	else
+		for(var/obj/machinery/machine as anything in collect_mapped_shipyard_machines(group))
+			if(!link_mapped_shipyard_machine(machine, console))
+				log_mapping("Landing zone link [link_id]: [machine] at [AREACOORD(machine)] is off the controller's Z.")
 		for(var/obj/machinery/landing_corner/corner as anything in found_corners)
 			console.toggle_corner(corner)
 	// Lockdowns are optional, but a bound one is useless without a console to name its bay.
@@ -159,3 +162,28 @@ GLOBAL_LIST_EMPTY(overmap_lz_link_helpers)
 		for(var/obj/machinery/hangar_lockdown/lockdown as anything in collected["lockdowns"])
 			lockdown.bind_bay_console(console)
 	QDEL_LIST(group)
+
+/// Registrars, brokers, and fabricators under a `link_id` group's helpers.
+/proc/collect_mapped_shipyard_machines(list/group)
+	var/list/obj/machinery/found_shipyard = list()
+	for(var/obj/effect/mapping_helpers/landing_zone/link/helper as anything in group)
+		if(QDELETED(helper))
+			continue
+		var/turf/helper_turf = get_turf(helper)
+		if(isnull(helper_turf))
+			continue
+		for(var/obj/machinery/machine in helper_turf)
+			if(istype(machine, /obj/machinery/computer/ship_registrar) || istype(machine, /obj/machinery/computer/ship_broker) || istype(machine, /obj/machinery/shipyard_fabricator))
+				found_shipyard |= machine
+	return found_shipyard
+
+/// Points a registrar, broker, or fabricator at the controller. FALSE when off-Z.
+/proc/link_mapped_shipyard_machine(obj/machinery/machine, obj/machinery/computer/landing_controller/console)
+	if(istype(machine, /obj/machinery/computer/ship_registrar))
+		var/obj/machinery/computer/ship_registrar/registrar = machine
+		return registrar.session.link_controller(console)
+	if(istype(machine, /obj/machinery/computer/ship_broker))
+		var/obj/machinery/computer/ship_broker/broker = machine
+		return broker.session.link_controller(console)
+	var/obj/machinery/shipyard_fabricator/fabricator = machine
+	return fabricator.link_controller(console)

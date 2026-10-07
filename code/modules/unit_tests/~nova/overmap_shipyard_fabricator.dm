@@ -18,6 +18,60 @@
 	half.component_parts = list(half.circuit)
 	return half
 
+/// The two-by-two landing zone north of the fixture corner, clear of a fabricator standing on the corner.
+/datum/unit_test/overmap_shipyard_fabricator/proc/block_zone()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(
+		/obj/effect/landmark/overmap_landing_zone,
+		locate(origin.x, origin.y + 2, origin.z),
+	)
+	zone.zone_width = 2
+	zone.zone_height = 2
+	return zone
+
+/// A building fabricator that generates `target_path` on every tile of `zone`.
+/datum/unit_test/overmap_shipyard_fabricator/proc/block_fabricator(obj/effect/landmark/overmap_landing_zone/zone, target_path)
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, run_loc_floor_bottom_left)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new
+	plan.width = 2
+	plan.height = 2
+	var/list/manifest = list()
+	for(var/list/coordinate in list(list(0, 0), list(1, 0), list(0, 1), list(1, 1)))
+		manifest += new /datum/ship_plan_op(
+			SHIPYARD_PHASE_FINAL,
+			coordinate[1],
+			coordinate[2],
+			SHIPYARD_OP_GENERATED,
+			target_path,
+		)
+	plan.manifest = manifest
+	disk.ship_plan = plan
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	fabricator.claimed_zone = WEAKREF(zone)
+	fabricator.state = "building"
+	fabricator.machine_stat &= ~(NOPOWER | BROKEN)
+	fabricator.next_operation_at = 0
+	return fabricator
+
+/datum/unit_test/overmap_shipyard_fabricator/proc/stock_tier_four(obj/machinery/shipyard_fabricator/fabricator)
+	fabricator.component_parts = list(
+		GLOB.stock_part_datums[/datum/stock_part/matter_bin/tier4],
+		GLOB.stock_part_datums[/datum/stock_part/micro_laser/tier4],
+		GLOB.stock_part_datums[/datum/stock_part/servo/tier4],
+		GLOB.stock_part_datums[/datum/stock_part/scanning_module/tier4],
+	)
+	fabricator.RefreshParts()
+
+/// How many tiles of `zone` hold `target_path`.
+/datum/unit_test/overmap_shipyard_fabricator/proc/count_in_zone(obj/effect/landmark/overmap_landing_zone/zone, target_path)
+	var/count = 0
+	for(var/turf/tile in block(zone.x, zone.y, zone.z, zone.x + zone.zone_width - 1, zone.y + zone.zone_height - 1, zone.z))
+		if(locate(target_path) in tile)
+			count++
+	return count
+
 /datum/unit_test/overmap_shipyard_fabricator/manifest
 
 /datum/unit_test/overmap_shipyard_fabricator/manifest/Run()
@@ -92,6 +146,11 @@
 		TEST_ASSERT_EQUAL(oriented_vars["pixel_x"], test_case[8], "Direction [test_case[1]] should rotate pixel_x.")
 		TEST_ASSERT_EQUAL(oriented_vars["pixel_y"], test_case[9], "Direction [test_case[1]] should rotate pixel_y.")
 
+	var/list/button_vars = shipyard_oriented_vars(list(), 90, /obj/machinery/button/door/directional/north)
+	TEST_ASSERT_EQUAL(button_vars["dir"], EAST, "A directional subtype's implicit dir should rotate.")
+	TEST_ASSERT_EQUAL(button_vars["pixel_x"], 24, "A directional subtype's implicit wall shift should rotate onto the new wall.")
+	TEST_ASSERT_EQUAL(button_vars["pixel_y"], 0, "A directional subtype's implicit wall shift should leave the old wall.")
+
 	fabricator.build_direction = EAST
 	var/list/oriented_helpers = fabricator.oriented_helper_specs(operation)
 	TEST_ASSERT_EQUAL(oriented_helpers[1]["vars"]["dir"], EAST, "Nested mapping-helper vars should rotate with their operation.")
@@ -110,6 +169,35 @@
 	fabricator.state = "paused"
 	TEST_ASSERT(!fabricator.set_build_direction(SOUTH, zone), "An active build should lock its orientation.")
 	TEST_ASSERT_EQUAL(fabricator.build_direction, EAST, "A rejected orientation change must preserve the active facing.")
+
+/datum/unit_test/overmap_shipyard_fabricator/centered_footprint
+
+/datum/unit_test/overmap_shipyard_fabricator/centered_footprint/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/obj/effect/landmark/overmap_landing_zone/zone = allocate(/obj/effect/landmark/overmap_landing_zone, origin)
+	zone.zone_width = 7
+	zone.zone_height = 5
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, get_step(origin, WEST))
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new
+	plan.width = 3
+	plan.height = 2
+	plan.shuttle_dir = NORTH
+	var/datum/ship_plan_op/operation = new(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating)
+	plan.manifest = list(operation)
+	disk.ship_plan = plan
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	fabricator.claimed_zone = WEAKREF(zone)
+
+	fabricator.build_direction = NORTH
+	TEST_ASSERT_EQUAL(fabricator.get_operation_turf(operation, zone), locate(origin.x + 2, origin.y + 1, origin.z), "A 3x2 hull should sit centered in a 7x5 zone.")
+	fabricator.build_direction = WEST
+	TEST_ASSERT_EQUAL(fabricator.get_operation_turf(operation, zone), locate(origin.x + 2 + 1, origin.y + 1, origin.z), "A rotated 2x3 hull should center on its rotated dimensions.")
+	zone.zone_width = 3
+	zone.zone_height = 2
+	fabricator.build_direction = NORTH
+	TEST_ASSERT_EQUAL(fabricator.get_operation_turf(operation, zone), origin, "A hull that exactly fills the zone should start on the zone corner.")
 
 /datum/unit_test/overmap_shipyard_fabricator/techweb_binding
 
@@ -229,6 +317,41 @@
 	TEST_ASSERT_EQUAL(controller.id, "shipyard_test_door", "Prepared controls should preserve the mapped door ID.")
 	TEST_ASSERT(!button.panel_open, "Prepared door buttons should be closed and operational.")
 	qdel(button)
+
+	var/turf/desk = run_loc_floor_bottom_left
+	allocate(/obj/structure/table, desk)
+	var/datum/ship_plan_op/desktop_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		0,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/button/door,
+		null,
+		list("id" = "whiteship_windows", "name" = "Windows Blast Door Control"),
+	)
+	TEST_ASSERT_EQUAL(desktop_operation.execute_generated(desk), TRUE, "A table-top shutter button should generate.")
+	var/obj/machinery/button/door/desktop = locate(/obj/machinery/button/door) in desk
+	TEST_ASSERT(istype(desktop), "Generated desktop button should land on the table tile.")
+	var/datum/component/atom_mounted/desktop_mount = desktop.GetComponent(/datum/component/atom_mounted)
+	TEST_ASSERT(istype(desktop_mount?.hanging_support_atom, /obj/structure/table), "A table-top shutter button should hang on its table, as it does when mapped.")
+	qdel(desktop)
+
+	var/turf/fixture_floor = get_step(desk, EAST)
+	var/turf/fixture_wall = get_step(fixture_floor, NORTH)
+	fixture_wall.ChangeTurf(/turf/closed/wall)
+	var/datum/ship_plan_op/wall_operation = new(
+		SHIPYARD_PHASE_FINAL,
+		1,
+		0,
+		SHIPYARD_OP_GENERATED,
+		/obj/machinery/button/door/directional/north,
+		null,
+		list("id" = "wsnorthbolts", "pixel_y" = 24),
+	)
+	TEST_ASSERT_EQUAL(wall_operation.execute_generated(fixture_floor), TRUE, "A directional door button should generate.")
+	var/obj/machinery/button/door/directional/north/hung = locate() in fixture_floor
+	TEST_ASSERT(istype(hung), "Generated directional button should land on the floor tile.")
+	TEST_ASSERT(hung.GetComponent(/datum/component/atom_mounted), "A directional door button should hang on the neighbouring wall.")
 
 /datum/unit_test/overmap_shipyard_fabricator/solfed_disks
 
@@ -901,6 +1024,125 @@
 	fabricator.component_parts = doubled_parts
 	fabricator.RefreshParts()
 	TEST_ASSERT_EQUAL(fabricator.active_power_usage, 200 KILO WATTS, "Twice the parts at the same tier should draw the same power.")
+	TEST_ASSERT_EQUAL(fabricator.placements_per_fire(1), 4, "Tier-four placement should batch four operations into a one-second fire.")
+
+	var/obj/effect/landmark/overmap_landing_zone/zone = block_zone()
+	TEST_ASSERT(isfloorturf(get_turf(zone)), "Placement batching requires floor two tiles north of the fixture corner.")
+	var/obj/machinery/shipyard_fabricator/tier_one = block_fabricator(zone, /obj/structure/rack)
+	TEST_ASSERT_EQUAL(tier_one.placements_per_fire(1), 1, "Tier-one placement should run one operation per one-second fire.")
+	tier_one.process(1)
+	TEST_ASSERT_EQUAL(count_in_zone(zone, /obj/structure/rack), 1, "A tier-one fabricator should place one tile per second.")
+	TEST_ASSERT_EQUAL(tier_one.operation_index, 2, "A tier-one fire should stop after its single placement.")
+
+	var/obj/machinery/shipyard_fabricator/tier_four = block_fabricator(zone, /obj/structure/chair)
+	stock_tier_four(tier_four)
+	tier_four.process(1)
+	TEST_ASSERT_EQUAL(count_in_zone(zone, /obj/structure/chair), 4, "A tier-four fabricator should place four tiles per second.")
+	TEST_ASSERT_EQUAL(tier_four.state, "complete", "Placing the last operation in a batch should finish the build.")
+
+/datum/unit_test/overmap_shipyard_fabricator/shared_budget
+	var/datum/controller/subsystem/processing/shipyard/shipyard
+
+/datum/unit_test/overmap_shipyard_fabricator/shared_budget/Destroy()
+	shipyard?.firing = FALSE
+	return ..()
+
+/datum/unit_test/overmap_shipyard_fabricator/shared_budget/Run()
+	shipyard = SSshipyard
+	var/obj/effect/landmark/overmap_landing_zone/zone = block_zone()
+	TEST_ASSERT(isfloorturf(get_turf(zone)), "Shared budget test requires floor two tiles north of the fixture corner.")
+	var/obj/machinery/shipyard_fabricator/chairs = block_fabricator(zone, /obj/structure/chair)
+	var/obj/machinery/shipyard_fabricator/racks = block_fabricator(zone, /obj/structure/rack)
+	stock_tier_four(chairs)
+	stock_tier_four(racks)
+	var/list/printers = list(chairs, racks)
+	var/wanted_cost = 0
+	for(var/obj/machinery/shipyard_fabricator/printer as anything in printers)
+		for(var/datum/ship_plan_op/operation as anything in printer.blueprint_disk.ship_plan.manifest)
+			wanted_cost += operation.placement_cost()
+	TEST_ASSERT(wanted_cost > SHIPYARD_MUTATION_BUDGET_PER_FIRE, "Two tier-four yards should want more than one fire's budget.")
+
+	// Stands in for SSshipyard.fire(), which would also walk any live builds.
+	shipyard.begin_fire()
+	shipyard.firing = TRUE
+	for(var/obj/machinery/shipyard_fabricator/printer as anything in printers)
+		TEST_ASSERT(printer.process(1) != PROCESS_KILL || printer.state == "complete", "A yard out of budget should stay queued.")
+	shipyard.firing = FALSE
+	var/placed = count_in_zone(zone, /obj/structure/chair) + count_in_zone(zone, /obj/structure/rack)
+	TEST_ASSERT(placed * SHIPYARD_OP_COST_GENERATE <= SHIPYARD_MUTATION_BUDGET_PER_FIRE, "Two yards should not spend more than one fire's budget combined, placed [placed].")
+	TEST_ASSERT(placed < 8, "One fire should leave work for the next one.")
+	TEST_ASSERT(racks.state == "building", "The second yard should still be building after the first spent the budget.")
+
+	for(var/fire in 1 to 8)
+		if(chairs.state == "complete" && racks.state == "complete")
+			break
+		shipyard.begin_fire()
+		shipyard.firing = TRUE
+		for(var/obj/machinery/shipyard_fabricator/printer as anything in printers)
+			if(printer.state == "building")
+				printer.next_operation_at = 0
+				printer.process(1)
+		shipyard.firing = FALSE
+	TEST_ASSERT_EQUAL(count_in_zone(zone, /obj/structure/rack), 4, "The deferred yard should finish on later fires.")
+	TEST_ASSERT_EQUAL(racks.state, "complete", "The deferred yard should complete once it gets budget.")
+
+/datum/unit_test/overmap_shipyard_fabricator/registration_slot
+	var/datum/controller/subsystem/processing/shipyard/shipyard
+
+/datum/unit_test/overmap_shipyard_fabricator/registration_slot/Destroy()
+	shipyard?.firing = FALSE
+	return ..()
+
+/datum/unit_test/overmap_shipyard_fabricator/registration_slot/Run()
+	shipyard = SSshipyard
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, run_loc_floor_bottom_left)
+	var/obj/item/ship_blueprint_disk/disk = allocate(/obj/item/ship_blueprint_disk)
+	var/datum/ship_plan/plan = new
+	plan.width = 1
+	plan.height = 1
+	plan.manifest = list(
+		new /datum/ship_plan_op(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating),
+		new /datum/ship_plan_op(SHIPYARD_PHASE_FRAMES, 0, 0, SHIPYARD_OP_GIRDER, /obj/structure/girder),
+	)
+	disk.ship_plan = plan
+	disk.forceMove(fabricator)
+	fabricator.blueprint_disk = disk
+	// Plating is laid; the phase change into framing is what registers the hull.
+	fabricator.operation_index = 2
+	fabricator.current_phase = SHIPYARD_PHASE_PLATING
+	fabricator.state = "building"
+	fabricator.machine_stat &= ~(NOPOWER | BROKEN)
+	fabricator.next_operation_at = 0
+
+	shipyard.begin_fire()
+	shipyard.firing = TRUE
+	TEST_ASSERT(shipyard.try_register(), "The first yard in a fire should take the registration slot.")
+	var/outcome = fabricator.process(1)
+	shipyard.firing = FALSE
+	TEST_ASSERT(outcome != PROCESS_KILL, "A yard waiting on registration should stay queued.")
+	TEST_ASSERT_EQUAL(fabricator.state, "building", "Waiting on registration should neither pause nor fault the build.")
+	TEST_ASSERT_EQUAL(fabricator.operation_index, 2, "Waiting on registration should not start framing.")
+	TEST_ASSERT_EQUAL(fabricator.current_phase, SHIPYARD_PHASE_PLATING, "Waiting on registration should hold the plating phase open.")
+	TEST_ASSERT(!fabricator.built_shuttle_ref?.resolve(), "Waiting on registration should not register a hull.")
+
+	shipyard.begin_fire()
+	shipyard.firing = TRUE
+	TEST_ASSERT(shipyard.try_register(), "A new fire should hand the deferred yard a fresh registration slot.")
+	TEST_ASSERT(!shipyard.try_register(), "A fire should only register one hull.")
+	shipyard.firing = FALSE
+	TEST_ASSERT(shipyard.try_register(), "Direct calls outside a fire should never be capped.")
+
+/datum/unit_test/overmap_shipyard_fabricator/idle_queue
+
+/datum/unit_test/overmap_shipyard_fabricator/idle_queue/Run()
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, run_loc_floor_bottom_left)
+	TEST_ASSERT(!(fabricator in SSmachines.processing), "An idle fabricator should not sit on SSmachines.")
+	TEST_ASSERT(!(fabricator in SSshipyard.processing), "An idle fabricator should not sit on SSshipyard.")
+	fabricator.begin_processing()
+	TEST_ASSERT(fabricator in SSshipyard.processing, "A building fabricator should process on SSshipyard.")
+	TEST_ASSERT(!(fabricator in SSmachines.processing), "A building fabricator should stay off SSmachines.")
+	fabricator.end_processing()
+	TEST_ASSERT(!(fabricator in SSshipyard.processing), "A stopped fabricator should leave SSshipyard.")
 
 /datum/unit_test/overmap_shipyard_fabricator/paired_frames
 
@@ -959,6 +1201,34 @@
 	TEST_ASSERT(east_frame, "Deconstruction should leave a frame on the tile the machine's second half occupied.")
 	TEST_ASSERT_EQUAL(east_frame.state, FRAME_STATE_WIRED, "The second frame should come back wired like the first.")
 	TEST_ASSERT(east_frame.anchored, "The second frame should come back anchored like the first.")
+
+/datum/unit_test/overmap_shipyard_fabricator/mapped_deconstruct
+
+/datum/unit_test/overmap_shipyard_fabricator/mapped_deconstruct/Run()
+	var/turf/west = run_loc_floor_bottom_left
+	var/turf/east = get_step(west, EAST)
+	TEST_ASSERT(east, "Mapped-deconstruct test requires an eastern tile.")
+	var/obj/machinery/shipyard_fabricator/mapped/station/fabricator = allocate(/obj/machinery/shipyard_fabricator/mapped/station, west)
+	TEST_ASSERT_EQUAL(fabricator.fabrication_delay, 1 SECONDS, "Stock mapped parts should run at tier one.")
+
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent, get_step(west, SOUTH))
+	var/obj/item/crowbar/lever = allocate(/obj/item/crowbar)
+	fabricator.set_panel_open(TRUE)
+	TEST_ASSERT_EQUAL(fabricator.crowbar_act(user, lever), ITEM_INTERACT_SUCCESS, "An open mapped fabricator should come apart under a crowbar.")
+	TEST_ASSERT(QDELETED(fabricator), "Deconstruction should consume the mapped machine.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in west, "Deconstruction should leave a frame on the machine's own tile.")
+	TEST_ASSERT(locate(/obj/structure/frame/machine) in east, "Deconstruction should leave a frame on the second half's tile.")
+
+	var/list/counts = list()
+	for(var/obj/item/dropped in west)
+		counts[dropped.type] = (counts[dropped.type] || 0) + 1
+	TEST_ASSERT_EQUAL(counts[/obj/item/circuitboard/machine/shipyard_fabricator], 2, "A mapped fabricator should hand back a board for each half.")
+	TEST_ASSERT_EQUAL(counts[/obj/item/stock_parts/matter_bin], 4, "A mapped fabricator should hand back both halves' matter bins.")
+	TEST_ASSERT_EQUAL(counts[/obj/item/stock_parts/micro_laser], 4, "A mapped fabricator should hand back both halves' lasers.")
+	TEST_ASSERT_EQUAL(counts[/obj/item/stock_parts/scanning_module], 2, "A mapped fabricator should hand back both halves' scanners.")
+	TEST_ASSERT_EQUAL(counts[/obj/item/stock_parts/servo], 2, "A mapped fabricator should hand back both halves' servos.")
+	for(var/obj/item/dropped in west)
+		qdel(dropped)
 
 /// The machine assembles from two frames in whichever order the builder works,
 /// so the eastern half going up first has to reach the same finished machine on
@@ -1447,6 +1717,32 @@
 	TEST_ASSERT(rods.satisfied(decked), "A resumed build should still find its rods under a finished deck.")
 	TEST_ASSERT(plating.satisfied(decked), "A resumed build should still find its hull under a finished deck.")
 	TEST_ASSERT(deck.satisfied(decked), "A finished deck should not be tiled a second time.")
+
+/// A printed wall stands on the hull plating, so tearing it down leaves the tile
+/// in the ship instead of dropping it through to the pad.
+/datum/unit_test/overmap_shipyard_fabricator/wall_teardown
+
+/datum/unit_test/overmap_shipyard_fabricator/wall_teardown/Run()
+	var/turf/pad = get_step(run_loc_floor_top_right, SOUTH)
+	TEST_ASSERT(!shipyard_hull_turf(pad), "Wall teardown test requires a pad no earlier test built a hull on.")
+	var/datum/ship_plan_op/rods = new(SHIPYARD_PHASE_RODS, 0, 0, SHIPYARD_OP_RODS, /turf/open/floor/plating)
+	var/datum/ship_plan_op/plating = new(SHIPYARD_PHASE_PLATING, 0, 0, SHIPYARD_OP_PLATING, /turf/open/floor/plating)
+	var/datum/ship_plan_op/girder = new(SHIPYARD_PHASE_FRAMES, 0, 0, SHIPYARD_OP_GIRDER, /obj/structure/girder)
+	var/datum/ship_plan_op/wall = new(SHIPYARD_PHASE_STRUCTURE, 0, 0, SHIPYARD_OP_TURF, /turf/closed/wall)
+
+	TEST_ASSERT_EQUAL(rods.execute_rods(pad), TRUE, "Frame rods should anchor on the landing pad.")
+	TEST_ASSERT_EQUAL(plating.execute_plating(pad), TRUE, "Hull plating should cover the rods.")
+	var/obj/docking_port/mobile/hull = allocate(/obj/docking_port/mobile, pad)
+	insert_shuttle_skipover(pad)
+	SEND_SIGNAL(pad, COMSIG_TURF_ADDED_TO_SHUTTLE, hull)
+	TEST_ASSERT_EQUAL(girder.execute_girder(pad), TRUE, "A girder should go up on the hull plating.")
+	TEST_ASSERT_EQUAL(wall.execute_wall(pad), TRUE, "The wall should be raised on the girder.")
+	var/turf/walled = get_turf(pad)
+	TEST_ASSERT(istype(walled, /turf/closed/wall), "The wall should be the turf the blueprint mapped, got [walled.type].")
+
+	var/turf/torn_down = walled.ScrapeAway()
+	TEST_ASSERT(istype(torn_down, /turf/open/floor/plating), "Tearing down a printed wall should leave hull plating, got [torn_down.type].")
+	TEST_ASSERT(shipyard_hull_turf(torn_down), "Tearing down a printed wall should leave the tile in the ship.")
 
 /// Decks are billed for the tile they are laid with, the hull layer is never
 /// tiled over itself, and paint is applied after the floor it sits on.

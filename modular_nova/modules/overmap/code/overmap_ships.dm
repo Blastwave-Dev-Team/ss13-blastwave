@@ -1004,7 +1004,8 @@
 			var/obj/structure/overmap/level/site/open_space/open_site = landing_site
 			open_site.try_cleanup()
 		return FALSE
-	var/obj/docking_port/stationary/recovery_port = create_landing_zone_port(pick(zones))
+	var/obj/effect/landmark/overmap_landing_zone/recovery_zone = pick(zones)
+	var/obj/docking_port/stationary/recovery_port = recovery_zone.create_landing_port(shuttle)
 	if(!recovery_port)
 		announce_to_helms("EMERGENCY RECOVERY FAILED. Landing-zone geometry changed before touchdown.")
 		return FALSE
@@ -1078,7 +1079,7 @@
 		var/obj/effect/landmark/overmap_landing_zone/zone = locate(lz_ref) in SSovermap.landing_zones
 		if(!zone || !(zone in get_landing_zones_for(target)))
 			return "Landing zone unavailable - it may be occupied or out of range."
-		picked = create_landing_zone_port(zone)
+		picked = zone.create_landing_port(shuttle)
 		if(!picked)
 			return "Unable to designate a landing site in [zone.zone_name]."
 	else
@@ -1126,7 +1127,8 @@
 		if(!picked)
 			var/list/zones = get_landing_zones_for(target)
 			if(length(zones))
-				picked = create_landing_zone_port(pick(zones))
+				var/obj/effect/landmark/overmap_landing_zone/auto_zone = pick(zones)
+				picked = auto_zone.create_landing_port(shuttle)
 
 		if(!picked)
 			set_nav_target(target, target_zs, candidates)
@@ -1190,6 +1192,8 @@
 	if(docked)
 		overmap_reset_visual_offset()
 		forceMove(docked)
+	if(shuttle)
+		remount_shuttle_wallmounts(shuttle.return_turfs())
 	state = OVERMAP_SHIP_IDLE
 	all_stop()
 	scanned_objects = null

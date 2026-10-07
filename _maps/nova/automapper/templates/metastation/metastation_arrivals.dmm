@@ -606,13 +606,6 @@
 	},
 /turf/open/floor/iron,
 /area/station/hallway/secondary/entry)
-"bu" = (
-/obj/structure/sign/warning/vacuum/external/directional/north,
-/obj/effect/turf_decal/stripes/line{
-	dir = 1
-	},
-/turf/open/floor/iron,
-/area/station/hallway/secondary/entry)
 "bv" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
@@ -974,6 +967,10 @@
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden/layer2{
 	dir = 9
+	},
+/obj/machinery/shipyard_fabricator/mapped,
+/obj/effect/mapping_helpers/landing_zone/link{
+	link_id = "metastation_arrivals"
 	},
 /turf/open/floor/iron,
 /area/station/hallway/secondary/entry)
@@ -1457,10 +1454,15 @@
 /obj/structure/sign/map/meta/left{
 	pixel_y = -32
 	},
+/obj/machinery/computer/ship_broker{
+	dir = 1
+	},
+/obj/effect/mapping_helpers/landing_zone/link{
+	link_id = "metastation_arrivals"
+	},
 /turf/open/floor/iron/white/corner,
 /area/station/hallway/secondary/entry)
 "dx" = (
-/obj/item/kirbyplants/random,
 /obj/effect/turf_decal/tile/blue{
 	dir = 4
 	},
@@ -1473,6 +1475,12 @@
 /obj/structure/cable,
 /obj/structure/sign/map/meta/right{
 	pixel_y = -32
+	},
+/obj/machinery/computer/ship_registrar{
+	dir = 1
+	},
+/obj/effect/mapping_helpers/landing_zone/link{
+	link_id = "metastation_arrivals"
 	},
 /turf/open/floor/iron/white/corner,
 /area/station/hallway/secondary/entry)
@@ -3457,7 +3465,7 @@ ab
 aG
 aG
 aG
-bu
+bG
 aA
 bZ
 cg

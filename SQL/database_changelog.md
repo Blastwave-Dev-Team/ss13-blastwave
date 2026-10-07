@@ -2,19 +2,79 @@ Any time you make a change to the schema files, remember to increment the databa
 
 Make sure to also update `DB_MAJOR_VERSION` and `DB_MINOR_VERSION`, which can be found in `code/__DEFINES/subsystem.dm`.
 
-The latest database version is 5.40 (5.34 for /tg/); The query to update the schema revision table is:
+The latest database version is 5.42 (5.34 for /tg/); The query to update the schema revision table is:
 
 ```sql
-INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 40);
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 42);
 ```
 
 or
 
 ```sql
-INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 40);
+INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 42);
 ```
 
 In any query remember to add a prefix to the table names if you use one.
+
+---
+
+Version 5.42, 29 September 2026, by Maldaris
+Adds garage slots for persistent ships. `player_ship_slot_grants` holds extra
+slots awarded to a ckey on top of the configured base (donator, event and admin
+awards). `player_ships.grant_id` ties an awarded ship to the grant that came
+with it.
+
+```sql
+ALTER TABLE `player_ships`
+  ADD COLUMN `grant_id` INT(11) UNSIGNED NULL AFTER `deleted`,
+  ADD KEY `idx_player_ships_ckey` (`ckey`, `deleted`);
+CREATE TABLE `player_ship_slot_grants` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ckey` VARCHAR(32) NOT NULL,
+  `kind` ENUM('DONATOR','EVENT','ADMIN') NOT NULL,
+  `source` VARCHAR(128) NOT NULL DEFAULT '',
+  `count` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `granted_by` VARCHAR(32) NOT NULL DEFAULT '',
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (`id`),
+  KEY `idx_slot_grants_ckey` (`ckey`, `revoked`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 42);
+```
+
+---
+
+Version 5.41, 27 September 2026, by Maldaris
+Adds `player_ships`, the registry of persistent player-owned ships. Each row
+points at the latest revision of a hull saved to disk under
+`data/player_ships/`, keyed to the owner's `character_uuid`.
+
+```sql
+CREATE TABLE `player_ships` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `owner_uuid` VARCHAR(36) NOT NULL,
+  `ckey` VARCHAR(32) NOT NULL,
+  `ship_name` VARCHAR(64) NOT NULL,
+  `revision` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `map_path` VARCHAR(255) NOT NULL DEFAULT '',
+  `map_checksum` VARCHAR(64) NULL,
+  `tile_count` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `salvage_estimate` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `lockbox` JSON NULL,
+  `status` ENUM('FILED','CHECKED_OUT','LOST') NOT NULL DEFAULT 'FILED',
+  `insured` BOOLEAN NOT NULL DEFAULT FALSE,
+  `insurance_fee_paid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `filed_round_id` INT(11) UNSIGNED NULL,
+  `retrieved_round_id` INT(11) UNSIGNED NULL,
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_modified` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (`id`),
+  KEY `idx_player_ships_owner` (`owner_uuid`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 41);
+```
 
 ---
 

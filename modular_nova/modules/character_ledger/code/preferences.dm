@@ -5,6 +5,15 @@
 		num = 0
 	return add_leading("[num]", 4, "0")
 
+/// TRUE when `submitted` is the PIN on `user`'s mind. Same check the ATM uses.
+/proc/atm_pin_matches(mob/user, submitted)
+	if(isnull(user?.mind?.atm_pin))
+		return FALSE
+	var/entered = isnum(submitted) ? submitted : text2num(submitted)
+	if(isnull(entered))
+		return FALSE
+	return entered == user.mind.atm_pin
+
 /datum/preference/numeric/atm_pin
 	category = PREFERENCE_CATEGORY_NON_CONTEXTUAL
 	savefile_key = "atm_pin"
