@@ -77,6 +77,14 @@
 	description = "Nanotrasen personal transport frigate."
 	admin_notes = "Whiteship-style personal ship, comes with the Shipyard Fabricator crate."
 
+/datum/map_template/shuttle/overmap/frigate/nt_casevac
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "nt"
+	suffix = "casevac"
+	name = "NT CASEVAC"
+	description = "Nanotrasen casualty evacuation frigate."
+	admin_notes = "Medical recovery ship."
+
 /datum/map_template/shuttle/overmap/frigate/interdyne_cargo
 	prefix = "_maps/shuttles/overmap/frigates/"
 	port_id = "interdyne"
@@ -146,6 +154,13 @@
 	preferred_direction = SOUTH // match current map port; update if airlock facing changes
 	port_direction = SOUTH
 	area_type = /area/shuttle/overmap/frigate
+
+/obj/docking_port/mobile/overmap/frigate/nt_casevac
+	name = "NT CASEVAC"
+	shuttle_id = "nt_casevac"
+	preferred_direction = SOUTH // match current map port; update if airlock facing changes
+	port_direction = SOUTH
+	area_type = /area/shuttle/overmap/frigate/nt_casevac
 
 /obj/docking_port/mobile/overmap/frigate/interdyne_cargo
 	name = "Interdyne Cargo"

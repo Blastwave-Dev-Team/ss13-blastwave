@@ -30,6 +30,17 @@
 /area/shuttle/overmap/frigate/blackmarket_burst
 	name = "Black Market Burst"
 
+/area/shuttle/overmap/frigate/nt_casevac
+	name = "NT CASEVAC"
+
+/area/shuttle/overmap/frigate/nt_casevac/engine_room
+	name = "NT CASEVAC Engine Room"
+	icon_state = "engine"
+
+/area/shuttle/overmap/frigate/nt_casevac/cockpit
+	name = "NT CASEVAC Cockpit"
+	icon_state = "bridge"
+
 /* STATIC ORBITAL STRUCTURE AREAS */
 
 /// Base for non-mobile orbital structures loaded as their own map section.

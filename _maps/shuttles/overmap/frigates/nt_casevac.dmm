@@ -1,0 +1,813 @@
+//MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"af" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"aB" = (
+/obj/structure/window/reinforced/shuttle,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate)
+"aH" = (
+/obj/machinery/stasis{
+	dir = 1
+	},
+/obj/machinery/vitals_reader/advanced/directional/west,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"aY" = (
+/obj/structure/sign/nanotrasen/directional/west,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"bJ" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"cb" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"cd" = (
+/obj/machinery/stasis{
+	dir = 8
+	},
+/obj/machinery/vitals_reader/advanced/directional/east,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"dj" = (
+/obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"dv" = (
+/obj/structure/closet/emcloset/wall,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"dQ" = (
+/obj/machinery/door/poddoor/shutters/window{
+	id = "nt_casevac_side_bay"
+	},
+/obj/machinery/nova/fan/self_powered,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"eW" = (
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"hH" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 8
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"hM" = (
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"iA" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 4
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"iJ" = (
+/obj/structure/closet/firecloset/wall,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"iP" = (
+/obj/machinery/button/door/directional/south{
+	pixel_x = -8;
+	id = "nt_casevac_main_bay"
+	},
+/obj/machinery/button/door/directional/south{
+	pixel_x = 8;
+	id = s
+	},
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"jz" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"lR" = (
+/obj/structure/sign/departments/med,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"mB" = (
+/obj/structure/chair/comfy/shuttle/tactical{
+	dir = 1
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"mK" = (
+/obj/machinery/light/floor,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"nf" = (
+/obj/machinery/nova/fan/self_powered,
+/obj/machinery/door/poddoor/shutters/window{
+	id = "nt_casevac_main_bay"
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"nw" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"ou" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"oA" = (
+/obj/machinery/door/airlock/engineering/glass,
+/obj/effect/mapping_helpers/airlock/access/all/engineering,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"oG" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"pd" = (
+/obj/machinery/cryo_cell{
+	piping_layer = 2
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"qj" = (
+/obj/machinery/smartfridge/chemistry/preloaded,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate/nt_casevac)
+"qn" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"qC" = (
+/obj/machinery/portable_atmospherics/canister,
+/obj/machinery/atmospherics/components/unary/portables_connector/layer1{
+	dir = 1
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"rg" = (
+/obj/machinery/power/smes,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"tJ" = (
+/obj/structure/window/reinforced/shuttle,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"tZ" = (
+/obj/structure/closet/emcloset,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"vh" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"vY" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"wl" = (
+/obj/machinery/overmap/fuel_injector{
+	dir = 0
+	},
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"wn" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"wP" = (
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"xn" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate)
+"ya" = (
+/obj/machinery/door/airlock/engineering/glass,
+/obj/effect/mapping_helpers/airlock/access/all/engineering,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"ze" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"zp" = (
+/turf/open/space/basic,
+/area/space)
+"Ay" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/light/directional/south,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Az" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"AX" = (
+/obj/machinery/computer/helm,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"Bt" = (
+/obj/structure/table/reinforced,
+/obj/effect/spawner/surgery_tray/full,
+/obj/machinery/light/directional/west,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Cn" = (
+/obj/structure/sign/warning/no_smoking/circle/directional/north,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Ct" = (
+/obj/machinery/power/shuttle_engine/overmap/standard,
+/obj/structure/window/reinforced/spawner/directional/north,
+/obj/structure/cable,
+/turf/open/floor/plating,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"Ek" = (
+/obj/machinery/nova/fan/self_powered,
+/obj/machinery/door/poddoor/shutters/window{
+	id = "nt_casevac_side_bay"
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Fv" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 1
+	},
+/obj/machinery/airalarm/directional/south,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"Go" = (
+/obj/machinery/atmospherics/components/unary/thermomachine/freezer/layer4{
+	piping_layer = 2
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"GD" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Hj" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Ho" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Hs" = (
+/obj/structure/cable,
+/obj/effect/mapping_helpers/apc/full_charge,
+/obj/effect/mapping_helpers/apc/cell_10k,
+/obj/machinery/power/apc/auto_name/directional/north,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"IU" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
+	dir = 8
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"JO" = (
+/obj/structure/table/reinforced,
+/obj/effect/spawner/surgery_tray/full,
+/obj/machinery/light/directional/east,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Ks" = (
+/obj/machinery/cryo_cell{
+	piping_layer = 2
+	},
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Kz" = (
+/obj/machinery/chem_dispenser,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"KD" = (
+/obj/machinery/chem_master,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"LH" = (
+/obj/machinery/portable_atmospherics/canister/anesthetic_mix,
+/obj/machinery/atmospherics/components/unary/portables_connector/visible/layer2,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"MS" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"NW" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"PY" = (
+/obj/machinery/light/directional/south,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Qs" = (
+/turf/closed/wall/mineral/titanium,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"QF" = (
+/obj/effect/mapping_helpers/airlock/access/all/command,
+/obj/machinery/door/airlock/command/glass,
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/textured_large,
+/area/shuttle/overmap/frigate/nt_casevac/cockpit)
+"Rn" = (
+/obj/machinery/power/terminal{
+	dir = 1
+	},
+/obj/structure/cable/layer1,
+/obj/machinery/power/port_gen/pacman/pre_loaded,
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"RT" = (
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"Tr" = (
+/obj/structure/closet/firecloset/full,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"TE" = (
+/obj/machinery/door/poddoor/shutters/window{
+	id = "nt_casevac_main_bay"
+	},
+/obj/machinery/nova/fan/self_powered,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"VB" = (
+/obj/structure/cable,
+/obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
+/obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"VX" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/obj/machinery/atmospherics/components/unary/vent_scrubber/on{
+	dir = 4
+	},
+/obj/structure/cable,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"Wc" = (
+/obj/machinery/airalarm/directional/east,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"Wz" = (
+/obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+"WH" = (
+/obj/machinery/atmospherics/components/unary/portables_connector/layer4{
+	dir = 8
+	},
+/obj/machinery/portable_atmospherics/canister/air,
+/obj/machinery/airalarm/directional/north,
+/turf/open/floor/engine,
+/area/shuttle/overmap/frigate/nt_casevac/engine_room)
+"Xj" = (
+/obj/machinery/atmospherics/components/unary/passive_vent{
+	dir = 1
+	},
+/turf/open/floor/catwalk_floor/airless,
+/area/shuttle/overmap/frigate)
+"XU" = (
+/obj/structure/sign/nanotrasen/directional/east,
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate)
+
+(1,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(2,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(3,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(4,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+lR
+dQ
+Ek
+Ek
+lR
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(5,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+xn
+xn
+Cn
+hM
+hM
+xn
+Az
+Az
+Az
+Az
+Az
+zp
+"}
+(6,1,1) = {"
+zp
+zp
+zp
+lR
+xn
+aB
+xn
+xn
+xn
+Kz
+hM
+mK
+hM
+hM
+Az
+Az
+rg
+Rn
+Ct
+zp
+"}
+(7,1,1) = {"
+zp
+zp
+zp
+TE
+aY
+Bt
+aH
+Bt
+aH
+KD
+hM
+hM
+hM
+PY
+Az
+Tr
+RT
+vh
+Ct
+zp
+"}
+(8,1,1) = {"
+zp
+zp
+zp
+nf
+mK
+hM
+hM
+hM
+hM
+hM
+hM
+Go
+Wz
+wP
+Az
+Hs
+VX
+vY
+Ct
+zp
+"}
+(9,1,1) = {"
+zp
+zp
+zp
+nf
+wn
+hH
+hH
+hH
+hH
+GD
+GD
+Ks
+jz
+GD
+oA
+bJ
+MS
+wl
+Az
+zp
+"}
+(10,1,1) = {"
+zp
+zp
+zp
+nf
+eW
+iA
+iA
+iA
+iA
+Hj
+Hj
+pd
+cb
+VB
+ya
+nw
+qn
+qC
+Az
+zp
+"}
+(11,1,1) = {"
+zp
+zp
+zp
+nf
+mK
+hM
+hM
+hM
+hM
+hM
+hM
+LH
+cb
+IU
+Az
+WH
+ze
+vY
+Ct
+zp
+"}
+(12,1,1) = {"
+zp
+zp
+zp
+nf
+XU
+JO
+cd
+JO
+cd
+hM
+hM
+mK
+Hj
+Ay
+Az
+tZ
+RT
+vh
+Ct
+zp
+"}
+(13,1,1) = {"
+zp
+zp
+zp
+lR
+xn
+aB
+xn
+xn
+xn
+Wc
+hM
+NW
+NW
+Ho
+qj
+Az
+rg
+Rn
+Ct
+zp
+"}
+(14,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+xn
+xn
+dv
+QF
+iJ
+oG
+Az
+Az
+Az
+Az
+Az
+zp
+"}
+(15,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+tJ
+dj
+af
+iP
+ou
+Xj
+zp
+zp
+zp
+zp
+zp
+"}
+(16,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+tJ
+AX
+mB
+Fv
+Qs
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(17,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+tJ
+tJ
+tJ
+Qs
+Qs
+zp
+zp
+zp
+zp
+zp
+zp
+"}
+(18,1,1) = {"
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+zp
+"}
