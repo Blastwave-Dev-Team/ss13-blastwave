@@ -145,6 +145,15 @@ GLOBAL_LIST_EMPTY(ship_listings)
 	template_type = /datum/map_template/shuttle/overmap/frigate/nt_personal
 	fittings = list("Helm console", "Nav console", "Crew lockers", "Galley")
 
+/datum/ship_listing/nt_casevac
+	id = "nt_casevac"
+	name = "NT CASEVAC"
+	class_name = "Casualty evacuation"
+	manufacturer = "Nanotrasen"
+	description = "A fast medical recovery hull that pulls the wounded off a contact and keeps them stable on the way home."
+	template_type = /datum/map_template/shuttle/overmap/frigate/nt_casevac
+	fittings = list("Helm console", "Nav console")
+
 /datum/ship_listing/ikea_sma
 	id = "ikea_sma"
 	name = "Space Ikea Sma"
