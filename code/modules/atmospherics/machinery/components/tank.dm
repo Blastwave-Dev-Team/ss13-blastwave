@@ -44,6 +44,8 @@
 	var/gas_type = null
 	/// Up to how much percent of the max pressure do we fill the tank on init
 	var/starting_pressure_percent = 0.5
+	///Stores the gas mixture in string form for map loading and saving
+	var/initial_gas_mix
 
 	///Reference to the gas mix inside the tank
 	var/datum/gas_mixture/air_contents
@@ -92,12 +94,15 @@
 	RegisterSignal(src, COMSIG_MERGER_REMOVING, PROC_REF(merger_removing))
 	RegisterSignal(src, COMSIG_ATOM_SMOOTHED_ICON, PROC_REF(smoothed))
 
-	air_contents = new
-	air_contents.temperature = T20C
-	air_contents.volume = volume
+	if(initial_gas_mix)
+		air_contents = SSair.parse_gas_string(initial_gas_mix)
+	else
+		air_contents = new
+		air_contents.temperature = T20C
+		air_contents.volume = volume
 
-	if(gas_type && starting_pressure_percent > 0)
-		fill_to_pressure(gas_type, starting_pressure_percent)
+		if(gas_type && starting_pressure_percent > 0)
+			fill_to_pressure(gas_type, starting_pressure_percent)
 
 	QUEUE_SMOOTH(src)
 	QUEUE_SMOOTH_NEIGHBORS(src)
