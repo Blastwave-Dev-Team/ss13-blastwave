@@ -212,3 +212,12 @@ GLOBAL_LIST_EMPTY(ship_listings)
 	template_type = /datum/map_template/shuttle/overmap/frigate/blackmarket_burst
 	fittings = list("Helm console", "Hidden hold")
 	affiliations = list(OVERMAP_AFFILIATION_DS2)
+
+/datum/ship_listing/okb_8492_pikhta
+    id = "okb_8492_pikhta"
+    name = "Pikhta-class"
+    class_name = "Engineering vessel"
+    manufacturer = "Byelkov Design Bureau (OKB-8492)"
+    description = "Lightly used. A barebones, large vessel. Three engines, an RTG, and absolute no side visibility. Bring your own equipment, the last owner sold the crane."
+    template_type = /datum/map_template/shuttle/overmap/frigate/okb_8492_pikhta
+    fittings = list("Helm console", "Nav console", "Cargo doors", "RTG")
