@@ -84,7 +84,7 @@
 	},
 /obj/machinery/button/door/directional/south{
 	pixel_x = 8;
-	id = s
+	id = "nt_casevac_side_bay"
 	},
 /obj/structure/cable,
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on,
