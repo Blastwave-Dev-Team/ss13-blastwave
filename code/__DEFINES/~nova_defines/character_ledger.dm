@@ -9,6 +9,10 @@
 #define LEDGER_CHANNEL_LOADOUT "LOADOUT"
 #define LEDGER_CHANNEL_IDENTITY_MERGE "IDENTITY_MERGE"
 
+
+/// Back in the Black station trait payout (Alive Associate Return Program).
+#define LEDGER_CHANNEL_SHAREHOLDER_BONUS "SHAREHOLDER_BONUS"
+
 #define LEDGER_STATUS_OK "ok"
 #define LEDGER_STATUS_DUPLICATE "duplicate"
 #define LEDGER_STATUS_INSUFFICIENT "insufficient"
