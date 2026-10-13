@@ -147,9 +147,7 @@
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "pd" = (
-/obj/machinery/cryo_cell{
-	piping_layer = 2
-	},
+/obj/machinery/cryo_cell/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
 /area/shuttle/overmap/frigate/nt_casevac/medical_bay)
@@ -275,9 +273,7 @@
 /turf/open/floor/iron/textured_large,
 /area/shuttle/overmap/frigate/nt_casevac/cockpit)
 "Go" = (
-/obj/machinery/atmospherics/components/unary/thermomachine/freezer/layer4{
-	piping_layer = 2
-	},
+/obj/machinery/atmospherics/components/unary/thermomachine/freezer/layer2,
 /turf/open/floor/iron/white/smooth_large,
 /area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "GD" = (
@@ -316,9 +312,7 @@
 /turf/open/floor/iron/white/smooth_large,
 /area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Ks" = (
-/obj/machinery/cryo_cell{
-	piping_layer = 2
-	},
+/obj/machinery/cryo_cell/layer2,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/white/smooth_large,
 /area/shuttle/overmap/frigate/nt_casevac/medical_bay)

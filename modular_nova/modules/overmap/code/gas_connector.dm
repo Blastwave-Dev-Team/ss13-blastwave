@@ -55,3 +55,10 @@
 	if(istype(reference, /obj/machinery/atmospherics/pipe))
 		var/obj/machinery/atmospherics/pipe/pipe = reference
 		pipe.destroy_network()
+
+/obj/machinery/cryo_cell
+	/// Pipe layer the internal connector joins, so a cryo loop can run beside the distro lines.
+	var/piping_layer = PIPING_LAYER_DEFAULT
+
+/obj/machinery/cryo_cell/layer2
+	piping_layer = 2
