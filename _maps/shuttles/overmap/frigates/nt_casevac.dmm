@@ -1,4 +1,14 @@
 //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
+"aa" = (
+/obj/machinery/nova/fan/self_powered,
+/obj/machinery/door/poddoor/shutters/window{
+	id = "nt_casevac_side_bay"
+	},
+/obj/docking_port/mobile/overmap/frigate/nt_casevac{
+	dir = 4
+	},
+/turf/open/floor/iron/white/smooth_large,
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "af" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
@@ -493,7 +503,7 @@ zp
 zp
 lR
 dQ
-Ek
+aa
 Ek
 lR
 zp

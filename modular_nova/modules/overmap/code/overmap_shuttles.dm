@@ -158,8 +158,8 @@
 /obj/docking_port/mobile/overmap/frigate/nt_casevac
 	name = "NT CASEVAC"
 	shuttle_id = "nt_casevac"
-	preferred_direction = SOUTH // match current map port; update if airlock facing changes
-	port_direction = SOUTH
+	preferred_direction = NORTH
+	port_direction = WEST
 	area_type = /area/shuttle/overmap/frigate/nt_casevac
 
 /obj/docking_port/mobile/overmap/frigate/interdyne_cargo
