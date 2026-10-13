@@ -662,6 +662,17 @@
 		desired,
 	))
 
+/// The nose heading of a mapped mobile port, in the blueprint's own frame: the
+/// same reading as `get_front_dir()`, from the port's mapped vars or its type.
+/proc/mapped_port_front_dir(obj/docking_port/mobile/port_type, list/mapped_vars)
+	var/port_dir = mapped_vars?["dir"]
+	if(!(port_dir in GLOB.cardinals))
+		port_dir = initial(port_type.dir)
+	var/port_direction = mapped_vars?["port_direction"]
+	if(!(port_direction in GLOB.cardinals))
+		port_direction = initial(port_type.port_direction)
+	return angle2dir_cardinal(dir2angle(port_dir) + 180 - dir2angle(port_direction))
+
 /// Translate one parsed map cell into ordered, constructible operations.
 /datum/ship_plan/template/proc/classify_model(list/model, rel_x, rel_y)
 	var/list/members = model[1]
@@ -680,10 +691,7 @@
 		else if(ispath(member_path, /obj/machinery/power/apc))
 			has_apc = TRUE
 		else if(ispath(member_path, /obj/docking_port/mobile))
-			var/obj/docking_port/mobile/port_type = member_path
-			var/native_direction = initial(port_type.preferred_direction)
-			if(native_direction in GLOB.cardinals)
-				shuttle_dir = native_direction
+			shuttle_dir = mapped_port_front_dir(member_path, member_attributes[member_index])
 	if(!turf_path || ispath(turf_path, /turf/open/space) || ispath(turf_path, /turf/template_noop))
 		return
 	if(ispath(area_path, /area/shuttle))

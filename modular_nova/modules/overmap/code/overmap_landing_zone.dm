@@ -64,12 +64,22 @@
 	return null
 
 /**
- * A one-shot stationary port centered in this zone for `shuttle`, facing the
- * zone's `exit_direction` (or the shuttle's current heading when the zone has
- * none), so the hull is rotated to launch out of the bay. The one landing path
- * shared by the helm, the registrar and the broker. Null when the shuttle does
- * not fit, the zone is occupied, or the footprint is blocked. The port deletes
- * itself after the shuttle next departs.
+ * Absolute heading of this shuttle's nose.
+ *
+ * Read from the port's own facing and `port_direction` rather than
+ * `preferred_direction`: the port turns with the hull on every rotated dock, so
+ * this stays true after landings and filing, where the declared value does not.
+ */
+/obj/docking_port/mobile/proc/get_front_dir()
+	return angle2dir_cardinal(dir2angle(dir) + 180 - dir2angle(port_direction))
+
+/**
+ * A one-shot stationary port centered in this zone for `shuttle`, turned so the
+ * hull lands nose-first toward the zone's `exit_direction` (or as it already
+ * faces when the zone has none), ready to launch out of the bay. The one landing
+ * path shared by the helm, the registrar and the broker. Null when the shuttle
+ * does not fit, the zone is occupied, or the footprint is blocked. The port
+ * deletes itself after the shuttle next departs.
  */
 /obj/effect/landmark/overmap_landing_zone/proc/create_landing_port(obj/docking_port/mobile/shuttle)
 	if(!shuttle || get_occupant(shuttle))
@@ -84,7 +94,7 @@
 	port.dwidth = shuttle.dwidth
 	port.dheight = shuttle.dheight
 	port.register(TRUE)
-	port.setDir((exit_direction in GLOB.cardinals) ? exit_direction : shuttle.dir)
+	port.setDir(landing_port_dir(shuttle))
 	port.forceMove(get_turf(src))
 	var/turf/dest = overmap_centered_dock_turf(port, get_turf(src), zone_width, zone_height)
 	if(!dest)
@@ -95,6 +105,14 @@
 		qdel(port)
 		return null
 	return port
+
+/// Docking turns a hull by the angle from its port's dir to the pad's, so the
+/// pad is the port's dir turned by however far the nose has to turn to face the
+/// exit. A port's dir is only its nose when its door is at the stern.
+/obj/effect/landmark/overmap_landing_zone/proc/landing_port_dir(obj/docking_port/mobile/shuttle)
+	if(!(exit_direction in GLOB.cardinals))
+		return shuttle.dir
+	return angle2dir_cardinal(dir2angle(shuttle.dir) + dir2angle(exit_direction) - dir2angle(shuttle.get_front_dir()))
 
 /**
  * Where `port` must stand for its footprint, in its current dir, to sit centered

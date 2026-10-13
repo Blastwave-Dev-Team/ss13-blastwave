@@ -370,7 +370,7 @@
 		TEST_ASSERT(disk.ship_plan, "[disk_type] should initialize a ship plan.")
 		TEST_ASSERT_EQUAL(disk.ship_plan.width, 14, "[disk_type] should crop raw DMM padding from its width.")
 		TEST_ASSERT_EQUAL(disk.ship_plan.height, 9, "[disk_type] should crop raw DMM padding from its height.")
-		TEST_ASSERT_EQUAL(disk.ship_plan.shuttle_dir, WEST, "[disk_type] should inherit its mapped mobile port's native facing.")
+		TEST_ASSERT_EQUAL(disk.ship_plan.shuttle_dir, EAST, "[disk_type] should face the way its mapped mobile port puts the nose.")
 		TEST_ASSERT(length(disk.ship_plan.manifest), "[disk_type] should produce a non-empty construction manifest.")
 		var/list/counts = disk.ship_plan.phase_counts()
 		TEST_ASSERT(counts["[SHIPYARD_PHASE_RODS]"] > 0, "[disk_type] should contain rod operations.")

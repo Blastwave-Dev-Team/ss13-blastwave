@@ -319,7 +319,7 @@
 	TEST_ASSERT(profile, "The NT listing should have a hull profile.")
 	var/side = max(profile.width, profile.height) + 2
 	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(side, side, side + 2)
-	// The stock hull is mapped facing north, so this pad has to turn it.
+	// The stock hull is mapped nose south, so this pad has to turn it.
 	zone.exit_direction = EAST
 	var/owner_uuid = generate_character_uuid()
 	var/obj/machinery/computer/ship_broker/broker = logged_in_broker(owner_uuid, 100000, zone)
@@ -330,7 +330,7 @@
 	TEST_ASSERT(istype(delivered), "Buying onto a clear pad should land the hull: [broker_says(broker)]")
 	hulls += delivered
 	TEST_ASSERT(!broker.session.is_busy(), "The broker should let go of the console once the sale is done.")
-	TEST_ASSERT_EQUAL(delivered.dir, EAST, "A hull set down on a pad should face the pad's exit.")
+	TEST_ASSERT_EQUAL(delivered.get_front_dir(), EAST, "A hull set down on a pad should point its nose at the pad's exit.")
 	var/list/bounds = delivered.return_coords()
 	TEST_ASSERT(zone.contains_bbox(min(bounds[1], bounds[3]), min(bounds[2], bounds[4]), max(bounds[1], bounds[3]), max(bounds[2], bounds[4]), delivered.z), "A turned hull should still land inside the pad.")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(owner_uuid), balance_before - price - insurance, "An insured pad purchase should charge the price and the insurance.")
@@ -344,6 +344,26 @@
 	balance_before = SScharacter_ledger.get_balance(owner_uuid)
 	TEST_ASSERT(isnull(broker.purchase("nt_personal", "Second Hull", "PAD", FALSE, null)), "An occupied pad should refuse a pad purchase.")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(owner_uuid), balance_before, "A refused pad purchase should charge nothing.")
+
+/// A hull whose door is on its side lands nose-first too, not door-first.
+/datum/unit_test/overmap_ship_persistence/broker_pad_side_door
+
+/datum/unit_test/overmap_ship_persistence/broker_pad_side_door/Run()
+	var/datum/ship_listing/listing = shipyard_ship_listing("nt_casevac")
+	var/datum/hull_profile/profile = listing.get_profile()
+	TEST_ASSERT(profile, "The CASEVAC listing should have a hull profile.")
+	var/side = max(profile.width, profile.height) + 2
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(side, side, side + 2)
+	// Mapped nose north with its port on the west hull, so the port faces east
+	// and lining it up with the exit would leave the nose pointing north.
+	zone.exit_direction = EAST
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_broker/broker = logged_in_broker(owner_uuid, 100000, zone)
+	var/obj/docking_port/mobile/delivered = broker.purchase("nt_casevac", "Side Door", "PAD", FALSE, null)
+	TEST_ASSERT(istype(delivered), "Buying onto a clear pad should land the hull: [broker_says(broker)]")
+	hulls += delivered
+	TEST_ASSERT_EQUAL(delivered.get_front_dir(), EAST, "A side-door hull should point its nose at the pad's exit.")
+	TEST_ASSERT_EQUAL(delivered.dir, SOUTH, "Turning the nose from north to east turns the port from east to south.")
 
 /// Every hull on the lot comes out of the garage once bought.
 /datum/unit_test/overmap_ship_persistence/every_listing
