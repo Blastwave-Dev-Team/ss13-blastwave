@@ -7,18 +7,18 @@
 "aB" = (
 /obj/structure/window/reinforced/shuttle,
 /turf/open/floor/plating,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "aH" = (
 /obj/machinery/stasis{
 	dir = 1
 	},
 /obj/machinery/vitals_reader/advanced/directional/west,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "aY" = (
 /obj/structure/sign/nanotrasen/directional/west,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "bJ" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
@@ -29,14 +29,14 @@
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "cd" = (
 /obj/machinery/stasis{
 	dir = 8
 	},
 /obj/machinery/vitals_reader/advanced/directional/east,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "dj" = (
 /obj/machinery/computer/camera_advanced/shuttle_docker/overmap_nav,
 /turf/open/floor/iron/textured_large,
@@ -51,28 +51,28 @@
 	},
 /obj/machinery/nova/fan/self_powered,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "eW" = (
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "hH" = (
 /obj/structure/chair/comfy/shuttle/tactical{
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "hM" = (
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "iA" = (
 /obj/structure/chair/comfy/shuttle/tactical{
 	dir = 4
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "iJ" = (
 /obj/structure/closet/firecloset/wall,
 /turf/closed/wall/mineral/titanium,
@@ -94,11 +94,11 @@
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "lR" = (
 /obj/structure/sign/departments/med,
 /turf/closed/wall/mineral/titanium,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "mB" = (
 /obj/structure/chair/comfy/shuttle/tactical{
 	dir = 1
@@ -109,14 +109,14 @@
 "mK" = (
 /obj/machinery/light/floor,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "nf" = (
 /obj/machinery/nova/fan/self_powered,
 /obj/machinery/door/poddoor/shutters/window{
 	id = "nt_casevac_main_bay"
 	},
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "nw" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
@@ -135,14 +135,14 @@
 "oG" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/closed/wall/mineral/titanium,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "pd" = (
 /obj/machinery/cryo_cell{
 	piping_layer = 2
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "qj" = (
 /obj/machinery/smartfridge/chemistry/preloaded,
 /turf/open/floor/iron/white/smooth_large,
@@ -194,16 +194,16 @@
 "wn" = (
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "wP" = (
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on{
 	dir = 4
 	},
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "xn" = (
 /turf/closed/wall/mineral/titanium,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "ya" = (
 /obj/machinery/door/airlock/engineering/glass,
 /obj/effect/mapping_helpers/airlock/access/all/engineering,
@@ -225,7 +225,7 @@
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /obj/machinery/light/directional/south,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Az" = (
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate/nt_casevac/engine_room)
@@ -238,11 +238,11 @@
 /obj/effect/spawner/surgery_tray/full,
 /obj/machinery/light/directional/west,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Cn" = (
 /obj/structure/sign/warning/no_smoking/circle/directional/north,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Ct" = (
 /obj/machinery/power/shuttle_engine/overmap/standard,
 /obj/structure/window/reinforced/spawner/directional/north,
@@ -255,7 +255,7 @@
 	id = "nt_casevac_side_bay"
 	},
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Fv" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/components/unary/vent_pump/on/layer4{
@@ -269,20 +269,20 @@
 	piping_layer = 2
 	},
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "GD" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Hj" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Ho" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Hs" = (
 /obj/structure/cable,
 /obj/effect/mapping_helpers/apc/full_charge,
@@ -298,33 +298,33 @@
 	dir = 8
 	},
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "JO" = (
 /obj/structure/table/reinforced,
 /obj/effect/spawner/surgery_tray/full,
 /obj/machinery/light/directional/east,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Ks" = (
 /obj/machinery/cryo_cell{
 	piping_layer = 2
 	},
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Kz" = (
 /obj/machinery/chem_dispenser,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "KD" = (
 /obj/machinery/chem_master,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "LH" = (
 /obj/machinery/portable_atmospherics/canister/anesthetic_mix,
 /obj/machinery/atmospherics/components/unary/portables_connector/visible/layer2,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "MS" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/smart/manifold/supply/hidden/layer1,
@@ -335,11 +335,11 @@
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "PY" = (
 /obj/machinery/light/directional/south,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Qs" = (
 /turf/closed/wall/mineral/titanium,
 /area/shuttle/overmap/frigate/nt_casevac/cockpit)
@@ -373,13 +373,13 @@
 	},
 /obj/machinery/nova/fan/self_powered,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "VB" = (
 /obj/structure/cable,
 /obj/machinery/atmospherics/pipe/smart/manifold/scrubbers/hidden,
 /obj/machinery/atmospherics/pipe/smart/manifold/orange/hidden/layer4,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "VX" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /obj/machinery/atmospherics/components/unary/vent_scrubber/on{
@@ -391,11 +391,11 @@
 "Wc" = (
 /obj/machinery/airalarm/directional/east,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "Wz" = (
 /obj/machinery/atmospherics/pipe/smart/manifold/green/hidden/layer2,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "WH" = (
 /obj/machinery/atmospherics/components/unary/portables_connector/layer4{
 	dir = 8
@@ -409,11 +409,11 @@
 	dir = 1
 	},
 /turf/open/floor/catwalk_floor/airless,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 "XU" = (
 /obj/structure/sign/nanotrasen/directional/east,
 /turf/open/floor/iron/white/smooth_large,
-/area/shuttle/overmap/frigate)
+/area/shuttle/overmap/frigate/nt_casevac/medical_bay)
 
 (1,1,1) = {"
 zp
