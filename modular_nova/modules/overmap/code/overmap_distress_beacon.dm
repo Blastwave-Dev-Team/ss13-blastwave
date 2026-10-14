@@ -17,12 +17,12 @@
 
 MAPPING_DIRECTIONAL_HELPERS(/obj/machinery/distress_beacon, 28)
 
-/obj/machinery/distress_beacon/update_icon_state()
+/obj/machinery/distress_beacon/update_overlays()
 	. = ..()
-	if(transmitting)
-		icon_state = "[base_icon_state]-antennae_flashing"
-	else
-		icon_state = base_icon_state
+	if(!transmitting)
+		return
+	. += mutable_appearance(icon, "[base_icon_state]-antennae_flashing")
+	. += emissive_appearance(icon, "[base_icon_state]-antennae_flashing", src)
 
 /obj/machinery/distress_beacon/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
