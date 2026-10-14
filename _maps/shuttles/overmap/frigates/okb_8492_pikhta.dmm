@@ -112,7 +112,6 @@
 /area/shuttle/overmap/frigate)
 "kN" = (
 /obj/machinery/door/airlock/engineering/glass,
-/obj/effect/mapping_helpers/airlock/access/any/engineering/engine_equipment,
 /turf/open/floor/iron,
 /area/shuttle/overmap/frigate)
 "kX" = (
@@ -124,7 +123,6 @@
 /area/shuttle/overmap/frigate)
 "lQ" = (
 /obj/machinery/door/airlock/command/glass,
-/obj/effect/mapping_helpers/airlock/access/all/command,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/supply/hidden/layer4,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/scrubbers/hidden,
 /obj/structure/cable,
@@ -196,7 +194,6 @@
 /obj/structure/cable,
 /obj/machinery/atmospherics/components/binary/pump/layer4,
 /obj/structure/window/reinforced/spawner/directional/west,
-/obj/structure/cable/layer1,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/orange/visible/layer2,
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
@@ -366,6 +363,7 @@
 "HK" = (
 /obj/structure/cable,
 /obj/machinery/computer/monitor,
+/obj/structure/cable/layer1,
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
 "HM" = (
@@ -449,7 +447,6 @@
 	},
 /obj/structure/window/reinforced/spawner/directional/west,
 /obj/machinery/portable_atmospherics/canister/air,
-/obj/structure/cable/layer1,
 /obj/machinery/atmospherics/pipe/smart/manifold4w/orange/visible/layer2,
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
@@ -548,7 +545,7 @@ UR
 (2,1,1) = {"
 yS
 XJ
-hz
+yS
 SI
 qS
 kt
@@ -562,7 +559,7 @@ UR
 (3,1,1) = {"
 yS
 Xd
-yS
+hz
 HK
 CM
 uL
