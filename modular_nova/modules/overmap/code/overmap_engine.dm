@@ -103,6 +103,13 @@
 	feed_connector.reconnect_connector()
 	scan_for_injector()
 
+// A shuttle turns its atoms one at a time, so relinking the feed port here would rescan
+// pipes it hasn't turned yet. The feed connector re-aims the port once the move is done.
+/obj/machinery/power/shuttle_engine/overmap/shuttleRotate(rotation, params)
+	UnregisterSignal(src, COMSIG_ATOM_POST_DIR_CHANGE)
+	. = ..()
+	RegisterSignal(src, COMSIG_ATOM_POST_DIR_CHANGE, PROC_REF(on_dir_change))
+
 /obj/machinery/power/shuttle_engine/overmap/Moved(atom/old_loc, movement_dir, forced, list/old_locs, momentum_change)
 	. = ..()
 	scan_for_injector()

@@ -71,7 +71,7 @@
  * this stays true after landings and filing, where the declared value does not.
  */
 /obj/docking_port/mobile/proc/get_front_dir()
-	return angle2dir_cardinal(dir2angle(dir) + 180 - dir2angle(port_direction))
+	return angle2dir_cardinal(dir2angle(dir) + 540 - dir2angle(port_direction))
 
 /**
  * A one-shot stationary port centered in this zone for `shuttle`, turned so the
@@ -112,7 +112,7 @@
 /obj/effect/landmark/overmap_landing_zone/proc/landing_port_dir(obj/docking_port/mobile/shuttle)
 	if(!(exit_direction in GLOB.cardinals))
 		return shuttle.dir
-	return angle2dir_cardinal(dir2angle(shuttle.dir) + dir2angle(exit_direction) - dir2angle(shuttle.get_front_dir()))
+	return angle2dir_cardinal(dir2angle(shuttle.dir) + dir2angle(exit_direction) + 360 - dir2angle(shuttle.get_front_dir()))
 
 /**
  * Where `port` must stand for its footprint, in its current dir, to sit centered

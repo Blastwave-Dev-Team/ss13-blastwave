@@ -73,18 +73,15 @@
 	return connected_machine.dir
 
 /**
- * The machine carries the connector along before the shuttle reaches the connector's
- * turf, so the shuttle skips it: a rotated landing leaves the port facing the old way,
- * half-linked to pipes that were turned. Re-seat it the way a wrench rotation would.
- * Only when turned, though - re-seating a port that is already linked strands the
- * pipeline it was in.
+ * The shuttle never turns the connector itself, so a rotated landing leaves the port
+ * facing the old way. Its pipe link survives: the pipe turns its own node list. Only
+ * re-aim it. Relinking here would rescan pipes the shuttle hasn't turned yet, since it
+ * turns atoms one at a time in this pass, and leave them holding a neighbour twice.
  */
 /datum/gas_machine_connector/proc/shuttle_moved_connected_machine()
 	SIGNAL_HANDLER
-	if(gas_connector.dir == connector_dir())
-		return
-	disconnect_connector()
-	reconnect_connector()
+	gas_connector.dir = connector_dir()
+	gas_connector.set_init_directions()
 // BLASTWAVE EDIT ADDITION END
 
 /**

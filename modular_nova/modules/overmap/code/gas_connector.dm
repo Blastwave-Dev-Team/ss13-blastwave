@@ -16,6 +16,11 @@
 /obj/machinery/atmospherics/components/unary/gas_connector/set_init_directions()
 	initialize_directions = dir
 
+// The connector datum aims this once its machine has turned. Turning it here too would
+// turn it twice whenever the shuttle reaches this port before the machine.
+/obj/machinery/atmospherics/components/unary/gas_connector/shuttleRotate(rotation, params)
+	return
+
 // `gas_machine_connector/New()` queues this rebuild in the middle of a map load,
 // and SSair can reach it while the load yields between linking devices and
 // building their pipelines. A pipeline grown from this side takes the adjacent

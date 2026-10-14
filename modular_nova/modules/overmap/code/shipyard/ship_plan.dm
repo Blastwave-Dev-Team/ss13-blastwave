@@ -671,7 +671,7 @@
 	var/port_direction = mapped_vars?["port_direction"]
 	if(!(port_direction in GLOB.cardinals))
 		port_direction = initial(port_type.port_direction)
-	return angle2dir_cardinal(dir2angle(port_dir) + 180 - dir2angle(port_direction))
+	return angle2dir_cardinal(dir2angle(port_dir) + 540 - dir2angle(port_direction))
 
 /// Translate one parsed map cell into ordered, constructible operations.
 /datum/ship_plan/template/proc/classify_model(list/model, rel_x, rel_y)

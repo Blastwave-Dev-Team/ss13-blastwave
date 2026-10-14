@@ -365,6 +365,46 @@
 	TEST_ASSERT_EQUAL(delivered.get_front_dir(), EAST, "A side-door hull should point its nose at the pad's exit.")
 	TEST_ASSERT_EQUAL(delivered.dir, SOUTH, "Turning the nose from north to east turns the port from east to south.")
 
+/// Turning a hull onto a pad leaves each pipe holding every neighbour once, in the slot facing it.
+/datum/unit_test/overmap_ship_persistence/broker_pad_pipes
+	/// One pad per landing, released with the hulls standing on them.
+	var/list/datum/turf_reservation/lot_reservations = list()
+
+/datum/unit_test/overmap_ship_persistence/broker_pad_pipes/Destroy()
+	. = ..()
+	QDEL_LIST(lot_reservations)
+
+/datum/unit_test/overmap_ship_persistence/broker_pad_pipes/Run()
+	// Engines, the fuel injector and cryo cells hang hidden connector ports off these hulls' pipes.
+	for(var/listing_id in list("nt_personal", "nt_casevac"))
+		var/datum/ship_listing/listing = shipyard_ship_listing(listing_id)
+		var/datum/hull_profile/profile = listing.get_profile()
+		TEST_ASSERT(profile, "[listing_id] should have a hull profile.")
+		var/side = max(profile.width, profile.height) + 2
+		for(var/exit in GLOB.cardinals)
+			var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(side, side, side + 2)
+			lot_reservations += pad_reservation
+			pad_reservation = null
+			zone.exit_direction = exit
+			var/obj/machinery/computer/ship_broker/broker = logged_in_broker(generate_character_uuid(), 100000, zone)
+			var/obj/docking_port/mobile/delivered = broker.purchase(listing_id, "Turned [listing_id]", "PAD", FALSE, null)
+			TEST_ASSERT(istype(delivered), "Buying [listing_id] onto a clear pad should land the hull: [broker_says(broker)]")
+			hulls += delivered
+			TEST_ASSERT_EQUAL(delivered.get_front_dir(), exit, "[listing_id] should land nose-first toward the pad's exit.")
+			for(var/turf/hull_turf as anything in delivered.return_turfs())
+				for(var/obj/machinery/atmospherics/pipe/smart/pipe in hull_turf)
+					var/where = "[listing_id] facing [dir2text(exit)] at ([pipe.x - delivered.x], [pipe.y - delivered.y]) layer [pipe.piping_layer]"
+					var/list/node_dirs = pipe.get_node_connects()
+					var/list/seen = list()
+					for(var/i in 1 to pipe.device_type)
+						var/obj/machinery/atmospherics/node = pipe.nodes[i]
+						if(!node)
+							continue
+						TEST_ASSERT(!seen[node], "The pipe [where] should hold [node.type] once, not twice.")
+						seen[node] = TRUE
+						TEST_ASSERT_EQUAL(get_turf(node), get_step(pipe, node_dirs[i]), "The pipe [where] should hold [node.type] in the slot facing it.")
+						TEST_ASSERT(pipe in node.nodes, "[node.type] next to the pipe [where] should hold the pipe back.")
+
 /// Every hull on the lot comes out of the garage once bought.
 /datum/unit_test/overmap_ship_persistence/every_listing
 	/// One pad per listing, released with the hulls standing on them.
