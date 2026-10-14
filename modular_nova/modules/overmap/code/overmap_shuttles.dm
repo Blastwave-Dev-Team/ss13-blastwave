@@ -109,6 +109,14 @@
 	description = "A small cargo jump freighter, popular among smugglers who enjoy both the cargo space and speed."
 	admin_notes = "Spawned by ruin-relative automapper on blackmarket. Returns via blackmarket_burst_blackmarket / Market LZ."
 
+/datum/map_template/shuttle/overmap/frigate/okb_8492_pikhta
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "okb_8492"
+	suffix = "pikhta"
+	name = "OKB-8492 Pikhta-class"
+	description = "Surplus Soviet Navy engineering ship."
+	admin_notes = "Soviet Navy engineering ship. Fragile and basic, but can be refit to fit many people."
+
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
 /// every construction route instead of whatever the fleet happens to use.
@@ -183,3 +191,9 @@
 	port_direction = EAST
 	area_type = /area/shuttle/overmap/frigate/blackmarket_burst
 
+/obj/docking_port/mobile/overmap/frigate/okb_8492_pikhta
+	name = "Pikhta-class"
+	shuttle_id = "okb_8492_pikhta"
+	preferred_direction = WEST
+	port_direction = EAST
+	area_type = /area/shuttle/overmap/frigate
