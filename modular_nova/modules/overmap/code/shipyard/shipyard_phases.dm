@@ -73,6 +73,13 @@
 		return FALSE
 	return satisfied(fabricator.get_operation_turf(src))
 
+/// What placing this operation spends from SSshipyard's per-fire budget.
+/datum/ship_plan_op/proc/placement_cost()
+	switch(op_type)
+		if(SHIPYARD_OP_GENERATED, SHIPYARD_OP_MACHINE, SHIPYARD_OP_COMPUTER)
+			return SHIPYARD_OP_COST_GENERATE
+	return SHIPYARD_OP_COST_CHEAP
+
 /**
  * Something standing where hull work has to happen, or null when the tile is clear.
  *
@@ -108,8 +115,6 @@
 		if(!fabricator.materials?.mat_container?.has_materials(material_cost, fabricator.material_cost_multiplier))
 			fabricator.paused_reason = "Ore silo lacks material for [op_type] at ([work_turf.x], [work_turf.y])."
 			return null
-
-	fabricator.play_placement_effect(work_turf)
 
 	var/result
 	var/list/oriented_vars = fabricator.oriented_operation_vars(src)
@@ -247,12 +252,14 @@
 		return execute_wall(work_turf)
 	return execute_deck(work_turf, oriented_vars)
 
+/// Stacked on the hull plating like a crew-built wall, so tearing it down leaves
+/// the tile in the ship rather than scraping through the skipover to the pad.
 /datum/ship_plan_op/proc/execute_wall(turf/work_turf)
 	var/obj/structure/girder/girder = locate() in work_turf
 	if(!girder)
 		return "Wall construction requires a girder."
 	qdel(girder)
-	work_turf.ChangeTurf(target_path, null, CHANGETURF_INHERIT_AIR)
+	work_turf.place_on_top(target_path, flags = CHANGETURF_INHERIT_AIR)
 	return istype(get_turf(work_turf), target_path) ? TRUE : "Wall construction failed."
 
 /**

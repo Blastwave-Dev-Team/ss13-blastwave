@@ -17,7 +17,9 @@
 	id_tag = "wsnorthbolts"
 	},
 /obj/effect/mapping_helpers/airlock/cyclelink_helper,
-/obj/docking_port/mobile/overmap/frigate/nt_personal,
+/obj/docking_port/mobile/overmap/frigate/nt_personal{
+	dir = 2
+	},
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)
 "cW" = (
@@ -242,7 +244,7 @@
 "NX" = (
 /obj/structure/cable,
 /obj/machinery/overmap/fuel_injector{
-	dir = 1
+	dir = 2
 	},
 /turf/open/floor/plating,
 /area/shuttle/overmap/frigate)

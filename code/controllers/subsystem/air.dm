@@ -53,6 +53,14 @@ SUBSYSTEM_DEF(air)
 	/// A cache of objects that perisists between processing runs when resumed == TRUE. Dangerous, qdel'd objects not cleared from this may cause runtimes on processing.
 	var/list/currentrun = list()
 	var/currentpart = SSAIR_PIPENETS
+	// BLASTWAVE EDIT ADDITION START - OVERMAP
+	/// Map templates mid-load. Their machines are initialized and processing before
+	/// their pipelines exist, and the load yields in between; firing then builds
+	/// rival pipelines that the load's own build strands.
+	var/template_holds = 0
+	/// Failsafe for a load that runtimed before releasing its hold.
+	var/template_hold_expires = 0
+	// BLASTWAVE EDIT ADDITION END
 
 	var/map_loading = TRUE
 	var/list/queued_for_activation
@@ -111,6 +119,11 @@ SUBSYSTEM_DEF(air)
 
 
 /datum/controller/subsystem/air/fire(resumed = FALSE)
+	// BLASTWAVE EDIT ADDITION START - OVERMAP
+	if(template_holds && world.time < template_hold_expires)
+		return
+	template_holds = 0
+	// BLASTWAVE EDIT ADDITION END
 	var/timer = TICK_USAGE_REAL
 
 	//Rebuilds can happen at any time, so this needs to be done outside of the normal system
@@ -828,6 +841,15 @@ GLOBAL_LIST_EMPTY(colored_images)
 			SET_PLANE_W_SCALAR(shiny, HIGH_GAME_PLANE, offset)
 			shiny.color = sharp_color
 			GLOB.colored_images += shiny
+
+// BLASTWAVE EDIT ADDITION START - OVERMAP
+/datum/controller/subsystem/air/proc/hold_for_template()
+	template_holds++
+	template_hold_expires = world.time + 30 SECONDS
+
+/datum/controller/subsystem/air/proc/release_for_template()
+	template_holds = max(template_holds - 1, 0)
+// BLASTWAVE EDIT ADDITION END
 
 /datum/controller/subsystem/air/proc/setup_template_machinery(list/atmos_machines)
 	var/obj/machinery/atmospherics/AM

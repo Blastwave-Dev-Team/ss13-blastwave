@@ -228,6 +228,60 @@ INSERT IGNORE INTO `currency_epoch` (`currency_code`, `notes`) VALUES ('NTCR', '
 
 
 --
+-- Table structure for table `player_ships`.
+--
+DROP TABLE IF EXISTS `player_ships`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `player_ships` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `owner_uuid` VARCHAR(36) NOT NULL,
+  `ckey` VARCHAR(32) NOT NULL,
+  `ship_name` VARCHAR(64) NOT NULL,
+  `revision` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `map_path` VARCHAR(255) NOT NULL DEFAULT '',
+  `map_checksum` VARCHAR(64) NULL,
+  `tile_count` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `salvage_estimate` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `lockbox` JSON NULL,
+  `status` ENUM('FILED','CHECKED_OUT','LOST') NOT NULL DEFAULT 'FILED',
+  `insured` BOOLEAN NOT NULL DEFAULT FALSE,
+  `insurance_fee_paid` INT(11) UNSIGNED NOT NULL DEFAULT 0,
+  `filed_round_id` INT(11) UNSIGNED NULL,
+  `retrieved_round_id` INT(11) UNSIGNED NULL,
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_modified` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` BOOLEAN NOT NULL DEFAULT FALSE,
+  `grant_id` INT(11) UNSIGNED NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_player_ships_owner` (`owner_uuid`, `deleted`),
+  KEY `idx_player_ships_ckey` (`ckey`, `deleted`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
+-- Table structure for table `player_ship_slot_grants`.
+--
+DROP TABLE IF EXISTS `player_ship_slot_grants`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `player_ship_slot_grants` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ckey` VARCHAR(32) NOT NULL,
+  `kind` ENUM('DONATOR','EVENT','ADMIN') NOT NULL,
+  `source` VARCHAR(128) NOT NULL DEFAULT '',
+  `count` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `granted_by` VARCHAR(32) NOT NULL DEFAULT '',
+  `datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `revoked` BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (`id`),
+  KEY `idx_slot_grants_ckey` (`ckey`, `revoked`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+
+--
 -- Procedure to append a character ledger transaction atomically.
 -- INSERT-only; serial id is the sequence. Never UPDATE existing money rows.
 --

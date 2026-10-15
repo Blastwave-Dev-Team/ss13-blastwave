@@ -39,6 +39,7 @@
 
 /obj/machinery/computer/helm/Destroy()
 	LAZYREMOVE(SSovermap.helms, src)
+	SSovermap.pending_helm_affiliations -= src
 	current_ship = null
 	return ..()
 
