@@ -7,6 +7,10 @@
 // orders them. Ships belong to a character, by the UUID on their mind, rather
 // than to the player's ckey; garage slots are the ckey's, shared by all of them.
 
+/// How long a survey or filing may hold the counter. The hull walk spreads
+/// itself across ticks, so a large ship on a busy server outlasts the default.
+#define SHIPYARD_HULL_WALK_TIMEOUT (3 MINUTES)
+
 /obj/machinery/computer/ship_registrar
 	name = "ship registrar"
 	desc = "A vessel registry terminal. Files a landed personal ship into long-term storage against its owner's ledger, and calls it back to the pad later."
@@ -33,9 +37,6 @@
 	var/list/cached_refusal
 	var/datum/weakref/refusal_hull
 	COOLDOWN_DECLARE(refusal_recheck)
-	/// Survey walks every object aboard without yielding, so clicks sent while it
-	/// runs are queued and arrive after it has finished; this swallows them.
-	COOLDOWN_DECLARE(survey_repeat)
 
 /obj/machinery/computer/ship_registrar/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
@@ -219,18 +220,14 @@
 			refresh_session()
 			return TRUE
 		if("survey")
-			if(!COOLDOWN_FINISHED(src, survey_repeat))
-				return FALSE
 			session.status_message = null
-			run_survey(docked_hull(), active_zone())
-			COOLDOWN_START(src, survey_repeat, 5 SECONDS)
+			INVOKE_ASYNC(src, PROC_REF(run_survey), docked_hull(), active_zone())
 			return TRUE
 		if("file")
 			session.status_message = null
 			if(!session.require_pin(user, params["pin"]))
 				return TRUE
-			file_hull(docked_hull(), active_zone(), user)
-			refresh_session()
+			INVOKE_ASYNC(src, PROC_REF(file_and_refresh), docked_hull(), active_zone(), user)
 			return TRUE
 		if("retrieve")
 			session.status_message = null
@@ -278,10 +275,10 @@
  * of loose cargo to a single click.
  */
 /obj/machinery/computer/ship_registrar/proc/run_survey(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
-	if(!session.begin_busy("Surveying [hull?.name || "the vessel"]..."))
+	if(!session.begin_busy("Surveying [hull?.name || "the vessel"]...", SHIPYARD_HULL_WALK_TIMEOUT))
 		return FALSE
 	. = do_run_survey(hull, zone)
-	session.end_busy()
+	session?.end_busy()
 
 /obj/machinery/computer/ship_registrar/proc/do_run_survey(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
 	PRIVATE_PROC(TRUE)
@@ -290,11 +287,16 @@
 	if(!hull)
 		set_status(FALSE, "No vessel is standing on the pad.")
 		return FALSE
-	var/list/refusal = shipyard_file_refusal(hull, zone, session.operator_uuid)
+	var/operator_uuid = session.operator_uuid
+	var/list/refusal = shipyard_file_refusal(hull, zone, operator_uuid)
 	if(refusal && shipyard_refusal_blocks_survey(refusal["code"]))
 		set_status(FALSE, refusal["text"])
 		return FALSE
-	var/datum/ship_teardown/teardown = new(hull)
+	var/turf/hull_start = get_turf(hull)
+	var/datum/ship_teardown/teardown = new(hull, TRUE)
+	if(!walk_still_valid(hull, hull_start, operator_uuid, "survey"))
+		qdel(teardown)
+		return FALSE
 	if(teardown.refusal)
 		set_status(FALSE, "This vessel cannot be filed: [teardown.refusal].")
 		qdel(teardown)
@@ -304,6 +306,19 @@
 	surveyed_hull = WEAKREF(hull)
 	qdel(teardown)
 	playsound(src, 'sound/machines/terminal/terminal_processing.ogg', 40, TRUE)
+	return TRUE
+
+/**
+ * Whether a hull walk that has just slept can still be acted on: the console
+ * survived it, the same operator is at it, and the hull has not moved off the
+ * tile it started from.
+ */
+/obj/machinery/computer/ship_registrar/proc/walk_still_valid(obj/docking_port/mobile/hull, turf/hull_start, operator_uuid, operation)
+	if(QDELETED(src) || session.operator_uuid != operator_uuid)
+		return FALSE
+	if(QDELETED(hull) || get_turf(hull) != hull_start)
+		set_status(FALSE, "The vessel left the pad during the [operation].")
+		return FALSE
 	return TRUE
 
 /// The survey as the UI reads it: what is kept, what is lost, and the quote.
@@ -366,10 +381,15 @@
  * the pad. Returns TRUE when the hull was filed.
  */
 /obj/machinery/computer/ship_registrar/proc/file_hull(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
-	if(!session.begin_busy("Filing [hull?.name || "the vessel"] into storage..."))
+	if(!session.begin_busy("Filing [hull?.name || "the vessel"] into storage...", SHIPYARD_HULL_WALK_TIMEOUT))
 		return FALSE
 	. = do_file_hull(hull, zone, user)
-	session.end_busy()
+	session?.end_busy()
+
+/obj/machinery/computer/ship_registrar/proc/file_and_refresh(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
+	file_hull(hull, zone, user)
+	if(!QDELETED(src))
+		refresh_session()
 
 /obj/machinery/computer/ship_registrar/proc/do_file_hull(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone, mob/user)
 	PRIVATE_PROC(TRUE)
@@ -401,7 +421,11 @@
 	if(slot_text)
 		set_status(FALSE, slot_text)
 		return FALSE
-	var/datum/ship_teardown/teardown = new(hull)
+	var/turf/hull_start = get_turf(hull)
+	var/datum/ship_teardown/teardown = new(hull, TRUE)
+	if(!walk_still_valid(hull, hull_start, operator_uuid, "filing"))
+		qdel(teardown)
+		return FALSE
 	if(teardown.refusal)
 		set_status(FALSE, "This vessel cannot be filed: [teardown.refusal].")
 		qdel(teardown)
@@ -430,6 +454,28 @@
 			set_status(FALSE, "Filing refused: [shipyard_ledger_refusal_text(charge)]")
 			qdel(teardown)
 			return FALSE
+
+	// The walk and every query since it have slept, and the release deletes
+	// whatever is aboard. Nothing from here to the release may sleep.
+	var/late_refusal_text
+	if(QDELETED(hull))
+		late_refusal_text = "[hull_name] left the pad before it could be filed."
+	else
+		var/list/late_refusal = shipyard_file_refusal(hull, zone, operator_uuid)
+		if(late_refusal)
+			late_refusal_text = late_refusal["text"]
+		else if(teardown.hull_changed(hull))
+			late_refusal_text = "Something aboard [hull_name] moved while it was being filed. Survey it again."
+	if(late_refusal_text)
+		if(net > 0)
+			shipyard_refund_fee(operator_uuid, net, LEDGER_CHANNEL_SHIP_STORAGE, "Refund: [charge_reason]", record_id, revision, "file")
+		if(!record)
+			GLOB.ship_registry.discard(record_id)
+		survey = null
+		surveyed_hull = null
+		set_status(FALSE, "[late_refusal_text][net > 0 ? " The fee has been refunded." : ""]")
+		qdel(teardown)
+		return FALSE
 
 	var/file_path = shipyard_ship_file_path(operator_uuid, record_id, revision)
 	// Copied before the release, which deletes the items it describes.
@@ -590,4 +636,6 @@
 		if(LEDGER_STATUS_NO_IDENTITY)
 			return "no ledger identity is registered for this character."
 	return result.reason || "the ledger refused the charge."
+
+#undef SHIPYARD_HULL_WALK_TIMEOUT
 

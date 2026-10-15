@@ -62,7 +62,10 @@
 
 /**
  * A three by three hull inside `zone`, owned by `owner_uuid`, with a chair and a
- * lockbox holding one stack of iron.
+ * lockbox holding a pen.
+ *
+ * A pen has no export, so it appraises at the fixed floor. Materials are priced
+ * by the stock market, which moves between a survey and its filing.
  *
  * Built inside the landing zone because that is where a printed hull is filed
  * from in practice, and because a hull standing on a Z no overmap object owns
@@ -88,7 +91,7 @@
 	var/obj/structure/chair/comfy/shuttle/chair = allocate(/obj/structure/chair/comfy/shuttle, locate(origin_x + 1, origin_y, origin_z))
 	chair.setDir(EAST)
 	var/obj/structure/closet/secure_closet/ship_lockbox/lockbox = allocate(/obj/structure/closet/secure_closet/ship_lockbox, locate(origin_x, origin_y + 2, origin_z))
-	allocate(/obj/item/stack/sheet/iron, lockbox)
+	allocate(/obj/item/pen, lockbox)
 	return hull
 
 /// A character with a ledger balance and a registrar session open for them.
@@ -431,6 +434,25 @@
 		TEST_ASSERT(!QDELETED(hull), "A refused hull should still be standing.")
 	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(owner_uuid), balance_before, "A refused filing should charge nothing.")
 	TEST_ASSERT(!length(GLOB.ship_registry.list_for_owner(owner_uuid)), "A refused filing should leave no record behind.")
+
+/**
+ * A walk that yields notices anything arriving aboard after it.
+ *
+ * Filing deletes whatever is aboard on the strength of the walk, so anything
+ * that moved since would be destroyed, or kept in the lockbox roster and in the
+ * world at once.
+ */
+/datum/unit_test/overmap_ship_persistence/hull_changed
+
+/datum/unit_test/overmap_ship_persistence/hull_changed/Run()
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Changed Test Hull", generate_character_uuid())
+	var/datum/ship_teardown/teardown = new(hull, TRUE)
+	TEST_ASSERT(!teardown.refusal, "The fixture hull should walk: [teardown.refusal]")
+	TEST_ASSERT(!teardown.hull_changed(hull), "A hull nobody touched should read as unchanged.")
+	allocate(/obj/item/pen, get_turf(hull))
+	TEST_ASSERT(teardown.hull_changed(hull), "Something set down aboard after the walk should be noticed.")
+	qdel(teardown)
 
 /**
  * A checkout an earlier round never filed back is settled on the next read.

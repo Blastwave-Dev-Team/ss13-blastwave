@@ -131,12 +131,12 @@
  * and storing a map sleeps, and a click landing mid-load would otherwise run the
  * whole action again. FALSE when another operation already holds it.
  */
-/datum/shipyard_session/proc/begin_busy(operation)
+/datum/shipyard_session/proc/begin_busy(operation, timeout = SHIPYARD_BUSY_TIMEOUT)
 	if(is_busy())
 		set_status(FALSE, "The counter is still working on the last request.")
 		return FALSE
 	busy_operation = operation
-	busy_until = world.time + SHIPYARD_BUSY_TIMEOUT
+	busy_until = world.time + timeout
 	SStgui.update_uis(owner)
 	return TRUE
 

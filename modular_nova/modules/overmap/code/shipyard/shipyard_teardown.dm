@@ -54,14 +54,21 @@
 	var/refusal
 	/// SHIPYARD_REFUSAL_* matching `refusal`.
 	var/refusal_code
+	/// Relative "x,y" to what stood on that tile when it was described. See `hull_changed()`.
+	var/list/fingerprints = list()
 
 /**
  * Describe a live hull, or nothing at all.
  *
  * Constructed without a port this is an empty description for something else to
  * fill in, which is how a saved map is read back without a ship to walk.
+ *
+ * A `yielding` walk spreads itself across ticks, and so describes a ship that
+ * was never in any one of the states it writes down. Anything that acts on the
+ * hull afterwards has to ask `hull_changed()` first, without sleeping between
+ * that answer and the act.
  */
-/datum/ship_teardown/New(obj/docking_port/mobile/port)
+/datum/ship_teardown/New(obj/docking_port/mobile/port, yielding = FALSE)
 	. = ..()
 	if(isnull(port))
 		return
@@ -84,12 +91,17 @@
 	width = max_x - min_x + 1
 	height = max_y - min_y + 1
 
-	// Deliberately does not yield. A hull is a moving object with people on it,
-	// and a walk that sleeps between tiles describes a ship that was never in
-	// any one of the states it writes down.
 	for(var/tile_x in min_x to max_x)
 		for(var/tile_y in min_y to max_y)
-			describe_tile(locate(tile_x, tile_y, port.z), tile_x - min_x + 1, tile_y - min_y + 1, port)
+			var/turf/tile = locate(tile_x, tile_y, port.z)
+			var/rel_x = tile_x - min_x + 1
+			var/rel_y = tile_y - min_y + 1
+			describe_tile(tile, rel_x, rel_y, port)
+			// In the same tick as the description, so the two agree.
+			if(tile && port.shuttle_areas[tile.loc])
+				fingerprints["[rel_x],[rel_y]"] = shipyard_tile_fingerprint(tile)
+			if(yielding)
+				CHECK_TICK
 	describe_port(port, min_x, min_y)
 	if(!length(cells))
 		refuse(SHIPYARD_REFUSAL_UNFILABLE, "the hull described no tiles")
@@ -101,6 +113,40 @@
 /datum/ship_teardown/proc/refuse(code, text)
 	refusal_code = code
 	refusal = text
+
+/**
+ * Whether anything aboard has arrived, left, or changed tile since it was
+ * described. Does not yield, so FALSE holds until the caller next sleeps.
+ *
+ * Catches things moving, not things being reconfigured where they stand.
+ */
+/datum/ship_teardown/proc/hull_changed(obj/docking_port/mobile/port)
+	if(QDELETED(port))
+		return TRUE
+	var/list/coords = port.return_coords()
+	var/min_x = min(coords[1], coords[3])
+	var/min_y = min(coords[2], coords[4])
+	var/max_x = max(coords[1], coords[3])
+	var/max_y = max(coords[2], coords[4])
+	if(max_x - min_x + 1 != width || max_y - min_y + 1 != height)
+		return TRUE
+	var/tiles_seen = 0
+	for(var/tile_x in min_x to max_x)
+		for(var/tile_y in min_y to max_y)
+			var/turf/tile = locate(tile_x, tile_y, port.z)
+			if(!tile || !port.shuttle_areas[tile.loc])
+				continue
+			tiles_seen++
+			if(fingerprints["[tile_x - min_x + 1],[tile_y - min_y + 1]"] != shipyard_tile_fingerprint(tile))
+				return TRUE
+	return tiles_seen != length(fingerprints)
+
+/// The turf and everything on it, down through containers, by identity.
+/proc/shipyard_tile_fingerprint(turf/tile)
+	var/list/parts = list("[tile.type]")
+	for(var/atom/thing as anything in tile.get_all_contents())
+		parts += REF(thing)
+	return parts.Join(",")
 
 /// Walk one tile into a cell model, or leave it absent if it is not ours.
 /datum/ship_teardown/proc/describe_tile(turf/tile, rel_x, rel_y, obj/docking_port/mobile/port)
