@@ -2,19 +2,33 @@ Any time you make a change to the schema files, remember to increment the databa
 
 Make sure to also update `DB_MAJOR_VERSION` and `DB_MINOR_VERSION`, which can be found in `code/__DEFINES/subsystem.dm`.
 
-The latest database version is 5.42 (5.34 for /tg/); The query to update the schema revision table is:
+The latest database version is 5.43 (5.34 for /tg/); The query to update the schema revision table is:
 
 ```sql
-INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 42);
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 43);
 ```
 
 or
 
 ```sql
-INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 42);
+INSERT INTO `SS13_schema_revision` (`major`, `minor`) VALUES (5, 43);
 ```
 
 In any query remember to add a prefix to the table names if you use one.
+
+---
+
+Version 5.43, 15 October 2026, by Maldaris
+Adds `player_ships.deck_state`, what a filed ship keeps outside its lockbox:
+`{"items": [...], "fixtures": [...]}`. Items are paperwork left on the deck or
+in lockers; fixtures are runtime state such as cell charge, canister gas and
+tank contents, matched back to the object on the same tile.
+
+```sql
+ALTER TABLE `player_ships`
+  ADD COLUMN `deck_state` JSON NULL AFTER `lockbox`;
+INSERT INTO `schema_revision` (`major`, `minor`) VALUES (5, 43);
+```
 
 ---
 

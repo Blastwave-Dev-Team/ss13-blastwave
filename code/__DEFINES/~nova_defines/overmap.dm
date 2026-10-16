@@ -158,6 +158,10 @@
 /// Something on it has no construction route and will not come back.
 #define SHIPYARD_TILE_UNROUTED "unrouted"
 
+/// Top-level items a filed ship keeps on its deck and in its lockers. Past
+/// this they are lost, so a hull cannot be used as unlimited text storage.
+#define SHIPYARD_DECK_ITEM_LIMIT 100
+
 /// World mutations every shipyard fabricator together may spend in one SSshipyard fire.
 #define SHIPYARD_MUTATION_BUDGET_PER_FIRE 16
 /// Budget cost of laying a hull layer, frame, fixture, or paint.

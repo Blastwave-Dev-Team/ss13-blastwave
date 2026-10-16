@@ -918,6 +918,12 @@ GLOBAL_LIST_INIT(shipyard_spawner_signatures, build_shipyard_spawner_signatures(
 	required_parts = list(/datum/stock_part/capacitor = 1)
 	wall_mounted = TRUE
 
+/// Board-less, so it generates, and route commissioning hangs it on its wall.
+/datum/shipyard_route/machinery/ship_lockbox_wall
+	target_type = /obj/machinery/ship_lockbox/wall
+	component_inputs = list(/obj/item/wallframe/ship_lockbox)
+	wall_mounted = TRUE
+
 /datum/shipyard_route/wall_multicell_charger
 	target_type = /obj/machinery/cell_charger_multi/wall_mounted
 	strategy = SHIPYARD_ROUTE_MACHINE

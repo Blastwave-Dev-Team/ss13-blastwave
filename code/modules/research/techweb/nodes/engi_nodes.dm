@@ -200,6 +200,8 @@
 		"overmap_nav_computer",
 		"propulsion_engine",
 		"ship_blueprint_disk",
+		"ship_lockbox",
+		"ship_lockbox_wall",
 		"shipyard_fabricator",
 		"shuttle_blueprints",
 		"shuttle_control",

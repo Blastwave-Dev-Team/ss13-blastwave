@@ -82,32 +82,51 @@
 		total += materials[material_path] * initial(material_path.value_per_unit)
 	return round(total)
 
+/// What the cargo shuttle would pay for `item` and its contents, or 0.
+/proc/shipyard_appraise_item(obj/item/item)
+	var/datum/export_report/report = export_item_and_contents(item, apply_elastic = FALSE, delete_unsold = FALSE, dry_run = TRUE)
+	var/value = 0
+	for(var/export in report.total_value)
+		value += report.total_value[export]
+	return max(value, 0)
+
 /**
- * The lockbox roster, appraised item by item and grouped by name.
+ * A roster entry's appraisal, as cached when it went into the vault.
  *
- * A dry-run export prices each item the way the cargo shuttle would, contents
- * included. Anything export does not recognise still takes up a slot the
- * registry has to hold, so it is appraised at a flat floor rather than for free.
+ * Rosters saved before the vault carry no value, so one is appraised from a
+ * stand-in the first time it is asked for and kept on the entry.
+ */
+/proc/shipyard_entry_value(list/entry)
+	if(isnum(entry["value"]))
+		return entry["value"]
+	var/obj/item/stand_in = shipyard_restore_roster_entry(entry, null)
+	var/value = stand_in ? shipyard_appraise_item(stand_in) : 0
+	qdel(stand_in)
+	entry["value"] = value
+	return value
+
+/**
+ * The lockbox roster, appraised entry by entry and grouped by name.
+ *
+ * Each entry is priced from the value it was given on the way in. Anything
+ * export does not recognise still takes up a slot the registry has to hold, so
+ * it is appraised at a flat floor rather than for free.
  * Returns `list("lines" = LockboxLine list, "total" = appraised value)`.
  */
-/proc/shipyard_appraise_lockbox(list/obj/item/items)
+/proc/shipyard_appraise_lockbox(list/entries)
 	var/list/lines_by_name = list()
 	var/total = 0
 	var/floor_value = CONFIG_GET(number/ship_lockbox_unvalued_floor)
-	for(var/obj/item/item as anything in items)
-		if(QDELETED(item))
-			continue
-		var/datum/export_report/report = export_item_and_contents(item, apply_elastic = FALSE, delete_unsold = FALSE, dry_run = TRUE)
-		var/value = 0
-		for(var/export in report.total_value)
-			value += report.total_value[export]
+	for(var/list/entry in entries)
+		var/value = shipyard_entry_value(entry)
 		var/floored = value <= 0
 		if(floored)
 			value = floor_value
-		var/list/line = lines_by_name[item.name]
+		var/entry_name = entry["name"] || "unknown item"
+		var/list/line = lines_by_name[entry_name]
 		if(!line)
-			line = list("name" = item.name, "count" = 0, "appraisal" = 0, "floored" = FALSE)
-			lines_by_name[item.name] = line
+			line = list("name" = entry_name, "count" = 0, "appraisal" = 0, "floored" = FALSE)
+			lines_by_name[entry_name] = line
 		line["count"] += 1
 		line["appraisal"] += value
 		line["floored"] = line["floored"] || floored
@@ -148,23 +167,11 @@
 /proc/shipyard_uninsured_fee()
 	return CONFIG_GET(number/ship_uninsured_retrieve_fee)
 
-/**
- * A stored lockbox roster appraised at today's prices.
- *
- * Priced again on every call rather than remembered from filing, so that an
- * export repricing moves what a stored ship is worth. Each item is stood up in
- * nullspace, contents and stack size included, just long enough to appraise.
- */
+/// A stored lockbox roster appraised from the values its entries carry.
 /proc/shipyard_appraise_roster(list/stored_contents)
 	if(!length(stored_contents))
 		return 0
-	var/list/obj/item/stand_ins = list()
-	for(var/list/entry as anything in stored_contents)
-		var/obj/item/stand_in = shipyard_restore_roster_entry(entry, null)
-		if(stand_in)
-			stand_ins += stand_in
-	var/list/appraisal = shipyard_appraise_lockbox(stand_ins)
-	QDEL_LIST(stand_ins)
+	var/list/appraisal = shipyard_appraise_lockbox(stored_contents)
 	return appraisal["total"]
 
 /// What decommissioning a stored ship pays its owner.

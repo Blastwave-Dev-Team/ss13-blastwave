@@ -90,8 +90,8 @@
 
 	var/obj/structure/chair/comfy/shuttle/chair = allocate(/obj/structure/chair/comfy/shuttle, locate(origin_x + 1, origin_y, origin_z))
 	chair.setDir(EAST)
-	var/obj/structure/closet/secure_closet/ship_lockbox/lockbox = allocate(/obj/structure/closet/secure_closet/ship_lockbox, locate(origin_x, origin_y + 2, origin_z))
-	allocate(/obj/item/pen, lockbox)
+	var/obj/machinery/ship_lockbox/floor/lockbox = allocate(/obj/machinery/ship_lockbox/floor, locate(origin_x, origin_y + 2, origin_z))
+	TEST_ASSERT(lockbox.deposit(allocate(/obj/item/pen)), "The fixture lockbox should take a pen.")
 	return hull
 
 /// A character with a ledger balance and a registrar session open for them.
@@ -208,8 +208,8 @@
 	TEST_ASSERT(upgraded_bin, "The fixture machine should have a matter bin to upgrade.")
 	oven.RefreshParts()
 	var/turf/lockbox_tile = locate(origin_x, origin_y + 2, origin_z)
-	var/obj/structure/closet/secure_closet/ship_lockbox/lockbox = allocate(/obj/structure/closet/secure_closet/ship_lockbox, lockbox_tile)
-	allocate(/obj/item/stack/sheet/iron, lockbox)
+	var/obj/machinery/ship_lockbox/floor/lockbox = allocate(/obj/machinery/ship_lockbox/floor, lockbox_tile)
+	TEST_ASSERT(lockbox.deposit(allocate(/obj/item/stack/sheet/iron)), "The fixture lockbox should take a stack of iron.")
 	TEST_ASSERT(lockbox_tile in hull.return_turfs(), "The fixture lockbox should stand on a tile the hull owns.")
 
 	var/datum/ship_teardown/teardown = new(hull)
@@ -233,7 +233,7 @@
 	var/first_export = teardown.write_ship_tgm()
 	TEST_ASSERT(first_export, "A hull that tore down cleanly should render to TGM.")
 	TEST_ASSERT(findtext(first_export, "[/obj/structure/chair/comfy/shuttle]"), "The export should name the chair the walk found, but its tile described [describe_cell(teardown, 2, 1)].")
-	TEST_ASSERT(findtext(first_export, "[/obj/structure/closet/secure_closet/ship_lockbox]"), "The export should keep the lockbox itself, not just its contents.")
+	TEST_ASSERT(findtext(first_export, "[/obj/machinery/ship_lockbox/floor]"), "The export should keep the lockbox itself, not just its contents.")
 	// Part tiers are objects, and a map holds constants, so an upgraded
 	// assembly only survives as a helper carrying what it was closed around.
 	TEST_ASSERT(findtext(first_export, "[/datum/stock_part/matter_bin/tier2]"), "The export should record the tier of an upgraded machine's parts, but its tile described [describe_cell(teardown, 3, 3)].")
@@ -266,12 +266,12 @@
 			if(SHIPYARD_OP_MACHINE)
 				if(ispath(operation.target_path, /obj/machinery/microwave))
 					found["the machine"] = TRUE
+				else if(ispath(operation.target_path, /obj/machinery/ship_lockbox/floor))
+					found["the lockbox"] = TRUE
 			if(SHIPYARD_OP_GENERATED)
 				if(ispath(operation.target_path, /obj/structure/chair/comfy/shuttle))
 					found["the chair"] = TRUE
 					TEST_ASSERT_EQUAL(operation.desired_vars["dir"], EAST, "A saved chair should come back facing the way it was parked.")
-				else if(ispath(operation.target_path, /obj/structure/closet/secure_closet/ship_lockbox))
-					found["the lockbox"] = TRUE
 	TEST_ASSERT_EQUAL(plating_operations, 9, "Every saved tile should be plated again on the way back in.")
 	var/list/missing = list("the titanium deck", "the deck marking", "the machine", "the chair", "the lockbox") - found
 	if(length(missing))

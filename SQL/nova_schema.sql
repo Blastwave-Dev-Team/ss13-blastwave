@@ -244,6 +244,7 @@ CREATE TABLE `player_ships` (
   `tile_count` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `salvage_estimate` INT(11) UNSIGNED NOT NULL DEFAULT 0,
   `lockbox` JSON NULL,
+  `deck_state` JSON NULL,
   `status` ENUM('FILED','CHECKED_OUT','LOST') NOT NULL DEFAULT 'FILED',
   `insured` BOOLEAN NOT NULL DEFAULT FALSE,
   `insurance_fee_paid` INT(11) UNSIGNED NOT NULL DEFAULT 0,

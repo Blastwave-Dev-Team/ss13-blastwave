@@ -15,7 +15,7 @@
 
 /// The shared projection, so every read builds a record the same way.
 // MariaDB stores JSON as utf8mb4_bin LONGTEXT, which the driver hands back as bytes rather than text.
-#define SHIP_RECORD_COLUMNS "id, owner_uuid, ckey, ship_name, revision, map_path, map_checksum, tile_count, salvage_estimate, CAST(lockbox AS CHAR) AS lockbox, status, insured, insurance_fee_paid, filed_round_id, retrieved_round_id, grant_id"
+#define SHIP_RECORD_COLUMNS "id, owner_uuid, ckey, ship_name, revision, map_path, map_checksum, tile_count, salvage_estimate, CAST(lockbox AS CHAR) AS lockbox, status, insured, insurance_fee_paid, filed_round_id, retrieved_round_id, grant_id, CAST(deck_state AS CHAR) AS deck_state"
 
 GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 
@@ -36,6 +36,8 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	var/salvage_estimate = 0
 	/// Lockbox roster, in the shape `/datum/ship_teardown` writes it.
 	var/list/stored_contents = list()
+	/// What the ship keeps outside its lockbox: list("items" = ..., "fixtures" = ...).
+	var/list/deck_state = list()
 	var/status = SHIP_STATUS_FILED
 	/// Whether the current checkout is insured.
 	var/insured = FALSE
@@ -51,7 +53,8 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	var/datum/player_ship_record/duplicate = new()
 	for(var/var_name in list("id", "owner_uuid", "ckey", "ship_name", "revision", "map_path", "map_checksum", "tile_count", "salvage_estimate", "status", "insured", "insurance_fee_paid", "filed_round_id", "retrieved_round_id", "deleted", "grant_id"))
 		duplicate.vars[var_name] = vars[var_name]
-	duplicate.stored_contents = deep_copy_list(stored_contents)
+	duplicate.stored_contents = shipyard_copy_state(stored_contents)
+	duplicate.deck_state = shipyard_copy_state(deck_state)
 	return duplicate
 
 /// Whether this record can be handed to a retrieval right now.
@@ -261,7 +264,7 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
  * shelf. Only called after the file is safely on disk, which is what keeps the
  * previous revision available to an insured loss until this one exists.
  */
-/datum/ship_registry/proc/store_revision(record_id, revision, map_path, map_checksum, list/stored_contents, tile_count, ship_name, salvage_estimate)
+/datum/ship_registry/proc/store_revision(record_id, revision, map_path, map_checksum, list/stored_contents, tile_count, ship_name, salvage_estimate, list/deck_state)
 	record_id = text2num("[record_id]")
 	if(!record_id || !map_path || !is_online())
 		return FALSE
@@ -273,7 +276,8 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		row.revision = revision
 		row.map_path = map_path
 		row.map_checksum = map_checksum
-		row.stored_contents = deep_copy_list(stored_contents || list())
+		row.stored_contents = shipyard_copy_state(stored_contents || list())
+		row.deck_state = shipyard_copy_state(deck_state || list())
 		row.tile_count = tile_count
 		row.ship_name = ship_name
 		row.salvage_estimate = salvage_estimate
@@ -284,7 +288,7 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		return TRUE
 	var/datum/db_query/query = SSdbcore.NewQuery(
 		"UPDATE [format_table_name(PLAYER_SHIPS_TABLE_NAME)] SET revision = :revision, map_path = :map_path, \
-		map_checksum = :checksum, lockbox = :lockbox, tile_count = :tile_count, ship_name = :ship_name, \
+		map_checksum = :checksum, lockbox = :lockbox, deck_state = :deck_state, tile_count = :tile_count, ship_name = :ship_name, \
 		salvage_estimate = :salvage, status = 'FILED', insured = 0, insurance_fee_paid = 0, \
 		filed_round_id = :round_id WHERE id = :id",
 		list(
@@ -293,6 +297,7 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 			"map_path" = map_path,
 			"checksum" = map_checksum,
 			"lockbox" = json_encode(stored_contents || list()),
+			"deck_state" = json_encode(deck_state || list()),
 			"tile_count" = tile_count,
 			"ship_name" = ship_name,
 			"salvage" = max(0, round(salvage_estimate)),
@@ -406,6 +411,13 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	record.filed_round_id = text2num("[query.item[14]]")
 	record.retrieved_round_id = text2num("[query.item[15]]")
 	record.grant_id = text2num("[query.item[16]]")
+	var/deck_json = query.item[17]
+	if(istext(deck_json) && rustg_json_is_valid(deck_json))
+		var/list/decoded_deck = json_decode(deck_json)
+		if(islist(decoded_deck))
+			record.deck_state = shipyard_decode_deck_state(decoded_deck)
+	else if(!isnull(deck_json))
+		log_runtime("Ship registry: record [record.id] has unreadable deck state ([deck_json]); reading it as empty.")
 	return record
 
 /// JSON carries type paths as text; hand them back as paths.
@@ -418,10 +430,46 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		var/list/decoded_entry = list("path" = path, "name" = entry["name"])
 		if(isnum(entry["amount"]))
 			decoded_entry["amount"] = entry["amount"]
+		if(islist(entry["state"]))
+			decoded_entry["state"] = entry["state"]
+		if(isnum(entry["value"]))
+			decoded_entry["value"] = entry["value"]
 		if(islist(entry["contents"]))
 			decoded_entry["contents"] = shipyard_decode_roster(entry["contents"])
 		roster += list(decoded_entry)
 	return roster
+
+/**
+ * Deck state back out of JSON. Items keep their placement keys on top of the
+ * roster; a fixture whose path no longer names an object is dropped.
+ */
+/proc/shipyard_decode_deck_state(list/decoded)
+	var/list/items = list()
+	for(var/list/entry in decoded["items"])
+		var/list/roster = shipyard_decode_roster(list(entry))
+		if(!length(roster))
+			continue
+		var/list/item = roster[1]
+		for(var/key in list("x", "y", "pixel_x", "pixel_y"))
+			if(isnum(entry[key]))
+				item[key] = entry[key]
+		var/holder = text2path("[entry["holder"]]")
+		if(ispath(holder, /obj))
+			item["holder"] = holder
+		items += list(item)
+	var/list/fixtures = list()
+	for(var/list/entry in decoded["fixtures"])
+		var/fixture_path = text2path("[entry["path"]]")
+		if(!ispath(fixture_path, /obj) || !islist(entry["state"]))
+			continue
+		fixtures += list(list(
+			"x" = entry["x"],
+			"y" = entry["y"],
+			"path" = fixture_path,
+			"index" = entry["index"],
+			"state" = entry["state"],
+		))
+	return list("items" = items, "fixtures" = fixtures)
 
 #undef PLAYER_SHIPS_TABLE_NAME
 #undef SHIP_RECORD_COLUMNS

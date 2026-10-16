@@ -14,6 +14,19 @@
 		return FALSE
 	return entered == user.mind.atm_pin
 
+/**
+ * `human`'s personal account, when `id_card` is registered to it, or null.
+ * Without a card, the ID they are wearing or holding is checked.
+ */
+/proc/personal_id_matches(mob/living/carbon/human/human, obj/item/card/id/id_card)
+	var/datum/bank_account/personal = SScharacter_ledger.get_personal_account(human)
+	if(!personal)
+		return null
+	id_card ||= human.get_idcard(TRUE)
+	if(!id_card || id_card.registered_account != personal)
+		return null
+	return personal
+
 /datum/preference/numeric/atm_pin
 	category = PREFERENCE_CATEGORY_NON_CONTEXTUAL
 	savefile_key = "atm_pin"

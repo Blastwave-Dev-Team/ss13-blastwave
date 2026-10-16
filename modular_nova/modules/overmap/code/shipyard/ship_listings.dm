@@ -130,7 +130,7 @@ GLOBAL_LIST_EMPTY(ship_listings)
 		GLOB.ship_registry.discard(record_id)
 		return null
 	var/checksum = rustg_hash_file(RUSTG_HASH_SHA256, file_path)
-	if(!GLOB.ship_registry.store_revision(record_id, 1, file_path, checksum, list(), profile.tiles, ship_name, get_salvage_estimate()))
+	if(!GLOB.ship_registry.store_revision(record_id, 1, file_path, checksum, list(), profile.tiles, ship_name, get_salvage_estimate(), list()))
 		GLOB.ship_registry.discard(record_id)
 		fdel(file_path)
 		return null

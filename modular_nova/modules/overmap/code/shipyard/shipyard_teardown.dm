@@ -38,11 +38,14 @@
 	var/list/lost_detail = list()
 	/// Deck markings no decal path reproduces.
 	var/lost_decals = 0
-	/// Lockbox payload as list("path", "name") rosters. The only contents of a
-	/// ship that survive being filed.
+	/// Lockbox payload: the vault's roster entries, cached values included.
 	var/list/stored_contents = list()
-	/// The lockbox items themselves, for appraisal while the hull still stands.
-	var/list/obj/item/lockbox_items = list()
+	/// Items kept on the deck or in a locker: rosters with "x", "y", "pixel_x",
+	/// "pixel_y" and, inside a locker, "holder".
+	var/list/deck_items = list()
+	/// Runtime state of kept fixtures: list("x", "y", "path", "index", "state"),
+	/// where index is the object's place among same-type objects on its tile.
+	var/list/fixture_state = list()
 	/// Name to count for everything that comes back, is discarded, or has no
 	/// construction route and so will not come back either.
 	var/list/kept_names = list()
@@ -107,8 +110,13 @@
 		refuse(SHIPYARD_REFUSAL_UNFILABLE, "the hull described no tiles")
 
 /datum/ship_teardown/Destroy()
-	lockbox_items.Cut()
+	deck_items.Cut()
+	fixture_state.Cut()
 	return ..()
+
+/// What the ship keeps outside its lockbox, in the shape `player_ships.deck_state` holds.
+/datum/ship_teardown/proc/deck_state()
+	return list("items" = shipyard_copy_state(deck_items), "fixtures" = shipyard_copy_state(fixture_state))
 
 /datum/ship_teardown/proc/refuse(code, text)
 	refusal_code = code
@@ -157,10 +165,16 @@
 	var/list/tile_objects = list()
 
 	var/list/objects = list()
+	// Kept objects of each type seen so far on this tile, for fixture indices.
+	var/list/kept_of_type = list()
 	for(var/obj/thing in tile)
 		// A wide atom lists itself in the contents of every tile it overlaps,
 		// so only its anchor tile writes it down. Holograms are not there.
 		if(thing.loc != tile || (thing.flags_1 & HOLOGRAM_1))
+			continue
+		if(isitem(thing) && keep_deck_item(thing, rel_x, rel_y))
+			tally(kept_names, thing)
+			tile_objects += "[thing.name] (kept aboard)"
 			continue
 		var/datum/shipyard_route/route = get_shipyard_route(thing.type)
 		if(!route)
@@ -185,14 +199,22 @@
 			continue
 		objects += list(described)
 		tally(kept_names, thing)
-		if(istype(thing, /obj/structure/closet/secure_closet/ship_lockbox))
+		kept_of_type[thing.type] = (kept_of_type[thing.type] || 0) + 1
+		if(istype(thing, /obj/machinery/ship_lockbox))
 			collect_stored_contents(thing)
 			tile_objects += "[thing.name] (contents kept)"
 			fate = worse_tile_fate(fate, SHIPYARD_TILE_LOCKBOX)
 			continue
-		tile_objects += thing.name
-		if(istype(thing, /obj/structure/closet))
+		if(!isitem(thing) && keep_fixture_state(thing, rel_x, rel_y, kept_of_type[thing.type]))
+			tile_objects += "[thing.name] (contents kept)"
+		else
+			tile_objects += thing.name
+		if(istype(thing, /obj/structure/closet) || istype(thing, /obj/structure/filingcabinet))
 			for(var/obj/item/held in thing)
+				if(keep_deck_item(held, rel_x, rel_y, thing.type))
+					tally(kept_names, held)
+					tile_objects += "[held.name] (in [thing.name], kept)"
+					continue
 				tally(lost_names, held)
 				tile_objects += "[held.name] (in [thing.name], destroyed)"
 				fate = worse_tile_fate(fate, SHIPYARD_TILE_LOST)
@@ -266,12 +288,48 @@
 		"helpers" = list(),
 	))
 
-/// Roster the contents of a lockbox. Everything else aboard, loose or in a
-/// locker, is left behind when the ship is filed away.
-/datum/ship_teardown/proc/collect_stored_contents(obj/structure/closet/secure_closet/ship_lockbox/lockbox)
-	for(var/obj/item/stored in lockbox)
-		stored_contents += list(shipyard_roster_entry(stored))
-		lockbox_items += stored
+/// Copy a lockbox's entries. Outside it, only paperwork and fixture state are
+/// kept; everything else aboard is left behind when the ship is filed.
+/datum/ship_teardown/proc/collect_stored_contents(obj/machinery/ship_lockbox/lockbox)
+	stored_contents += shipyard_copy_state(lockbox.stored_entries)
+
+/**
+ * Keep an item on the deck, or in the locker `holder_type`, if its serdes says
+ * it stays aboard. Returns whether it was kept.
+ *
+ * Past SHIPYARD_DECK_ITEM_LIMIT nothing more is kept, and the overflow is
+ * reported as lost detail rather than quietly dropped.
+ */
+/datum/ship_teardown/proc/keep_deck_item(obj/item/item, rel_x, rel_y, holder_type)
+	if(!shipyard_keeps_aboard(item))
+		return FALSE
+	if(length(deck_items) >= SHIPYARD_DECK_ITEM_LIMIT)
+		lost_detail += "([rel_x], [rel_y]): [item.name] is past the [SHIPYARD_DECK_ITEM_LIMIT] item limit for the deck"
+		return FALSE
+	var/list/entry = shipyard_roster_entry(item)
+	entry["x"] = rel_x
+	entry["y"] = rel_y
+	if(!holder_type)
+		entry["pixel_x"] = item.pixel_x
+		entry["pixel_y"] = item.pixel_y
+	else
+		entry["holder"] = holder_type
+	deck_items += list(entry)
+	return TRUE
+
+/// Record a kept fixture's runtime state, if it has any. Returns whether it did.
+/datum/ship_teardown/proc/keep_fixture_state(obj/fixture, rel_x, rel_y, index)
+	var/list/state = shipyard_capture_state(fixture)
+	if(!state)
+		return FALSE
+	fixture_state += list(list(
+		"x" = rel_x,
+		"y" = rel_y,
+		"path" = fixture.type,
+		"index" = index,
+		"state" = state,
+	))
+	return TRUE
 
 /// Operator-facing summary of what the walk could and could not account for.
 /datum/ship_teardown/proc/report()
@@ -444,7 +502,7 @@
  *
  * Returns `list("code" = SHIPYARD_REFUSAL_*, "text" = ...)`. Filing ends in
  * `jumpToNullSpace()`, which calls `turf.empty(FALSE)` and so qdels every living
- * mob and every item that is not inside a lockbox. That makes these checks the
+ * mob and every item aboard; only what the walk wrote down comes back. That makes these checks the
  * difference between putting a ship away and destroying one, which is why they
  * are refusals in their own right rather than warnings on the way past.
  *

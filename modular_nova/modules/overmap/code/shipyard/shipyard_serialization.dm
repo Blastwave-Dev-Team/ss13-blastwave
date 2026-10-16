@@ -9,9 +9,12 @@
  *
  * The base implementation emits the mapped-variable allowlist filtered to
  * values that differ from the type's own defaults, which is what a blueprint
- * would have had to state to produce this atom. Types whose state the allowlist
- * cannot express contribute it here, either as more vars or as a mapping helper,
- * so the knowledge lives on the type rather than in a serializer registry.
+ * would have had to state to produce this atom. Types whose shape the allowlist
+ * cannot express contribute it here, either as more vars or as a mapping helper.
+ *
+ * This is the blueprint's half only. Runtime contents - a paper's text, a
+ * cell's charge, a canister's gas - are the serdes registry's, in
+ * shipyard_state_serdes.dm, and never reach the saved map.
  */
 /atom/proc/shipyard_describe(list/described_vars, list/described_helpers)
 	for(var/var_name in shipyard_describable_vars())
@@ -381,33 +384,25 @@ GLOBAL_VAR_INIT(shipyard_decal_index_seeded, FALSE)
 		overrides["layer"] = decal.pic.layer
 	return overrides
 
-// --- Lockbox ----------------------------------------------------------------
+// --- Rosters ----------------------------------------------------------------
 
 /**
- * The one container on a ship whose contents survive being saved.
- *
- * Everything else aboard, loose or in a locker, is discarded on teardown. A
- * single bounded container is what makes the items problem tractable: the
- * payload is auditable, appraisal has a fixed scope, and a player knows exactly
- * what is coming back with them.
- */
-/obj/structure/closet/secure_closet/ship_lockbox
-	name = "ship lockbox"
-	desc = "A registry-sealed hold. Whatever is inside it when a vessel is filed away comes back out with the vessel; whatever is not, does not."
-	locked = FALSE
-
-/**
- * One lockbox item as a roster entry: `list("path", "name")`, plus `"amount"`
- * for a stack and `"contents"` (more entries) for anything with storage.
+ * One item as a roster entry: `list("path", "name")`, plus `"amount"` for a
+ * stack, `"state"` for whatever its serdes keeps, and `"contents"` (more
+ * entries) for anything with storage.
  *
  * Only what is held in storage is followed. Other contents are the item's own
- * parts - a gun's pin, a light's cell - which the item builds for itself.
+ * parts - a gun's pin, a light's cell - which the item builds for itself, and
+ * whose state its serdes carries instead.
  */
 /proc/shipyard_roster_entry(obj/item/item)
 	var/list/entry = list("path" = item.type, "name" = item.name)
 	if(isstack(item))
 		var/obj/item/stack/stack = item
 		entry["amount"] = stack.amount
+	var/list/state = shipyard_capture_state(item)
+	if(state)
+		entry["state"] = state
 	var/atom/held_in = item.atom_storage?.real_location
 	if(held_in)
 		var/list/contents = list()
@@ -421,10 +416,16 @@ GLOBAL_VAR_INIT(shipyard_decal_index_seeded, FALSE)
  *
  * A container starts out with whatever it normally spawns holding, so that is
  * cleared before the roster's own contents go back in; otherwise every load
- * would hand out a fresh set.
+ * would hand out a fresh set. State goes on before that, so a carved book has
+ * its compartment by the time its contents return.
+ *
+ * Paths may arrive as text: entries nested inside a serdes state are not
+ * decoded on the way out of the database.
  */
 /proc/shipyard_restore_roster_entry(list/entry, atom/destination)
 	var/obj/item/path = entry["path"]
+	if(istext(path))
+		path = text2path(path)
 	if(!ispath(path, /obj/item))
 		return null
 	var/obj/item/item
@@ -432,6 +433,7 @@ GLOBAL_VAR_INIT(shipyard_decal_index_seeded, FALSE)
 		item = new path(destination, max(entry["amount"], 1), FALSE)
 	else
 		item = new path(destination)
+	shipyard_apply_state(item, entry["state"])
 	var/atom/held_in = item.atom_storage?.real_location
 	if(held_in)
 		for(var/obj/item/spawned in held_in)

@@ -49,6 +49,8 @@
 /datum/shipyard_staging
 	var/datum/turf_reservation/reservation
 	var/obj/docking_port/mobile/hull
+	/// Where the template was loaded from: cell (1, 1) of the saved map.
+	var/turf/bottom_left
 
 /// Give up on a staged hull: the ship ceases, the reservation is handed back.
 /datum/shipyard_staging/proc/abandon()
@@ -59,6 +61,7 @@
 /// Release the reservation, leaving whatever has already moved off it alone.
 /datum/shipyard_staging/proc/release()
 	hull = null
+	bottom_left = null
 	QDEL_NULL(reservation)
 
 /**
@@ -83,6 +86,7 @@
 		return null
 	staging.reservation = reservation
 	var/turf/bottom_left = reservation.bottom_left_turfs[1]
+	staging.bottom_left = bottom_left
 	if(!template.load(bottom_left, centered = FALSE, register = FALSE))
 		return null
 
@@ -141,17 +145,75 @@
 	remount_shuttle_wallmounts(hull.return_turfs())
 	return hull
 
-/// Put back what the lockbox was holding when the ship was filed: each item by
-/// type, with its stack size and whatever its storage held. Any other state an
-/// item had is not part of what a ship remembers yet.
+/**
+ * Put back what a ship kept outside its lockbox, onto the staged hull before it
+ * docks, so docking carries and turns it with everything else.
+ *
+ * The staged map is laid out exactly as the saved cells were, so a cell's
+ * coordinates are an offset from the staging corner. A fixture is matched to
+ * the same-type object at its saved index on that tile; if the hull has fewer
+ * of them than it did, the first one takes the state and the miss is logged.
+ */
+/proc/shipyard_restore_deck_state(datum/shipyard_staging/staging, list/deck_state)
+	if(!staging?.bottom_left || !islist(deck_state))
+		return
+	var/turf/corner = staging.bottom_left
+	for(var/list/entry in deck_state["items"])
+		var/turf/deck = locate(corner.x + entry["x"] - 1, corner.y + entry["y"] - 1, corner.z)
+		if(!deck)
+			continue
+		var/atom/destination = deck
+		var/holder_type = entry["holder"]
+		if(istext(holder_type))
+			holder_type = text2path(holder_type)
+		if(ispath(holder_type))
+			for(var/obj/holder in deck)
+				if(holder.type == holder_type && holder.loc == deck)
+					var/obj/structure/closet/locker = holder
+					if(!istype(locker) || !locker.opened)
+						destination = holder
+					break
+		var/obj/item/restored = shipyard_restore_roster_entry(entry, destination)
+		if(restored && destination == deck)
+			restored.pixel_x = isnum(entry["pixel_x"]) ? entry["pixel_x"] : restored.pixel_x
+			restored.pixel_y = isnum(entry["pixel_y"]) ? entry["pixel_y"] : restored.pixel_y
+		if(restored && destination != deck)
+			destination.update_appearance()
+	for(var/list/entry in deck_state["fixtures"])
+		var/turf/deck = locate(corner.x + entry["x"] - 1, corner.y + entry["y"] - 1, corner.z)
+		var/fixture_type = entry["path"]
+		if(istext(fixture_type))
+			fixture_type = text2path(fixture_type)
+		if(!deck || !ispath(fixture_type))
+			continue
+		var/list/candidates = list()
+		for(var/obj/thing in deck)
+			if(thing.type == fixture_type && thing.loc == deck)
+				candidates += thing
+		if(!length(candidates))
+			log_mapping("Shipyard: no [fixture_type] at ([entry["x"]], [entry["y"]]) to restore saved state onto.")
+			continue
+		var/index = entry["index"]
+		var/obj/target = candidates[1]
+		if(isnum(index) && index >= 1 && index <= length(candidates))
+			target = candidates[index]
+		else
+			log_mapping("Shipyard: [fixture_type] #[index] at ([entry["x"]], [entry["y"]]) is missing; its state went to the first one.")
+		shipyard_apply_state(target, entry["state"])
+
+/**
+ * Hand the lockbox back what it held when the ship was filed. Entries go back
+ * as entries; nothing is built until someone takes it out. A roster over the
+ * vault's capacity is kept whole, since the cap only stops new deposits.
+ */
 /proc/shipyard_restore_stored_contents(obj/docking_port/mobile/hull, list/stored_contents)
 	if(!length(stored_contents))
 		return 0
-	var/obj/structure/closet/secure_closet/ship_lockbox/target
+	var/obj/machinery/ship_lockbox/target
 	for(var/turf/deck as anything in hull.return_turfs())
 		if(!hull.shuttle_areas[deck.loc])
 			continue
-		for(var/obj/structure/closet/secure_closet/ship_lockbox/lockbox in deck)
+		for(var/obj/machinery/ship_lockbox/lockbox in deck)
 			if(lockbox.loc == deck)
 				target = lockbox
 				break
@@ -159,11 +221,8 @@
 			break
 	if(!target)
 		return 0
-	var/restored = 0
-	for(var/list/entry as anything in stored_contents)
-		if(shipyard_restore_roster_entry(entry, target))
-			restored++
-	return restored
+	target.stored_entries += shipyard_copy_state(stored_contents)
+	return length(stored_contents)
 
 /**
  * Stand a saved ship up on a landing pad.
@@ -173,7 +232,7 @@
  * unit test cover it. Returns the registered port, or null on any refusal, having
  * left nothing staged behind.
  */
-/proc/shipyard_retrieve_hull(file_path, ship_name, obj/effect/landmark/overmap_landing_zone/zone, list/stored_contents)
+/proc/shipyard_retrieve_hull(file_path, ship_name, obj/effect/landmark/overmap_landing_zone/zone, list/stored_contents, list/deck_state)
 	if(!file_path || !zone)
 		return null
 	if(!fexists(file_path))
@@ -187,6 +246,7 @@
 		staging.abandon()
 		qdel(template)
 		return null
+	shipyard_restore_deck_state(staging, deck_state)
 	var/obj/docking_port/stationary/pad = zone.create_landing_port(hull)
 	if(!pad)
 		staging.abandon()
@@ -263,7 +323,7 @@
 	if(!charge.success)
 		return delivery.refuse("Retrieval refused: [shipyard_ledger_refusal_text(charge)]")
 
-	var/obj/docking_port/mobile/hull = shipyard_retrieve_hull(record.map_path, record.ship_name, zone, record.stored_contents)
+	var/obj/docking_port/mobile/hull = shipyard_retrieve_hull(record.map_path, record.ship_name, zone, record.stored_contents, record.deck_state)
 	if(!hull)
 		var/refunded = shipyard_refund_fee(owner_uuid, fee, channel, "Refund: [charge_reason]", record.id, record.revision, "retrieve")
 		return delivery.refuse("Retrieval refused: [record.ship_name] could not be set down on [zone.zone_name]. It may not fit the pad, or the pad may be obstructed.[fee > 0 ? (refunded ? " Your [fee] cr fee was refunded." : " Your fee could not be refunded automatically; an administrator has the record.") : ""]")

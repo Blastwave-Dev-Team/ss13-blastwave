@@ -323,7 +323,7 @@
 
 /// The survey as the UI reads it: what is kept, what is lost, and the quote.
 /obj/machinery/computer/ship_registrar/proc/build_survey(datum/ship_teardown/teardown, insurance_refund)
-	var/list/appraisal = shipyard_appraise_lockbox(teardown.lockbox_items)
+	var/list/appraisal = shipyard_appraise_lockbox(teardown.stored_contents)
 	var/tile_count = length(teardown.cells)
 	var/list/footprint_tiles = list()
 	for(var/tile_y in teardown.height to 1 step -1)
@@ -435,7 +435,7 @@
 	var/tile_count = length(teardown.cells)
 	var/record_id = record?.id
 	var/revision = record ? record.revision + 1 : 1
-	var/list/appraisal = shipyard_appraise_lockbox(teardown.lockbox_items)
+	var/list/appraisal = shipyard_appraise_lockbox(teardown.stored_contents)
 	var/list/quote = shipyard_storage_quote(tile_count, appraisal["total"], pending_insurance_refund(record))
 	var/net = quote["net"]
 	if(!record_id)
@@ -480,6 +480,7 @@
 	var/file_path = shipyard_ship_file_path(operator_uuid, record_id, revision)
 	// Copied before the release, which deletes the items it describes.
 	var/list/stored_contents = teardown.stored_contents.Copy()
+	var/list/deck_state = teardown.deck_state()
 	var/written = shipyard_write_and_release(hull, teardown, file_path)
 	qdel(teardown)
 	if(!written)
@@ -492,7 +493,7 @@
 
 	var/salvage = shipyard_salvage_estimate(file_path)
 	var/checksum = rustg_hash_file(RUSTG_HASH_SHA256, file_path)
-	if(!GLOB.ship_registry.store_revision(record_id, revision, file_path, checksum, stored_contents, tile_count, hull_name, salvage))
+	if(!GLOB.ship_registry.store_revision(record_id, revision, file_path, checksum, stored_contents, tile_count, hull_name, salvage, deck_state))
 		// The hull is already off the pad and on disk. Nothing automatic can put
 		// it right, so an admin has to see it.
 		log_admin("Ship registry: [key_name(user)] filed [hull_name] to [file_path] but record [record_id] could not be updated to revision [revision].")
@@ -504,7 +505,7 @@
 	if(net < 0)
 		credited = -net
 		shipyard_credit_fee(operator_uuid, credited, LEDGER_CHANNEL_SHIP_INSURANCE, "Insurance refund surplus: [hull_name] (record [record_id], revision [revision])", record_id, revision, "insurance-surplus")
-	log_admin("Ship registry: [key_name(user)] filed [hull_name] as record [record_id] revision [revision] ([tile_count] tiles, [length(stored_contents)] lockbox items, salvage [salvage] cr) to [file_path]. Storage [quote["storage"]] cr, insurance refund [quote["insuranceRefund"]] cr, net [net] cr.")
+	log_admin("Ship registry: [key_name(user)] filed [hull_name] as record [record_id] revision [revision] ([tile_count] tiles, [length(stored_contents)] lockbox items, [length(deck_state["items"])] deck items, [length(deck_state["fixtures"])] fixture states, salvage [salvage] cr) to [file_path]. Storage [quote["storage"]] cr, insurance refund [quote["insuranceRefund"]] cr, net [net] cr.")
 	survey = null
 	surveyed_hull = null
 	var/money_text = net > 0 ? "Charged [net] cr." : (credited ? "Credited [credited] cr of unused insurance." : "No charge.")
