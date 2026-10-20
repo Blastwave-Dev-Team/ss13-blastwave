@@ -137,21 +137,10 @@ A large warning reads: \"NT Corporate Regulations restrict withdrawals and depos
 	return human
 
 /obj/machinery/atm/proc/get_authorized_account(mob/living/carbon/human/human)
-	var/datum/bank_account/personal = SScharacter_ledger.get_personal_account(human)
-	if(!personal)
-		return null
-	var/obj/item/card/id/id_card = human.get_idcard(TRUE)
-	if(!id_card || id_card.registered_account != personal)
-		return null
-	return personal
+	return personal_id_matches(human)
 
 /obj/machinery/atm/proc/pin_matches(mob/living/carbon/human/human, submitted)
-	if(isnull(human.mind?.atm_pin))
-		return FALSE
-	var/entered = isnum(submitted) ? submitted : text2num(submitted)
-	if(isnull(entered))
-		return FALSE
-	return entered == human.mind.atm_pin
+	return atm_pin_matches(human, submitted)
 
 /obj/machinery/atm/proc/try_deposit(mob/living/carbon/human/human, amount)
 	if(busy)

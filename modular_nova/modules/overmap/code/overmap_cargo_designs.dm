@@ -103,6 +103,52 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
+/datum/design/board/ship_registrar
+	name = "Ship Registrar Board"
+	desc = "The circuit board for a ship registrar, which files landed hulls into the owner's garage and calls them back."
+	id = "ship_registrar"
+	build_path = /obj/item/circuitboard/computer/ship_registrar
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/board/ship_broker
+	name = "Vessel Broker Board"
+	desc = "The circuit board for a vessel broker, which sells registered hulls against the buyer's ledger."
+	id = "ship_broker"
+	build_path = /obj/item/circuitboard/computer/ship_broker
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/board/ship_lockbox
+	name = "Ship Lockbox Board"
+	desc = "The circuit board for a deck-mounted ship lockbox."
+	id = "ship_lockbox"
+	build_path = /obj/item/circuitboard/machine/ship_lockbox
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_MACHINE + RND_SUBCATEGORY_MACHINE_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/ship_lockbox_wall
+	name = "Wall Ship Lockbox"
+	desc = "A wall-mounted ship lockbox, ready to hang."
+	id = "ship_lockbox_wall"
+	build_path = /obj/item/wallframe/ship_lockbox
+	build_type = PROTOLATHE
+	materials = list(
+		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
+		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2,
+	)
+	category = list(RND_CATEGORY_CONSTRUCTION + RND_SUBCATEGORY_CONSTRUCTION_MOUNTS)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
 /datum/design/ship_blueprint_disk
 	name = "NT Personal Blueprint Disk"
 	desc = "A production manifest for fabricating the Nanotrasen personal transport frigate."

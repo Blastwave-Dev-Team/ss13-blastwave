@@ -34,10 +34,19 @@
 /datum/map_template/shuttle/proc/prerequisites_met()
 	return TRUE
 
-/datum/map_template/shuttle/New()
+// BLASTWAVE EDIT CHANGE START - OVERMAP - forward a supplied path instead of
+// overwriting it, so a template can be built around a map decided at runtime.
+// ORIGINAL:
+// /datum/map_template/shuttle/New()
+// 	shuttle_id = "[port_id]_[suffix]"
+// 	mappath = "[prefix][shuttle_id].dmm"
+// 	. = ..()
+/datum/map_template/shuttle/New(path, rename, cache = FALSE)
 	shuttle_id = "[port_id]_[suffix]"
-	mappath = "[prefix][shuttle_id].dmm"
+	if(!path)
+		mappath = "[prefix][shuttle_id].dmm"
 	. = ..()
+// BLASTWAVE EDIT CHANGE END
 
 /datum/map_template/shuttle/preload_size(path, cache)
 	. = ..(path, TRUE) // Done this way because we still want to know if someone actually wanted to cache the map
