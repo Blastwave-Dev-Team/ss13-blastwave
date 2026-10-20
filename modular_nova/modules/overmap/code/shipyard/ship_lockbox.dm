@@ -28,8 +28,7 @@
  */
 /obj/machinery/ship_lockbox
 	name = "ship lockbox"
-	desc = "A registry-sealed vault. Whatever is inside it when a vessel is filed away comes back out with the vessel; whatever is not, does not."
-	icon = 'modular_nova/modules/overmap/icons/vaults.dmi'
+	desc = "A serialized storage unit, associated with the ship it's stored within. Comes with the latest in NT cargo manifest technology, for insurance purposes. Allegedly tamper-proof."	icon = 'modular_nova/modules/overmap/icons/vaults.dmi'
 	max_integrity = 600
 	integrity_failure = 0.25
 	armor_type = /datum/armor/ship_lockbox
@@ -616,7 +615,7 @@
 
 /obj/item/circuitboard/machine/ship_lockbox
 	name = "Ship Lockbox"
-	desc = "A machine board for a deck-mounted ship lockbox, the vault whose contents are kept when its vessel is filed."
+	desc = "A machine board for a deck-mounted ship lockbox."
 	greyscale_colors = CIRCUIT_COLOR_SUPPLY
 	build_path = /obj/machinery/ship_lockbox/floor
 	req_components = list(
