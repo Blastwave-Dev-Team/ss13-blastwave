@@ -103,6 +103,28 @@
 	)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
 
+/datum/design/board/ship_registrar
+	name = "Ship Registrar Board"
+	desc = "The circuit board for a ship registrar, which files landed hulls into the owner's garage and calls them back."
+	id = "ship_registrar"
+	build_path = /obj/item/circuitboard/computer/ship_registrar
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
+/datum/design/board/ship_broker
+	name = "Vessel Broker Board"
+	desc = "The circuit board for a vessel broker, which sells registered hulls against the buyer's ledger."
+	id = "ship_broker"
+	build_path = /obj/item/circuitboard/computer/ship_broker
+	build_type = IMPRINTER
+	category = list(
+		RND_CATEGORY_COMPUTER + RND_SUBCATEGORY_COMPUTER_ENGINEERING
+	)
+	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO
+
 /datum/design/board/ship_lockbox
 	name = "Ship Lockbox Board"
 	desc = "The circuit board for a deck-mounted ship lockbox."
