@@ -28,7 +28,8 @@
  */
 /obj/machinery/ship_lockbox
 	name = "ship lockbox"
-	desc = "A serialized storage unit, associated with the ship it's stored within. Comes with the latest in NT cargo manifest technology, for insurance purposes. Allegedly tamper-proof."	icon = 'modular_nova/modules/overmap/icons/vaults.dmi'
+	desc = "A serialized storage unit, associated with the ship it's stored within. Comes with the latest in NT cargo manifest technology, for insurance purposes. Allegedly tamper-proof."
+	icon = 'modular_nova/modules/overmap/icons/vaults.dmi'
 	max_integrity = 600
 	integrity_failure = 0.25
 	armor_type = /datum/armor/ship_lockbox
