@@ -299,8 +299,9 @@
 	var/obj/item/storage/part_replacer/rped_back = locate() in pack_back
 	TEST_ASSERT(rped_back, "The part exchanger should come back inside the waistpack.")
 	var/bins_back = 0
-	for(var/obj/item/stock_parts/matter_bin/bin in rped_back)
-		bins_back++
+	for(var/obj/item/part in rped_back)
+		if(istype(part, /obj/item/stock_parts/matter_bin))
+			bins_back++
 	TEST_ASSERT_EQUAL(bins_back, 3, "The parts should come back inside the part exchanger.")
 
 /// Teardown keeps the entries of every vault aboard, and appraisal reads their cached values.
