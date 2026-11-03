@@ -1,0 +1,4 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - bugfix: "The wall distress beacon no longer turns into two floating lights when activated; its antennae now flash on top of the beacon."
