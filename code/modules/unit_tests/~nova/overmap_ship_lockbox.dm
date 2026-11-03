@@ -329,3 +329,78 @@
 	appraisal = shipyard_appraise_lockbox(teardown.stored_contents)
 	TEST_ASSERT_EQUAL(appraisal["total"], 250, "An entry with no export value should be stored for free.")
 	qdel(teardown)
+
+/// An item and everything stored inside it, down every level, as one comparable line.
+/proc/shipyard_test_item_tree(obj/item/item)
+	var/text = "[item.type]"
+	if(isstack(item))
+		var/obj/item/stack/stack = item
+		text += " x[stack.amount]"
+	if(item.reagents?.total_volume)
+		text += " [round(item.reagents.total_volume)]u"
+	var/atom/held_in = item.atom_storage?.real_location
+	if(held_in)
+		var/list/children = list()
+		for(var/obj/item/held in held_in)
+			children += shipyard_test_item_tree(held)
+		text += " ([jointext(sortTim(children, GLOBAL_PROC_REF(cmp_text_asc)), ", ")])"
+	return text
+
+/**
+ * Containers three deep, holding stacks and reagents, come back whole from a
+ * filing: from the vault, and from the deck beside it.
+ */
+/datum/unit_test/overmap_ship_persistence/lockbox_nested_containers
+
+/datum/unit_test/overmap_ship_persistence/lockbox_nested_containers/Run()
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_registrar/console = logged_in_console(owner_uuid, 50000)
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Nested Container Test Hull", owner_uuid)
+	var/obj/machinery/ship_lockbox/floor/vault = fixture_vault(zone)
+
+	var/obj/item/storage/backpack/tinypaka/waistpack = allocate(/obj/item/storage/backpack/tinypaka)
+	allocate(/obj/item/storage/medkit/frontier/stocked, waistpack)
+	allocate(/obj/item/storage/box/bandages, waistpack)
+	var/list/deposits = list(waistpack, allocate(/obj/item/storage/belt/utility/full))
+	var/list/expected = list()
+	for(var/obj/item/deposit as anything in deposits)
+		expected += shipyard_test_item_tree(deposit)
+		TEST_ASSERT(vault.deposit(deposit), "The vault should take [deposit].")
+	TEST_ASSERT(findtext(expected[1], "/obj/item/storage/pill_bottle"), "The fixture should nest three deep, got [expected[1]].")
+	var/obj/item/storage/photo_album/deck_album = allocate(/obj/item/storage/photo_album, locate(zone.x + 3, zone.y + 3, zone.z))
+	for(var/i in 1 to 2)
+		allocate(/obj/item/paper, deck_album.atom_storage.real_location)
+	var/expected_deck = shipyard_test_item_tree(deck_album)
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The nested hull should survey: [console_says(console)]")
+	TEST_ASSERT(console.file_hull(hull, zone, null), "The nested hull should file: [console_says(console)]")
+	var/datum/player_ship_record/record = only_record(owner_uuid)
+	var/obj/docking_port/mobile/retrieved = console.retrieve_record(record.id, FALSE, zone, null)
+	TEST_ASSERT(retrieved, "The nested hull should retrieve: [console_says(console)]")
+	hulls += retrieved
+
+	var/obj/machinery/ship_lockbox/floor/retrieved_vault
+	var/obj/item/storage/photo_album/album_back
+	for(var/turf/deck as anything in retrieved.return_turfs())
+		retrieved_vault ||= locate(/obj/machinery/ship_lockbox/floor) in deck
+		album_back ||= locate(/obj/item/storage/photo_album) in deck
+	TEST_ASSERT(retrieved_vault, "The retrieved hull should carry its vault.")
+	TEST_ASSERT(album_back, "The album on the deck should come back.")
+	TEST_ASSERT_EQUAL(shipyard_test_item_tree(album_back), expected_deck, "The deck album should come back with what it held.")
+	TEST_ASSERT_EQUAL(length(retrieved_vault.stored_entries), length(deposits) + 1, "The vault should come back holding the fixture pen and every deposit.")
+
+	var/turf/drop = retrieved_vault.drop_location()
+	var/list/before = drop.contents.Copy()
+	var/list/rows = retrieved_vault.ui_data(null)["contents"]
+	for(var/key in rows)
+		var/list/sent = json_decode(json_encode(list("path" = rows[key]["path"])))
+		retrieved_vault.withdraw(sent["path"], rows[key]["amount"], null)
+	TEST_ASSERT(!length(retrieved_vault.stored_entries), "Every row should release.")
+	var/list/arrived = drop.contents - before
+	allocated += arrived
+	var/list/released = list()
+	for(var/obj/item/item in arrived)
+		if(item.atom_storage)
+			released += shipyard_test_item_tree(item)
+	TEST_ASSERT_EQUAL(jointext(sortTim(released, GLOBAL_PROC_REF(cmp_text_asc)), "\n"), jointext(sortTim(expected, GLOBAL_PROC_REF(cmp_text_asc)), "\n"), "Every container should come back holding what it held, all the way down.")

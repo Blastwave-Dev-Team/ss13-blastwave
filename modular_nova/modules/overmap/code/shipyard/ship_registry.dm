@@ -276,8 +276,9 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 		row.revision = revision
 		row.map_path = map_path
 		row.map_checksum = map_checksum
-		row.stored_contents = shipyard_copy_state(stored_contents || list())
-		row.deck_state = shipyard_copy_state(deck_state || list())
+		// Through JSON, as the database would, so tests see what a server reads back.
+		row.stored_contents = shipyard_lockbox_from_json(json_encode(stored_contents || list()), record_id)
+		row.deck_state = shipyard_deck_state_from_json(json_encode(deck_state || list()), record_id)
 		row.tile_count = tile_count
 		row.ship_name = ship_name
 		row.salvage_estimate = salvage_estimate
@@ -398,27 +399,40 @@ GLOBAL_DATUM_INIT(ship_registry, /datum/ship_registry, new)
 	record.map_checksum = query.item[7]
 	record.tile_count = text2num("[query.item[8]]") || 0
 	record.salvage_estimate = text2num("[query.item[9]]") || 0
-	var/lockbox_json = query.item[10]
-	if(istext(lockbox_json) && rustg_json_is_valid(lockbox_json))
-		var/list/decoded = json_decode(lockbox_json)
-		if(islist(decoded))
-			record.stored_contents = shipyard_decode_roster(decoded)
-	else if(!isnull(lockbox_json))
-		log_runtime("Ship registry: record [record.id] has an unreadable lockbox ([lockbox_json]); reading it as empty.")
+	record.stored_contents = shipyard_lockbox_from_json(query.item[10], record.id)
 	record.status = query.item[11]
 	record.insured = !!text2num("[query.item[12]]")
 	record.insurance_fee_paid = text2num("[query.item[13]]") || 0
 	record.filed_round_id = text2num("[query.item[14]]")
 	record.retrieved_round_id = text2num("[query.item[15]]")
 	record.grant_id = text2num("[query.item[16]]")
-	var/deck_json = query.item[17]
-	if(istext(deck_json) && rustg_json_is_valid(deck_json))
-		var/list/decoded_deck = json_decode(deck_json)
-		if(islist(decoded_deck))
-			record.deck_state = shipyard_decode_deck_state(decoded_deck)
-	else if(!isnull(deck_json))
-		log_runtime("Ship registry: record [record.id] has unreadable deck state ([deck_json]); reading it as empty.")
+	record.deck_state = shipyard_deck_state_from_json(query.item[17], record.id)
 	return record
+
+/**
+ * The lockbox column as a roster. Unreadable text reads as an empty lockbox.
+ *
+ * Not rustg_json_is_valid(): it refuses anything nested 8 deep, and a container
+ * inside a container inside a lockbox is already that deep.
+ */
+/proc/shipyard_lockbox_from_json(lockbox_json, record_id)
+	if(isnull(lockbox_json))
+		return list()
+	var/list/decoded = istext(lockbox_json) ? safe_json_decode(lockbox_json) : null
+	if(!islist(decoded))
+		log_runtime("Ship registry: record [record_id] has an unreadable lockbox ([lockbox_json]); reading it as empty.")
+		return list()
+	return shipyard_decode_roster(decoded)
+
+/// The deck state column as deck state. Unreadable text reads as an empty deck.
+/proc/shipyard_deck_state_from_json(deck_json, record_id)
+	if(isnull(deck_json))
+		return list()
+	var/list/decoded = istext(deck_json) ? safe_json_decode(deck_json) : null
+	if(!islist(decoded))
+		log_runtime("Ship registry: record [record_id] has unreadable deck state ([deck_json]); reading it as empty.")
+		return list()
+	return shipyard_decode_deck_state(decoded)
 
 /// JSON carries type paths as text; hand them back as paths.
 /proc/shipyard_decode_roster(list/decoded)
