@@ -80,8 +80,10 @@
  *
  * A `yielding` walk runs on SSshipyard's clock, sleeping the caller until it is
  * done, and so describes a ship that was never in any one of the states it
- * writes down. Anything that acts on the hull afterwards has to ask
- * `hull_changed()` first, without sleeping between that answer and the act.
+ * writes down. That is fine for a survey, which only quotes; anything that
+ * writes the hull down walks it in one tick instead. Anything that acts on the
+ * hull after sleeping has to ask `hull_changed()` first, without sleeping
+ * between that answer and the act.
  */
 /datum/ship_teardown/New(obj/docking_port/mobile/port, yielding = FALSE)
 	. = ..()

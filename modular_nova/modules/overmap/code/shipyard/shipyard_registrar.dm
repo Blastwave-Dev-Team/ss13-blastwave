@@ -449,11 +449,9 @@
 	if(slot_text)
 		set_status(FALSE, slot_text)
 		return FALSE
-	var/turf/hull_start = get_turf(hull)
-	var/datum/ship_teardown/teardown = new(hull, TRUE)
-	if(!walk_still_valid(hull, hull_start, operator_uuid, "filing"))
-		qdel(teardown)
-		return FALSE
+	// In one tick: a hull keeps running under a walk spread across ticks, so
+	// generators burn fuel and pipes move gas between tiles already written down.
+	var/datum/ship_teardown/teardown = new(hull)
 	if(teardown.refusal)
 		set_status(FALSE, "This vessel cannot be filed: [teardown.refusal].")
 		qdel(teardown)
