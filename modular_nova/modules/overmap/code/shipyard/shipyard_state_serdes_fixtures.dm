@@ -110,6 +110,29 @@
 		target.valve_open = !!state["valve_open"]
 	return ..()
 
+/**
+ * Stationary pressure tanks pool their gas across a merged group, so only the
+ * southmost (then westmost) member writes the pool down and the rest write
+ * nothing. A retrieved group has merged again before fixture state is applied,
+ * so setting the pool through whichever member receives it fills them all.
+ */
+/datum/shipyard_serdes/atmos_tank
+	target_type = /obj/machinery/atmospherics/components/tank
+
+/datum/shipyard_serdes/atmos_tank/capture(obj/machinery/atmospherics/components/tank/target)
+	if(!target.air_contents)
+		return null
+	var/datum/merger/group = target.GetMergeGroup(target.merger_id, target.merger_typecache)
+	for(var/obj/machinery/atmospherics/components/tank/member as anything in group.members)
+		if(member.y < target.y || (member.y == target.y && member.x < target.x))
+			return null
+	return list("gas" = shipyard_capture_gas(target.air_contents))
+
+/datum/shipyard_serdes/atmos_tank/apply(obj/machinery/atmospherics/components/tank/target, list/state)
+	if(islist(state["gas"]) && target.air_contents)
+		shipyard_apply_gas(target.air_contents, state["gas"])
+	return ..()
+
 /datum/shipyard_serdes/item/tank
 	target_type = /obj/item/tank
 

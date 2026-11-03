@@ -279,6 +279,45 @@
 	TEST_ASSERT_EQUAL(drained_count, 1, "Exactly one canister should come back drained.")
 	TEST_ASSERT_EQUAL(high_pressure_count, 1, "Exactly one canister should keep its raised release pressure.")
 
+/// A merged group of pressure tanks comes back holding its pooled gas once, not refilled or doubled.
+/datum/unit_test/overmap_ship_persistence/pressure_tank_retrieval
+
+/datum/unit_test/overmap_ship_persistence/pressure_tank_retrieval/Run()
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_registrar/console = logged_in_console(owner_uuid, 50000)
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Pressure Tank Test Hull", owner_uuid)
+	var/turf/corner = locate(zone.x + 2, zone.y + 2, zone.z)
+	var/obj/machinery/atmospherics/components/tank/plasma/west = allocate(/obj/machinery/atmospherics/components/tank/plasma, locate(corner.x + 1, corner.y + 2, corner.z))
+	var/obj/machinery/atmospherics/components/tank/plasma/east = allocate(/obj/machinery/atmospherics/components/tank/plasma, locate(corner.x + 2, corner.y + 2, corner.z))
+	TEST_ASSERT_EQUAL(west.air_contents, east.air_contents, "Adjacent pressure tanks should share one pooled mixture.")
+	shipyard_apply_gas(west.air_contents, list("moles" = list("/datum/gas/plasma" = 100), "temperature" = T20C))
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The pressure tank hull should survey: [console_says(console)]")
+	TEST_ASSERT(console.file_hull(hull, zone, null), "The pressure tank hull should file: [console_says(console)]")
+	var/datum/player_ship_record/record = only_record(owner_uuid)
+	TEST_ASSERT(record, "The pressure tank hull should be in the garage.")
+	var/tank_states = 0
+	for(var/list/entry in record.deck_state["fixtures"])
+		if(ispath(text2path("[entry["path"]]"), /obj/machinery/atmospherics/components/tank))
+			tank_states++
+	TEST_ASSERT_EQUAL(tank_states, 1, "A merged tank group should write its pool down once.")
+
+	var/obj/docking_port/mobile/retrieved = console.retrieve_record(record.id, FALSE, zone, null)
+	TEST_ASSERT(retrieved, "The pressure tank hull should retrieve: [console_says(console)]")
+	hulls += retrieved
+	var/list/found_tanks = list()
+	for(var/turf/deck as anything in retrieved.return_turfs())
+		for(var/obj/machinery/atmospherics/components/tank/plasma/tank in deck)
+			found_tanks += tank
+	TEST_ASSERT_EQUAL(length(found_tanks), 2, "Both pressure tanks should come back.")
+	var/obj/machinery/atmospherics/components/tank/plasma/first = found_tanks[1]
+	var/obj/machinery/atmospherics/components/tank/plasma/second = found_tanks[2]
+	TEST_ASSERT_EQUAL(first.air_contents, second.air_contents, "Retrieved pressure tanks should merge again.")
+	var/list/gases = first.air_contents.gases
+	var/plasma_moles = gases[/datum/gas/plasma] ? round(gases[/datum/gas/plasma][MOLES]) : 0
+	TEST_ASSERT_EQUAL(plasma_moles, 100, "The pooled gas should come back as it was filed.")
+
 /// Past the deck limit, paperwork is reported lost rather than kept.
 /datum/unit_test/overmap_ship_persistence/deck_item_limit
 
