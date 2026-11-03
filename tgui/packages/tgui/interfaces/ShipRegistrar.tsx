@@ -125,7 +125,9 @@ type Data = {
   ledgerOnline: BooleanLike;
   zone: Zone;
   refusal: Refusal | null;
+  /** Static data: the last survey, which may since have gone stale. */
   survey: Survey | null;
+  surveyCurrent: BooleanLike;
   ships: ShipEntry[];
   slots: Slots;
   statusMessage: StatusMessage | null;
@@ -286,6 +288,9 @@ const OwnershipLabel = (props: { occupant: Occupant }) => {
   }
 };
 
+/** The last survey, while it still describes the hull on the pad. */
+const currentSurvey = (data: Data) => (data.surveyCurrent ? data.survey : null);
+
 const surveyDisabledReason = (data: Data) => {
   if (!data.zone.linked) {
     return 'No landing pad linked. Use a multitool on a landing controller.';
@@ -327,11 +332,12 @@ const fileDisabledReason = (data: Data) => {
   if (own && own.status !== 'FILED' && used > total) {
     return `Garage over its slot limit (${used} / ${total}). Clear or decommission another ship before filing this one back in.`;
   }
-  if (!data.survey) {
+  const survey = currentSurvey(data);
+  if (!survey) {
     return 'Run a survey first so you can see what will be kept and what will be lost.';
   }
-  if ((data.ledgerBalance ?? 0) < data.survey.quote.net) {
-    return `Not enough credits. Filing costs ${credits(data.survey.quote.net)}.`;
+  if ((data.ledgerBalance ?? 0) < survey.quote.net) {
+    return `Not enough credits. Filing costs ${credits(survey.quote.net)}.`;
   }
   return null;
 };
@@ -367,7 +373,8 @@ const PadTab = (props: {
   openGarage: () => void;
 }) => {
   const { act, data } = useBackend<Data>();
-  const { zone, survey, refusal } = data;
+  const { zone, refusal } = data;
+  const survey = currentSurvey(data);
   const occupant = zone.occupant;
   const surveyBlock = surveyDisabledReason(data);
   const stagedShip = props.staged
@@ -685,7 +692,7 @@ const FileControls = () => {
   const { act, data } = useBackend<Data>();
   const [pin, setPin] = useState('');
   const reason = fileDisabledReason(data);
-  const quote = data.survey?.quote;
+  const quote = currentSurvey(data)?.quote;
   const balance = data.ledgerBalance ?? 0;
   const pinBlock = pin.length < 1 ? 'Enter your ledger PIN to file.' : null;
 

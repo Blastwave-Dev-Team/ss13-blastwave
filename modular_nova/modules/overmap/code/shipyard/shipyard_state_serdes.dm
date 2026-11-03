@@ -22,15 +22,11 @@ GLOBAL_LIST_INIT(shipyard_serdes, build_shipyard_serdes_registry())
 		registry[serdes.target_type] = serdes
 	return registry
 
+GLOBAL_LIST_EMPTY(shipyard_serdes_lookups)
+
 /// Nearest-ancestor serdes lookup, the same way construction routes resolve.
 /proc/get_shipyard_serdes(target_type)
-	var/list/registry = GLOB.shipyard_serdes
-	while(target_type)
-		var/datum/shipyard_serdes/serdes = registry[target_type]
-		if(serdes)
-			return serdes
-		target_type = type2parent(target_type)
-	return null
+	return shipyard_nearest_ancestor(GLOB.shipyard_serdes, GLOB.shipyard_serdes_lookups, target_type)
 
 /// JSON-safe state for `target`, or null when it has nothing worth keeping.
 /proc/shipyard_capture_state(atom/target)

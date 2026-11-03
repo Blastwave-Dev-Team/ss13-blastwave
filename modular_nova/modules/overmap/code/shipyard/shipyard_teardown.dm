@@ -61,6 +61,16 @@
 	var/refusal_code
 	/// Relative "x,y" to what stood on that tile when it was described. See `hull_changed()`.
 	var/list/fingerprints = list()
+	/// The hull being walked, and the corner of its bounding box.
+	var/datum/weakref/port_ref
+	var/min_x = 0
+	var/min_y = 0
+	/// Tiles of the bounding box described so far, column by column.
+	var/tiles_walked = 0
+	/// Lockbox entries given an appraisal so far.
+	var/entries_valued = 0
+	/// Whether the walk has finished, or was refused before it began.
+	var/walk_done = FALSE
 
 /**
  * Describe a live hull, or nothing at all.
@@ -68,48 +78,80 @@
  * Constructed without a port this is an empty description for something else to
  * fill in, which is how a saved map is read back without a ship to walk.
  *
- * A `yielding` walk spreads itself across ticks, and so describes a ship that
- * was never in any one of the states it writes down. Anything that acts on the
- * hull afterwards has to ask `hull_changed()` first, without sleeping between
- * that answer and the act.
+ * A `yielding` walk runs on SSshipyard's clock, sleeping the caller until it is
+ * done, and so describes a ship that was never in any one of the states it
+ * writes down. Anything that acts on the hull afterwards has to ask
+ * `hull_changed()` first, without sleeping between that answer and the act.
  */
 /datum/ship_teardown/New(obj/docking_port/mobile/port, yielding = FALSE)
 	. = ..()
 	if(isnull(port))
+		walk_done = TRUE
 		return
 	if(!istype(port))
 		refuse(SHIPYARD_REFUSAL_UNFILABLE, "what was handed over is not a registered hull")
+		walk_done = TRUE
 		return
 	if(port.shipyard_build_claim?.resolve())
 		refuse(SHIPYARD_REFUSAL_MID_BUILD, "the hull is still under a shipyard fabricator")
+		walk_done = TRUE
 		return
 	if(!length(port.shuttle_areas))
 		refuse(SHIPYARD_REFUSAL_UNFILABLE, "the hull holds no shuttle areas")
+		walk_done = TRUE
 		return
 
 	name = port.name || name
+	port_ref = WEAKREF(port)
 	var/list/coords = port.return_coords()
-	var/min_x = min(coords[1], coords[3])
-	var/min_y = min(coords[2], coords[4])
-	var/max_x = max(coords[1], coords[3])
-	var/max_y = max(coords[2], coords[4])
-	width = max_x - min_x + 1
-	height = max_y - min_y + 1
+	min_x = min(coords[1], coords[3])
+	min_y = min(coords[2], coords[4])
+	width = max(coords[1], coords[3]) - min_x + 1
+	height = max(coords[2], coords[4]) - min_y + 1
+	if(yielding)
+		SSshipyard.run_walk(src)
+	else
+		advance()
 
-	for(var/tile_x in min_x to max_x)
-		for(var/tile_y in min_y to max_y)
-			var/turf/tile = locate(tile_x, tile_y, port.z)
-			var/rel_x = tile_x - min_x + 1
-			var/rel_y = tile_y - min_y + 1
-			describe_tile(tile, rel_x, rel_y, port)
-			// In the same tick as the description, so the two agree.
-			if(tile && port.shuttle_areas[tile.loc])
-				fingerprints["[rel_x],[rel_y]"] = shipyard_tile_fingerprint(tile)
-			if(yielding)
-				CHECK_TICK
+/**
+ * Walk on from where the last call stopped: every tile, then an appraisal for
+ * each lockbox entry. Stops whenever SSshipyard says the tick is spent, and
+ * otherwise runs to the end. Returns TRUE once the walk is done.
+ *
+ * A tile is the unit of work, so its description and its fingerprint always
+ * come from the same tick.
+ */
+/datum/ship_teardown/proc/advance()
+	if(walk_done)
+		return TRUE
+	var/obj/docking_port/mobile/port = port_ref?.resolve()
+	if(QDELETED(port))
+		refuse(SHIPYARD_REFUSAL_UNFILABLE, "the hull was gone before it was described")
+		walk_done = TRUE
+		return TRUE
+	var/tile_total = width * height
+	while(tiles_walked < tile_total)
+		var/rel_x = round(tiles_walked / height) + 1
+		var/rel_y = tiles_walked % height + 1
+		tiles_walked++
+		var/turf/tile = locate(min_x + rel_x - 1, min_y + rel_y - 1, port.z)
+		describe_tile(tile, rel_x, rel_y, port)
+		if(tile && port.shuttle_areas[tile.loc])
+			fingerprints["[rel_x],[rel_y]"] = shipyard_tile_fingerprint(tile)
+		if(SSshipyard.walk_should_yield())
+			return FALSE
+	// Rosters saved before values were cached are priced from a stand-in item,
+	// which is too slow to leave for the survey to do in one go.
+	while(entries_valued < length(stored_contents))
+		entries_valued++
+		shipyard_entry_value(stored_contents[entries_valued])
+		if(SSshipyard.walk_should_yield())
+			return FALSE
 	describe_port(port, min_x, min_y)
 	if(!length(cells))
 		refuse(SHIPYARD_REFUSAL_UNFILABLE, "the hull described no tiles")
+	walk_done = TRUE
+	return TRUE
 
 /datum/ship_teardown/Destroy()
 	deck_items.Cut()
@@ -540,17 +582,17 @@
 		)
 		if(!contained)
 			return shipyard_refusal(SHIPYARD_REFUSAL_OUTSIDE_ZONE, "Part of the hull sits outside [zone.zone_name]. Land it fully inside the pad beacons.")
+	// By area rather than by walking the deck: the registrar asks this every
+	// second, and there are far fewer living mobs than atoms aboard. `get_area`
+	// sees through containers, so a mob inside a locker still counts, and the
+	// hull's areas are exactly its tiles, not the box around them.
 	var/list/aboard = list()
-	for(var/turf/deck as anything in port.return_turfs())
-		// The bounding box is not the hull: an irregular ship leaves tiles in
-		// its own box that belong to whatever it is parked on.
-		if(!port.shuttle_areas[deck.loc])
+	for(var/mob/living/occupant in GLOB.alive_mob_list)
+		if(occupant.stat == DEAD)
 			continue
-		// Recursive, because a mob inside a locker is still a mob that would be
-		// deleted, and it is exactly the case nobody would think to check for.
-		for(var/mob/living/occupant in deck.get_all_contents())
-			if(occupant.stat != DEAD)
-				aboard += occupant
+		var/area/occupant_area = get_area(occupant)
+		if(occupant_area && port.shuttle_areas[occupant_area])
+			aboard += occupant
 	if(length(aboard))
 		return shipyard_refusal(SHIPYARD_REFUSAL_LIVING_MOB, "Someone is still aboard ([length(aboard)] living [length(aboard) == 1 ? "occupant" : "occupants"]). Everyone has to step off before the hull can be filed.")
 	return null

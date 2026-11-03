@@ -73,8 +73,7 @@
 		known_ships = null
 		slots = null
 		scrap_values = null
-		survey = null
-		surveyed_hull = null
+		clear_survey()
 
 /obj/machinery/computer/ship_registrar/proc/start_session(mob/user)
 	session.start(user)
@@ -85,8 +84,16 @@
 	known_ships = null
 	slots = null
 	scrap_values = null
+	clear_survey()
+
+/// Drop the last survey, and the copy every open window holds.
+/obj/machinery/computer/ship_registrar/proc/clear_survey()
+	if(!survey && !surveyed_hull)
+		return
 	survey = null
 	surveyed_hull = null
+	surveyed_lockboxes = null
+	update_static_data_for_all_viewers()
 
 /// Re-read everything `ui_data` shows from the registry and the ledger.
 /obj/machinery/computer/ship_registrar/proc/refresh_session()
@@ -157,7 +164,7 @@
 		"text" = refusal["text"],
 		"blocksSurvey" = blocks_survey,
 	) : null
-	data["survey"] = (hull && !blocks_survey && survey_current(hull)) ? survey : null
+	data["surveyCurrent"] = !!(hull && !blocks_survey && survey_current(hull))
 
 	var/list/grants = list()
 	var/list/grant_sources = list()
@@ -197,6 +204,11 @@
 	data["ships"] = ships
 	data["statusMessage"] = session.status_message
 	return data
+
+/// The survey is the largest thing the window shows, and only changes when a
+/// survey finishes or is dropped, so it is sent then rather than every update.
+/obj/machinery/computer/ship_registrar/ui_static_data(mob/user)
+	return list("survey" = survey)
 
 /obj/machinery/computer/ship_registrar/ui_act(action, list/params, datum/tgui/ui, datum/ui_state/ui_state)
 	. = ..()
@@ -284,8 +296,7 @@
 
 /obj/machinery/computer/ship_registrar/proc/do_run_survey(obj/docking_port/mobile/hull, obj/effect/landmark/overmap_landing_zone/zone)
 	PRIVATE_PROC(TRUE)
-	survey = null
-	surveyed_hull = null
+	clear_survey()
 	if(!hull)
 		set_status(FALSE, "No vessel is standing on the pad.")
 		return FALSE
@@ -308,6 +319,7 @@
 	surveyed_hull = WEAKREF(hull)
 	surveyed_lockboxes = teardown.lockbox_revisions.Copy()
 	qdel(teardown)
+	update_static_data_for_all_viewers()
 	playsound(src, 'sound/machines/terminal/terminal_processing.ogg', 40, TRUE)
 	return TRUE
 
@@ -487,8 +499,7 @@
 			shipyard_refund_fee(operator_uuid, net, LEDGER_CHANNEL_SHIP_STORAGE, "Refund: [charge_reason]", record_id, revision, "file")
 		if(!record)
 			GLOB.ship_registry.discard(record_id)
-		survey = null
-		surveyed_hull = null
+		clear_survey()
 		set_status(FALSE, "[late_refusal_text][net > 0 ? " The fee has been refunded." : ""]")
 		qdel(teardown)
 		return FALSE
@@ -522,8 +533,7 @@
 		credited = -net
 		shipyard_credit_fee(operator_uuid, credited, LEDGER_CHANNEL_SHIP_INSURANCE, "Insurance refund surplus: [hull_name] (record [record_id], revision [revision])", record_id, revision, "insurance-surplus")
 	log_admin("Ship registry: [key_name(user)] filed [hull_name] as record [record_id] revision [revision] ([tile_count] tiles, [length(stored_contents)] lockbox items, [length(deck_state["items"])] deck items, [length(deck_state["fixtures"])] fixture states, salvage [salvage] cr) to [file_path]. Storage [quote["storage"]] cr, insurance refund [quote["insuranceRefund"]] cr, net [net] cr.")
-	survey = null
-	surveyed_hull = null
+	clear_survey()
 	var/money_text = net > 0 ? "Charged [net] cr." : (credited ? "Credited [credited] cr of unused insurance." : "No charge.")
 	set_status(TRUE, "[hull_name] filed as revision [revision]. [money_text]")
 	playsound(src, 'sound/machines/terminal/terminal_success.ogg', 50, TRUE)

@@ -16,15 +16,33 @@ GLOBAL_LIST_INIT(shipyard_routes, build_shipyard_route_registry())
 		registry[route.target_type] = route
 	return registry
 
+/**
+ * The entry `registry` holds for `target_type` or its nearest ancestor, or null.
+ *
+ * Climbing is string work per parent, and a hull walk asks the same few types
+ * over and over, so each answer is kept in `resolved`, misses included. The
+ * registries are built once at startup, which is what makes that safe.
+ */
+/proc/shipyard_nearest_ancestor(list/registry, list/resolved, target_type)
+	if(!target_type)
+		return null
+	var/found = resolved[target_type]
+	if(!isnull(found))
+		return found || null
+	var/climb = target_type
+	while(climb)
+		found = registry[climb]
+		if(found)
+			break
+		climb = type2parent(climb)
+	resolved[target_type] = found || FALSE
+	return found || null
+
+GLOBAL_LIST_EMPTY(shipyard_route_lookups)
+
 /// Nearest-ancestor route lookup for a mapped type.
 /proc/get_shipyard_route(target_type)
-	var/list/registry = GLOB.shipyard_routes
-	while(target_type)
-		var/datum/shipyard_route/route = registry[target_type]
-		if(route)
-			return route
-		target_type = type2parent(target_type)
-	return null
+	return shipyard_nearest_ancestor(GLOB.shipyard_routes, GLOB.shipyard_route_lookups, target_type)
 
 /// Mapping-helper families that a route delegates to its finished target, and
 /// which must therefore not be classified as content in their own right.
@@ -50,15 +68,11 @@ GLOBAL_LIST_INIT(shipyard_pipe_fittings, build_shipyard_pipe_fitting_registry())
 		registry[machinery_path] = fitting_type
 	return registry
 
+GLOBAL_LIST_EMPTY(shipyard_pipe_fitting_lookups)
+
 /// Nearest-ancestor lookup for a fitting that dispenses this exact device.
 /proc/get_shipyard_dedicated_pipe_fitting(machinery_type)
-	var/list/registry = GLOB.shipyard_pipe_fittings
-	while(machinery_type)
-		var/fitting = registry[machinery_type]
-		if(fitting)
-			return fitting
-		machinery_type = type2parent(machinery_type)
-	return null
+	return shipyard_nearest_ancestor(GLOB.shipyard_pipe_fittings, GLOB.shipyard_pipe_fitting_lookups, machinery_type)
 
 /// The fitting an RPD consumes to lay a mapped atmospherics device, which is
 /// also what the device deconstructs back into. Devices without a dedicated
@@ -117,13 +131,9 @@ GLOBAL_LIST_INIT(shipyard_wallframes, build_shipyard_wallframe_registry())
  * an exact match counts: subtypes of a mounted machine ship their own frames.
  */
 /proc/get_shipyard_wallframe(machinery_type)
-	var/list/registry = GLOB.shipyard_wallframes
-	while(machinery_type)
-		var/frame_type = registry[machinery_type]
-		if(frame_type)
-			return frame_type
-		machinery_type = type2parent(machinery_type)
-	return null
+	return shipyard_nearest_ancestor(GLOB.shipyard_wallframes, GLOB.shipyard_wallframe_lookups, machinery_type)
+
+GLOBAL_LIST_EMPTY(shipyard_wallframe_lookups)
 
 /// Cached decomposition of a machine board into silo materials, printed
 /// components the fabricator makes itself, and finished RPED stock parts.

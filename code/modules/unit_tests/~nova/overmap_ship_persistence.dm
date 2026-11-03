@@ -435,6 +435,25 @@
 	TEST_ASSERT_EQUAL(SScharacter_ledger.get_balance(owner_uuid), balance_before, "A refused filing should charge nothing.")
 	TEST_ASSERT(!length(GLOB.ship_registry.list_for_owner(owner_uuid)), "A refused filing should leave no record behind.")
 
+/// A living occupant anywhere aboard, even shut in a locker, stops a filing; one beside the hull does not.
+/datum/unit_test/overmap_ship_persistence/occupant_refusal
+
+/datum/unit_test/overmap_ship_persistence/occupant_refusal/Run()
+	var/owner_uuid = generate_character_uuid()
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Occupant Test Hull", owner_uuid)
+	var/list/refusal = shipyard_file_refusal(hull, zone, owner_uuid)
+	TEST_ASSERT(!refusal, "An empty hull should be fileable, got [refusal?["text"]]")
+	allocate(/mob/living/basic/mouse, locate(zone.x + 1, zone.y + 3, zone.z))
+	refusal = shipyard_file_refusal(hull, zone, owner_uuid)
+	TEST_ASSERT(!refusal, "A mouse beside the hull should not count as aboard, got [refusal?["text"]]")
+	var/obj/structure/closet/locker = allocate(/obj/structure/closet, locate(zone.x + 3, zone.y + 3, zone.z))
+	var/mob/living/basic/mouse/stowaway = allocate(/mob/living/basic/mouse, locker)
+	refusal = shipyard_file_refusal(hull, zone, owner_uuid)
+	TEST_ASSERT_EQUAL(refusal?["code"], SHIPYARD_REFUSAL_LIVING_MOB, "A mouse shut in a locker aboard should stop the filing.")
+	qdel(stowaway)
+	TEST_ASSERT(!shipyard_file_refusal(hull, zone, owner_uuid), "With the stowaway gone the hull should be fileable again.")
+
 /**
  * A walk that yields notices anything arriving aboard after it.
  *
