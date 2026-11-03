@@ -203,8 +203,7 @@
 
 /**
  * Hand the lockbox back what it held when the ship was filed. Entries go back
- * as entries; nothing is built until someone takes it out. A roster over the
- * vault's capacity is kept whole, since the cap only stops new deposits.
+ * as entries; nothing is built until someone takes it out.
  */
 /proc/shipyard_restore_stored_contents(obj/docking_port/mobile/hull, list/stored_contents)
 	if(!length(stored_contents))
@@ -222,6 +221,7 @@
 	if(!target)
 		return 0
 	target.stored_entries += shipyard_copy_state(stored_contents)
+	target.contents_changed()
 	return length(stored_contents)
 
 /**

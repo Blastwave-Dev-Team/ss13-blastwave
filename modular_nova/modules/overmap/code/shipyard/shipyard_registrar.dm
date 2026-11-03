@@ -25,6 +25,8 @@
 	/// Survey data for the last surveyed hull, in the shape the UI reads.
 	var/list/survey
 	var/datum/weakref/surveyed_hull
+	/// The survey's vaults, by weakref, to the revision it read them at.
+	var/list/surveyed_lockboxes
 	/// Owner's ship list, garage slots and derived prices, refreshed on login and
 	/// after anything that changes them. Held rather than queried per `ui_data`,
 	/// which runs every tick.
@@ -155,7 +157,7 @@
 		"text" = refusal["text"],
 		"blocksSurvey" = blocks_survey,
 	) : null
-	data["survey"] = (hull && !blocks_survey && surveyed_hull?.resolve() == hull) ? survey : null
+	data["survey"] = (hull && !blocks_survey && survey_current(hull)) ? survey : null
 
 	var/list/grants = list()
 	var/list/grant_sources = list()
@@ -304,6 +306,7 @@
 	var/datum/player_ship_record/record = hull.ship_registry_id ? GLOB.ship_registry.get_record(hull.ship_registry_id, session.operator_uuid) : null
 	survey = build_survey(teardown, pending_insurance_refund(record))
 	surveyed_hull = WEAKREF(hull)
+	surveyed_lockboxes = teardown.lockbox_revisions.Copy()
 	qdel(teardown)
 	playsound(src, 'sound/machines/terminal/terminal_processing.ogg', 40, TRUE)
 	return TRUE
@@ -319,6 +322,16 @@
 	if(QDELETED(hull) || get_turf(hull) != hull_start)
 		set_status(FALSE, "The vessel left the pad during the [operation].")
 		return FALSE
+	return TRUE
+
+/// Whether the last survey was of `hull` and its vaults still hold what it read.
+/obj/machinery/computer/ship_registrar/proc/survey_current(obj/docking_port/mobile/hull)
+	if(!hull || surveyed_hull?.resolve() != hull)
+		return FALSE
+	for(var/datum/weakref/lockbox_ref as anything in surveyed_lockboxes)
+		var/obj/machinery/ship_lockbox/lockbox = lockbox_ref.resolve()
+		if(!lockbox || lockbox.contents_revision != surveyed_lockboxes[lockbox_ref])
+			return FALSE
 	return TRUE
 
 /// The survey as the UI reads it: what is kept, what is lost, and the quote.
@@ -399,6 +412,9 @@
 		return FALSE
 	if(surveyed_hull?.resolve() != hull)
 		set_status(FALSE, "Survey this vessel before filing it.")
+		return FALSE
+	if(!survey_current(hull))
+		set_status(FALSE, "The lockbox has changed since the survey. Survey the vessel again before filing it.")
 		return FALSE
 	if(!operator_uuid)
 		set_status(FALSE, "No persistent identity is on record for this operator.")

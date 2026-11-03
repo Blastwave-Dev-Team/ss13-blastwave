@@ -40,6 +40,8 @@
 	var/lost_decals = 0
 	/// Lockbox payload: the vault's roster entries, cached values included.
 	var/list/stored_contents = list()
+	/// Each vault walked, by weakref, to the `contents_revision` it was copied at.
+	var/list/lockbox_revisions = list()
 	/// Items kept on the deck or in a locker: rosters with "x", "y", "pixel_x",
 	/// "pixel_y" and, inside a locker, "holder".
 	var/list/deck_items = list()
@@ -292,6 +294,7 @@
 /// kept; everything else aboard is left behind when the ship is filed.
 /datum/ship_teardown/proc/collect_stored_contents(obj/machinery/ship_lockbox/lockbox)
 	stored_contents += shipyard_copy_state(lockbox.stored_entries)
+	lockbox_revisions[WEAKREF(lockbox)] = lockbox.contents_revision
 
 /**
  * Keep an item on the deck, or in the locker `holder_type`, if its serdes says

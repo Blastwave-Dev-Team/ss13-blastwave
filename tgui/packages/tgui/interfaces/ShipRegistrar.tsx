@@ -64,7 +64,6 @@ type LockboxLine = {
   name: string;
   count: number;
   appraisal: number;
-  floored: BooleanLike;
 };
 
 type FootprintTile = { fate: TileFate; objects: string[] } | null;
@@ -581,15 +580,7 @@ const SurveyDetails = (props: { survey: Survey }) => {
                   )}
                 </Table.Cell>
                 <Table.Cell collapsing textAlign="right">
-                  {line.floored ? (
-                    <Tooltip content="No export value. Charged at the flat per-item floor.">
-                      <Box inline color="average">
-                        {credits(line.appraisal)}
-                      </Box>
-                    </Tooltip>
-                  ) : (
-                    credits(line.appraisal)
-                  )}
+                  {credits(line.appraisal)}
                 </Table.Cell>
               </Table.Row>
             ))}

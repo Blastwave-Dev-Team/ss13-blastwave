@@ -129,10 +129,20 @@
 	TEST_ASSERT(locate(/obj/item/pen) in user.held_items, "A released pen should land in the user's hand.")
 	TEST_ASSERT_EQUAL(length(vault.stored_entries), 1, "Releasing should remove its entry.")
 
-	vault.max_entries = 1
-	var/obj/item/pen/overflow = allocate(/obj/item/pen)
-	TEST_ASSERT(!vault.deposit(overflow), "A full vault should refuse another deposit.")
-	TEST_ASSERT(!QDELETED(overflow), "A refused item should be left alone.")
+/// An item whose name carries a text macro lists cleanly and comes back out through the UI.
+/datum/unit_test/overmap_ship_persistence/lockbox_improper_names
+
+/datum/unit_test/overmap_ship_persistence/lockbox_improper_names/Run()
+	var/obj/machinery/ship_lockbox/wall/vault = open_vault()
+	var/mob/living/carbon/human/consistent/user = allocate(/mob/living/carbon/human/consistent, run_loc_floor_bottom_left)
+	TEST_ASSERT(vault.deposit(allocate(/obj/item/food/cornchips)), "The vault should take a bag of corn chips.")
+
+	var/list/rows = vault.ui_data(user)["contents"]
+	var/list/row = rows[rows[1]]
+	TEST_ASSERT_EQUAL(row["name"], "Boritos Corn Chips", "A row should be named without its text macro.")
+	var/list/sent = json_decode(json_encode(list("path" = row["path"])))
+	TEST_ASSERT_EQUAL(vault.withdraw(sent["path"], 1, user), 1, "A row key that has been through the UI should still release its item.")
+	TEST_ASSERT(locate(/obj/item/food/cornchips) in user.held_items, "The released chips should land in the user's hand.")
 
 /// Living things, identity, objectives and one-of-a-kind items stay out.
 /datum/unit_test/overmap_ship_persistence/lockbox_refusals
@@ -224,6 +234,75 @@
 	TEST_ASSERT(vault, "The legacy closet should leave a floor vault in its place.")
 	allocated += vault
 
+/**
+ * A lockbox shaped like a real filing: snacks, a disk, a full toolbelt, and a
+ * waistpack holding a part exchanger full of parts. A survey run before the
+ * last deposit is stale; once resurveyed, everything is filed, retrieved, and
+ * released through the keys the UI hands back.
+ */
+/datum/unit_test/overmap_ship_persistence/lockbox_filed_roster
+
+/datum/unit_test/overmap_ship_persistence/lockbox_filed_roster/Run()
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_registrar/console = logged_in_console(owner_uuid, 50000)
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Vault Roster Test Hull", owner_uuid)
+	var/obj/machinery/ship_lockbox/floor/vault = fixture_vault(zone)
+	var/obj/item/storage/backpack/tinypaka/waistpack = allocate(/obj/item/storage/backpack/tinypaka)
+	var/obj/item/storage/part_replacer/rped = allocate(/obj/item/storage/part_replacer)
+	for(var/i in 1 to 3)
+		allocate(/obj/item/stock_parts/matter_bin, rped)
+	rped.forceMove(waistpack)
+	TEST_ASSERT(vault.deposit(allocate(/obj/item/food/cornchips)), "The vault should take corn chips.")
+	TEST_ASSERT(vault.deposit(allocate(/obj/item/disk/bitrunning/item/tier1)), "The vault should take a bitrunning disk.")
+	TEST_ASSERT(vault.deposit(allocate(/obj/item/storage/belt/utility/full)), "The vault should take a full toolbelt.")
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The roster hull should survey: [console_says(console)]")
+	TEST_ASSERT(console.survey_current(hull), "A fresh survey should be current.")
+	TEST_ASSERT(vault.deposit(waistpack), "The vault should take the waistpack.")
+	TEST_ASSERT(!console.survey_current(hull), "A deposit after the survey should leave it stale.")
+	TEST_ASSERT(!console.file_hull(hull, zone, null), "A stale survey should not let the hull file.")
+	TEST_ASSERT(!QDELETED(hull), "A refused filing should leave the hull in place.")
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The roster hull should survey again: [console_says(console)]")
+	var/list/line_names = list()
+	for(var/list/line in console.survey["lockbox"])
+		line_names += line["name"]
+	TEST_ASSERT("Boritos corn chips" in line_names, "The survey should list the chips by their plain name, got [english_list(line_names)].")
+	TEST_ASSERT("waistpack" in line_names, "The survey should list the waistpack deposited after the first survey.")
+	TEST_ASSERT(console.file_hull(hull, zone, null), "The resurveyed hull should file: [console_says(console)]")
+	var/datum/player_ship_record/record = only_record(owner_uuid)
+	TEST_ASSERT_EQUAL(length(record?.stored_contents), 5, "The fixture pen and four deposits should be filed.")
+
+	var/obj/docking_port/mobile/retrieved = console.retrieve_record(record.id, FALSE, zone, null)
+	TEST_ASSERT(retrieved, "The roster hull should retrieve: [console_says(console)]")
+	hulls += retrieved
+	var/obj/machinery/ship_lockbox/floor/retrieved_vault
+	for(var/turf/deck as anything in retrieved.return_turfs())
+		retrieved_vault = locate() in deck
+		if(retrieved_vault)
+			break
+	TEST_ASSERT(retrieved_vault, "The retrieved hull should carry its vault.")
+	TEST_ASSERT_EQUAL(length(retrieved_vault.stored_entries), 5, "The retrieved vault should hold everything filed.")
+
+	var/turf/drop = retrieved_vault.drop_location()
+	var/list/before = drop.contents.Copy()
+	var/list/rows = retrieved_vault.ui_data(null)["contents"]
+	for(var/key in rows)
+		var/list/sent = json_decode(json_encode(list("path" = rows[key]["path"])))
+		retrieved_vault.withdraw(sent["path"], rows[key]["amount"], null)
+	TEST_ASSERT(!length(retrieved_vault.stored_entries), "Every row should release.")
+	var/list/arrived = drop.contents - before
+	allocated += arrived
+	TEST_ASSERT(locate(/obj/item/food/cornchips) in arrived, "The chips should come back out.")
+	var/obj/item/storage/backpack/tinypaka/pack_back = locate() in arrived
+	var/obj/item/storage/part_replacer/rped_back = locate() in pack_back
+	TEST_ASSERT(rped_back, "The part exchanger should come back inside the waistpack.")
+	var/bins_back = 0
+	for(var/obj/item/stock_parts/matter_bin/bin in rped_back)
+		bins_back++
+	TEST_ASSERT_EQUAL(bins_back, 3, "The parts should come back inside the part exchanger.")
+
 /// Teardown keeps the entries of every vault aboard, and appraisal reads their cached values.
 /datum/unit_test/overmap_ship_persistence/lockbox_teardown
 
@@ -243,4 +322,9 @@
 	TEST_ASSERT_EQUAL(length(teardown.stored_contents), 2, "Teardown should keep the entries of both vaults.")
 	var/list/appraisal = shipyard_appraise_lockbox(teardown.stored_contents)
 	TEST_ASSERT_EQUAL(appraisal["total"], 750, "Appraisal should price entries from their cached values.")
+	for(var/list/copied as anything in teardown.stored_contents)
+		if(copied["value"] == 500)
+			copied["value"] = 0
+	appraisal = shipyard_appraise_lockbox(teardown.stored_contents)
+	TEST_ASSERT_EQUAL(appraisal["total"], 250, "An entry with no export value should be stored for free.")
 	qdel(teardown)

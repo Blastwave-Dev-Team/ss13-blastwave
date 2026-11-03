@@ -64,7 +64,7 @@
  * A three by three hull inside `zone`, owned by `owner_uuid`, with a chair and a
  * lockbox holding a pen.
  *
- * A pen has no export, so it appraises at the fixed floor. Materials are priced
+ * A pen has no export, so it is stored for free. Materials are priced
  * by the stock market, which moves between a survey and its filing.
  *
  * Built inside the landing zone because that is where a printed hull is filed

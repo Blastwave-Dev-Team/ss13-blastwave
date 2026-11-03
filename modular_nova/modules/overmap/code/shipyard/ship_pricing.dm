@@ -21,11 +21,6 @@
 	integer = FALSE
 	min_val = 0
 
-/datum/config_entry/number/ship_lockbox_unvalued_floor
-	default = 25
-	integer = TRUE
-	min_val = 0
-
 /datum/config_entry/number/ship_insurance_salvage_multiplier
 	default = 1.25
 	integer = FALSE
@@ -108,28 +103,22 @@
 /**
  * The lockbox roster, appraised entry by entry and grouped by name.
  *
- * Each entry is priced from the value it was given on the way in. Anything
- * export does not recognise still takes up a slot the registry has to hold, so
- * it is appraised at a flat floor rather than for free.
+ * Each entry is priced from the value it was given on the way in, so anything
+ * export does not recognise is stored for free.
  * Returns `list("lines" = LockboxLine list, "total" = appraised value)`.
  */
 /proc/shipyard_appraise_lockbox(list/entries)
 	var/list/lines_by_name = list()
 	var/total = 0
-	var/floor_value = CONFIG_GET(number/ship_lockbox_unvalued_floor)
 	for(var/list/entry in entries)
 		var/value = shipyard_entry_value(entry)
-		var/floored = value <= 0
-		if(floored)
-			value = floor_value
-		var/entry_name = entry["name"] || "unknown item"
+		var/entry_name = format_text(entry["name"] || "unknown item")
 		var/list/line = lines_by_name[entry_name]
 		if(!line)
-			line = list("name" = entry_name, "count" = 0, "appraisal" = 0, "floored" = FALSE)
+			line = list("name" = entry_name, "count" = 0, "appraisal" = 0)
 			lines_by_name[entry_name] = line
 		line["count"] += 1
 		line["appraisal"] += value
-		line["floored"] = line["floored"] || floored
 		total += value
 	var/list/lines = list()
 	for(var/name in lines_by_name)

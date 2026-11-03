@@ -38,8 +38,8 @@
 	/// Roster entries, each with its appraisal cached under "value". Nothing is
 	/// kept in contents.
 	var/list/stored_entries = list()
-	/// Top-level entries a deposit may bring it up to.
-	var/max_entries = 30
+	/// Bumped whenever `stored_entries` changes, so a survey can tell it is stale.
+	var/contents_revision = 0
 	/// Sprite prefix for the base states.
 	var/skin
 	/// Sprite prefix for the overlays and screens every skin shares.
@@ -71,7 +71,7 @@
 
 /obj/machinery/ship_lockbox/examine(mob/user)
 	. = ..()
-	. += span_notice("It holds [length(stored_entries)] of [max_entries] items.")
+	. += span_notice("It holds [length(stored_entries)] items.")
 	if(is_broken())
 		. += span_warning("Its door has been forced and its keypad is dead.")
 	else if(!hull_owner())
@@ -253,6 +253,11 @@
 	for(var/list/entry as anything in stored_entries)
 		shipyard_restore_roster_entry(entry, spill_at)
 	stored_entries.Cut()
+	contents_changed()
+
+/obj/machinery/ship_lockbox/proc/contents_changed()
+	contents_revision++
+	SStgui.update_uis(src)
 
 // --- ID and PIN ---------------------------------------------------------------
 
@@ -363,9 +368,6 @@
 
 /// Write `item` down and delete it. `user` is whoever is handing it over, if anyone.
 /obj/machinery/ship_lockbox/proc/deposit(obj/item/item, mob/user)
-	if(length(stored_entries) >= max_entries)
-		alert_user(user, "no space!")
-		return FALSE
 	var/refusal = lockbox_refusal(item)
 	if(refusal)
 		alert_user(user, refusal)
@@ -379,14 +381,15 @@
 	user?.visible_message(span_notice("[user] puts \the [item] into \the [src]."), span_notice("You put \the [item] into \the [src]."))
 	qdel(item)
 	playsound(src, 'sound/machines/click.ogg', 30, TRUE)
-	SStgui.update_uis(src)
+	contents_changed()
 	return TRUE
 
-/// Rows that differ in anything but their appraisal are listed apart.
+/// Rows that differ in anything but their appraisal are listed apart. Hex
+/// only: names can carry text macro bytes the UI does not hand back intact.
 /obj/machinery/ship_lockbox/proc/entry_key(list/entry)
 	var/list/keyed = entry.Copy()
 	keyed -= "value"
-	return "[entry["name"]]|[md5(json_encode(keyed))]"
+	return md5(json_encode(keyed))
 
 /// Build up to `amount` entries listed under `key` and hand them to `user`.
 /obj/machinery/ship_lockbox/proc/withdraw(key, amount, mob/user)
@@ -406,7 +409,7 @@
 		use_energy(active_power_usage)
 	if(released)
 		playsound(src, 'sound/machines/click.ogg', 30, TRUE)
-		SStgui.update_uis(src)
+		contents_changed()
 	return released
 
 /obj/machinery/ship_lockbox/ui_interact(mob/user, datum/tgui/ui)
@@ -433,7 +436,7 @@
 		var/obj/item/path = entry["path"]
 		if(istext(path))
 			path = text2path(path)
-		var/row_name = full_capitalize(entry["name"] || "unknown item")
+		var/row_name = full_capitalize(format_text(entry["name"] || "unknown item"))
 		if(isnum(entry["amount"]))
 			row_name += " ([entry["amount"]])"
 		rows[key] = list(
@@ -444,7 +447,7 @@
 			"amount" = 1,
 		)
 	return list(
-		"contents" = sort_list(rows),
+		"contents" = sortTim(rows, GLOBAL_PROC_REF(cmp_assoc_list_name), associative = TRUE),
 		"name" = name,
 		"isdryer" = FALSE,
 	)
