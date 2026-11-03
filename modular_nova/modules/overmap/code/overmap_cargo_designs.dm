@@ -143,8 +143,8 @@
 	build_path = /obj/item/wallframe/ship_lockbox
 	build_type = PROTOLATHE
 	materials = list(
-		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
-		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2,
+		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 4,
+		/datum/material/plasma = SHEET_MATERIAL_AMOUNT * 2,
 	)
 	category = list(RND_CATEGORY_CONSTRUCTION + RND_SUBCATEGORY_CONSTRUCTION_MOUNTS)
 	departmental_flags = DEPARTMENT_BITFLAG_ENGINEERING | DEPARTMENT_BITFLAG_CARGO

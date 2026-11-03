@@ -710,8 +710,8 @@ MAPPING_DIRECTIONAL_HELPERS(/obj/machinery/ship_lockbox/wall/cargo, 32)
 	result_path = /obj/machinery/ship_lockbox/wall
 	pixel_shift = 32
 	custom_materials = list(
-		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 2,
-		/datum/material/alloy/plasteel = SHEET_MATERIAL_AMOUNT * 2,
+		/datum/material/iron = SHEET_MATERIAL_AMOUNT * 4,
+		/datum/material/plasma = SHEET_MATERIAL_AMOUNT * 2,
 	)
 
 // --- Legacy -----------------------------------------------------------------
