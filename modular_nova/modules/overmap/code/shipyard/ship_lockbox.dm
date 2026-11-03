@@ -593,13 +593,13 @@
 	if(motion)
 		icon_state = "[skin]-base-[motion]"
 	else if(!raised)
-		icon_state = ""
+		icon_state = "vault-overlay-floor-ground"
 
 /obj/machinery/ship_lockbox/floor/body_overlays()
 	if(motion)
 		return list("vault-overlay-[motion]", "vault-overlay-floor-[motion]")
 	if(!raised)
-		return list("vault-overlay-floor-ground")
+		return list()
 	. = ..()
 	. += "vault-overlay-floor-rised"
 	. += "vault-overlay-computer"
