@@ -138,6 +138,11 @@
 	var/obj/machinery/distress_beacon/beacon = allocate(/obj/machinery/distress_beacon)
 	TEST_ASSERT_EQUAL(beacon.transmitting, FALSE, "Beacon should start not transmitting.")
 
+	beacon.transmitting = TRUE
+	beacon.update_appearance()
+	TEST_ASSERT_EQUAL(beacon.icon_state, beacon.base_icon_state, "Transmitting beacon should keep its base icon_state.")
+	TEST_ASSERT(length(beacon.overlays), "Transmitting beacon should show the flashing antennae overlay.")
+
 /// Verify that ship.set_nav_target propagates to the nav console's z_lock on open.
 /datum/unit_test/overmap_nav_camera_targeting
 
