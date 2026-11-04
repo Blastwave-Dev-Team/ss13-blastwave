@@ -12,8 +12,8 @@
 	min_val = 0
 
 /datum/config_entry/number/ship_storage_fee_per_tile
-	default = 4
-	integer = TRUE
+	default = 0.25
+	integer = FALSE
 	min_val = 0
 
 /datum/config_entry/number/ship_lockbox_appraisal_rate
@@ -140,7 +140,7 @@
  */
 /proc/shipyard_storage_quote(tile_count, lockbox_appraisal, insurance_refund = 0)
 	var/base = CONFIG_GET(number/ship_storage_base_fee)
-	var/tile_fee = tile_count * CONFIG_GET(number/ship_storage_fee_per_tile)
+	var/tile_fee = round(tile_count * CONFIG_GET(number/ship_storage_fee_per_tile))
 	var/lockbox_fee = round(lockbox_appraisal * CONFIG_GET(number/ship_lockbox_appraisal_rate))
 	var/storage = base + tile_fee + lockbox_fee
 	return list(

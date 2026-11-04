@@ -204,7 +204,7 @@ EVAC_DEPOSIT_MULTIPLIER 3
 ## Persistent ships: every fee is charged to the owner's persistent ledger and burned.
 ## Filing a ship charges SHIP_STORAGE_BASE_FEE + SHIP_STORAGE_FEE_PER_TILE per hull tile + the lockbox appraisal fee.
 SHIP_STORAGE_BASE_FEE 150
-SHIP_STORAGE_FEE_PER_TILE 4
+SHIP_STORAGE_FEE_PER_TILE 0.25
 ## Share of the lockbox's appraised export value charged on filing. Items with no export value are stored free.
 SHIP_LOCKBOX_APPRAISAL_RATE 0.1
 ## An insured retrieval costs the hull's salvage estimate times this (at least 1). It is refunded against storage on the next filing.
