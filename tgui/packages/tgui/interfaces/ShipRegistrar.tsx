@@ -64,6 +64,8 @@ type LockboxLine = {
   name: string;
   count: number;
   appraisal: number;
+  /** This line's share of the filing fee: its appraisal times the lockbox rate. */
+  fee: number;
 };
 
 type FootprintTile = { fate: TileFate; objects: string[] } | null;
@@ -411,8 +413,8 @@ const PadTab = (props: {
     side = (
       <Section title="Survey details" fill>
         <Box color="label" italic>
-          Run a survey to see what is kept, what is destroyed, and the lockbox
-          appraisal.
+          Run a survey to see what is kept, what is destroyed, and what the
+          lockbox costs to store.
         </Box>
       </Section>
     );
@@ -573,9 +575,18 @@ const SurveyDetails = (props: { survey: Survey }) => {
           <NameList items={survey.unrouted} color="bad" />
         </Collapsible>
       )}
-      <Collapsible title="Lockbox appraisal">
+      <Collapsible title="Lockbox fees">
         {survey.lockbox.length ? (
           <Table>
+            <Table.Row header>
+              <Table.Cell>Item</Table.Cell>
+              <Table.Cell collapsing textAlign="right" color="label">
+                Value
+              </Table.Cell>
+              <Table.Cell collapsing textAlign="right">
+                Fee
+              </Table.Cell>
+            </Table.Row>
             {survey.lockbox.map((line) => (
               <Table.Row key={line.name}>
                 <Table.Cell>
@@ -586,8 +597,11 @@ const SurveyDetails = (props: { survey: Survey }) => {
                     </Box>
                   )}
                 </Table.Cell>
-                <Table.Cell collapsing textAlign="right">
+                <Table.Cell collapsing textAlign="right" color="label">
                   {credits(line.appraisal)}
+                </Table.Cell>
+                <Table.Cell collapsing textAlign="right">
+                  {credits(line.fee)}
                 </Table.Cell>
               </Table.Row>
             ))}

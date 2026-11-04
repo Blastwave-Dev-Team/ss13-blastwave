@@ -104,7 +104,8 @@
  * The lockbox roster, appraised entry by entry and grouped by name.
  *
  * Each entry is priced from the value it was given on the way in, so anything
- * export does not recognise is stored for free.
+ * export does not recognise is stored for free. Each line also carries its
+ * share of the filing fee, which is what the owner is actually charged.
  * Returns `list("lines" = LockboxLine list, "total" = appraised value)`.
  */
 /proc/shipyard_appraise_lockbox(list/entries)
@@ -120,9 +121,12 @@
 		line["count"] += 1
 		line["appraisal"] += value
 		total += value
+	var/rate = CONFIG_GET(number/ship_lockbox_appraisal_rate)
 	var/list/lines = list()
 	for(var/name in lines_by_name)
-		lines += list(lines_by_name[name])
+		var/list/line = lines_by_name[name]
+		line["fee"] = line["appraisal"] * rate
+		lines += list(line)
 	return list("lines" = lines, "total" = round(total))
 
 // --- Quotes -----------------------------------------------------------------
