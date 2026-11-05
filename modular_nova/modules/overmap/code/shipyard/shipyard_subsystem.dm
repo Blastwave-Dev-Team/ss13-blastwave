@@ -21,6 +21,21 @@ PROCESSING_SUBSYSTEM_DEF(shipyard)
 	name = "Shipyard"
 	wait = 1 SECONDS
 	stat_tag = "SY"
+	ss_flags = SS_BACKGROUND|SS_POST_FIRE_TIMING
+	dependencies = list(
+		/datum/controller/subsystem/atoms,
+		/datum/controller/subsystem/mapping,
+		/datum/controller/subsystem/shuttle,
+		/datum/controller/subsystem/overmap,
+	)
+	/// Stock hulls walked at startup. Between them they carry most of the types a player ship is built from.
+	var/list/warmup_listings = list(
+		/datum/ship_listing/tarkon_driver,
+		/datum/ship_listing/nt_casevac,
+		/datum/ship_listing/blackmarket_burst,
+	)
+	/// Ids of the warm-up listings whose hulls were walked.
+	var/list/warmed_listings = list()
 	/// Mutation cost still unspent this fire.
 	var/remaining_budget = SHIPYARD_MUTATION_BUDGET_PER_FIRE
 	/// Whether a printer registered its hull as a shuttle this fire.
@@ -35,6 +50,36 @@ PROCESSING_SUBSYSTEM_DEF(shipyard)
 	var/walk_started_at = 0
 	/// Whether this cycle's printers have been started, so a resumed fire continues them.
 	var/printers_started = FALSE
+
+/datum/controller/subsystem/processing/shipyard/Initialize()
+	warm_survey_caches()
+	return SS_INIT_SUCCESS
+
+/**
+ * Walk the warm-up hulls once, staged and then discarded, so that the per-type
+ * caches a hull walk reads are filled at startup. Filling them is slow on a
+ * live server, and a survey that does it mid-round stalls the tick for seconds.
+ */
+/datum/controller/subsystem/processing/shipyard/proc/warm_survey_caches()
+	for(var/datum/ship_listing/listing_type as anything in warmup_listings)
+		var/listing_id = initial(listing_type.id)
+		var/datum/map_template/shuttle/template = shipyard_ship_listing(listing_id)?.get_template()
+		if(!template)
+			stack_trace("Shipyard warm-up: listing [listing_id] has no template.")
+			continue
+		var/datum/shipyard_staging/staging = new()
+		var/obj/docking_port/mobile/hull = shipyard_stage_hull(template, staging)
+		if(!hull)
+			stack_trace("Shipyard warm-up: [listing_id] did not stage.")
+			staging.abandon()
+			continue
+		var/datum/ship_teardown/teardown = new(hull)
+		if(teardown.refusal)
+			stack_trace("Shipyard warm-up: [listing_id] did not walk: [teardown.refusal]")
+		else
+			warmed_listings += listing_id
+		qdel(teardown)
+		staging.abandon()
 
 /datum/controller/subsystem/processing/shipyard/fire(resumed = FALSE)
 	if(!resumed)

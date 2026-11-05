@@ -480,3 +480,28 @@
 	var/default_type = inducer.powerdevice.type
 	shipyard_apply_state(inducer, list("cell_charge" = 1234))
 	TEST_ASSERT_EQUAL(shipyard_test_cell_line(inducer), "[default_type] 1234", "A charge-only record should keep the default cell at its saved charge.")
+
+/**
+ * Startup walks the warm-up hulls, so the first survey of a round finds their
+ * types already cached, and no warm-up hull is left behind.
+ */
+/datum/unit_test/overmap_ship_persistence/survey_caches_warmed
+
+/datum/unit_test/overmap_ship_persistence/survey_caches_warmed/Run()
+	var/list/warmed = SSshipyard.warmed_listings
+	TEST_ASSERT_EQUAL(length(warmed), length(SSshipyard.warmup_listings), "Every warm-up hull should be walked at startup, got [english_list(warmed)].")
+	for(var/obj/structure/overmap/ship/simulated/ship as anything in SSovermap.simulated_ships)
+		TEST_ASSERT(!QDELETED(ship.shuttle), "[ship] should not outlive the hull it was bound to.")
+
+	var/datum/ship_listing/listing = shipyard_ship_listing(warmed[1])
+	var/datum/shipyard_staging/staging = new()
+	var/obj/docking_port/mobile/hull = shipyard_stage_hull(listing.get_template(), staging)
+	var/cached_before = length(GLOB.shipyard_describable_vars_by_type)
+	var/datum/ship_teardown/teardown = hull ? new(hull) : null
+	var/refusal = teardown?.refusal
+	qdel(teardown)
+	staging.abandon()
+	TEST_ASSERT(hull, "The [listing.id] hull should stage again.")
+	TEST_ASSERT(!refusal, "The [listing.id] hull should walk again, got '[refusal]'.")
+	var/cached_after = length(GLOB.shipyard_describable_vars_by_type)
+	TEST_ASSERT_EQUAL(cached_after, cached_before, "Walking a warm-up hull again should find every type it holds already cached.")

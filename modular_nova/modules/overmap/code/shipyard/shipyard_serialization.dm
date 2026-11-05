@@ -36,20 +36,34 @@
 			continue
 		described_vars[var_name] = value
 
+/// Atom type to the allowlisted vars it declares and would save.
+GLOBAL_LIST_EMPTY(shipyard_describable_vars_by_type)
+
 /**
  * The allowlisted vars this type declares and would save, worked out once per type.
  *
- * Declaration is fixed per type, and testing membership against `vars` rebuilds
- * that list every time, which was most of what a survey spent.
+ * Declaration is fixed per type, and every read of `vars` rebuilds that list, so
+ * it is read once here: on a live server one rebuild per allowlisted name cost a
+ * tenth of a second per type. Names stay in allowlist order, which is the order
+ * a saved map writes them in.
  */
 /atom/proc/shipyard_describable_vars()
-	var/static/list/by_type = list()
+	var/list/by_type = GLOB.shipyard_describable_vars_by_type
 	var/list/names = by_type[type]
 	if(names)
 		return names
+	var/static/list/allowed
+	if(!allowed)
+		allowed = list()
+		for(var/var_name in shipyard_mapped_var_allowlist())
+			allowed[var_name] = TRUE
+	var/list/declared = list()
+	for(var/var_name in vars)
+		if(allowed[var_name])
+			declared[var_name] = TRUE
 	names = list()
 	for(var/var_name in shipyard_mapped_var_allowlist())
-		if((var_name in vars) && issaved(vars[var_name]))
+		if(declared[var_name] && issaved(vars[var_name]))
 			names += var_name
 	by_type[type] = names
 	return names
