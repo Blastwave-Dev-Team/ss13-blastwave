@@ -51,17 +51,17 @@
 		target.output_attempt = !!state["output_attempt"]
 	return ..()
 
-/// An APC rebuilds its cell from `cell_type`; only the charge needs carrying.
+/// An APC rebuilds its default cell from `cell_type`, so the one it held is carried instead.
 /datum/shipyard_serdes/apc
 	target_type = /obj/machinery/power/apc
 
 /datum/shipyard_serdes/apc/capture(obj/machinery/power/apc/target)
-	if(!target.cell)
-		return null
-	return list("cell_charge" = target.cell.charge)
+	return list("cell" = target.cell ? shipyard_roster_entry(target.cell) : SHIPYARD_NO_CELL)
 
 /datum/shipyard_serdes/apc/apply(obj/machinery/power/apc/target, list/state)
-	if(target.cell && isnum(state["cell_charge"]))
+	if("cell" in state)
+		shipyard_restore_cell(target, state["cell"])
+	else if(target.cell && isnum(state["cell_charge"]))
 		target.cell.charge = clamp(state["cell_charge"], 0, target.cell.maxcharge)
 	return ..()
 

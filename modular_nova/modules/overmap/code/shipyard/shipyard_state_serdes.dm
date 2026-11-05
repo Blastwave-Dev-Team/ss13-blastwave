@@ -74,8 +74,7 @@ GLOBAL_LIST_EMPTY(shipyard_serdes_lookups)
 	target.update_appearance()
 
 /**
- * Every item: a custom name, the charge of the cell it runs on, and whatever
- * reagents it holds.
+ * Every item: a custom name, the cell it runs on, and whatever reagents it holds.
  *
  * This is what stops a lockbox being a refill machine for the common cases - a
  * drained energy gun, a half-empty extinguisher, a sprayer - without a saver
@@ -89,9 +88,13 @@ GLOBAL_LIST_EMPTY(shipyard_serdes_lookups)
 	var/list/state = ..() || list()
 	if(target.name != initial(target.name))
 		state["name"] = target.name
-	var/obj/item/stock_parts/power_store/cell = target.get_cell()
-	if(istype(cell) && cell != target)
-		state["cell_charge"] = cell.charge
+	var/saved_cell = shipyard_capture_cell(target)
+	if(saved_cell)
+		state["cell"] = saved_cell
+	else
+		var/obj/item/stock_parts/power_store/cell = target.get_cell()
+		if(istype(cell) && cell != target)
+			state["cell_charge"] = cell.charge
 	if(target.reagents)
 		state["reagents"] = shipyard_capture_reagents(target.reagents)
 	return length(state) ? state : null
@@ -99,7 +102,9 @@ GLOBAL_LIST_EMPTY(shipyard_serdes_lookups)
 /datum/shipyard_serdes/item/apply(obj/item/target, list/state)
 	if(istext(state["name"]))
 		target.name = state["name"]
-	if(isnum(state["cell_charge"]))
+	if("cell" in state)
+		shipyard_restore_cell(target, state["cell"])
+	else if(isnum(state["cell_charge"]))
 		var/obj/item/stock_parts/power_store/cell = target.get_cell()
 		if(istype(cell) && cell != target)
 			cell.charge = clamp(state["cell_charge"], 0, cell.maxcharge)
@@ -109,6 +114,63 @@ GLOBAL_LIST_EMPTY(shipyard_serdes_lookups)
 	return ..()
 
 // --- Shared encodings -------------------------------------------------------
+
+/**
+ * The cell inside `holder` as a roster entry, so its type comes back and not
+ * just its charge; SHIPYARD_NO_CELL for an empty slot, since a fresh holder
+ * builds a full default cell; null when there is no slot to speak of.
+ *
+ * A cell held somewhere else, like a cyborg's, is not the holder's to keep.
+ */
+/proc/shipyard_capture_cell(atom/movable/holder)
+	var/obj/item/stock_parts/power_store/cell = holder.get_cell()
+	if(istype(cell) && cell != holder)
+		return cell.loc == holder ? shipyard_roster_entry(cell) : null
+	return shipyard_holds_cell(holder) ? SHIPYARD_NO_CELL : null
+
+/// Whether `holder`'s type starts out naming a cell to build, so an empty slot means one was taken out.
+/proc/shipyard_holds_cell(atom/movable/holder)
+	var/static/list/by_type = list()
+	. = by_type[holder.type]
+	if(!isnull(.))
+		return
+	. = FALSE
+	if(!istype(holder, /obj/item/stock_parts/power_store))
+		for(var/var_name in holder.vars)
+			if(var_name == "type" || var_name == "parent_type")
+				continue
+			if(ispath(initial(holder.vars[var_name]), /obj/item/stock_parts/power_store))
+				. = TRUE
+				break
+	by_type[holder.type] = .
+
+/**
+ * Swap the cell `holder` built for itself for the saved one, or for nothing.
+ *
+ * Holders keep their cell under different names (an inducer's is
+ * `powerdevice`), so the slot is whichever var points at the default cell,
+ * or `cell` when the holder built none.
+ */
+/proc/shipyard_restore_cell(atom/movable/holder, saved)
+	var/obj/item/stock_parts/power_store/fresh = holder.get_cell()
+	if(fresh == holder || fresh?.loc != holder)
+		fresh = null
+	var/cell_var
+	if(fresh)
+		for(var/var_name in holder.vars)
+			if(holder.vars[var_name] == fresh)
+				cell_var = var_name
+				break
+	else if("cell" in holder.vars)
+		cell_var = "cell"
+	if(!cell_var)
+		return
+	if(fresh)
+		qdel(fresh)
+	holder.vars[cell_var] = null
+	if(islist(saved))
+		holder.vars[cell_var] = shipyard_restore_roster_entry(saved, holder)
+	holder.update_appearance()
 
 /// Reagent type to volume and purity, plus the holder's temperature.
 /proc/shipyard_capture_reagents(datum/reagents/holder)

@@ -404,3 +404,79 @@
 		if(item.atom_storage)
 			released += shipyard_test_item_tree(item)
 	TEST_ASSERT_EQUAL(jointext(sortTim(released, GLOBAL_PROC_REF(cmp_text_asc)), "\n"), jointext(sortTim(expected, GLOBAL_PROC_REF(cmp_text_asc)), "\n"), "Every container should come back holding what it held, all the way down.")
+
+/// A cell holder's cell, as one comparable line: its type and charge, or "no cell".
+/proc/shipyard_test_cell_line(atom/movable/holder)
+	var/obj/item/stock_parts/power_store/cell = holder.get_cell()
+	return cell ? "[cell.type] [round(cell.charge)]" : "no cell"
+
+/**
+ * Cells come back as the cell that was in them: a swapped cell keeps its type
+ * and charge, and an empty slot stays empty. In the vault and in an APC.
+ */
+/datum/unit_test/overmap_ship_persistence/lockbox_cells
+
+/datum/unit_test/overmap_ship_persistence/lockbox_cells/Run()
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_registrar/console = logged_in_console(owner_uuid, 50000)
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(7, 7)
+	var/obj/docking_port/mobile/hull = build_fixture_hull(zone, "Cell Test Hull", owner_uuid)
+	var/obj/machinery/ship_lockbox/floor/vault = fixture_vault(zone)
+
+	var/obj/item/inducer/swapped = allocate(/obj/item/inducer)
+	QDEL_NULL(swapped.powerdevice)
+	var/obj/item/stock_parts/power_store/cell/hyper/hyper = new(swapped)
+	swapped.powerdevice = hyper
+	hyper.charge = round(hyper.maxcharge / 3)
+	var/obj/item/inducer/emptied = allocate(/obj/item/inducer)
+	QDEL_NULL(emptied.powerdevice)
+	var/list/expected = sortTim(list(shipyard_test_cell_line(swapped), shipyard_test_cell_line(emptied)), GLOBAL_PROC_REF(cmp_text_asc))
+	TEST_ASSERT(vault.deposit(swapped), "The vault should take the swapped inducer.")
+	TEST_ASSERT(vault.deposit(emptied), "The vault should take the emptied inducer.")
+
+	var/obj/machinery/power/apc/apc = allocate(/obj/machinery/power/apc/auto_name/directional/north, locate(zone.x + 2, zone.y + 4, zone.z))
+	QDEL_NULL(apc.cell)
+	apc.cell = new /obj/item/stock_parts/power_store/battery/bluespace(apc)
+	apc.cell.charge = round(apc.cell.maxcharge / 4)
+	apc.has_electronics = APC_ELECTRONICS_SECURED
+	apc.opened = APC_COVER_CLOSED
+	var/expected_apc_charge = apc.cell.charge
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The cell hull should survey: [console_says(console)]")
+	TEST_ASSERT(console.file_hull(hull, zone, null), "The cell hull should file: [console_says(console)]")
+	var/datum/player_ship_record/record = only_record(owner_uuid)
+	var/obj/docking_port/mobile/retrieved = console.retrieve_record(record.id, FALSE, zone, null)
+	TEST_ASSERT(retrieved, "The cell hull should retrieve: [console_says(console)]")
+	hulls += retrieved
+
+	var/obj/machinery/ship_lockbox/floor/retrieved_vault
+	var/obj/machinery/power/apc/apc_back
+	for(var/turf/deck as anything in retrieved.return_turfs())
+		retrieved_vault ||= locate(/obj/machinery/ship_lockbox/floor) in deck
+		apc_back ||= locate(/obj/machinery/power/apc) in deck
+	TEST_ASSERT(retrieved_vault, "The retrieved hull should carry its vault.")
+	TEST_ASSERT(apc_back, "The APC should come back.")
+
+	var/turf/drop = retrieved_vault.drop_location()
+	var/list/before = drop.contents.Copy()
+	var/list/rows = retrieved_vault.ui_data(null)["contents"]
+	for(var/key in rows)
+		retrieved_vault.withdraw(rows[key]["path"], rows[key]["amount"], null)
+	var/list/arrived = drop.contents - before
+	allocated += arrived
+	var/list/released = list()
+	for(var/obj/item/inducer/inducer in arrived)
+		released += shipyard_test_cell_line(inducer)
+	TEST_ASSERT_EQUAL(jointext(sortTim(released, GLOBAL_PROC_REF(cmp_text_asc)), "\n"), jointext(expected, "\n"), "Each vault inducer should come back with its own cell, or none.")
+	TEST_ASSERT_EQUAL(apc_back.cell?.type, /obj/item/stock_parts/power_store/battery/bluespace, "The APC should come back with its own cell.")
+	// It powers its area from the moment it lands, so a little is already spent.
+	TEST_ASSERT(apc_back.cell.charge > expected_apc_charge * 0.99, "The APC cell should keep its charge, got [apc_back.cell.charge] of [expected_apc_charge].")
+
+/// A record filed before cells were kept carries only their charge, which still lands on the default cell.
+/datum/unit_test/overmap_ship_persistence/legacy_cell_charge
+
+/datum/unit_test/overmap_ship_persistence/legacy_cell_charge/Run()
+	var/obj/item/inducer/inducer = allocate(/obj/item/inducer)
+	var/default_type = inducer.powerdevice.type
+	shipyard_apply_state(inducer, list("cell_charge" = 1234))
+	TEST_ASSERT_EQUAL(shipyard_test_cell_line(inducer), "[default_type] 1234", "A charge-only record should keep the default cell at its saved charge.")

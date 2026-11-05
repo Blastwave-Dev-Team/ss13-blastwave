@@ -162,6 +162,9 @@
 /// this they are lost, so a hull cannot be used as unlimited text storage.
 #define SHIPYARD_DECK_ITEM_LIMIT 100
 
+/// A saved cell slot that was empty, so the holder's own default cell is not kept.
+#define SHIPYARD_NO_CELL "none"
+
 /// World mutations every shipyard fabricator together may spend in one SSshipyard fire.
 #define SHIPYARD_MUTATION_BUDGET_PER_FIRE 16
 /// Percent of a tick hull walks together may spend in one SSshipyard fire.
