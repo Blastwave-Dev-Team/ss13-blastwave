@@ -121,6 +121,10 @@ SUBSYSTEM_DEF(air)
 /datum/controller/subsystem/air/fire(resumed = FALSE)
 	// BLASTWAVE EDIT ADDITION START - OVERMAP
 	if(template_holds && world.time < template_hold_expires)
+		// Returning without pausing ends this cycle, so the next fire is fresh and
+		// recopies currentrun from the top; currentpart has to start there too, or
+		// a phase resumes on another phase's list.
+		currentpart = SSAIR_PIPENETS
 		return
 	template_holds = 0
 	// BLASTWAVE EDIT ADDITION END
