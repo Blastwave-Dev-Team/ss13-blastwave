@@ -89,6 +89,7 @@
 	if(!SSatoms.initialized)
 		return
 
+	SSair.hold_for_template() // BLASTWAVE EDIT ADDITION - OVERMAP
 	SSatoms.InitializeAtoms(areas + turfs + movables, returns_created_atoms ? created_atoms : null)
 	SSlighting.setup_static_lighting_if_needed(turfs)
 
@@ -96,6 +97,7 @@
 	// need these two below?
 	SSmachines.setup_template_powernets(cables)
 	SSair.setup_template_machinery(atmos_machines)
+	SSair.release_for_template() // BLASTWAVE EDIT ADDITION - OVERMAP
 
 	//calculate all turfs inside the border
 	var/list/template_and_bordering_turfs = block(

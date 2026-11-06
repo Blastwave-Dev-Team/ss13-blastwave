@@ -1,0 +1,246 @@
+// The hangar: a fixed stage the hull scales into, never the reverse.
+.ShipBroker__hangar {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.35);
+  background:
+    linear-gradient(hsl(0 0% 100% / 0.035) 1px, transparent 1px) 0 0 / 1.5rem
+      1.5rem,
+    linear-gradient(90deg, hsl(0 0% 100% / 0.035) 1px, transparent 1px) 0 0 /
+      1.5rem 1.5rem,
+    radial-gradient(ellipse at center, #1b2433 0%, #0b0f16 75%);
+}
+
+.ShipBroker__stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ShipBroker__ship {
+  position: relative;
+  aspect-ratio: var(--w) / var(--h);
+  width: min(88cqw, calc(88cqh * var(--w) / var(--h)));
+}
+
+.ShipBroker__nose {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+// Schematic fallback when the renderer has no image yet.
+.ShipBroker__grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(var(--w), 1fr);
+  grid-template-rows: repeat(var(--h), 1fr);
+
+  > div:hover {
+    outline: 1px solid var(--color-white);
+  }
+}
+
+.ShipBroker__tile--floor {
+  background-color: hsl(from var(--color-good) h s l / 0.22);
+  box-shadow: inset 0 0 0 1px hsl(from var(--color-good) h s l / 0.12);
+}
+
+.ShipBroker__tile--wall {
+  background-color: hsl(from var(--color-good) h s l / 0.6);
+}
+
+.ShipBroker__tile--window {
+  background-color: hsl(from var(--color-blue) h s l / 0.7);
+}
+
+.ShipBroker__tile--airlock {
+  background-color: hsl(from var(--color-average) h s l / 0.85);
+}
+
+.ShipBroker__tile--engine {
+  background-color: hsl(from var(--color-orange) h s l / 0.9);
+}
+
+.ShipBroker__tile--injector {
+  background-color: hsl(from var(--color-teal) h s l / 0.85);
+}
+
+// Systems overlay, positioned in tile fractions so it sits on either preview.
+@keyframes ShipBroker__pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.ShipBroker__marker {
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 2px solid var(--color-white);
+  border-radius: 2px;
+  animation: ShipBroker__pulse 1.6s ease-in-out infinite;
+}
+
+.ShipBroker__marker--engine {
+  border-color: var(--color-orange);
+}
+
+.ShipBroker__marker--injector {
+  border-color: var(--color-teal);
+}
+
+.ShipBroker__marker--airlock {
+  border-color: var(--color-average);
+}
+
+.ShipBroker__marker--focus {
+  animation: none;
+  box-shadow: 0 0 0 2px var(--color-white);
+}
+
+.ShipBroker__systems {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0 0.4rem;
+  border-top: 1px solid hsl(from var(--color-good) h s l / 0.25);
+}
+
+.ShipBroker__system {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  border-radius: 2px;
+
+  &:hover {
+    background: hsl(from var(--color-good) h s l / 0.15);
+  }
+}
+
+.ShipBroker__system--selected {
+  background: hsl(from var(--color-good) h s l / 0.15);
+}
+
+.ShipBroker__pip {
+  width: 1.2rem;
+  height: 0.45rem;
+  background: var(--color-good);
+  box-shadow: 0 0 4px hsl(from var(--color-good) h s l / 0.6);
+}
+
+.ShipBroker__pip--off {
+  background: hsl(from var(--color-good) h s l / 0.15);
+  box-shadow: none;
+}
+
+.ShipBroker__slots {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.ShipBroker__card {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 6.5rem;
+  padding: 0.3rem 0.45rem;
+  box-sizing: border-box;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.4);
+  background: hsl(from var(--color-good) h s l / 0.08);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--color-good);
+    background: hsl(from var(--color-good) h s l / 0.2);
+  }
+}
+
+.ShipBroker__card--selected {
+  border-color: var(--color-good);
+  background: hsl(from var(--color-good) h s l / 0.2);
+}
+
+.ShipBroker__card--empty {
+  cursor: default;
+  justify-content: center;
+  border-style: dashed;
+  color: var(--color-label);
+  background: none;
+
+  &:hover {
+    border-color: hsl(from var(--color-good) h s l / 0.4);
+    background: none;
+  }
+}
+
+.ShipBroker__count {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.ShipBroker__delivery .Button {
+  text-align: left;
+  white-space: normal;
+  line-height: 1.25;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.ShipBroker__letter {
+  display: inline-block;
+  width: 1.3rem;
+  height: 1.3rem;
+  line-height: 1.3rem;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: bold;
+  margin-right: 0.35rem;
+  background: hsl(0 0% 100% / 0.12);
+}
+
+.ShipBroker__sort {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--color-white);
+  }
+}
+
+.ShipBroker__row {
+  cursor: pointer;
+
+  > td {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+  }
+
+  &:hover > td {
+    background: hsl(from var(--color-good) h s l / 0.08);
+  }
+}
+
+.ShipBroker__row--selected > td {
+  background: hsl(from var(--color-good) h s l / 0.2);
+}
+
+.ShipBroker__buy .Button__content {
+  font-size: 1.35em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  padding: 0.35rem 0.9rem;
+}

@@ -1,4 +1,4 @@
-/obj/docking_port/mobile/pod/register()
+/obj/docking_port/mobile/pod/register(replace = FALSE, custom = FALSE)
 	. = ..()
 	if(CONFIG_GET(number/minimum_alert_for_pods) != 0)
 		launch_status = NOLAUNCH

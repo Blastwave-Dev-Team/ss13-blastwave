@@ -19,12 +19,13 @@
 
 	RegisterSignal(target, COMSIG_ATOM_ENTERING, PROC_REF(on_source_entering))
 	RegisterSignal(target, COMSIG_ATOM_EXITING, PROC_REF(on_source_exiting))
+	RegisterSignal(target, COMSIG_ATOM_AFTER_SHUTTLE_MOVE, PROC_REF(on_source_shuttle_moved)) // BLASTWAVE EDIT ADDITION - OVERMAP
 
 	var/atom/atom_target = target
 	register_turf(atom_target, atom_target.loc)
 
 /datum/element/elevation/Detach(atom/movable/source)
-	UnregisterSignal(source, list(COMSIG_ATOM_ENTERING, COMSIG_ATOM_EXITING))
+	UnregisterSignal(source, list(COMSIG_ATOM_ENTERING, COMSIG_ATOM_EXITING, COMSIG_ATOM_AFTER_SHUTTLE_MOVE)) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: UnregisterSignal(source, list(COMSIG_ATOM_ENTERING, COMSIG_ATOM_EXITING))
 	unregister_turf(source, source.loc)
 	REMOVE_TRAIT(source, TRAIT_ELEVATING_OBJECT, ref(src))
 	return ..()
@@ -52,6 +53,14 @@
 /datum/element/elevation/proc/on_source_exiting(atom/movable/source, atom/exiting)
 	SIGNAL_HANDLER
 	unregister_turf(source, exiting)
+
+// BLASTWAVE EDIT ADDITION START - OVERMAP
+/// A shuttle moves its contents by setting loc, which sends neither entering nor exiting.
+/datum/element/elevation/proc/on_source_shuttle_moved(atom/movable/source, turf/old_turf)
+	SIGNAL_HANDLER
+	unregister_turf(source, old_turf)
+	register_turf(source, source.loc)
+// BLASTWAVE EDIT ADDITION END
 
 /datum/element/elevation/proc/register_turf(atom/movable/source, atom/location)
 	if(!isturf(location))

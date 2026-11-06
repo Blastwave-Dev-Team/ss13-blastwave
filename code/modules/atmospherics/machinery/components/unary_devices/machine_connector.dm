@@ -51,6 +51,8 @@
 	RegisterSignal(connected_machine, COMSIG_MACHINERY_DEFAULT_ROTATE_WRENCH, PROC_REF(wrenched_connected_machine))
 	RegisterSignal(connected_machine, COMSIG_OBJ_DECONSTRUCT, PROC_REF(deconstruct_connected_machine))
 	RegisterSignal(connected_machine, COMSIG_QDELETING, PROC_REF(destroy_connected_machine))
+	// BLASTWAVE EDIT ADDITION - OVERMAP
+	RegisterSignal(connected_machine, COMSIG_ATOM_AFTER_SHUTTLE_MOVE, PROC_REF(shuttle_moved_connected_machine))
 
 /**
  * Unregister the signals previously registered
@@ -61,8 +63,26 @@
 		COMSIG_MOVABLE_PRE_MOVE,
 		COMSIG_MACHINERY_DEFAULT_ROTATE_WRENCH,
 		COMSIG_OBJ_DECONSTRUCT,
-		COMSIG_QDELETING
+		COMSIG_QDELETING,
+		COMSIG_ATOM_AFTER_SHUTTLE_MOVE, // BLASTWAVE EDIT ADDITION - OVERMAP
 	))
+
+// BLASTWAVE EDIT ADDITION START - OVERMAP
+/// The facing the hidden port should have for the machine's current facing.
+/datum/gas_machine_connector/proc/connector_dir()
+	return connected_machine.dir
+
+/**
+ * The shuttle never turns the connector itself, so a rotated landing leaves the port
+ * facing the old way. Its pipe link survives: the pipe turns its own node list. Only
+ * re-aim it. Relinking here would rescan pipes the shuttle hasn't turned yet, since it
+ * turns atoms one at a time in this pass, and leave them holding a neighbour twice.
+ */
+/datum/gas_machine_connector/proc/shuttle_moved_connected_machine()
+	SIGNAL_HANDLER
+	gas_connector.dir = connector_dir()
+	gas_connector.set_init_directions()
+// BLASTWAVE EDIT ADDITION END
 
 /**
  * Called when the machine has been moved, reconnect to the pipe network

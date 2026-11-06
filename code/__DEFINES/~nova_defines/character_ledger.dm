@@ -8,6 +8,12 @@
 #define LEDGER_CHANNEL_ATM_WITHDRAW "ATM_WITHDRAW"
 #define LEDGER_CHANNEL_LOADOUT "LOADOUT"
 #define LEDGER_CHANNEL_IDENTITY_MERGE "IDENTITY_MERGE"
+/// Insured ship checkout, and the refund of it when the ship is filed again.
+#define LEDGER_CHANNEL_SHIP_INSURANCE "SHIP_INSURANCE"
+/// Filing a ship into the registrar's storage.
+#define LEDGER_CHANNEL_SHIP_STORAGE "SHIP_STORAGE"
+/// Token fee for an uninsured ship checkout.
+#define LEDGER_CHANNEL_SHIP_RETRIEVE "SHIP_RETRIEVE"
 
 #define LEDGER_STATUS_OK "ok"
 #define LEDGER_STATUS_DUPLICATE "duplicate"
