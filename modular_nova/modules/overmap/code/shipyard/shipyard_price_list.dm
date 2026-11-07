@@ -3,5 +3,4 @@
 // all other items are free to store by default
 
 /obj/item/card/emag
-	..()
 	storage_fee = 50
