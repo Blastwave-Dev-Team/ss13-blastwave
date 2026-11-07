@@ -79,7 +79,7 @@
 
 /// Check if the item in question has a storage fee, otherwise 0
 /proc/shipyard_appraise_item(obj/item/item)
-	var/datum/export_report/report = storage_fee(item)
+	var/datum/export_report/report = item[storage_fee]
 	var/value = 0
 	for(var/export in report.total_value)
 		value += report.total_value[export]
