@@ -77,12 +77,9 @@
 		total += materials[material_path] * initial(material_path.value_per_unit)
 	return round(total)
 
-/// What the cargo shuttle would pay for `item` and its contents, or 0.
+/// Check if the item in question has a storage fee, otherwise 0
 /proc/shipyard_appraise_item(obj/item/item)
-	var/datum/export_report/report = export_item_and_contents(item, apply_elastic = FALSE, delete_unsold = FALSE, dry_run = TRUE)
-	var/value = 0
-	for(var/export in report.total_value)
-		value += report.total_value[export]
+	var/value = item.storage_fee
 	return max(value, 0)
 
 /**
