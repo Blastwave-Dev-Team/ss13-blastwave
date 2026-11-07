@@ -243,7 +243,7 @@
 	var/resist_cooldown = CLICK_CD_BREAKOUT
 
 	/// Does this item have a additional storage fee when stored in a ship lockbox? Defined in shipyard_price_list.dm
-	var/storage_fee = 0
+	var/storage_fee = 0 // BLASTWAVE EDIT - Ship Lockbox Storage Fee
 
 /obj/item/Initialize(mapload)
 	if(attack_verb_continuous)
