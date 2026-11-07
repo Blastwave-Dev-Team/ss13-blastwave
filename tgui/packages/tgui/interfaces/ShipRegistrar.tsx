@@ -108,6 +108,9 @@ type Refusal = { code: RefusalCode; text: string; blocksSurvey: BooleanLike };
 
 type StatusMessage = { kind: 'good' | 'bad'; text: string };
 
+/** Blank blueprints in the console's slot, and why they cannot be linked yet. */
+type HeldBlueprint = { name: string; refusal: string | null };
+
 type SlotGrant = { kind: GrantKind; source: string; count: number };
 
 type Slots = {
@@ -130,6 +133,7 @@ type Data = {
   /** Static data: the last survey, which may since have gone stale. */
   survey: Survey | null;
   surveyCurrent: BooleanLike;
+  blueprint: HeldBlueprint | null;
   ships: ShipEntry[];
   slots: Slots;
   statusMessage: StatusMessage | null;
@@ -498,6 +502,7 @@ const PadTab = (props: {
           )}
           {!!survey && <SurveySummary survey={survey} />}
           {!!occupant && <FileControls />}
+          {!!occupant && <BlueprintControls />}
         </Section>
       </Stack.Item>
       <Stack.Item grow>{side}</Stack.Item>
@@ -765,6 +770,51 @@ const FileControls = () => {
       >
         File ship
       </Button.Confirm>
+    </Section>
+  );
+};
+
+const BlueprintControls = () => {
+  const { act, data } = useBackend<Data>();
+  const { blueprint } = data;
+
+  return (
+    <Section
+      title="Ship blueprints"
+      mt={1}
+      buttons={
+        !!blueprint && (
+          <Button icon="eject" onClick={() => act('eject_blueprint')}>
+            Eject
+          </Button>
+        )
+      }
+    >
+      {blueprint ? (
+        <>
+          <Box mb={1}>
+            <Icon name="scroll" /> {blueprint.name}
+          </Box>
+          <Box color="label" italic mb={1}>
+            Links the blueprints to the vessel on the pad, as its master set if
+            it has none, so it can be expanded with shuttle frames. Free.
+          </Box>
+          <Button
+            fluid
+            icon="link"
+            textAlign="center"
+            disabled={!!blueprint.refusal}
+            tooltip={blueprint.refusal}
+            onClick={() => act('link_blueprint')}
+          >
+            Link blueprints
+          </Button>
+        </>
+      ) : (
+        <Box color="label" italic>
+          Insert blank shuttle blueprints to link them to this vessel.
+        </Box>
+      )}
     </Section>
   );
 };

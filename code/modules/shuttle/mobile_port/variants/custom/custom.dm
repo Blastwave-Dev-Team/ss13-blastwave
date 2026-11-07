@@ -2,8 +2,10 @@
 	name = "custom shuttle"
 	shuttle_id = "custom"
 	launch_status = UNLAUNCHED
+	/* // BLASTWAVE EDIT REMOVAL START - OVERMAP - moved to /obj/docking_port/mobile
 	var/datum/weakref/master_blueprint
 	var/area/default_area
+	*/ // BLASTWAVE EDIT REMOVAL END
 	var/datum/weakref/control_console
 	var/datum/weakref/navigation_console
 

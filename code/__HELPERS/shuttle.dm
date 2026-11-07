@@ -26,7 +26,7 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 /datum/shuttle_frame/proc/start_tracking_turf_for_shuttles(turf/to_track, dir)
 	if(!shuttle_tracking_turfs[to_track])
 		var/obj/docking_port/mobile/custom/shuttle = SSshuttle.get_containing_shuttle(to_track)
-		if(istype(shuttle))
+		if(istype(shuttle, /obj/docking_port/mobile)) // BLASTWAVE EDIT CHANGE - OVERMAP - any hull can be expanded by blueprints. ORIGINAL: if(istype(shuttle))
 			if(!adjacent_shuttles[shuttle])
 				start_tracking_shuttle(shuttle)
 			adjacent_shuttles[shuttle][to_track] = TRUE
@@ -57,9 +57,18 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 /datum/shuttle_frame/proc/shuttle_arrive_react(turf/source)
 	SIGNAL_HANDLER
 	var/obj/docking_port/mobile/custom/shuttle = SSshuttle.get_containing_shuttle(source)
-	if(istype(shuttle))
+	// BLASTWAVE EDIT CHANGE START - OVERMAP - any hull can be expanded by blueprints, and a
+	// second arriving tile must not wipe the first, nor a portless one index null.
+	// ORIGINAL:
+	// if(istype(shuttle))
+	// 	start_tracking_shuttle(shuttle)
+	// adjacent_shuttles[shuttle][source] = TRUE
+	if(!istype(shuttle, /obj/docking_port/mobile))
+		return
+	if(!adjacent_shuttles[shuttle])
 		start_tracking_shuttle(shuttle)
 	adjacent_shuttles[shuttle][source] = TRUE
+	// BLASTWAVE EDIT CHANGE END
 
 /datum/shuttle_frame/proc/start_tracking_shuttle(obj/docking_port/mobile/custom/shuttle)
 	adjacent_shuttles[shuttle] = list()
@@ -558,7 +567,7 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 		underlying_areas[turf] = turf.loc
 
 	var/list/affected_areas = list()
-	var/area/default_area = shuttle.shuttle_areas[1]
+	var/area/default_area = shuttle.default_area || shuttle.shuttle_areas[1] // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/area/default_area = shuttle.shuttle_areas[1]
 	set_turfs_to_area(default_area_turfs, default_area, affected_areas)
 	default_area.power_change()
 
@@ -606,6 +615,14 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 		shuttle.calculate_docking_port_information()
 	shuttle.initiate_docking(shuttle.get_docked(), force = TRUE)
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - the hull token is drawn from the hull's shape
+	var/obj/structure/overmap/ship/simulated/overmap_ship = shuttle.current_ship
+	if(overmap_ship)
+		overmap_ship.cached_hull_icon = null
+		overmap_ship.cached_minimap_icon = null
+		overmap_ship.update_icon_state()
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
 	message_admins("[key_name(user)] has expanded [shuttle] at [ADMIN_VERBOSEJMP(user)].")
 	log_shuttle("[key_name(user)] expanded [shuttle] at [get_area(user)].")
 
@@ -652,8 +669,12 @@ GLOBAL_LIST_EMPTY(shuttle_frames_by_turf)
 			if(turf.x == x0 || turf.x == x1 || turf.y == y0 || turf.y == y1)
 				bounds_need_recalculation = TRUE
 		if(!length(turfs))
+			/* // BLASTWAVE EDIT CHANGE START - OVERMAP - every hull has a default area
 			var/obj/docking_port/mobile/custom/as_custom = shuttle
 			if(!(istype(as_custom) && area == as_custom.default_area))
+			*/
+			if(area != shuttle.default_area)
+			// BLASTWAVE EDIT CHANGE END
 				shuttle.shuttle_areas -= area
 				qdel(area)
 	if(!shuttle.turf_count)

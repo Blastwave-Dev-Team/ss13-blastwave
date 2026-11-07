@@ -39,6 +39,8 @@
 	var/list/cached_refusal
 	var/datum/weakref/refusal_hull
 	COOLDOWN_DECLARE(refusal_recheck)
+	/// Blank shuttle blueprints waiting to be linked to the surveyed hull.
+	var/obj/item/shuttle_blueprints/held_blueprint
 
 /obj/machinery/computer/ship_registrar/Initialize(mapload, obj/item/circuitboard/C)
 	. = ..()
@@ -46,7 +48,42 @@
 
 /obj/machinery/computer/ship_registrar/Destroy()
 	QDEL_NULL(session)
+	if(held_blueprint && !QDELETED(held_blueprint))
+		held_blueprint.forceMove(drop_location())
+	held_blueprint = null
 	return ..()
+
+/obj/machinery/computer/ship_registrar/Exited(atom/movable/gone, direction)
+	. = ..()
+	if(gone == held_blueprint)
+		held_blueprint = null
+		SStgui.update_uis(src)
+
+/obj/machinery/computer/ship_registrar/item_interaction(mob/living/user, obj/item/tool, list/modifiers)
+	if(!istype(tool, /obj/item/shuttle_blueprints))
+		return ..()
+	if(istype(tool, /obj/item/shuttle_blueprints/borg))
+		balloon_alert(user, "needs paper blueprints")
+		return ITEM_INTERACT_BLOCKING
+	var/obj/item/shuttle_blueprints/blueprint = tool
+	if(blueprint.shuttle_ref?.resolve())
+		balloon_alert(user, "blueprints not blank")
+		return ITEM_INTERACT_BLOCKING
+	if(held_blueprint)
+		balloon_alert(user, "blueprint slot occupied")
+		return ITEM_INTERACT_BLOCKING
+	if(!user.transferItemToLoc(blueprint, src))
+		return ITEM_INTERACT_BLOCKING
+	held_blueprint = blueprint
+	balloon_alert(user, "blueprints inserted")
+	SStgui.update_uis(src)
+	return ITEM_INTERACT_SUCCESS
+
+/obj/machinery/computer/ship_registrar/click_alt(mob/user)
+	if(!held_blueprint)
+		return CLICK_ACTION_BLOCKING
+	eject_blueprint(user)
+	return CLICK_ACTION_SUCCESS
 
 /obj/machinery/computer/ship_registrar/multitool_act(mob/living/user, obj/item/multitool/tool)
 	var/result = session.try_link(user, tool)
@@ -55,6 +92,10 @@
 /obj/machinery/computer/ship_registrar/examine(mob/user)
 	. = ..()
 	. += session.examine_line()
+	if(held_blueprint)
+		. += span_notice("The blueprint slot holds [held_blueprint]. Alt-click to eject.")
+	else
+		. += span_notice("Insert blank shuttle blueprints to link them to a surveyed vessel.")
 
 /obj/machinery/computer/ship_registrar/ui_interact(mob/user, datum/tgui/ui)
 	. = ..()
@@ -165,6 +206,10 @@
 		"blocksSurvey" = blocks_survey,
 	) : null
 	data["surveyCurrent"] = !!(hull && !blocks_survey && survey_current(hull))
+	data["blueprint"] = held_blueprint ? list(
+		"name" = held_blueprint.name,
+		"refusal" = blueprint_link_refusal(hull),
+	) : null
 
 	var/list/grants = list()
 	var/list/grant_sources = list()
@@ -225,6 +270,11 @@
 			end_session()
 		return TRUE
 
+	// Like an ID, inserted blueprints come back out without a login.
+	if(action == "eject_blueprint")
+		eject_blueprint(user)
+		return TRUE
+
 	// Mirror ui_data: admin ghosts can act without a living login session.
 	if(!session.has_session(user))
 		return FALSE
@@ -267,6 +317,50 @@
 			clear_slot(params["id"], user)
 			refresh_session()
 			return TRUE
+		if("link_blueprint")
+			session.status_message = null
+			link_blueprint(docked_hull(), user)
+			return TRUE
+
+/obj/machinery/computer/ship_registrar/proc/eject_blueprint(mob/user)
+	if(!held_blueprint)
+		return
+	var/obj/item/shuttle_blueprints/blueprint = held_blueprint
+	held_blueprint = null
+	if(!user?.put_in_hands(blueprint))
+		blueprint.forceMove(drop_location())
+
+/**
+ * Why the held blueprints cannot be linked to `hull`, or null when they can.
+ *
+ * Linking is free and, unlike filing, does not take the hull anywhere, so the
+ * only gate past a current survey is the owner: on a hull with one, only they
+ * may draw up its plans.
+ */
+/obj/machinery/computer/ship_registrar/proc/blueprint_link_refusal(obj/docking_port/mobile/hull)
+	if(!held_blueprint)
+		return "Insert blank shuttle blueprints first."
+	if(!hull)
+		return "The pad is empty."
+	if(!survey_current(hull))
+		return "Survey the vessel first."
+	if(hull.ship_owner_id && hull.ship_owner_id != session.operator_uuid)
+		return "Only the vessel's owner can link blueprints to it."
+	return null
+
+/// Link the held blueprints to `hull`: as its master when it has none, otherwise as a copy.
+/obj/machinery/computer/ship_registrar/proc/link_blueprint(obj/docking_port/mobile/hull, mob/user)
+	var/refusal = blueprint_link_refusal(hull)
+	if(refusal)
+		set_status(FALSE, refusal)
+		return FALSE
+	var/obj/item/shuttle_blueprints/blueprint = held_blueprint
+	var/is_master = !hull.master_blueprint?.resolve()
+	blueprint.link_to_shuttle(hull, is_master)
+	eject_blueprint(user)
+	set_status(TRUE, is_master ? "Blueprints linked to [hull.name] as its master set." : "[hull.name] already has master blueprints; linked these as a copy.")
+	playsound(src, 'sound/machines/terminal/terminal_processing.ogg', 40, TRUE)
+	return TRUE
 
 /// The hull standing on the pad, which is the one filing acts on.
 /obj/machinery/computer/ship_registrar/proc/docked_hull()

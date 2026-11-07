@@ -557,3 +557,99 @@
 	TEST_ASSERT(istype(retrieved), "The filed hull should retrieve: [console_says(console)]")
 	hulls += retrieved
 	TEST_ASSERT(buttons_reach_doors(retrieved), "A retrieved hull's door buttons should still find their doors.")
+
+// --- Blueprints for a garage hull --------------------------------------------
+
+/// A tile just outside `hull`, inside the pad, that a frame could grow it onto.
+/datum/unit_test/overmap_ship_persistence/proc/frame_site(obj/docking_port/mobile/hull)
+	for(var/turf/hull_turf as anything in hull.return_turfs())
+		if(SSshuttle.get_containing_shuttle(hull_turf) != hull)
+			continue
+		for(var/dir in GLOB.cardinals)
+			var/turf/neighbor = get_step(hull_turf, dir)
+			if(isspaceturf(neighbor) && turf_in_overmap_landing_zone(neighbor))
+				return neighbor
+	return null
+
+/**
+ * A stock hull out of the broker is not a custom shuttle, but its owner can
+ * still have blueprints drawn for it at the registrar, grow it with a frame,
+ * and get the larger hull back out of the garage.
+ */
+/datum/unit_test/overmap_ship_persistence/blueprint_expansion
+
+/datum/unit_test/overmap_ship_persistence/blueprint_expansion/Run()
+	var/datum/ship_listing/listing = shipyard_ship_listing("nt_personal")
+	var/datum/hull_profile/profile = listing.get_profile()
+	TEST_ASSERT(profile, "The NT listing should have a hull profile.")
+	var/side = max(profile.width, profile.height) + 4
+	var/obj/effect/landmark/overmap_landing_zone/zone = stage_landing_zone(side, side, side + 2)
+	var/owner_uuid = generate_character_uuid()
+	var/obj/machinery/computer/ship_broker/broker = logged_in_broker(owner_uuid, 100000, zone)
+	var/obj/docking_port/mobile/hull = broker.purchase("nt_personal", "Blueprint Hull", "PAD", FALSE, null)
+	TEST_ASSERT(istype(hull), "Buying onto a clear pad should land the hull: [broker_says(broker)]")
+	hulls += hull
+	TEST_ASSERT(!istype(hull, /obj/docking_port/mobile/custom), "The stock hull should not be a custom shuttle, or this proves nothing.")
+	TEST_ASSERT(hull.default_area, "A stock hull should have a default area to grow into.")
+
+	var/obj/machinery/computer/ship_registrar/console = logged_in_console(owner_uuid, 100000)
+	var/mob/living/carbon/human/user = allocate(/mob/living/carbon/human/consistent)
+	var/obj/item/shuttle_blueprints/master = allocate(/obj/item/shuttle_blueprints)
+	user.put_in_active_hand(master)
+	TEST_ASSERT_EQUAL(console.item_interaction(user, master), ITEM_INTERACT_SUCCESS, "The registrar should take blank blueprints.")
+	TEST_ASSERT_EQUAL(console.held_blueprint, master, "The blueprints should sit in the registrar's slot.")
+	TEST_ASSERT(!console.link_blueprint(hull, user), "Linking before a survey should be refused.")
+	TEST_ASSERT(console.run_survey(hull, zone), "The bought hull should survey: [console_says(console)]")
+
+	var/intruder_uuid = generate_character_uuid()
+	console.session.operator_uuid = intruder_uuid
+	TEST_ASSERT(!console.link_blueprint(hull, user), "Someone other than the owner should not link blueprints to it.")
+	console.session.operator_uuid = owner_uuid
+	TEST_ASSERT(console.link_blueprint(hull, user), "The owner should link blueprints to the surveyed hull: [console_says(console)]")
+	TEST_ASSERT(!console.held_blueprint, "Linked blueprints should leave the slot.")
+	TEST_ASSERT_EQUAL(master.shuttle_ref?.resolve(), hull, "The blueprints should hold the hull's plans.")
+	TEST_ASSERT_EQUAL(hull.master_blueprint?.resolve(), master, "The first blueprints linked should be the master set.")
+
+	var/obj/item/shuttle_blueprints/copy = allocate(/obj/item/shuttle_blueprints)
+	user.put_in_inactive_hand(copy)
+	TEST_ASSERT_EQUAL(console.item_interaction(user, copy), ITEM_INTERACT_SUCCESS, "The registrar should take a second blank set.")
+	TEST_ASSERT(console.link_blueprint(hull, user), "A second set should link as a copy: [console_says(console)]")
+	TEST_ASSERT_EQUAL(copy.shuttle_ref?.resolve(), hull, "The copy should hold the hull's plans.")
+	TEST_ASSERT_EQUAL(hull.master_blueprint?.resolve(), master, "A copy should not take over as master.")
+
+	var/turf/site = frame_site(hull)
+	TEST_ASSERT(site, "There should be open pad beside the hull to frame.")
+	var/site_x = site.x
+	var/site_y = site.y
+	var/site_z = site.z
+	var/obj/item/stack/rods/shuttle/rods = allocate(/obj/item/stack/rods/shuttle/five)
+	var/obj/item/stack/tile/iron/tiles = allocate(/obj/item/stack/tile/iron/fifty)
+	var/turf/open/open_site = site
+	TEST_ASSERT(open_site.build_shuttle_frame_with_rods(rods, user), "Frame rods should anchor on the pad.")
+	TEST_ASSERT(open_site.shuttle_frame_build_plating_with_tile(tiles, user), "Tiling the frame should plate it.")
+	site = locate(site_x, site_y, site_z)
+	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[site]
+	TEST_ASSERT(frame, "The plated frame tile should still be a shuttle frame.")
+	TEST_ASSERT(frame.adjacent_shuttles[hull], "The frame should see the stock hull beside it.")
+
+	var/turf_count_before = hull.turf_count
+	var/list/turfs = list()
+	var/list/areas = list()
+	var/check_status = shuttle_expand_check(site, hull, turfs, areas)
+	TEST_ASSERT(!check_status, "The frame should pass the expansion check, got flags [check_status].")
+	expand_shuttle(user, hull, turfs, areas)
+	site = locate(site_x, site_y, site_z)
+	TEST_ASSERT_EQUAL(SSshuttle.get_containing_shuttle(site), hull, "The framed tile should now be part of the hull.")
+	TEST_ASSERT_EQUAL(get_area(site), hull.default_area, "The framed tile should join the hull's default area.")
+	TEST_ASSERT_EQUAL(hull.turf_count, turf_count_before + 1, "Expansion should count the new tile.")
+
+	TEST_ASSERT(console.run_survey(hull, zone), "The expanded hull should survey: [console_says(console)]")
+	TEST_ASSERT(console.file_hull(hull, zone, user), "The expanded hull should file: [console_says(console)]")
+	hulls -= hull
+	TEST_ASSERT(!master.shuttle_ref?.resolve(), "Filing should leave the blueprints without a hull.")
+	var/datum/player_ship_record/record = only_record(owner_uuid)
+	TEST_ASSERT(record, "Filing should leave one record.")
+	var/obj/docking_port/mobile/retrieved = console.retrieve_record(record.id, FALSE, zone, user)
+	TEST_ASSERT(istype(retrieved), "The expanded hull should retrieve: [console_says(console)]")
+	hulls += retrieved
+	TEST_ASSERT_EQUAL(retrieved.turf_count, turf_count_before + 1, "The retrieved hull should keep the tile it grew.")

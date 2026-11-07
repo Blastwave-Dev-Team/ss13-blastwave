@@ -66,6 +66,12 @@
 	var/obj/structure/overmap/ship/simulated/current_ship
 	// BLASTWAVE EDIT ADDITION END - OVERMAP
 
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - shuttle blueprints work on any hull, not only custom ones
+	var/datum/weakref/master_blueprint
+	/// The area expansion merges new tiles into, and the one blueprints split new rooms out of.
+	var/area/default_area
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
+
 /obj/docking_port/mobile/Initialize(mapload, list/areas)
 	. = ..()
 
@@ -92,6 +98,10 @@
 			if(istype(cur_area, area_type))
 				turf_count++
 				shuttle_areas[cur_area] = TRUE
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - the first area, which expand_shuttle() already merges into
+	if(length(shuttle_areas))
+		default_area = shuttle_areas[1]
+	// BLASTWAVE EDIT ADDITION END - OVERMAP
 
 #ifdef TESTING
 	highlight("#0f0")
