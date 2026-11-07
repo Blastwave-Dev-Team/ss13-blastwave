@@ -56,6 +56,11 @@
 /datum/shipyard_staging/proc/abandon()
 	if(!QDELETED(hull))
 		hull.jumpToNullSpace()
+	// A mount whose support was deleted first drops its frame onto a tile the
+	// hull has already emptied, and a released reservation is not emptied again
+	// until SSmapping next fires.
+	for(var/turf/tile as anything in reservation?.reserved_turfs)
+		tile.empty(null)
 	release()
 
 /// Release the reservation, leaving whatever has already moved off it alone.

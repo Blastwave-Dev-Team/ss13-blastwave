@@ -500,8 +500,15 @@
 	var/datum/ship_teardown/teardown = hull ? new(hull) : null
 	var/refusal = teardown?.refusal
 	qdel(teardown)
+	var/list/staged_turfs = staging.reservation?.reserved_turfs.Copy()
 	staging.abandon()
 	TEST_ASSERT(hull, "The [listing.id] hull should stage again.")
 	TEST_ASSERT(!refusal, "The [listing.id] hull should walk again, got '[refusal]'.")
+	var/list/left_behind = list()
+	for(var/turf/tile as anything in staged_turfs)
+		for(var/obj/thing in tile)
+			if(!istype(thing, /obj/effect/landmark) && !istype(thing, /obj/docking_port))
+				left_behind += "[thing.type]"
+	TEST_ASSERT(!length(left_behind), "Abandoning the [listing.id] hull should leave nothing on its reservation, found [english_list(left_behind)].")
 	var/cached_after = length(GLOB.shipyard_describable_vars_by_type)
 	TEST_ASSERT_EQUAL(cached_after, cached_before, "Walking a warm-up hull again should find every type it holds already cached.")
