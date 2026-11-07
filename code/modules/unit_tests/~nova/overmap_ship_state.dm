@@ -314,7 +314,11 @@
 	var/obj/machinery/atmospherics/components/tank/plasma/first = found_tanks[1]
 	var/obj/machinery/atmospherics/components/tank/plasma/second = found_tanks[2]
 	TEST_ASSERT_EQUAL(first.air_contents, second.air_contents, "Retrieved pressure tanks should merge again.")
-	var/list/gases = first.air_contents.gases
+	// Reconciliation may already have spread the pool into the ports, so the group is weighed whole.
+	var/datum/gas_mixture/held = first.air_contents.copy()
+	for(var/datum/gas_mixture/port_air as anything in shipyard_tank_port_airs(first, first.GetMergeGroup(first.merger_id, first.merger_typecache)))
+		held.merge(port_air)
+	var/list/gases = held.gases
 	var/plasma_moles = gases[/datum/gas/plasma] ? round(gases[/datum/gas/plasma][MOLES]) : 0
 	TEST_ASSERT_EQUAL(plasma_moles, 100, "The pooled gas should come back as it was filed.")
 

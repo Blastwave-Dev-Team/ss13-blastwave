@@ -115,6 +115,10 @@
  * southmost (then westmost) member writes the pool down and the rest write
  * nothing. A retrieved group has merged again before fixture state is applied,
  * so setting the pool through whichever member receives it fills them all.
+ *
+ * Every member's ports hold air of their own, which pipenet reconciliation
+ * evens out with the pool, so the group's gas is the pool and its port airs
+ * together. It is written down as one mix and put back in the pool alone.
  */
 /datum/shipyard_serdes/atmos_tank
 	target_type = /obj/machinery/atmospherics/components/tank
@@ -126,12 +130,26 @@
 	for(var/obj/machinery/atmospherics/components/tank/member as anything in group.members)
 		if(member.y < target.y || (member.y == target.y && member.x < target.x))
 			return null
-	return list("gas" = shipyard_capture_gas(target.air_contents))
+	var/datum/gas_mixture/held = target.air_contents.copy()
+	for(var/datum/gas_mixture/port_air as anything in shipyard_tank_port_airs(target, group))
+		held.merge(port_air)
+	return list("gas" = shipyard_capture_gas(held))
 
 /datum/shipyard_serdes/atmos_tank/apply(obj/machinery/atmospherics/components/tank/target, list/state)
 	if(islist(state["gas"]) && target.air_contents)
 		shipyard_apply_gas(target.air_contents, state["gas"])
+		var/datum/merger/group = target.GetMergeGroup(target.merger_id, target.merger_typecache)
+		for(var/datum/gas_mixture/port_air as anything in shipyard_tank_port_airs(target, group))
+			shipyard_apply_gas(port_air, list())
 	return ..()
+
+/// The port airs of every tank in `group`, without the pool they share.
+/proc/shipyard_tank_port_airs(obj/machinery/atmospherics/components/tank/target, datum/merger/group)
+	. = list()
+	for(var/obj/machinery/atmospherics/components/tank/member as anything in group.members)
+		for(var/datum/gas_mixture/port_air in member.airs)
+			if(port_air != target.air_contents)
+				. += port_air
 
 /datum/shipyard_serdes/item/tank
 	target_type = /obj/item/tank
