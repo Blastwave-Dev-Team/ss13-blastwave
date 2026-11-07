@@ -242,6 +242,9 @@
 	/// Do we apply a click cooldown when resisting this object if it is restraining them?
 	var/resist_cooldown = CLICK_CD_BREAKOUT
 
+	/// Does this item have a additional storage fee when stored in a ship lockbox? Defined in shipyard_price_list.dm
+	var/storage_fee = 0
+
 /obj/item/Initialize(mapload)
 	if(attack_verb_continuous)
 		attack_verb_continuous = string_list(attack_verb_continuous)
