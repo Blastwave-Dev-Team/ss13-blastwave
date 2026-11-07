@@ -79,9 +79,7 @@
 
 /// Check if the item in question has a storage fee, otherwise 0
 /proc/shipyard_appraise_item(obj/item/item)
-	var/value = item[storage_fee]
-	for(var/export in report.total_value)
-		value += report.total_value[export]
+	var/value = item.storage_fee
 	return max(value, 0)
 
 /**
