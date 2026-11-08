@@ -395,7 +395,7 @@ SUBSYSTEM_DEF(overmap)
 		return
 	new mining_path(picked, null, mining_zs.Copy())
 
-/// Locate the interlink Z-level set and drop a `/level/interlink` near the star.
+/// Locate the interlink Z-level set and drop a `/level/centcom` near the star.
 /// Prefers a tile in the chebyshev-`OVERMAP_STAR_BUFFER` ring around the
 /// star (just outside the star sprite's footprint), falling back to any
 /// random non-edge tile if every ring slot is taken. Basically the same as
@@ -494,10 +494,10 @@ SUBSYSTEM_DEF(overmap)
 			if(main)
 				ship.home_level_id = MAIN_OVERMAP_OBJECT_ID
 			ship.prepare_for_flight()
-	else if(is_centcom_level(port.z))
+//	else if(is_centcom_level(port.z))
 		// CentCom is intentionally off-grid. Icon lives in nullspace until
 		// the shuttle returns to a known POI.
-		ship = new ship_path(null, port.shuttle_id, port)
+//		ship = new ship_path(null, port.shuttle_id, port)
 	else
 		// Ruin, away, and other off-grid shuttles are expected here.
 		return

@@ -18,7 +18,7 @@
 		/turf/open/openspace,
 		/turf/open/misc,
 	)
-	locked_traits = list(ZTRAIT_RESERVED, ZTRAIT_CENTCOM)
+	locked_traits = list(ZTRAIT_RESERVED)
 	/// The mobile docking port this nav is bound to. Set by `link_shuttle()`.
 	var/obj/docking_port/mobile/linked_port
 	/// Cached landing zones valid for the current target. Rebuilt on sync.

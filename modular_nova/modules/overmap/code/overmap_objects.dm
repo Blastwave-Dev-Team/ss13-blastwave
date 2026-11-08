@@ -658,12 +658,4 @@
 	icon_state = "station"
 	id = CENTCOM_OVERMAP_OBJECT_ID
 	sensor_range = 6
-	installation_stealth = TRUE
-
-/obj/structure/overmap/level/centcom/Initialize(mapload, _id, list/_zs)
-	if(SSovermap.main)
-		WARNING("Multiple overmap /level/centcom spawned; deleting the duplicate.")
-		return INITIALIZE_HINT_QDEL
-	. = ..()
-	SSovermap.main = src
-
+	installation_stealth = FALSE
