@@ -649,3 +649,21 @@
 	addtimer(CALLBACK(SSovermap, TYPE_PROC_REF(/datum/controller/subsystem/overmap, recycle_overmap_content_z), content_z), 0)
 	qdel(src)
 
+// CENTCOM POI
+
+/// The centcom-bound overmap object. Created once per round.
+/obj/structure/overmap/level/centcom
+	name = "The Interlink"
+	desc = "A small Nanotrasen outpost primarily used as a waystation between the nearby research center and the wider sector."
+	icon_state = "station"
+	id = CENTCOM_OVERMAP_OBJECT_ID
+	sensor_range = 6
+	installation_stealth = TRUE
+
+/obj/structure/overmap/level/centcom/Initialize(mapload, _id, list/_zs)
+	if(SSovermap.main)
+		WARNING("Multiple overmap /level/centcom spawned; deleting the duplicate.")
+		return INITIALIZE_HINT_QDEL
+	. = ..()
+	SSovermap.main = src
+

@@ -52,6 +52,7 @@
 #define MAIN_OVERMAP_OBJECT_ID "home"
 #define AWAY_OVERMAP_OBJECT_ID_MINING "mining"
 #define DES_TWO_OVERMAP_OBJECT_ID "des_two"
+#define CENTCOM_OVERMAP_OBJECT_ID "centcom"
 
 // Affiliation flags for cross-faction stealth.
 #define OVERMAP_AFFILIATION_NT "nt"

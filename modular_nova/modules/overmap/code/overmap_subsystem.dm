@@ -309,6 +309,7 @@ SUBSYSTEM_DEF(overmap)
 /datum/controller/subsystem/overmap/proc/create_map()
 	place_station()
 	place_mining()
+	place_centcom()
 	if(SSmapping.current_map.overmap_space_ruins)
 		seed_space_sites()
 	spawn_encounters()
@@ -393,6 +394,39 @@ SUBSYSTEM_DEF(overmap)
 		WARNING("create_map(): could not find an unused tile for the mining POI.")
 		return
 	new mining_path(picked, null, mining_zs.Copy())
+
+/// Locate the interlink Z-level set and drop a `/level/interlink` near the star.
+/// Prefers a tile in the chebyshev-`OVERMAP_STAR_BUFFER` ring around the
+/// star (just outside the star sprite's footprint), falling back to any
+/// random non-edge tile if every ring slot is taken. Basically the same as
+/// the station
+/datum/controller/subsystem/overmap/proc/place_centcom()
+	var/list/centcom_zs = SSmapping.levels_by_trait(ZTRAIT_CENTCOM)
+	if(!length(centcom_zs))
+		WARNING("No ZTRAIT_CENTCOM levels found - skipping CentCom overmap POI.")
+		return
+	var/star_x = round(size / 2)
+	var/star_y = round(size / 2)
+	var/list/candidates = list()
+	for(var/dx in -OVERMAP_STAR_BUFFER to OVERMAP_STAR_BUFFER)
+		for(var/dy in -OVERMAP_STAR_BUFFER to OVERMAP_STAR_BUFFER)
+			if(max(abs(dx), abs(dy)) != OVERMAP_STAR_BUFFER)
+				continue
+			var/turf/maybe = locate(star_x + dx, star_y + dy, overmap_z)
+			if(!istype(maybe, /turf/open/overmap) || istype(maybe, /turf/open/overmap/edge))
+				continue
+			if(locate(/obj/structure/overmap) in maybe)
+				continue
+			candidates += maybe
+	var/turf/picked
+	if(length(candidates))
+		picked = pick(candidates)
+	if(!picked)
+		picked = get_unused_overmap_square()
+	if(!picked)
+		WARNING("create_map(): could not find an unused tile for the centcom POI.")
+		return
+	new /obj/structure/overmap/level/centcom(picked, null, centcom_zs.Copy())
 
 /// Walk every mobile docking port that already exists at SSovermap init time
 /// and bind a `/ship/simulated` to each one. Arrivals shuttle is skipped -
