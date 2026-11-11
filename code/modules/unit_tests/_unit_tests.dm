@@ -366,6 +366,7 @@
 // NOVA EDIT START
 #include "~nova\apc_shuttle_rotate.dm"
 #include "~nova\automapper.dm"
+#include "~nova\back_in_the_black.dm"
 #include "~nova\character_ledger.dm"
 #include "~nova\digi_underclothes.dm"
 #include "~nova\hardlight.dm"

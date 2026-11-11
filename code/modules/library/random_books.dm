@@ -9,13 +9,16 @@
 
 /// Gets a random manuel book type excluding certain banned books
 /proc/get_random_manual()
+	return pick(get_random_manual_options())
+
+/proc/get_random_manual_options()
 	var/list/options = list()
 	options += valid_subtypesof(/obj/item/book/manual)
 	options += valid_subtypesof(/obj/item/tgui_book/manual)
 	options -= /obj/item/book/manual/random // no recursion
 	options -= /obj/item/book/manual/nuclear // why would nanotrasen stock instructions on how to nuke their own station?
-	options -= /obj/item/book/manual/wiki/ugc // requires a configured wiki slug
-	return pick(options)
+	options -= typesof(/obj/item/book/manual/wiki/ugc) // community slugs; subtypes are handed out by their own features
+	return options
 
 /obj/item/book/random
 	icon_state = "random_book"
