@@ -1,0 +1,9 @@
+author: "Maldaris"
+delete-after: True
+changes:
+  - rscadd: "New station trait \"Back in the Black\": Nanotrasen is broke, and every roundstart crew member gets an Interdyne Neuro Fiscal Tracker that shows a shift-wide fundraising goal bar."
+  - rscadd: "If the crew meets the revenue target from cargo exports and venue income, the Alive Associate Return Program pays 20% of earnings, split evenly, into the persistent ledgers of crew who are alive and still implanted."
+  - rscadd: "The CMO's locker holds a Neuro Fiscal Tracker enrollment kit for latejoiners. Each enrollment raises the target."
+  - rscadd: "A removed Neuro Fiscal Tracker can be voided with a Captain-access ID, which lowers the target."
+  - rscadd: "An Office of Fiscal Recovery memo prints at communications consoles, and an Associate Handbook links to the wiki."
+  - admin: "Added the \"Back in the Black Controls\" verb to set the goal, progress, and overlay heading text."
