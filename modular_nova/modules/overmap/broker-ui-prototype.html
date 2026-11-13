@@ -1,0 +1,1248 @@
+<!doctype html>
+<html class="theme-nanotrasen">
+<head>
+<meta charset="utf-8">
+<title>Vessel Broker - UI prototype</title>
+<link rel="stylesheet" href="../../../tgui/public/tgui.bundle.css">
+<link rel="stylesheet" href="../../../html/font-awesome/css/all.min.css">
+<link rel="stylesheet" href="../../../html/font-awesome/css/v4-shims.min.css">
+<style>
+/* Font Awesome's CSS expects its fonts next to it (flat asset namespace in game). */
+@font-face { font-family: "Font Awesome 6 Free"; font-style: normal; font-weight: 900; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-solid-900.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 6 Free"; font-style: normal; font-weight: 400; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-regular-400.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 5 Free"; font-style: normal; font-weight: 900; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-solid-900.ttf) format("truetype"); }
+@font-face { font-family: "Font Awesome 5 Free"; font-style: normal; font-weight: 400; font-display: block; src: url(../../../html/font-awesome/webfonts/fa-regular-400.ttf) format("truetype"); }
+
+/* Page chrome only: stands in for the BYOND browser window. */
+body { background: #111; }
+.proto-page {
+  display: flex;
+  gap: 12px;
+  height: 100vh;
+  padding: 12px;
+  box-sizing: border-box;
+}
+.proto-frame {
+  position: relative;
+  flex: 0 0 auto;
+  transform: translateZ(0); /* makes the Window's position:fixed resolve to this frame */
+  box-shadow: 0 0 0 1px #000, 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+.proto-frame .TitleBar { width: 100%; }
+.proto-strip {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px dashed #555;
+  color: #aaa;
+}
+.proto-strip h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; }
+.proto-strip .row { margin: 0 0 10px; }
+.proto-strip .row > span.lbl { display: block; margin-bottom: 3px; color: #888; }
+.proto-strip .Button { margin: 0 2px 2px 0; }
+.proto-strip p { margin: 0 0 10px; line-height: 1.4; }
+/* Stand-in for tgui's Floating portal; the .Tooltip class does the styling. */
+#proto-tooltip { position: fixed; z-index: 1000; display: none; white-space: pre-line; }
+
+/* ---- Custom components. Everything else is stock tgui-core markup. ---- */
+
+/* Hangar: the FTL ship bay. A fixed stage the hull scales into, never the reverse. */
+.broker-hangar {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.35);
+  background:
+    linear-gradient(hsl(0 0% 100% / 0.035) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+    linear-gradient(90deg, hsl(0 0% 100% / 0.035) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+    radial-gradient(ellipse at center, #1b2433 0%, #0b0f16 75%);
+}
+.broker-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.broker-ship {
+  position: relative;
+  aspect-ratio: var(--w) / var(--h);
+  width: min(88cqw, calc(88cqh * var(--w) / var(--h)));
+}
+.broker-ship__img { display: block; width: 100%; height: 100%; image-rendering: pixelated; filter: drop-shadow(0 0 0.6rem hsl(from var(--color-blue) h s l / 0.35)); }
+.broker-badge { position: absolute; top: 0.5rem; left: 0.5rem; }
+.broker-nose { position: absolute; top: 0.5rem; right: 0.5rem; }
+
+/* Schematic fallback: same grid idea as the registrar footprint, sized by the stage. */
+.broker-grid { display: grid; width: 100%; height: 100%; grid-template-columns: repeat(var(--w), 1fr); grid-template-rows: repeat(var(--h), 1fr); }
+.broker-tile--floor { background-color: hsl(from var(--color-good) h s l / 0.22); box-shadow: inset 0 0 0 1px hsl(from var(--color-good) h s l / 0.12); }
+.broker-tile--wall { background-color: hsl(from var(--color-good) h s l / 0.6); }
+.broker-tile--window { background-color: hsl(from var(--color-blue) h s l / 0.7); }
+.broker-tile--airlock { background-color: hsl(from var(--color-average) h s l / 0.85); }
+.broker-tile--engine { background-color: hsl(from var(--color-orange) h s l / 0.9); }
+.broker-tile--injector { background-color: hsl(from var(--color-teal) h s l / 0.85); }
+.broker-grid > div:hover { outline: 1px solid var(--color-white); }
+
+/* Systems overlay, positioned in tile fractions so it sits on either preview. */
+.broker-marker {
+  position: absolute; box-sizing: border-box; pointer-events: none;
+  border: 2px solid var(--color-white); border-radius: 2px;
+  animation: broker-pulse 1.6s ease-in-out infinite;
+}
+.broker-marker--engine { border-color: var(--color-orange); }
+.broker-marker--injector { border-color: var(--color-teal); }
+.broker-marker--airlock { border-color: var(--color-average); }
+.broker-marker--focus { animation: none; box-shadow: 0 0 0 2px var(--color-white); }
+@keyframes broker-pulse { 50% { opacity: 0.35; } }
+
+/* FTL power pips under the ship. */
+.broker-systems { display: flex; justify-content: center; gap: 0.75rem; padding: 0.5rem 0 0.4rem; border-top: 1px solid hsl(from var(--color-good) h s l / 0.25); }
+.broker-system { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 0.2rem 0.35rem; border-radius: 2px; }
+.broker-system:hover, .broker-system--selected { background: hsl(from var(--color-good) h s l / 0.15); }
+.broker-pip { width: 1.2rem; height: 0.45rem; background: var(--color-good); box-shadow: 0 0 4px hsl(from var(--color-good) h s l / 0.6); }
+.broker-pip--off { background: hsl(from var(--color-good) h s l / 0.15); box-shadow: none; }
+
+/* Slot cards along the bottom (FTL crew / weapons / augments row). */
+.broker-slots { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.broker-card {
+  display: flex; align-items: center; gap: 0.4rem;
+  min-width: 6.5rem; padding: 0.3rem 0.45rem; box-sizing: border-box;
+  border: 1px solid hsl(from var(--color-good) h s l / 0.4);
+  background: hsl(from var(--color-good) h s l / 0.08);
+  cursor: pointer;
+}
+.broker-card:hover, .broker-card--selected { border-color: var(--color-good); background: hsl(from var(--color-good) h s l / 0.2); }
+.broker-card--empty { cursor: default; justify-content: center; border-style: dashed; color: var(--color-label); background: none; }
+.broker-card--empty:hover { border-color: hsl(from var(--color-good) h s l / 0.4); background: none; }
+.broker-count { font-weight: bold; font-size: 1.1em; }
+
+/* Delivery picker (FTL layout A / B / C). */
+.broker-delivery .Button { text-align: left; white-space: normal; line-height: 1.25; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.broker-letter { display: inline-block; width: 1.3rem; height: 1.3rem; line-height: 1.3rem; text-align: center; border-radius: 50%; font-weight: bold; margin-right: 0.35rem; background: hsl(0 0% 100% / 0.12); }
+
+/* Catalog page: sortable headers and the selected row. */
+.broker-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.broker-sort:hover { color: var(--color-white); }
+.broker-row { cursor: pointer; }
+.broker-row:hover > td { background: hsl(from var(--color-good) h s l / 0.08); }
+.broker-row--selected > td { background: hsl(from var(--color-good) h s l / 0.2); }
+.broker-row > td { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+
+.broker-name { width: 100%; box-sizing: border-box; }
+.broker-buy .Button__content { font-size: 1.35em; font-weight: bold; letter-spacing: 1px; padding: 0.35rem 0.9rem; }
+</style>
+</head>
+<body>
+<div class="proto-page">
+  <div class="proto-frame" id="frame"><div id="root"></div></div>
+  <div class="proto-strip" id="proto"></div>
+</div>
+<div id="proto-tooltip" class="Tooltip"></div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------
+// ui_data contract. ShipBroker.tsx's Data type is this, verbatim.
+// ---------------------------------------------------------------------------
+/** @typedef {'PAD'|'GARAGE'} Delivery */
+/** @typedef {'none'|'pending'|'ready'|'failed'} PreviewState  failed covers a missing DLL/SO too */
+/** @typedef {'.'|'#'|'W'|'A'|'E'|'I'} Glyph  floor, wall, window, airlock, engine, fuel injector */
+/** @typedef {{ id:string, name:string, className:string, manufacturer:string, description:string,
+ *   width:number, height:number, tiles:number, cells:(Glyph|null)[],
+ *   engines:{ count:number, type:string }, injectors:number, apcs:number, smes:number, airlocks:number,
+ *   fittings:string[],
+ *   price:{ hull:number, registration:number, insurance:number } }} Hull */
+/** @typedef {{ state:PreviewState, url:string|null, pxPerTile:number }} Preview */
+/** @typedef {{ authenticated:boolean, operatorName:string|null, affiliation:string|null,
+ *   ledgerBalance:number|null, ledgerOnline:boolean, registryOnline:boolean,
+ *   hulls:Hull[],   only hulls the operator may buy; restricted ones are never sent
+ *   garage:{ used:number, total:number },   same slot count the registrar shows; every purchase takes one
+ *   zone:{ linked:boolean, name:string|null, width:number, height:number, occupant:string|null },
+ *   previews:Record<string, Preview>,
+ *   statusMessage:null|{ kind:'good'|'bad', text:string } }} Data */
+
+// ---------------------------------------------------------------------------
+// Mock config and catalog. Footprints, engine and airlock counts are read off
+// the real frigate maps in _maps/shuttles/overmap/frigates.
+// ---------------------------------------------------------------------------
+const REGISTRATION_FEE = 150;
+const INSURANCE_SALVAGE_MULTIPLIER = 1.25;
+const OPERATOR = { name: 'Mira Okafor', job: 'Shipwright' };
+
+const CATALOG = [
+  {
+    id: 'nt_personal', name: 'NT Personal', className: 'Personal transport', manufacturer: 'Nanotrasen',
+    description: 'The shipyard\'s workhorse. A compact twin-nacelle transport with a forward bridge, a central crew deck and an aft airlock ring. Cheap to run and forgiving to fly.',
+    engines: { count: 4, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 7,
+    fittings: ['Helm console', 'Nav console', 'Crew lockers', 'Galley'], affiliation: null,
+    art: ['   ##A##   ', '.EE#...#EE.', '#WW##A##WW#', '#......I..#', '#.........#', '####...####', ' #.##A##.# ', ' A.A...A.A ', ' ###...### ', '   #...#   ', '   W...W   ', '   W.W.W   ', '   #WWW#   '],
+  },
+  {
+    id: 'ikea_sma', name: 'Space Ikea Sma', className: 'Flat-pack runabout', manufacturer: 'Space Ikea',
+    description: 'Shipped flat, assembled on the pad, and somehow always one bolt short. A single open deck with a three-engine stern and wide observation windows.',
+    engines: { count: 3, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 2,
+    fittings: ['Helm console', 'Showroom seating'], affiliation: null,
+    art: ['##A#WW##.  ', '#......##W#', 'EW.....W..W', 'EW.....W..W', 'EW.....W..W', '#I.....##W#', '##A#WW##.  '],
+  },
+  {
+    id: 'interdyne_cargo', name: 'Interdyne Cargo', className: 'Cargo tender', manufacturer: 'Interdyne Pharmaceutics',
+    description: 'A short-hop hauler built around one big hold. Two engines, one hatch, and nothing that is not strictly load-bearing.',
+    engines: { count: 2, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 1,
+    fittings: ['Helm console', 'Cargo racks'], affiliation: 'Interdyne',
+    art: ['##### ', 'E...##', 'A....W', '#....W', '#I...#', '.....W', '.....W', 'E...##', '##### '],
+  },
+  {
+    id: 'solfed_cutter', name: 'SolFed Cutter', className: 'Customs cutter', manufacturer: 'SolFed Navy Yards',
+    description: 'A customs interceptor with a boarding corridor through its spine.',
+    engines: { count: 2, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 4,
+    fittings: ['Helm console', 'Nav console', 'Brig cell', 'Wall charger'], affiliation: 'SolFed',
+    art: [' #########    ', '  EW....###   ', '###.....####WW', 'A.A.....A....W', '#.#...#A##...W', 'W.#####..#...W', '###......###WW', '  EW.I...##   ', '.#########    '],
+  },
+  {
+    id: 'solfed_patrol', name: 'SolFed Patrol', className: 'Patrol frigate', manufacturer: 'SolFed Navy Yards',
+    description: 'The cutter\'s bigger sibling, with a third engine and a forward observation bay.',
+    engines: { count: 3, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 5,
+    fittings: ['Helm console', 'Nav console', 'Observation bay'], affiliation: 'SolFed',
+    art: ['    ..####### ', '    #A#.A...##', '#####..W#.....', 'EW..#...W.....', 'EW..A...W.....', 'EWI.#...W.....', '#####..W#.....', '    #A#.A...##', '    ..####### '],
+  },
+  {
+    id: 'tarkon_driver', name: 'Tarkon Driver', className: 'Mining barge', manufacturer: 'Tarkon Industries',
+    description: 'A long-haul mining barge with twin side bays and a rear processing deck. The largest hull on the lot.',
+    engines: { count: 4, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 2, airlocks: 10,
+    fittings: ['Helm console', 'Ore processing', 'Mining lockers', 'Bunks'], affiliation: 'Tarkon',
+    art: ['   #WWWW#   ', '#  WW...W  #', '##A#....#A##', '#..#....#..#', '#..A....A..#', '#..#....#..#', '####WAAW####', ' WW......WW ', ' WW......WW ', ' #W......W# ', '#####AA#####', '#.......I..#', '#..........#', '#..........#', '#..#....#..#', '#EE##AA##EE#'],
+  },
+  {
+    id: 'blackmarket_burst', name: 'Burst', className: 'Smuggler', manufacturer: 'Unregistered',
+    description: 'A four-engine smuggler with a hidden hold and no questions asked.',
+    engines: { count: 4, type: 'HNT thruster' }, injectors: 1, apcs: 1, smes: 1, airlocks: 4,
+    fittings: ['Helm console', 'Hidden hold'], affiliation: 'Syndicate',
+    art: [' #W#W#   ', '##...#WW#', '#....W..W', '.....W..#', '.....#..#', '.....##A#', '........A', '#.......#', '#A#I...##', '#.#WWWW# ', '#A#EEEE# '],
+  },
+];
+
+const roundTo = (v, step) => Math.round(v / step) * step;
+const credits = (n) => `${Math.round(n).toLocaleString('en-US')} cr`;
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function hullCells(art) {
+  const width = Math.max(...art.map((r) => r.length));
+  const cells = [];
+  for (const row of art) for (const ch of row.padEnd(width, ' ')) cells.push(ch === ' ' ? null : ch);
+  return { width, height: art.length, cells };
+}
+
+const listedFor = (entry, affiliation) => !entry.affiliation || entry.affiliation === affiliation;
+
+/** @returns {Hull} */
+function hullData(entry) {
+  const { width, height, cells } = hullCells(entry.art);
+  const tiles = cells.filter(Boolean).length;
+  const hull = roundTo(2500 + tiles * 45 + entry.engines.count * 600, 50);
+  const salvage = roundTo(hull * 0.6, 10);
+  return {
+    id: entry.id, name: entry.name, className: entry.className, manufacturer: entry.manufacturer, description: entry.description,
+    width, height, tiles, cells,
+    engines: entry.engines, injectors: entry.injectors, apcs: entry.apcs, smes: entry.smes, airlocks: entry.airlocks,
+    fittings: entry.fittings,
+    price: { hull, registration: REGISTRATION_FEE, insurance: roundTo(salvage * INSURANCE_SALVAGE_MULTIPLIER, 10) },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Stand-in for the native renderer. In game this is generate_hull_minimap fed
+// the template's turfs; here a canvas paints the same glyphs at the same
+// px_per_tile the DLL would pick (floor(256 / longest side)).
+// ---------------------------------------------------------------------------
+const MINIMAP_MAX_PX = 256;
+const renderCache = {};
+function nativeRender(hull) {
+  if (renderCache[hull.id]) return renderCache[hull.id];
+  const ppt = Math.max(1, Math.floor(MINIMAP_MAX_PX / Math.max(hull.width, hull.height)));
+  const canvas = document.createElement('canvas');
+  canvas.width = hull.width * ppt;
+  canvas.height = hull.height * ppt;
+  const g = canvas.getContext('2d');
+  const at = (i) => [(i % hull.width) * ppt, Math.floor(i / hull.width) * ppt];
+  const floor = (x, y) => {
+    g.fillStyle = '#8b929e'; g.fillRect(x, y, ppt, ppt);
+    g.fillStyle = '#767d89'; g.fillRect(x, y, ppt, 1); g.fillRect(x, y, 1, ppt);
+  };
+  hull.cells.forEach((c, i) => {
+    if (!c) return;
+    const [x, y] = at(i);
+    switch (c) {
+      case '.': floor(x, y); break;
+      case '#':
+        g.fillStyle = '#3c4351'; g.fillRect(x, y, ppt, ppt);
+        g.fillStyle = '#5a6373'; g.fillRect(x, y, ppt, Math.max(1, ppt >> 3));
+        break;
+      case 'W':
+        g.fillStyle = '#2f3540'; g.fillRect(x, y, ppt, ppt);
+        g.fillStyle = 'rgba(120, 200, 230, 0.8)'; g.fillRect(x + 2, y + 2, ppt - 4, ppt - 4);
+        break;
+      case 'A':
+        g.fillStyle = '#b38a2c'; g.fillRect(x, y, ppt, ppt);
+        g.fillStyle = '#5d4715'; g.fillRect(x + (ppt >> 1) - 1, y + 2, 2, ppt - 4);
+        break;
+      case 'E': {
+        g.fillStyle = '#474c55'; g.fillRect(x, y, ppt, ppt);
+        const glow = g.createRadialGradient(x + ppt / 2, y + ppt / 2, 1, x + ppt / 2, y + ppt / 2, ppt / 2);
+        glow.addColorStop(0, '#ffd27a'); glow.addColorStop(1, 'rgba(255, 120, 40, 0)');
+        g.fillStyle = glow; g.fillRect(x, y, ppt, ppt);
+        break;
+      }
+      case 'I':
+        floor(x, y);
+        g.fillStyle = '#4f8f7c'; g.fillRect(x + 2, y + 2, ppt - 4, ppt - 4);
+        g.fillStyle = '#9fe0c8'; g.fillRect(x + 4, y + 4, ppt - 8, 2);
+        break;
+      default:
+        throw new Error(`unhandled glyph ${c}`);
+    }
+  });
+  renderCache[hull.id] = { url: canvas.toDataURL(), pxPerTile: ppt };
+  return renderCache[hull.id];
+}
+
+// ---------------------------------------------------------------------------
+// Mock server: what the DM console holds. uiData() below is ui_data.
+// ---------------------------------------------------------------------------
+let server;
+function freshServer() {
+  return {
+    authenticated: true,
+    affiliation: 'Nanotrasen',
+    balance: 25000,
+    ledgerOnline: true,
+    registryOnline: true,
+    rendererOnline: true,
+    renderHangs: false,
+    zoneLinked: true,
+    zone: { name: 'Shipyard Pad A', width: 15, height: 15 },
+    occupant: null,
+    previews: {},
+    statusMessage: null,
+    nextRegistryId: 21,
+    garageUsed: 4,
+    garageTotal: 6,
+  };
+}
+
+// Filtered server-side: hulls outside the operator's affiliation are never sent.
+const catalog = () => CATALOG.filter((e) => listedFor(e, server.affiliation)).map(hullData);
+
+/** @returns {Data} */
+function uiData() {
+  return {
+    authenticated: server.authenticated,
+    operatorName: server.authenticated ? `${OPERATOR.name} (${OPERATOR.job})` : null,
+    affiliation: server.authenticated ? server.affiliation : null,
+    ledgerBalance: server.ledgerOnline ? server.balance : null,
+    ledgerOnline: server.ledgerOnline,
+    registryOnline: server.registryOnline,
+    hulls: server.authenticated ? catalog() : [],
+    garage: { used: server.garageUsed, total: server.garageTotal },
+    zone: {
+      linked: server.zoneLinked,
+      name: server.zoneLinked ? server.zone.name : null,
+      width: server.zoneLinked ? server.zone.width : 0,
+      height: server.zoneLinked ? server.zone.height : 0,
+      occupant: server.zoneLinked ? server.occupant : null,
+    },
+    previews: server.previews,
+    statusMessage: server.statusMessage,
+  };
+}
+
+// The DM side answers this by rendering asynchronously and pushing ui_data again.
+function requestPreview(id) {
+  const existing = server.previews[id];
+  if (existing && existing.state !== 'none') return;
+  if (!server.rendererOnline) { server.previews[id] = { state: 'failed', url: null, pxPerTile: 0 }; return; }
+  server.previews[id] = { state: 'pending', url: null, pxPerTile: 0 };
+  if (server.renderHangs) return;
+  setTimeout(() => {
+    const hull = catalog().find((h) => h.id === id);
+    const out = nativeRender(hull);
+    server.previews[id] = { state: 'ready', url: out.url, pxPerTile: out.pxPerTile };
+    render();
+  }, 700);
+}
+
+// ---------------------------------------------------------------------------
+// ui_act. Server actions mutate `server`; client-only state lives in `ui`
+// (useState in the TSX: selection, delivery, name, focus, overlay, modal).
+// ---------------------------------------------------------------------------
+const UI_DEFAULTS = () => ({
+  confirm: null, index: 0, delivery: 'PAD', name: '', focus: 'hull', systems: false, modal: null,
+  page: 'HANGAR', filter: '', fitsOnly: false, sort: { key: 'price', desc: false },
+});
+const ui = { ...UI_DEFAULTS(), preset: 'browse', overrides: {}, frame: 980, frameHeight: 660 };
+
+/** @typedef {'HANGAR'|'CATALOG'} Page */
+/** @typedef {'name'|'className'|'size'|'tiles'|'engines'|'airlocks'|'fit'|'price'} SortKey */
+
+const DELIVERIES = ['PAD', 'GARAGE'];
+
+function deliveryLabel(delivery) {
+  switch (delivery) {
+    case 'PAD': return { letter: 'A', title: 'Land on pad', icon: 'plane-arrival' };
+    case 'GARAGE': return { letter: 'B', title: 'Send to garage', icon: 'warehouse' };
+    default: throw new Error(`unhandled delivery ${delivery}`);
+  }
+}
+
+function orderTotal(hull, delivery, insured) {
+  switch (delivery) {
+    case 'PAD': return hull.price.hull + hull.price.registration + (insured ? hull.price.insurance : 0);
+    case 'GARAGE': return hull.price.hull + hull.price.registration;
+    default: throw new Error(`unhandled delivery ${delivery}`);
+  }
+}
+
+const NAME_PATTERN = /^[A-Za-z0-9 '\-.]{3,32}$/;
+function nameProblem(name) {
+  if (!name) return null;
+  if (!NAME_PATTERN.test(name)) return 'Ship names are 3 to 32 letters, digits, spaces, apostrophes, dashes or dots.';
+  return null;
+}
+const shipName = (hull) => ui.name.trim() || hull.name;
+
+const fitsPad = (hull, zone) => (hull.width <= zone.width && hull.height <= zone.height) || (hull.height <= zone.width && hull.width <= zone.height);
+
+// Unlinked pads sort and filter as "fits": nothing is known to rule the hull out.
+const fitRank = (hull, zone) => (!zone.linked || fitsPad(hull, zone) ? 1 : 0);
+
+function sortValue(hull, key, zone) {
+  switch (key) {
+    case 'name': return hull.name.toLowerCase();
+    case 'className': return hull.className.toLowerCase();
+    case 'size': return hull.width * hull.height;
+    case 'tiles': return hull.tiles;
+    case 'engines': return hull.engines.count;
+    case 'airlocks': return hull.airlocks;
+    case 'fit': return fitRank(hull, zone);
+    case 'price': return hull.price.hull;
+    default: throw new Error(`unhandled sort key ${key}`);
+  }
+}
+
+/** Catalog order the player sees: sorted, ties broken by name. */
+function sortedHulls(data) {
+  const { key, desc } = ui.sort;
+  return [...data.hulls].sort((a, b) => {
+    const va = sortValue(a, key, data.zone);
+    const vb = sortValue(b, key, data.zone);
+    const cmp = va < vb ? -1 : va > vb ? 1 : a.name.localeCompare(b.name);
+    return desc ? -cmp : cmp;
+  });
+}
+
+function visibleHulls(data) {
+  const needle = ui.filter.trim().toLowerCase();
+  return sortedHulls(data).filter((h) => (!ui.fitsOnly || fitRank(h, data.zone))
+    && (!needle || [h.name, h.manufacturer, h.className].some((s) => s.toLowerCase().includes(needle))));
+}
+
+/** Why this delivery can never work for this hull right now, independent of money and naming. */
+function garageBlock(data) {
+  const { used, total } = data.garage;
+  return used >= total ? `Garage full (${used} / ${total} slots). Scrap a ship or clear a lost one at a Vessel Registrar first.` : null;
+}
+
+function deliveryBlock(data, hull, delivery) {
+  if (data.registryOnline && garageBlock(data)) return garageBlock(data);
+  switch (delivery) {
+    case 'PAD':
+      if (!data.registryOnline) return 'Hangar registry offline. Purchased hulls have to be registered before they fly.';
+      if (!data.zone.linked) return 'No landing pad linked. Use a multitool on a landing controller, then on this console.';
+      if (data.zone.occupant) return `${data.zone.name} is occupied by ${data.zone.occupant}. Clear the pad first.`;
+      if (!fitsPad(hull, data.zone)) return `${hull.width} x ${hull.height} does not fit ${data.zone.name} (${data.zone.width} x ${data.zone.height}).`;
+      return null;
+    case 'GARAGE':
+      if (!data.registryOnline) return 'Hangar registry offline. The garage is unavailable.';
+      return null;
+    default:
+      throw new Error(`unhandled delivery ${delivery}`);
+  }
+}
+
+function purchaseBlock(data, hull, delivery, insured = false) {
+  if (!data.ledgerOnline) return 'Ledger offline. Nothing can be charged.';
+  const block = deliveryBlock(data, hull, delivery);
+  if (block) return block;
+  const bad = nameProblem(ui.name.trim());
+  if (bad) return bad;
+  const total = orderTotal(hull, delivery, insured);
+  if (data.ledgerBalance < total) return `Not enough credits. This order costs ${credits(total)}.`;
+  return null;
+}
+
+const ACTIONS = {
+  login: () => { server.authenticated = true; },
+  logout: () => { server.authenticated = false; ui.modal = null; },
+  request_preview: ({ id }) => requestPreview(id),
+  purchase: ({ id, delivery, insured, name }) => {
+    const data = uiData();
+    const hull = catalog().find((h) => h.id === id);
+    ui.modal = null;
+    if (!hull || purchaseBlock(data, hull, delivery, insured)) return;
+    const total = orderTotal(hull, delivery, insured);
+    server.balance -= total;
+    server.garageUsed += 1;
+    switch (delivery) {
+      case 'PAD':
+        server.occupant = name;
+        server.statusMessage = { kind: 'good', text: `${name} is landing on ${server.zone.name}, ${insured ? 'insured' : 'uninsured'}. Registered as #${server.nextRegistryId++}. Charged ${credits(total)}.` };
+        break;
+      case 'GARAGE':
+        server.statusMessage = { kind: 'good', text: `${name} was filed to your garage as #${server.nextRegistryId++}, revision 1. Retrieve it at a Vessel Registrar. Charged ${credits(total)}.` };
+        break;
+      default:
+        throw new Error(`unhandled delivery ${delivery}`);
+    }
+  },
+  // Client-only below this line.
+  select_hull: ({ id }) => { ui.index = Math.max(0, catalog().findIndex((h) => h.id === id)); ui.focus = 'hull'; },
+  set_delivery: ({ delivery }) => { ui.delivery = delivery; },
+  set_focus: ({ focus }) => { ui.focus = ui.focus === focus ? 'hull' : focus; },
+  toggle_systems: () => { ui.systems = !ui.systems; },
+  set_page: ({ page }) => { ui.page = page; },
+  set_sort: ({ key }) => { ui.sort = ui.sort.key === key ? { key, desc: !ui.sort.desc } : { key, desc: false }; },
+  toggle_fits: () => { ui.fitsOnly = !ui.fitsOnly; },
+  clear_filter: () => { ui.filter = ''; ui.fitsOnly = false; },
+  open_checkout: () => { ui.modal = { checkout: true, insured: null }; },
+  select_coverage: ({ insured }) => { if (ui.modal?.checkout) ui.modal.insured = insured; },
+  close_modal: () => { ui.modal = null; },
+};
+
+const SERVER_ACTIONS = ['login', 'logout', 'purchase'];
+
+function act(name, args = {}) {
+  if (SERVER_ACTIONS.includes(name)) server.statusMessage = null;
+  const fn = ACTIONS[name] || PROTO_ACTIONS[name];
+  if (fn) fn(args);
+  render();
+}
+
+// ---------------------------------------------------------------------------
+// tgui-core markup helpers (from the registrar prototype, plus Input).
+// Class names match tgui-core's output.
+// ---------------------------------------------------------------------------
+const CSS_COLORS = ['average', 'bad', 'black', 'blue', 'brown', 'good', 'green', 'grey', 'label', 'olive', 'orange', 'pink', 'purple', 'red', 'teal', 'transparent', 'violet', 'white', 'yellow'];
+const cx = (...c) => c.filter(Boolean).join(' ');
+const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const half = (v) => `${v * 0.5}rem`;
+const unit = (v) => (typeof v === 'number' ? `${v}rem` : typeof v === 'string' && v.endsWith('px') ? `${parseFloat(v) / 12}rem` : v);
+const colorClass = (c) => (c && CSS_COLORS.includes(c) ? `color-${c}` : '');
+const colorStyle = (c) => (c && !CSS_COLORS.includes(c) ? `color:${c};` : '');
+function boxStyle(p) {
+  let st = '';
+  for (const [k, css] of [['mt', 'margin-top'], ['mb', 'margin-bottom'], ['ml', 'margin-left'], ['mr', 'margin-right']]) {
+    if (p[k] !== undefined) st += `${css}:${half(p[k])};`;
+  }
+  if (p.bold) st += 'font-weight:bold;';
+  if (p.italic) st += 'font-style:italic;';
+  if (p.inline) st += 'display:inline-block;';
+  if (p.nowrap) st += 'white-space:nowrap;';
+  if (p.fontSize) st += `font-size:${unit(p.fontSize)};`;
+  if (p.opacity !== undefined) st += `opacity:${p.opacity};`;
+  if (p.width) st += `width:${unit(p.width)};`;
+  if (p.height) st += `height:${unit(p.height)};`;
+  if (p.textAlign) st += `text-align:${p.textAlign};`;
+  return st + colorStyle(p.color) + (p.style || '');
+}
+const actAttr = (name, args) => (name ? ` data-act="${name}" data-args='${esc(JSON.stringify(args || {}))}'` : '');
+const tipAttr = (tip) => (tip ? ` data-tooltip="${esc(tip)}"` : '');
+
+function Box(children, p = {}) {
+  const tag = p.as || 'div';
+  return `<${tag} class="${cx(colorClass(p.color), p.className)}" style="${boxStyle(p)}"${tipAttr(p.tooltip)}${actAttr(p.act, p.args)}>${children}</${tag}>`;
+}
+
+function Icon(name, p = {}) {
+  const regular = /-o$/.test(name);
+  const base = name.replace(/-o$/, '');
+  let st = colorStyle(p.color);
+  if (p.size) st += `font-size:${p.size * 100}%;`;
+  return `<i class="${cx('Icon', regular ? 'far' : 'fas', `fa-${base}`, p.spin && 'fa-spin', p.className, colorClass(p.color))}" style="${st}"></i>`;
+}
+
+function Button(p) {
+  const content = p.content || '';
+  const attrs = p.disabled ? '' : actAttr(p.act, p.args);
+  return `<div class="${cx('Button', p.fluid && 'Button--fluid', p.disabled && 'Button--disabled',
+    p.selected && 'Button--selected', p.compact && 'Button--compact', !content && 'Button--empty',
+    p.icon && 'Button--hasIcon', `Button--color--${p.color || 'default'}`, p.className)}"${attrs}${tipAttr(p.tooltip)} style="${boxStyle(p)}" tabindex="${p.disabled ? '' : 0}">`
+    + `<div class="Button__content">${p.icon ? Icon(p.icon, { className: 'Button--icon' }) : ''}${content}</div></div>`;
+}
+
+function Input(p) {
+  return `<div class="${cx('Input', p.className)}" style="${boxStyle(p)}">`
+    + `<input class="Input__input" data-input="${p.input}" value="${esc(p.value || '')}" placeholder="${esc(p.placeholder || '')}" maxlength="${p.maxLength || 64}"></div>`;
+}
+
+function LabeledList(items) {
+  const rows = items.filter(Boolean).map((it) => {
+    const label = typeof it.label === 'string' ? `${it.label}:` : it.label;
+    return `<tr class="LabeledList__row"><td class="${cx('LabeledList__cell', 'LabeledList__label--nowrap', colorClass(it.labelColor || 'label'))}" style="vertical-align:baseline">${label}</td>`
+      + `<td class="${cx('LabeledList__cell', colorClass(it.color))}" style="vertical-align:baseline;${colorStyle(it.color)}"${it.buttons ? '' : ' colspan="2"'}>${it.content}</td>`
+      + (it.buttons ? `<td class="LabeledList__cell LabeledList__buttons">${it.buttons}</td>` : '')
+      + '</tr>';
+  });
+  return `<table class="LabeledList"><tbody>${rows.join('')}</tbody></table>`;
+}
+
+function NoticeBox(children, p = {}) {
+  return `<div class="${cx('NoticeBox', p.color && `NoticeBox--color--${p.color}`, p.info && 'NoticeBox--type--info', p.success && 'NoticeBox--type--success', p.danger && 'NoticeBox--type--danger')}" style="${boxStyle(p)}">${children}</div>`;
+}
+
+function Section(p, children) {
+  const hasTitle = p.title || p.buttons;
+  return `<div class="${cx('Section', p.fill && 'Section--fill', p.scrollable && 'Section--scrollable')}" style="${boxStyle(p)}">`
+    + (hasTitle ? `<div class="Section__title"><span class="Section__titleText">${p.title || ''}</span><div class="Section__buttons">${p.buttons || ''}</div></div>` : '')
+    + `<div class="Section__rest"><div class="Section__content"${p.scrollKey ? ` data-scroll="${p.scrollKey}"` : ''}>${children}</div></div></div>`;
+}
+
+function Stack(p, items) {
+  const dir = p.vertical ? 'column' : 'row';
+  return `<div class="${cx('Stack', p.fill && 'Stack--fill', p.vertical ? 'Stack--vertical' : 'Stack--horizontal', 'Flex')}" style="flex-direction:${dir};${p.align ? `align-items:${p.align};` : ''}${boxStyle(p)}">${items.filter(Boolean).join('')}</div>`;
+}
+function StackItem(p, children) {
+  const basis = p.basis ?? (p.grow !== undefined ? 0 : undefined);
+  let st = '';
+  if (basis !== undefined) st += `flex-basis:${unit(basis)};`;
+  if (p.grow !== undefined) st += `flex-grow:${Number(p.grow)};`;
+  if (p.align) st += `align-self:${p.align};`;
+  if (p.minWidth) st += 'min-width:0;';
+  return `<div class="Stack__item" style="${st}${boxStyle(p)}">${children}</div>`;
+}
+
+function Table(rows) {
+  return `<table class="Table"><tbody>${rows.join('')}</tbody></table>`;
+}
+function TableRow(cells, p = {}) {
+  return `<tr class="${cx('Table__row', p.header && 'Table__row--header', p.className)}"${actAttr(p.act, p.args)}>${cells.join('')}</tr>`;
+}
+function TableCell(children, p = {}) {
+  return `<td class="${cx('Table__cell', p.collapsing && 'Table__cell--collapsing', p.header && 'Table__cell--header', colorClass(p.color), p.className)}" style="${boxStyle(p)}"${actAttr(p.act, p.args)}${tipAttr(p.tooltip)}>${children}</td>`;
+}
+
+function Divider(p = {}) {
+  return `<div class="${cx('Divider', p.vertical ? 'Divider--vertical' : 'Divider--horizontal')}"></div>`;
+}
+
+function Modal(p, children) {
+  return `<div class="Dimmer Modal__dimmer"><div class="Dimmer__inner"><div class="Modal" style="${boxStyle(p)}">${children}</div></div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Views. One function per future TSX component.
+// ---------------------------------------------------------------------------
+function LoginView(data) {
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({ grow: 1 }, ''),
+    StackItem({ align: 'center' }, Icon('space-shuttle', { size: 9, color: 'good' })),
+    StackItem({ align: 'center' }, Box('Nanotrasen Vessel Broker', { color: 'good', fontSize: '18px', bold: true, mt: 2 })),
+    StackItem({ align: 'center' }, Box('Swipe an ID to browse hulls and buy one against your ledger.', { color: 'label', italic: true })),
+    !data.ledgerOnline && StackItem({ align: 'center' }, NoticeBox('Ledger offline. Browsing works; purchases do not.', { danger: true, mt: 1 })),
+    StackItem({ align: 'center' }, Button({ icon: 'sign-in-alt', content: 'Log in', act: 'login', mt: 1 })),
+    StackItem({ grow: 1 }, ''),
+  ]);
+}
+
+// Top bar: FTL's ship name plate, hull cycler, and the big start button.
+function BalanceBox(data) {
+  const balance = data.ledgerOnline
+    ? Box(credits(data.ledgerBalance), { bold: true, inline: true })
+    : Box(`${Icon('exclamation-triangle')} Ledger offline`, { color: 'average', inline: true });
+  return Stack({ vertical: true, align: 'flex-end' }, [
+    StackItem({}, Box(esc(data.operatorName), { color: 'label', fontSize: '0.9em' })),
+    StackItem({}, balance),
+  ]);
+}
+
+function HeaderBar(data, hull) {
+  const block = purchaseBlock(data, hull, ui.delivery);
+  // Arrows walk the catalog's current sort order, so both views agree on "next".
+  const order = sortedHulls(data);
+  const at = order.findIndex((h) => h.id === hull.id);
+  const step = (d) => order[(at + d + order.length) % order.length].id;
+  const cycler = Stack({ align: 'center' }, [
+    StackItem({}, Button({ icon: 'chevron-left', act: 'select_hull', args: { id: step(-1) }, tooltip: 'Previous hull' })),
+    StackItem({}, Button({ icon: 'list', content: `Catalog ${at + 1} / ${order.length}`, act: 'set_page', args: { page: 'CATALOG' }, tooltip: 'Browse, filter and sort every hull' })),
+    StackItem({}, Button({ icon: 'chevron-right', act: 'select_hull', args: { id: step(1) }, tooltip: 'Next hull' })),
+  ]);
+  const naming = Stack({ vertical: true }, [
+    StackItem({}, Box('Vessel name', { color: 'label', fontSize: '0.9em' })),
+    StackItem({}, Input({ input: 'name', value: ui.name, placeholder: hull.name, maxLength: 32, className: 'broker-name' })),
+  ]);
+  const nameBad = nameProblem(ui.name.trim());
+  return Section({},
+    Stack({ align: 'center' }, [
+      StackItem({ basis: '16rem' }, naming + (nameBad ? Box(`${Icon('exclamation-circle')} ${esc(nameBad)}`, { color: 'bad', fontSize: '0.85em' }) : '')),
+      StackItem({ ml: 1 }, cycler),
+      StackItem({ grow: 1 }, ''),
+      StackItem({}, BalanceBox(data)),
+      StackItem({}, Button({ icon: 'sign-out-alt', act: 'logout', tooltip: 'Log out', color: 'transparent' })),
+      StackItem({ ml: 1 }, Button({
+        className: 'broker-buy', icon: 'shopping-cart', content: 'PURCHASE', color: 'good',
+        act: 'open_checkout', disabled: !!block, tooltip: block,
+      })),
+    ])
+    + (data.statusMessage ? NoticeBox(esc(data.statusMessage.text), { success: data.statusMessage.kind === 'good', danger: data.statusMessage.kind === 'bad', mt: 1 }) : ''));
+}
+
+// Left column: FTL's layout A / B picker, then the pad and requirement checks.
+function HullPanel(data, hull) {
+  const deliveries = DELIVERIES.map((d) => {
+    const label = deliveryLabel(d);
+    const block = deliveryBlock(data, hull, d);
+    const price = hull.price.hull + hull.price.registration;
+    return Button({
+      fluid: true, mb: 0.5, selected: ui.delivery === d, act: 'set_delivery', args: { delivery: d }, tooltip: block,
+      color: block ? 'transparent' : undefined,
+      content: `<span class="broker-letter">${label.letter}</span>${Icon(label.icon)} ${label.title}`
+        + Box(block ? Box(`${Icon('ban')} Unavailable`, { color: 'bad', inline: true }) : credits(price), { color: 'label', fontSize: '0.9em', ml: 3.3 }),
+    });
+  }).join('');
+  const zone = data.zone;
+  const padLine = !zone.linked
+    ? Box(`${Icon('unlink')} No pad linked`, { color: 'average' })
+    : Box(`${esc(zone.name)} ${Box(`${zone.width} x ${zone.height}`, { inline: true, color: 'label' })}`)
+      + (zone.occupant ? Box(`${Icon('plane')} Occupied by ${esc(zone.occupant)}`, { color: 'average' }) : Box(`${Icon('check')} Clear`, { color: 'good' }));
+  const req = (ok, icon, text) => Box(`${Icon(ok ? icon : 'lock', { color: ok ? 'good' : 'bad' })} ${text}`, { mb: 0.25, color: ok ? undefined : 'label' });
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({}, Section({ title: 'Delivery', className: 'broker-delivery' }, `<div class="broker-delivery">${deliveries}</div>`)),
+    StackItem({}, Section({ title: 'Landing pad' }, padLine)),
+    StackItem({ grow: 1 }, Section({ title: 'Requirements', fill: true },
+      req(data.ledgerOnline, 'wallet', data.ledgerOnline ? 'Ledger online' : 'Ledger offline')
+      + req(data.registryOnline, 'database', data.registryOnline ? 'Registry online' : 'Registry offline')
+      + req(!garageBlock(data), 'warehouse', `Garage slot free (${data.garage.used} / ${data.garage.total} used)`)
+      + req(zone.linked, 'link', zone.linked ? 'Pad linked' : 'No pad linked')
+      + req(!zone.linked || fitsPad(hull, zone), 'ruler-combined', zone.linked ? `Fits ${esc(zone.name)}` : 'Pad fit unknown'))),
+  ]);
+}
+
+function glyphClass(g) {
+  switch (g) {
+    case '.': return 'floor';
+    case '#': return 'wall';
+    case 'W': return 'window';
+    case 'A': return 'airlock';
+    case 'E': return 'engine';
+    case 'I': return 'injector';
+    default: throw new Error(`unhandled glyph ${g}`);
+  }
+}
+const GLYPH_NAMES = { '.': 'Deck', '#': 'Hull wall', W: 'Window', A: 'Airlock', E: 'Engine', I: 'Fuel injector' };
+const FOCUS_GLYPHS = { engines: 'E', injector: 'I', airlocks: 'A' };
+
+function SchematicPreview(hull) {
+  const cells = hull.cells.map((g, i) => {
+    if (!g) return '<div></div>';
+    const x = (i % hull.width) + 1;
+    const y = Math.floor(i / hull.width) + 1;
+    return `<div class="broker-tile--${glyphClass(g)}"${tipAttr(`Tile ${x}, ${y}\n${GLYPH_NAMES[g]}`)}></div>`;
+  });
+  return `<div class="broker-grid">${cells.join('')}</div>`;
+}
+
+function SystemMarkers(hull) {
+  const focusGlyph = FOCUS_GLYPHS[ui.focus];
+  if (!ui.systems && !focusGlyph) return '';
+  const kinds = { E: 'engine', I: 'injector', A: 'airlock' };
+  return hull.cells.map((g, i) => {
+    if (!kinds[g] || (!ui.systems && g !== focusGlyph)) return '';
+    const x = i % hull.width;
+    const y = Math.floor(i / hull.width);
+    const style = `left:${(x / hull.width) * 100}%;top:${(y / hull.height) * 100}%;width:${100 / hull.width}%;height:${100 / hull.height}%`;
+    return `<div class="${cx('broker-marker', `broker-marker--${kinds[g]}`, g === focusGlyph && 'broker-marker--focus')}" style="${style}"></div>`;
+  }).join('');
+}
+
+function PreviewBadge(preview) {
+  switch (preview.state) {
+    case 'ready': return Box(`${Icon('image')} Render`, { color: 'good', fontSize: '0.85em' });
+    case 'pending': return Box(`${Icon('circle-notch', { spin: true })} Rendering, showing schematic`, { color: 'label', fontSize: '0.85em' });
+    case 'failed': return Box(`${Icon('drafting-compass')} Schematic`, { color: 'label', fontSize: '0.85em', tooltip: 'The hull renderer is unavailable, so this is the tile schematic.' });
+    case 'none': return '';
+    default: throw new Error(`unhandled preview state ${preview.state}`);
+  }
+}
+
+function SystemPips(hull) {
+  const groups = [
+    { focus: 'engines', icon: 'fire', color: 'orange', label: 'Engines', count: hull.engines.count },
+    { focus: 'injector', icon: 'burn', color: 'teal', label: 'Injector', count: hull.injectors },
+    { focus: 'power', icon: 'bolt', color: 'yellow', label: 'Power', count: hull.apcs + hull.smes },
+    { focus: 'airlocks', icon: 'door-open', color: 'average', label: 'Airlocks', count: hull.airlocks },
+  ];
+  const max = 8;
+  return `<div class="broker-systems">${groups.map((g) => {
+    const pips = Array.from({ length: Math.min(max, Math.max(g.count, 1)) }, (_, i) => `<div class="${cx('broker-pip', i >= g.count && 'broker-pip--off')}"></div>`).reverse().join('');
+    return `<div class="${cx('broker-system', ui.focus === g.focus && 'broker-system--selected')}"${actAttr('set_focus', { focus: g.focus })}${tipAttr(`${g.label}: ${g.count}`)}>`
+      + pips + Box(Icon(g.icon, { color: g.color }), { mt: 0.25 }) + Box(`${g.count > max ? `${max}+` : g.count}`, { fontSize: '0.85em', color: 'label' }) + '</div>';
+  }).join('')}</div>`;
+}
+
+// Centre: the hangar bay. Compact drops the interactive systems for the catalog preview.
+function Hangar(data, hull, compact = false) {
+  const preview = data.previews[hull.id] || { state: 'none', url: null, pxPerTile: 0 };
+  const body = preview.state === 'ready'
+    ? `<img class="broker-ship__img" src="${preview.url}" alt="${esc(hull.name)}">`
+    : SchematicPreview(hull);
+  const toggle = compact ? '' : `<div class="broker-nose">${Button({ icon: ui.systems ? 'eye-slash' : 'crosshairs', content: ui.systems ? 'Hide systems' : 'Show systems', compact: true, color: 'transparent', act: 'toggle_systems' })}</div>`;
+  return `<div class="broker-hangar">`
+    + `<div class="broker-stage">`
+    + `<div class="broker-badge">${PreviewBadge(preview)}</div>`
+    + toggle
+    + `<div class="broker-ship" style="--w:${hull.width};--h:${hull.height}">${body}${compact ? '' : SystemMarkers(hull)}</div>`
+    + `</div>`
+    + (compact ? '' : Box(`${Box(esc(hull.name), { bold: true, inline: true, fontSize: '1.2em' })} ${Box(`${esc(hull.className)} · ${esc(hull.manufacturer)}`, { inline: true, color: 'label' })}`, { textAlign: 'center', mb: 0.25 })
+      + SystemPips(hull))
+    + `</div>`;
+}
+
+// Right column: FTL's weapon readout, driven by whatever is focused.
+function DetailPanel(data, hull) {
+  const zone = data.zone;
+  const fit = !zone.linked ? Box('No pad linked', { color: 'label', inline: true })
+    : fitsPad(hull, zone) ? Box(`Fits ${esc(zone.name)}`, { color: 'good', inline: true })
+      : Box(`Too large for ${esc(zone.name)}`, { color: 'bad', inline: true });
+  let title;
+  let body;
+  const focus = ui.focus;
+  if (focus === 'hull') {
+    title = esc(hull.name);
+    body = LabeledList([
+      { label: 'Class', content: esc(hull.className) },
+      { label: 'Maker', content: esc(hull.manufacturer) },
+      { label: 'Footprint', content: `${hull.width} x ${hull.height}` },
+      { label: 'Hull tiles', content: hull.tiles },
+      { label: 'Engines', content: `${hull.engines.count} x ${esc(hull.engines.type)}` },
+      { label: 'Airlocks', content: hull.airlocks },
+      { label: 'Pad', content: fit },
+    ]) + Box(esc(hull.description), { mt: 1, color: 'label' });
+  } else if (focus === 'engines') {
+    title = `${esc(hull.engines.type)} x ${hull.engines.count}`;
+    body = LabeledList([
+      { label: 'Count', content: hull.engines.count },
+      { label: 'Feed', content: 'Piped from the fuel injector' },
+      { label: 'Parts', content: 'Tier 1, upgradeable' },
+    ]) + Box('Hall-nuclear-thermal thrusters. More engines on the same injector means more thrust, and a faster drain on the chamber.', { mt: 1, color: 'label' });
+  } else if (focus === 'injector') {
+    title = 'Fuel injector';
+    body = LabeledList([
+      { label: 'Count', content: hull.injectors },
+      { label: 'Chamber', content: 'Delivered empty' },
+      { label: 'Feeds', content: plural(hull.engines.count, 'engine') },
+    ]) + Box('Processes piped or tanked propellant for every linked thruster. Delivered hulls arrive with an empty chamber: fuel before you fly.', { mt: 1, color: 'label' });
+  } else if (focus === 'power') {
+    title = 'Power';
+    body = LabeledList([
+      { label: 'APCs', content: hull.apcs },
+      { label: 'SMES', content: hull.smes },
+      { label: 'Cells', content: 'Charged on delivery' },
+    ]) + Box('One area controller per deck section, backed by an on-board SMES.', { mt: 1, color: 'label' });
+  } else if (focus === 'airlocks') {
+    title = 'Airlocks';
+    body = LabeledList([
+      { label: 'Count', content: hull.airlocks },
+      { label: 'Access', content: 'Keyed to the buyer' },
+    ]) + Box('Every hatch ships unlocked for the registered owner. Program access later at the helm.', { mt: 1, color: 'label' });
+  } else if (focus.startsWith('fitting:')) {
+    title = esc(focus.slice(8));
+    body = Box('Installed at purchase and included in the hull price.', { color: 'label' });
+  } else {
+    throw new Error(`unhandled focus ${focus}`);
+  }
+  const back = focus === 'hull' ? '' : Button({ icon: 'arrow-left', compact: true, color: 'transparent', act: 'set_focus', args: { focus: 'hull' }, tooltip: 'Back to hull overview' });
+  return Section({ title, fill: true, scrollable: true, scrollKey: 'detail', buttons: back }, body);
+}
+
+// Bottom row: FTL crew / weapons / drones / augments.
+function SlotRow(title, cards, slots) {
+  const filled = cards.map((c) => `<div class="${cx('broker-card', ui.focus === c.focus && 'broker-card--selected')}"${actAttr('set_focus', { focus: c.focus })}${tipAttr(c.tip)}>`
+    + Icon(c.icon, { color: c.color, size: 1.3 })
+    + `<div>${Box(esc(c.label), { fontSize: '0.9em' })}${c.count !== undefined ? Box(`x${c.count}`, { className: 'broker-count' }) : ''}</div></div>`);
+  const empty = Array.from({ length: Math.max(0, slots - cards.length) }, () => '<div class="broker-card broker-card--empty">Not installed</div>');
+  return Section({ title, fill: true }, `<div class="broker-slots">${filled.concat(empty).join('')}</div>`);
+}
+
+function SlotBar(hull) {
+  return Stack({ fill: true }, [
+    StackItem({ grow: 1, minWidth: true }, SlotRow('Propulsion', [
+      { focus: 'engines', icon: 'fire', color: 'orange', label: hull.engines.type, count: hull.engines.count },
+      { focus: 'injector', icon: 'burn', color: 'teal', label: 'Fuel injector', count: hull.injectors },
+    ], 2)),
+    StackItem({ grow: 1, minWidth: true }, SlotRow('Power', [
+      { focus: 'power', icon: 'plug', color: 'yellow', label: 'APC', count: hull.apcs },
+      { focus: 'power', icon: 'car-battery', color: 'yellow', label: 'SMES', count: hull.smes },
+    ], 2)),
+    StackItem({ grow: 2, minWidth: true }, SlotRow('Fittings', hull.fittings.map((f) => ({ focus: `fitting:${f}`, icon: 'cube', color: 'good', label: f })), 4)),
+  ]);
+}
+
+function HangarPage(data, hull) {
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({}, HeaderBar(data, hull)),
+    StackItem({ grow: 1 }, Stack({ fill: true }, [
+      StackItem({ basis: '15rem' }, HullPanel(data, hull)),
+      StackItem({ grow: 1, minWidth: true }, Hangar(data, hull)),
+      StackItem({ basis: '17rem' }, DetailPanel(data, hull)),
+    ])),
+    StackItem({ basis: '6.5rem' }, SlotBar(hull)),
+  ]);
+}
+
+const CATALOG_COLUMNS = [
+  { key: 'name', label: 'Hull' },
+  { key: 'className', label: 'Class' },
+  { key: 'size', label: 'Size', tip: 'Footprint, sorted by area', collapsing: true },
+  { key: 'tiles', label: 'Tiles', collapsing: true, align: 'right' },
+  { key: 'engines', label: Icon('fire'), tip: 'Engines', collapsing: true, align: 'center' },
+  { key: 'airlocks', label: Icon('door-open'), tip: 'Airlocks', collapsing: true, align: 'center' },
+  { key: 'fit', label: 'Pad', tip: 'Fits the linked landing pad', collapsing: true, align: 'center' },
+  { key: 'price', label: 'Price', collapsing: true, align: 'right' },
+];
+
+function catalogCell(data, h, key) {
+  switch (key) {
+    case 'name': return `${Box(esc(h.name), { bold: true })}${Box(esc(h.manufacturer), { color: 'label', fontSize: '0.85em' })}`;
+    case 'className': return esc(h.className);
+    case 'size': return `${h.width} x ${h.height}`;
+    case 'tiles': return h.tiles;
+    case 'engines': return h.engines.count;
+    case 'airlocks': return h.airlocks;
+    case 'fit':
+      if (!data.zone.linked) return Box('-', { color: 'label', tooltip: 'No pad linked' });
+      return fitsPad(h, data.zone) ? Icon('check', { color: 'good' }) : Icon('times', { color: 'bad' });
+    case 'price': return credits(h.price.hull);
+    default: throw new Error(`unhandled column ${key}`);
+  }
+}
+
+// Full-window swap, like the character prefs species page: pick on the left, Go Back returns.
+function CatalogPage(data, hull) {
+  const rows = visibleHulls(data);
+  const sortIcon = (key) => (ui.sort.key !== key ? Icon('sort', { color: 'label' }) : Icon(ui.sort.desc ? 'sort-down' : 'sort-up'));
+  const header = TableRow(CATALOG_COLUMNS.map((c) => TableCell(`${c.label} ${sortIcon(c.key)}`, {
+    header: true, collapsing: c.collapsing, textAlign: c.align, className: 'broker-sort',
+    act: 'set_sort', args: { key: c.key }, tooltip: c.tip ? `${c.tip}. Click to sort.` : 'Click to sort.',
+  })), { header: true });
+  const body = rows.map((h) => TableRow(CATALOG_COLUMNS.map((c) => TableCell(catalogCell(data, h, c.key), {
+    collapsing: c.collapsing, textAlign: c.align, nowrap: c.key === 'size' || c.key === 'price',
+  })), { className: cx('broker-row', h.id === hull.id && 'broker-row--selected'), act: 'select_hull', args: { id: h.id } }));
+  const empty = NoticeBox(`No hulls match. ${Button({ content: 'Clear filters', compact: true, act: 'clear_filter' })}`, { info: true });
+  const hidden = data.hulls.length - rows.length;
+  const toolbar = Stack({ align: 'center' }, [
+    StackItem({}, Button({ icon: 'arrow-left', content: 'Go Back', act: 'set_page', args: { page: 'HANGAR' } })),
+    StackItem({ grow: 1, ml: 1 }, Input({ input: 'filter', value: ui.filter, placeholder: 'Filter by name, maker or class', className: 'broker-name' })),
+    StackItem({}, Button({
+      icon: ui.fitsOnly ? 'check-square' : 'square-o', content: 'Fits pad', selected: ui.fitsOnly, act: 'toggle_fits',
+      disabled: !data.zone.linked, tooltip: data.zone.linked ? `Only hulls that fit ${data.zone.name}` : 'No landing pad linked',
+    })),
+    StackItem({ ml: 1 }, BalanceBox(data)),
+  ]);
+  const summary = Section({ title: esc(hull.name), buttons: Button({ icon: 'warehouse', content: 'View in hangar', color: 'good', act: 'set_page', args: { page: 'HANGAR' } }), fill: true, scrollable: true, scrollKey: 'catalog-detail' },
+    LabeledList([
+      { label: 'Class', content: esc(hull.className) },
+      { label: 'Maker', content: esc(hull.manufacturer) },
+      { label: 'Engines', content: `${hull.engines.count} x ${esc(hull.engines.type)}` },
+      { label: 'Price', content: credits(hull.price.hull) },
+    ]) + Box(esc(hull.description), { mt: 1, color: 'label' }));
+  return Stack({ fill: true, vertical: true }, [
+    StackItem({}, Section({}, toolbar)),
+    StackItem({ grow: 1 }, Stack({ fill: true }, [
+      StackItem({ grow: 3, minWidth: true }, Section({
+        title: `Hull catalog ${Box(hidden ? `${rows.length} of ${data.hulls.length}` : `${rows.length}`, { inline: true, color: 'label' })}`,
+        fill: true, scrollable: true, scrollKey: 'catalog',
+      }, rows.length ? Table([header, ...body]) : empty)),
+      StackItem({ grow: 2, minWidth: true }, Stack({ fill: true, vertical: true }, [
+        StackItem({ grow: 1 }, Hangar(data, hull, true)),
+        StackItem({ basis: '11rem' }, summary),
+      ])),
+    ])),
+  ]);
+}
+
+function Interface(data) {
+  if (!data.authenticated) return LoginView(data);
+  const hull = data.hulls[ui.index];
+  switch (ui.page) {
+    case 'HANGAR': return HangarPage(data, hull);
+    case 'CATALOG': return CatalogPage(data, hull);
+    default: throw new Error(`unhandled page ${ui.page}`);
+  }
+}
+
+function CheckoutModal(data) {
+  const hull = data.hulls[ui.index];
+  const delivery = ui.delivery;
+  const name = shipName(hull);
+  const label = deliveryLabel(delivery);
+  const pick = ui.modal.insured;
+  const lines = [];
+  switch (delivery) {
+    case 'PAD':
+    case 'GARAGE':
+      lines.push({ label: 'Hull', content: credits(hull.price.hull) }, { label: 'Registration', content: credits(hull.price.registration) });
+      break;
+    default:
+      throw new Error(`unhandled delivery ${delivery}`);
+  }
+  const needsCoverage = delivery === 'PAD';
+  const insured = needsCoverage ? pick : false;
+  const option = (value) => {
+    const total = orderTotal(hull, delivery, value);
+    const short = data.ledgerBalance < total;
+    const rule = value
+      ? `If ${esc(name)} is lost, the garage restores it as delivered. Costs ${credits(hull.price.insurance)} on top.`
+      : 'If the hull is lost, or not filed at a registrar before the shift ends, it is gone for good.';
+    return Section({ title: `${Icon(value ? 'shield-alt' : 'exclamation-triangle', { color: value ? 'good' : 'average' })} ${value ? 'Insured' : 'Uninsured'}`, fill: true },
+      LabeledList([
+        { label: 'Total', content: Box(credits(total), { bold: true, inline: true }) },
+        { label: 'Balance after', content: credits(data.ledgerBalance - total), color: short ? 'bad' : undefined },
+      ])
+      + Button({
+        fluid: true, textAlign: 'center', icon: pick === value ? 'check-square' : 'square-o', content: pick === value ? 'Selected' : 'Select', mt: 1,
+        selected: pick === value, act: 'select_coverage', args: { insured: value }, disabled: short, tooltip: short ? `Not enough credits. You need ${credits(total)}.` : null,
+      })
+      + Box(rule, { color: 'label', mt: 1 }));
+  };
+  const ready = !needsCoverage || pick !== null;
+  const total = ready ? orderTotal(hull, delivery, !!insured) : null;
+  const block = ready ? purchaseBlock(data, hull, delivery, !!insured) : 'Choose coverage first.';
+  const outcome = {
+    PAD: `${esc(name)} lands on ${esc(data.zone.name)} as soon as you confirm, registered to you.`,
+    GARAGE: `${esc(name)} is filed straight to your garage as revision 1. Retrieve it at any Vessel Registrar, and choose coverage then.`,
+  }[delivery];
+  return Modal({ width: '38rem' },
+    Section({ title: `Purchase ${esc(name)}`, buttons: Button({ icon: 'times', color: 'transparent', act: 'close_modal' }) },
+      LabeledList([
+        { label: 'Hull', content: `${esc(hull.name)} ${Box(`${hull.width} x ${hull.height}, ${hull.tiles} tiles`, { inline: true, color: 'label' })}` },
+        { label: 'Delivery', content: `${Icon(label.icon)} ${label.title}` },
+        { label: 'Garage slot', content: `Takes 1 of ${data.garage.total - data.garage.used} free (${data.garage.used} / ${data.garage.total} used)` },
+        ...lines,
+        !needsCoverage && { label: 'Total', content: Box(credits(total), { bold: true, inline: true }) },
+        { label: 'Ledger balance', content: credits(data.ledgerBalance) },
+      ])
+      + Box(outcome, { color: 'label', mt: 1 })
+      + (needsCoverage ? Stack({ mt: 1 }, [StackItem({ grow: 1 }, option(true)), StackItem({}, Divider({ vertical: true })), StackItem({ grow: 1 }, option(false))]) : '')
+      + Stack({ mt: 1 }, [
+        StackItem({ grow: 1 }, ''),
+        StackItem({}, Button({ content: 'Cancel', act: 'close_modal' })),
+        StackItem({}, ConfirmButton({
+          icon: 'shopping-cart', color: 'good', content: total === null ? 'Purchase' : `Purchase for ${credits(total)}`,
+          act: 'purchase', args: { id: hull.id, delivery, insured: !!insured, name }, disabled: !!block, tooltip: block,
+        })),
+      ])));
+}
+
+// Button.Confirm keeps its "Confirm?" state locally, same as tgui-core.
+function ConfirmButton(p) {
+  const armed = ui.confirm === p.act;
+  if (p.disabled) return Button(p);
+  return Button({ ...p, act: '__confirm', args: { act: p.act, args: p.args }, color: armed ? 'bad' : p.color, icon: armed ? 'check' : p.icon, content: armed ? 'Confirm?' : p.content });
+}
+
+function WindowFrame(title, content, overlay) {
+  return `<div class="theme-nanotrasen"><div class="Layout Window">`
+    + `<div class="TitleBar"><div class="TitleBar__dragZone"></div>${Icon('eye', { className: 'TitleBar__statusIcon', color: 'good' })}`
+    + `<div class="TitleBar__title">${title}</div>`
+    + `<div class="TitleBar__close">${Icon('times', { className: 'TitleBar__close--icon' })}</div></div>`
+    + `<div class="Window__rest"><div class="Layout__content Window__content">`
+    + `<div class="Window__contentPadding">${content}</div></div>${overlay || ''}</div></div></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Prototype-only controls: world events and scenarios the UI cannot cause.
+// ---------------------------------------------------------------------------
+const indexOf = (id) => catalog().findIndex((h) => h.id === id);
+
+const PRESETS = {
+  logged_out: { group: 'Session', label: 'Logged out', apply: (sv) => { sv.authenticated = false; } },
+  ledger_offline: { group: 'Session', label: 'Ledger offline', apply: (sv) => { sv.ledgerOnline = false; } },
+  registry_offline: { group: 'Session', label: 'Registry offline', apply: (sv) => { sv.registryOnline = false; } },
+  browse: { group: 'Browse', label: 'NT Personal', apply: () => {} },
+  open_hull: { group: 'Browse', label: 'Space Ikea', apply: () => { ui.index = indexOf('ikea_sma'); } },
+  solfed: { group: 'Browse', label: 'SolFed captain (4 hulls)', apply: (sv) => { sv.affiliation = 'SolFed'; ui.index = indexOf('solfed_patrol'); } },
+  syndicate: { group: 'Browse', label: 'Syndicate captain (Burst)', apply: (sv) => { sv.affiliation = 'Syndicate'; ui.index = indexOf('blackmarket_burst'); } },
+  large: { group: 'Browse', label: 'Largest hull (Tarkon)', apply: (sv) => { sv.affiliation = 'Tarkon'; ui.index = indexOf('tarkon_driver'); } },
+  systems: { group: 'Browse', label: 'Systems overlay', apply: () => { ui.systems = true; } },
+  engine_focus: { group: 'Browse', label: 'Engines focused', apply: () => { ui.focus = 'engines'; } },
+  catalog: { group: 'Catalog', label: 'Catalog page', apply: () => { ui.page = 'CATALOG'; } },
+  catalog_solfed: { group: 'Catalog', label: 'SolFed, filtered "sol"', apply: (sv) => { sv.affiliation = 'SolFed'; ui.page = 'CATALOG'; ui.filter = 'sol'; } },
+  catalog_price: { group: 'Catalog', label: 'Sorted by price, high first', apply: (sv) => { sv.affiliation = 'SolFed'; ui.page = 'CATALOG'; ui.sort = { key: 'price', desc: true }; } },
+  catalog_fits: { group: 'Catalog', label: 'Fits a 9 x 9 pad', apply: (sv) => { sv.affiliation = 'Interdyne'; sv.zone = { ...sv.zone, width: 9, height: 9 }; ui.page = 'CATALOG'; ui.fitsOnly = true; } },
+  catalog_empty: { group: 'Catalog', label: 'No matches', apply: () => { ui.page = 'CATALOG'; ui.filter = 'zzz'; } },
+  render_pending: { group: 'Preview', label: 'Render pending', apply: (sv) => { sv.renderHangs = true; } },
+  renderer_offline: { group: 'Preview', label: 'Renderer offline (schematic)', apply: (sv) => { sv.rendererOnline = false; } },
+  no_pad: { group: 'Pad', label: 'No pad linked', apply: (sv) => { sv.zoneLinked = false; } },
+  pad_occupied: { group: 'Pad', label: 'Pad occupied', apply: (sv) => { sv.occupant = "Wren's Folly"; } },
+  pad_small: { group: 'Pad', label: 'Pad too small (9 x 9)', apply: (sv) => { sv.zone = { ...sv.zone, width: 9, height: 9 }; } },
+  garage_full: { group: 'Checkout', label: 'Garage full', apply: (sv) => { sv.garageUsed = sv.garageTotal; } },
+  bad_name: { group: 'Checkout', label: 'Invalid name', apply: () => { ui.name = 'x'; } },
+  low_balance: { group: 'Checkout', label: 'Low balance', apply: (sv) => { sv.balance = 1500; } },
+  checkout_pad: { group: 'Checkout', label: 'Checkout: pad', apply: () => { ui.name = 'Kestrel'; ui.modal = { checkout: true, insured: null }; } },
+  checkout_garage: { group: 'Checkout', label: 'Checkout: garage', apply: () => { ui.name = 'Kestrel'; ui.delivery = 'GARAGE'; ui.modal = { checkout: true, insured: null }; } },
+  bought_pad: { group: 'Outcome', label: 'Bought, landed on pad', apply: () => { ui.name = 'Kestrel'; ACTIONS.purchase({ id: 'nt_personal', delivery: 'PAD', insured: true, name: 'Kestrel' }); } },
+  bought_garage: { group: 'Outcome', label: 'Bought, sent to garage', apply: () => { ACTIONS.purchase({ id: 'nt_personal', delivery: 'GARAGE', insured: false, name: 'Kestrel' }); } },
+};
+
+const TOGGLES = {
+  ledger: (v) => { server.ledgerOnline = v === '1'; },
+  reg: (v) => { server.registryOnline = v === '1'; },
+  renderer: (v) => { server.rendererOnline = v === '1'; server.previews = {}; },
+  hang: (v) => { server.renderHangs = v === '1'; server.previews = {}; },
+  zone: (v) => { server.zoneLinked = v === '1'; },
+  occupied: (v) => { server.occupant = v === '1' ? "Wren's Folly" : null; },
+  padsize: (v) => { server.zone = { ...server.zone, width: Number(v), height: Number(v) }; },
+  balance: (v) => { server.balance = Number(v); },
+  aff: (v) => { server.affiliation = v; },
+  garage: (v) => { server.garageUsed = Number(v); },
+  frame: (v) => { ui.frame = Number(v); },
+  height: (v) => { ui.frameHeight = Number(v); },
+};
+
+function applyPreset(id) {
+  server = freshServer();
+  // Window size is a viewing choice, so it survives scenario switches.
+  const overrides = Object.fromEntries(Object.entries(ui.overrides).filter(([k]) => k === 'frame' || k === 'height'));
+  Object.assign(ui, UI_DEFAULTS(), { preset: id, overrides });
+  PRESETS[id].apply(server);
+}
+
+function setOverride(key, value) {
+  ui.overrides[key] = String(value);
+  TOGGLES[key](String(value));
+}
+
+const PROTO_ACTIONS = {
+  p_preset: ({ id }) => applyPreset(id),
+  p_toggle: ({ key, value }) => setOverride(key, value),
+  p_reset: () => applyPreset('browse'),
+};
+
+function ProtoStrip() {
+  const b = (content, act, args, extra = {}) => Button({ content, act, args, ...extra });
+  const groups = {};
+  for (const [id, p] of Object.entries(PRESETS)) {
+    (groups[p.group] ||= []).push(b(p.label, 'p_preset', { id }, { selected: ui.preset === id }));
+  }
+  const flag = (label, key, on) => b(label, 'p_toggle', { key, value: on ? 0 : 1 }, { selected: on, icon: on ? 'check-square' : 'square-o' });
+  const choice = (key, values, current, fmt = String) => values.map((v) => b(fmt(v), 'p_toggle', { key, value: v }, { selected: current === v })).join('');
+  return `<h4>Prototype controls (scenarios, not part of the UI)</h4>`
+    + '<p>The "Render" preview is a canvas stand-in for generate_hull_minimap at the DLL\'s px_per_tile. Renderer online off is the missing DLL/SO case: schematic only. The hull list is filtered by operator affiliation server-side, so restricted hulls never reach the client.</p>'
+    + Object.entries(groups).map(([g, btns]) => `<div class="row"><span class="lbl">${g}</span>${btns.join('')}</div>`).join('')
+    + `<div class="row"><span class="lbl">World state</span>`
+    + flag('Ledger online', 'ledger', server.ledgerOnline) + flag('Registry online', 'reg', server.registryOnline)
+    + flag('Renderer online', 'renderer', server.rendererOnline) + flag('Render hangs', 'hang', server.renderHangs)
+    + flag('Pad linked', 'zone', server.zoneLinked) + flag('Pad occupied', 'occupied', !!server.occupant) + '</div>'
+    + `<div class="row"><span class="lbl">Pad size</span>${choice('padsize', [9, 15, 20], server.zone.width, (v) => `${v} x ${v}`)}</div>`
+    + `<div class="row"><span class="lbl">Operator affiliation</span>${choice('aff', ['Nanotrasen', 'SolFed', 'Interdyne', 'Tarkon', 'Syndicate'], server.affiliation)}</div>`
+    + `<div class="row"><span class="lbl">Garage slots used (of 6)</span>${choice('garage', [0, 4, 6, 7], server.garageUsed)}</div>`
+    + `<div class="row"><span class="lbl">Ledger balance</span>${choice('balance', [0, 1500, 8000, 25000], server.balance, credits)}</div>`
+    + `<div class="row"><span class="lbl">Window width</span>${choice('frame', [980, 800], ui.frame, (v) => `${v} px`)}</div>`
+    + `<div class="row"><span class="lbl">Window height</span>${choice('height', [660, 820], ui.frameHeight, (v) => `${v} px`)}</div>`
+    + `<div class="row">${b('Reset', 'p_reset', {}, { icon: 'undo' })}</div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering, input, deep links
+// ---------------------------------------------------------------------------
+const root = document.getElementById('root');
+const frame = document.getElementById('frame');
+const proto = document.getElementById('proto');
+const tooltip = document.getElementById('proto-tooltip');
+
+function writeHash() {
+  const h = new URLSearchParams({ preset: ui.preset, ...ui.overrides });
+  history.replaceState(null, '', `#${h}`);
+}
+
+function overlay(data) {
+  if (!data.authenticated || !ui.modal) return '';
+  if (ui.modal.checkout) return CheckoutModal(data);
+  return '';
+}
+
+function render() {
+  const scroll = {};
+  root.querySelectorAll('[data-scroll]').forEach((el) => { scroll[el.dataset.scroll] = el.scrollTop; });
+  frame.style.width = `${ui.frame}px`;
+  frame.style.height = `${ui.frameHeight}px`;
+  const data = uiData();
+  ui.index = Math.min(ui.index, Math.max(0, data.hulls.length - 1));
+  // The TSX does this in an effect keyed on the selected hull.
+  if (data.authenticated) requestPreview(data.hulls[ui.index].id);
+  const fresh = uiData();
+  root.innerHTML = WindowFrame('Vessel Broker', Interface(fresh), overlay(fresh));
+  root.querySelectorAll('[data-scroll]').forEach((el) => { el.scrollTop = scroll[el.dataset.scroll] || 0; });
+  proto.innerHTML = ProtoStrip();
+  tooltip.style.display = 'none';
+  writeHash();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) { if (ui.confirm) { ui.confirm = null; render(); } return; }
+  const name = el.dataset.act;
+  const args = JSON.parse(el.dataset.args || '{}');
+  if (name === '__confirm') {
+    if (ui.confirm === args.act) { ui.confirm = null; act(args.act, args.args); } else { ui.confirm = args.act; render(); }
+    return;
+  }
+  ui.confirm = null;
+  act(name, args);
+});
+
+// Text entry commits on change, so typing never fights a re-render.
+document.addEventListener('change', (e) => {
+  if (e.target.dataset?.input === 'name') { ui.name = e.target.value; render(); }
+});
+
+// The filter narrows as you type; innerHTML re-render drops focus, so put the caret back.
+document.addEventListener('input', (e) => {
+  if (e.target.dataset?.input !== 'filter') return;
+  const caret = e.target.selectionStart;
+  ui.filter = e.target.value;
+  render();
+  const next = root.querySelector('[data-input="filter"]');
+  if (next) { next.focus(); next.setSelectionRange(caret, caret); }
+});
+
+document.addEventListener('pointerover', (e) => {
+  const el = e.target.closest('[data-tooltip]');
+  if (!el) { tooltip.style.display = 'none'; return; }
+  tooltip.textContent = el.dataset.tooltip;
+  tooltip.style.display = 'block';
+  const r = el.getBoundingClientRect();
+  const t = tooltip.getBoundingClientRect();
+  tooltip.style.left = `${Math.min(r.left, window.innerWidth - t.width - 8)}px`;
+  tooltip.style.top = `${r.bottom + t.height + 6 > window.innerHeight ? r.top - t.height - 6 : r.bottom + 6}px`;
+});
+
+// e.g. #preset=solfed&renderer=0&frame=800
+function applyHash() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  applyPreset(PRESETS[h.get('preset')] ? h.get('preset') : 'browse');
+  for (const [key, value] of h) {
+    if (TOGGLES[key]) setOverride(key, value);
+  }
+}
+
+applyHash();
+render();
+</script>
+</body>
+</html>

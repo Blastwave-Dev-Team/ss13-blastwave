@@ -24,6 +24,24 @@
 /datum/map_template/shuttle/overmap
 	who_can_purchase = null // admin / manipulator only
 
+/datum/map_template/shuttle/overmap/dispatch(list/turfs, register = TRUE)
+	. = ..()
+	fit_loaded_ports_to_hull(turfs)
+
+/**
+ * Size each freshly loaded mobile port to its own shuttle areas, the way
+ * `create_shuttle()` sizes a fabricated hull.
+ *
+ * `dispatch()` sizes a port from its template, which is the whole map with any
+ * space padding around the hull, and a padded port is refused by landing zones
+ * the hull itself fits.
+ */
+/proc/fit_loaded_ports_to_hull(list/turfs)
+	for(var/turf/place as anything in turfs)
+		for(var/obj/docking_port/mobile/port in place)
+			if(length(port.shuttle_areas))
+				port.calculate_docking_port_information()
+
 /datum/map_template/shuttle/overmap/frigate
 	port_id = "overmap_frigate" // parent; skipped (no suffix)
 
@@ -59,6 +77,14 @@
 	description = "Nanotrasen personal transport frigate."
 	admin_notes = "Whiteship-style personal ship, comes with the Shipyard Fabricator crate."
 
+/datum/map_template/shuttle/overmap/frigate/nt_casevac
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "nt"
+	suffix = "casevac"
+	name = "NT CASEVAC"
+	description = "Nanotrasen casualty evacuation frigate."
+	admin_notes = "Medical recovery ship."
+
 /datum/map_template/shuttle/overmap/frigate/interdyne_cargo
 	prefix = "_maps/shuttles/overmap/frigates/"
 	port_id = "interdyne"
@@ -82,6 +108,14 @@
 	name = "Black Market Burst"
 	description = "A small cargo jump freighter, popular among smugglers who enjoy both the cargo space and speed."
 	admin_notes = "Spawned by ruin-relative automapper on blackmarket. Returns via blackmarket_burst_blackmarket / Market LZ."
+
+/datum/map_template/shuttle/overmap/frigate/okb_8492_pikhta
+	prefix = "_maps/shuttles/overmap/frigates/"
+	port_id = "okb_8492"
+	suffix = "pikhta"
+	name = "OKB-8492 Pikhta-class"
+	description = "Surplus Soviet Navy engineering ship."
+	admin_notes = "Soviet Navy engineering ship. Fragile and basic, but can be refit to fit many people."
 
 /// Not a vessel anyone is meant to fly: a hull carrying one of every mapped
 /// object family the shipyard claims to build, so a single build exercises
@@ -129,6 +163,13 @@
 	port_direction = SOUTH
 	area_type = /area/shuttle/overmap/frigate
 
+/obj/docking_port/mobile/overmap/frigate/nt_casevac
+	name = "NT CASEVAC"
+	shuttle_id = "nt_casevac"
+	preferred_direction = NORTH
+	port_direction = WEST
+	area_type = /area/shuttle/overmap/frigate/nt_casevac
+
 /obj/docking_port/mobile/overmap/frigate/interdyne_cargo
 	name = "Interdyne Cargo"
 	shuttle_id = "interdyne_cargo"
@@ -150,3 +191,9 @@
 	port_direction = EAST
 	area_type = /area/shuttle/overmap/frigate/blackmarket_burst
 
+/obj/docking_port/mobile/overmap/frigate/okb_8492_pikhta
+	name = "Pikhta-class"
+	shuttle_id = "okb_8492_pikhta"
+	preferred_direction = WEST
+	port_direction = EAST
+	area_type = /area/shuttle/overmap/frigate

@@ -648,7 +648,7 @@ SUBSYSTEM_DEF(overmap)
 	return TRUE
 
 /// Try to place a stationary encounter dock at `dir`, centered in a rectangle
-/// inside `reserve` (same placement math as helm landing-zone ports).
+/// inside `reserve` (`overmap_centered_dock_turf()`, as landing-zone ports use).
 /datum/controller/subsystem/overmap/proc/try_place_encounter_dock(
 	datum/turf_reservation/reserve,
 	turf/zone_origin,
@@ -660,21 +660,7 @@ SUBSYSTEM_DEF(overmap)
 )
 	if(!reserve || !zone_origin || !shuttle || !shuttle_id || !dir)
 		return null
-	var/list/bounds = shuttle.return_coords()
-	var/bbox_x1 = min(bounds[1], bounds[3])
-	var/bbox_y1 = min(bounds[2], bounds[4])
-	var/ship_w = max(bounds[1], bounds[3]) - bbox_x1 + 1
-	var/ship_h = max(bounds[2], bounds[4]) - bbox_y1 + 1
-	if(ship_w > zone_width || ship_h > zone_height)
-		return null
-	var/port_off_x = shuttle.x - bbox_x1
-	var/port_off_y = shuttle.y - bbox_y1
-	var/dest_x = zone_origin.x + round((zone_width - ship_w) / 2) + port_off_x
-	var/dest_y = zone_origin.y + round((zone_height - ship_h) / 2) + port_off_y
-	var/turf/dest = locate(dest_x, dest_y, zone_origin.z)
-	if(!dest)
-		return null
-	var/obj/docking_port/stationary/port = new(dest)
+	var/obj/docking_port/stationary/port = new(zone_origin)
 	port.dir = dir
 	port.name = "\improper Uncharted Space"
 	port.shuttle_id = shuttle_id
@@ -682,6 +668,11 @@ SUBSYSTEM_DEF(overmap)
 	port.height = shuttle.height
 	port.dwidth = shuttle.dwidth
 	port.dheight = shuttle.dheight
+	var/turf/dest = overmap_centered_dock_turf(port, zone_origin, zone_width, zone_height)
+	if(!dest)
+		qdel(port)
+		return null
+	port.forceMove(dest)
 	if(!dock_port_fits_reservation(reserve, port) || !shuttle.check_dock(port, TRUE) || !dock_footprint_is_clear(port))
 		qdel(port)
 		return null

@@ -58,3 +58,45 @@
 	TEST_ASSERT_EQUAL(console.active_zone.dock_affiliation, OVERMAP_AFFILIATION_DS2, "Managed zone should inherit DS2 lock.")
 	TEST_ASSERT_EQUAL(console.active_zone.zone_name, "Test Hangar", "Managed zone should inherit the controller label.")
 	TEST_ASSERT(QDELETED(leader), "Link helpers should qdel after resolving.")
+
+/// Registrar, broker, and fabricator sharing the group's link_id get pointed at its controller.
+/datum/unit_test/overmap_mapping_helpers/landing_zone_link_shipyard
+
+/datum/unit_test/overmap_mapping_helpers/landing_zone_link_shipyard/Run()
+	var/turf/origin = run_loc_floor_bottom_left
+	var/turf/south_east = locate(origin.x + 3, origin.y, origin.z)
+	var/turf/north_west = locate(origin.x, origin.y + 3, origin.z)
+	var/turf/north_east = locate(origin.x + 3, origin.y + 3, origin.z)
+	var/turf/console_turf = locate(origin.x + 1, origin.y + 1, origin.z)
+	var/turf/registrar_turf = locate(origin.x + 2, origin.y + 1, origin.z)
+	var/turf/broker_turf = locate(origin.x + 1, origin.y + 2, origin.z)
+	var/turf/fabricator_turf = locate(origin.x + 2, origin.y + 2, origin.z)
+	if(isnull(south_east) || isnull(north_west) || isnull(north_east) || isnull(console_turf))
+		TEST_FAIL("Test room is too small to place a 4x4 landing zone rectangle.")
+		return
+
+	var/obj/machinery/computer/landing_controller/console = allocate(/obj/machinery/computer/landing_controller, console_turf)
+	console.admin_force_operational = TRUE
+	var/obj/machinery/computer/ship_registrar/registrar = allocate(/obj/machinery/computer/ship_registrar, registrar_turf)
+	var/obj/machinery/computer/ship_broker/broker = allocate(/obj/machinery/computer/ship_broker, broker_turf)
+	var/obj/machinery/shipyard_fabricator/fabricator = allocate(/obj/machinery/shipyard_fabricator, fabricator_turf)
+	allocate(/obj/machinery/landing_corner, origin)
+	allocate(/obj/machinery/landing_corner, south_east)
+	allocate(/obj/machinery/landing_corner, north_west)
+	allocate(/obj/machinery/landing_corner, north_east)
+
+	var/list/link_vars = list("link_id" = "unit_test_lz_shipyard")
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, registrar_turf, registrar, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, broker_turf, broker, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, fabricator_turf, fabricator, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, console_turf, console, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, origin, console, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, south_east, console, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, north_west, console, link_vars)
+	allocate(/obj/effect/mapping_helpers/landing_zone/link, north_east, console, link_vars)
+
+	TEST_ASSERT(!QDELETED(console.active_zone), "Linked corners should create a managed landing zone.")
+	TEST_ASSERT_EQUAL(registrar.session.linked_controller?.resolve(), console, "Registrar on a link helper should bind to the group's controller.")
+	TEST_ASSERT_EQUAL(broker.session.linked_controller?.resolve(), console, "Broker on a link helper should bind to the group's controller.")
+	TEST_ASSERT_EQUAL(fabricator.linked_controller?.resolve(), console, "Fabricator on a link helper should bind to the group's controller.")
+	TEST_ASSERT_EQUAL(registrar.session.active_zone(), console.active_zone, "Registrar should see the controller's managed zone.")

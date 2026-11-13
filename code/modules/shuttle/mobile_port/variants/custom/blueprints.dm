@@ -163,7 +163,7 @@
 /obj/item/shuttle_blueprints/proc/christen_check(obj/item/reagent_containers/cup/glass/bottle/source, atom/attacked, mob/living/user)
 	SIGNAL_HANDLER
 	var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
-	if(!istype(shuttle))
+	if(!istype(shuttle, /obj/docking_port/mobile)) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: if(!istype(shuttle))
 		return
 	if(!iswallturf(attacked))
 		return
@@ -340,7 +340,7 @@
 	var/data = list()
 	var/turf/current_turf = get_turf(user)
 	var/obj/docking_port/mobile/custom/linked_shuttle = shuttle_ref?.resolve()
-	var/linked_to_shuttle = istype(linked_shuttle)
+	var/linked_to_shuttle = istype(linked_shuttle, /obj/docking_port/mobile) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: var/linked_to_shuttle = istype(linked_shuttle)
 	var/on_shuttle_frame = HAS_TRAIT(current_turf, TRAIT_SHUTTLE_CONSTRUCTION_TURF)
 	var/datum/shuttle_frame/frame = GLOB.shuttle_frames_by_turf[current_turf]
 	data["linkedShuttle"] = linked_to_shuttle && shuttle_ref.reference
@@ -448,7 +448,7 @@
 /obj/item/shuttle_blueprints/interact_with_atom(atom/interacting_with, mob/living/user, list/modifiers)
 	. = ..()
 	var/obj/docking_port/mobile/custom/shuttle = shuttle_ref?.resolve()
-	if(!istype(shuttle))
+	if(!istype(shuttle, /obj/docking_port/mobile)) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: if(!istype(shuttle))
 		return
 	if(shuttle.master_blueprint?.resolve() != src)
 		return
@@ -576,7 +576,11 @@
 			if(!length(turfs))
 				balloon_alert(usr, "invalid room!")
 				return TRUE
-			var/area/shuttle/custom/new_area = new()
+			// BLASTWAVE EDIT CHANGE START - OVERMAP - a loaded hull only reclaims areas of its own area_type
+			// ORIGINAL: var/area/shuttle/custom/new_area = new()
+			var/new_area_type = istype(shuttle, /obj/docking_port/mobile/custom) ? /area/shuttle/custom : shuttle.area_type
+			var/area/shuttle/new_area = new new_area_type()
+			// BLASTWAVE EDIT CHANGE END
 			new_area.name = area_name
 			shuttle.shuttle_areas[new_area] = TRUE
 			set_turfs_to_area(turfs, new_area)

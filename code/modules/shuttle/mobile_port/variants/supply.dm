@@ -51,7 +51,7 @@ GLOBAL_LIST_INIT(blacklisted_cargo_types, typecacheof(list(
 	port_direction = EAST
 	movement_force = list("KNOCKDOWN" = 0, "THROW" = 0)
 
-/obj/docking_port/mobile/supply/register()
+/obj/docking_port/mobile/supply/register(replace = FALSE, custom = FALSE) // BLASTWAVE EDIT CHANGE - OVERMAP - ORIGINAL: /obj/docking_port/mobile/supply/register()
 	. = ..()
 	SSshuttle.supply = src
 

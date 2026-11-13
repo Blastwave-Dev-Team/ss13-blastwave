@@ -2,18 +2,29 @@
 	name = "custom shuttle"
 	shuttle_id = "custom"
 	launch_status = UNLAUNCHED
+	/* // BLASTWAVE EDIT REMOVAL START - OVERMAP - moved to /obj/docking_port/mobile
 	var/datum/weakref/master_blueprint
 	var/area/default_area
+	*/ // BLASTWAVE EDIT REMOVAL END
 	var/datum/weakref/control_console
 	var/datum/weakref/navigation_console
 
 /obj/docking_port/mobile/custom/Initialize(mapload, list/areas)
 	. = ..()
+	// BLASTWAVE EDIT ADDITION START - OVERMAP - persistent ships load player-built
+	// hulls from saved maps, where nothing is around to hand over an areas list.
+	// The frame area is then the one the port is standing in, which is what
+	// create_shuttle() merges the port's own tile into anyway.
+	if(!length(areas))
+		default_area = get_area(src)
+		return
+	// BLASTWAVE EDIT ADDITION END
 	default_area = areas[1]
 
 /obj/docking_port/mobile/custom/Destroy(force)
 	. = ..()
-	qdel(default_area)
+	// BLASTWAVE EDIT CHANGE - the area is queued for GC ahead of us, so a held ref fails its check
+	QDEL_NULL(default_area)
 
 /obj/docking_port/mobile/custom/canMove()
 	return ..() && (current_engine_power > 0)

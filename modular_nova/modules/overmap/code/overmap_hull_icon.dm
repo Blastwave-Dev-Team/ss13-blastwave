@@ -201,7 +201,7 @@
 	// live world layout rotated 180, so the nose sits at image angle
 	// (180 + front_angle); undo the ship's front angle so front-NORTH ships are
 	// unchanged and any other build orientation lands nose-south too.
-	var/front_angle = SIMPLIFY_DEGREES(dir2angle(shuttle.dir) + 180 - dir2angle(shuttle.port_direction))
+	var/front_angle = dir2angle(shuttle.get_front_dir())
 	if(front_angle)
 		hull.Turn(360 - front_angle)
 
